@@ -37,7 +37,7 @@ rust/target/
 # Symbolication related
 app.*.symbols
 
-# Obfuscation related
+# Obfuscation related\
 app.*.map.json
 
 # Android Studio build outputs
