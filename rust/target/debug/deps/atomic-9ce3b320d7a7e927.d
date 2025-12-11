@@ -1,0 +1,7 @@
+/Users/sharmila/Downloads/Nde_chat_11dec/rust/target/debug/deps/atomic-9ce3b320d7a7e927.d: /Users/sharmila/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/atomic-0.5.3/src/lib.rs /Users/sharmila/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/atomic-0.5.3/src/fallback.rs /Users/sharmila/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/atomic-0.5.3/src/ops.rs
+
+/Users/sharmila/Downloads/Nde_chat_11dec/rust/target/debug/deps/libatomic-9ce3b320d7a7e927.rmeta: /Users/sharmila/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/atomic-0.5.3/src/lib.rs /Users/sharmila/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/atomic-0.5.3/src/fallback.rs /Users/sharmila/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/atomic-0.5.3/src/ops.rs
+
+/Users/sharmila/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/atomic-0.5.3/src/lib.rs:
+/Users/sharmila/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/atomic-0.5.3/src/fallback.rs:
+/Users/sharmila/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/atomic-0.5.3/src/ops.rs:

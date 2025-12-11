@@ -1,0 +1,1 @@
+/Users/sharmila/Downloads/Nde_chat_11dec/rust/target/aarch64-linux-android/release/libbridge.so: /Users/sharmila/Downloads/Nde_chat_11dec/rust/src/api.rs /Users/sharmila/Downloads/Nde_chat_11dec/rust/src/frb_generated.rs /Users/sharmila/Downloads/Nde_chat_11dec/rust/src/lib.rs

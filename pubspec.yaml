@@ -1,0 +1,166 @@
+name: nde_email
+description: "A new Flutter project."
+# The following line prevents the package from being accidentally published to
+# pub.dev using `flutter pub publish`. This is preferred for private packages.
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+# The following defines the version and build number for your application.
+# A version number is three numbers separated by dots, like 1.2.43
+# followed by an optional build number separated by a +.
+# Both the version and the builder number may be overridden in flutter
+# build by specifying --build-name and --build-number, respectively.
+# In Android, build-name is used as versionName while build-number used as versionCode.
+# Read more about Android versioning at https://developer.android.com/studio/publish/versioning
+# In iOS, build-name is used as CFBundleShortVersionString while build-number is used as CFBundleVersion.
+# Read more about iOS versioning at
+# https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
+# In Windows, build-name is used as the major, minor, and patch parts
+# of the product and file versions while bu  ild-number is used as the build suffix.
+version: 1.0.0+2
+
+environment:
+  sdk: ^3.6.0
+
+# Dependencies specify other packages that your package needs in order to work.
+# To automatically upgrade your package dependencies to the latest versions
+# consider running `flutter pub upgrade --major-versions`. Alternatively,
+# dependencies can be manually updated by changing the version numbers below to
+# the latest version available on pub.dev. To see which dependencies have newer
+# versions available, run `flutter pub outdated`.
+dependencies:
+  flutter:
+    sdk: flutter
+
+  
+  cupertino_icons: ^1.0.8
+  flutter_animated_splash: ^0.0.10
+  flutter_bloc: ^9.0.0
+  shared_preferences: ^2.2.2
+  formz: ^0.8.0
+  intl: ^0.20.2
+  
+
+  flutter_widget_from_html: ^0.17.1
+  flutter_widget_from_html_core: ^0.17.0
+  url_launcher: ^6.3.1
+  fwfh_cached_network_image: ^0.16.0
+  fwfh_chewie: ^0.16.0
+  fwfh_just_audio: ^0.17.0
+  fwfh_svg: ^0.16.0
+  fwfh_url_launcher: ^0.16.0
+  fwfh_webview: ^0.15.4
+  open_file: ^3.5.10
+  
+  carousel_slider: ^5.0.0
+  permission_handler: ^12.0.0+1
+  flutter_contacts: ^1.1.9+2
+  google_fonts: ^6.2.1
+  photo_view: ^0.15.0
+  web_socket_channel: ^3.0.3
+  flutter_local_notifications: ^19.3.0
+  socket_io_client: ^3.1.2
+  dio: ^5.4.0 
+  cached_network_image: ^3.2.3
+  
+  flutter_launcher_icons:
+  flutter_native_splash:
+ 
+  image_picker: ^1.1.2
+#  emoji_picker:
+  lottie:
+  equatable: ^2.0.7
+  just_audio: ^0.10.5
+  video_player: ^2.9.3
+  record: ^6.0.0
+  flutter_svg: ^2.0.0
+  connectivity_plus: ^6.1.4
+  path_provider: ^2.1.2
+  flutter_cache_manager: ^3.3.1
+  file_picker: ^10.1.2
+  flutter_quill_extensions: ^11.0.0
+  flutter_quill: ^11.4.1
+  html2md: ^1.3.1
+  quill_delta: ^3.0.0-nullsafety.2 
+  html: ^0.15.4
+  flutter_html: ^3.0.0
+  objectid: ^4.0.0
+  flutter_pdfview: ^1.4.0+1
+  emoji_picker_flutter: ^3.1.0
+  flutter_downloader: ^1.12.0
+  video_thumbnail: ^0.5.3
+  chat_bubbles: ^1.6.0
+  
+  
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  hive_generator: ^2.0.1
+  # build_runner: ^2.4.15
+  flutter_slidable: ^4.0.0
+  swipe_to: ^1.0.6
+  audio_waveforms: ^1.3.0
+  flutter_sound: ^9.28.0
+  share_plus: ^11.0.0
+  flutter_floating_bottom_bar: ^1.3.0
+  webview_flutter: ^4.13.0
+  infinite_calendar_view: ^2.6.0
+  table_calendar: ^3.1.3
+  dropdown_button2: ^2.3.9
+  media_scanner: ^2.2.0
+  rrule: ^0.2.17
+  flutter_rating_bar: ^4.0.1
+  fluttertoast: ^8.2.12
+  shimmer: ^3.0.0
+  any_link_preview: ^3.0.3
+  flutter_linkify: ^6.0.0
+  flutter_chat_bubble: ^2.0.2
+  gallery_saver_plus: ^3.2.8
+  # availability_scheduling: ^1.0.1
+  # mediasfu_mediasoup_client: ^0.0.8
+  # mediasfu_mediasoup_client: ^0.0.7
+  # mediasfu_sdk: ^2.1.8
+  flutter_webrtc: ^1.1.0
+  mediasfu_mediasoup_client: ^0.0.8
+  mediasfu_sdk: ^2.1.9
+  package_info_plus: ^9.0.0
+  flutter_rust_bridge: ^2.11.1
+  ffi: ^2.1.4
+  
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+
+  flutter_lints: ^6.0.0
+  change_app_package_name: ^1.5.0
+  
+ 
+
+  
+
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/nde_logo.png"
+
+
+
+
+
+
+# For information on the generic Dart part of this file, see the
+# following page: https://dart.dev/tools/pub/pubspec
+
+# The following section is specific to Flutter packages.
+flutter:
+
+  # The following line ensures that the Material Icons font is
+  # included with your application, so that you can use the icons in
+  # the material Icons class.
+  uses-material-design: true
+
+  # To add assets to your application, add an assets section, like this:
+  assets:
+      - assets/images/
+  

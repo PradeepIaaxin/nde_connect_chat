@@ -1,0 +1,2 @@
+C:/Users/USER/Desktop/new _code/NDE_EMAIL-nde_email/NDE_EMAIL-nde_email/android/app/.cxx/Debug/25254h2z/armeabi-v7a/CMakeFiles/edit_cache.dir
+C:/Users/USER/Desktop/new _code/NDE_EMAIL-nde_email/NDE_EMAIL-nde_email/android/app/.cxx/Debug/25254h2z/armeabi-v7a/CMakeFiles/rebuild_cache.dir

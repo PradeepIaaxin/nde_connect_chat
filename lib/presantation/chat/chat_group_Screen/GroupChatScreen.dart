@@ -1,0 +1,3621 @@
+import 'dart:async';
+import 'dart:developer';
+import 'dart:io';
+import 'package:any_link_preview/any_link_preview.dart';
+import 'package:audio_waveforms/audio_waveforms.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import 'package:flutter_sound/public/flutter_sound_player.dart';
+import 'package:flutter_sound/public/flutter_sound_recorder.dart';
+
+import 'package:image_picker/image_picker.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:mime/mime.dart';
+import 'package:nde_email/presantation/chat/chat_contact_list/local_strorage.dart';
+import 'package:nde_email/presantation/chat/chat_group_Screen/api_servicer.dart';
+import 'package:nde_email/presantation/chat/chat_group_Screen/group_bloc.dart';
+import 'package:nde_email/presantation/chat/chat_group_Screen/group_event.dart';
+import 'package:nde_email/presantation/chat/chat_group_Screen/group_model.dart';
+import 'package:nde_email/presantation/chat/chat_group_Screen/group_state.dart';
+import 'package:nde_email/presantation/chat/widget/custom_appbar.dart';
+import 'package:nde_email/presantation/chat/widget/scaffold.dart';
+import 'package:nde_email/presantation/chat/widget/voicerec_ui.dart';
+import 'package:nde_email/presantation/widgets/chat_widgets/Common/group_image_ui.dart';
+import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/grp_showbottom_sheet.dart';
+import 'package:nde_email/utils/const/consts.dart';
+import 'package:nde_email/utils/datetime/date_time_utils.dart';
+import 'package:nde_email/utils/reusbale/colour_utlis.dart';
+import 'package:nde_email/utils/router/router.dart';
+import 'package:nde_email/utils/snackbar/snackbar.dart';
+import 'package:nde_email/utils/spacer/spacer.dart';
+import 'package:objectid/objectid.dart';
+import 'package:open_file/open_file.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:swipe_to/swipe_to.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../data/respiratory.dart';
+import '../../../utils/simmer_effect.dart/chat_simmerefect.dart';
+import '../../widgets/chat_widgets/messager_Wifgets/ForwardMessageScreen_widget.dart';
+import '../../widgets/chat_widgets/messager_Wifgets/buildMessageInputField_widgets.dart';
+
+import '../Socket/Socket_Service.dart';
+import 'group_media_widget.dart';
+import 'group_media_viewer.dart';
+import '../chat_private_screen/messager_Bloc/widget/VideoPlayerScreen.dart';
+import '../chat_list/chat_session_storage/chat_session.dart';
+import '../chat_list/chat_bloc.dart';
+import '../chat_list/chat_event.dart';
+
+import '../model/emoj_model.dart';
+
+class GroupChatScreen extends StatefulWidget {
+  const GroupChatScreen({
+    super.key,
+    required this.groupName,
+    required this.groupAvatarUrl,
+    this.participants,
+    required this.currentUserId,
+    required this.conversationId,
+    required this.datumId,
+    required this.grpChat,
+    required this.favorite,
+  });
+
+  final String conversationId;
+  final String currentUserId;
+  final String datumId;
+  final String groupAvatarUrl;
+  final String groupName;
+  final List<String>? participants;
+  final bool grpChat;
+  final bool favorite;
+
+  @override
+  State<GroupChatScreen> createState() => _GroupChatScreenState();
+}
+
+class _GroupChatScreenState extends State<GroupChatScreen> {
+  String currentUserId = '';
+  List<Map<String, dynamic>> dbMessages = [];
+
+  final ValueNotifier<bool> isLongPressed = ValueNotifier<bool>(false);
+
+  List<Map<String, dynamic>> messages = [];
+  List<Map<String, dynamic>> socketMessages = [];
+  final SocketService socketService = SocketService();
+
+  Duration _audioDuration = Duration.zero;
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioRecorder _audioRecorder = AudioRecorder();
+  Duration _currentDuration = Duration.zero;
+
+  int _currentPage = 1;
+
+  File? _fileUrl;
+  final FocusNode _focusNode = FocusNode();
+  late final GroupChatBloc _groupBloc;
+  bool _hasNextPage = false;
+
+  File? _imageFile;
+
+  bool _initialScrollDone = false;
+  bool _isCompleted = false;
+  bool _isDeletingMessages = false;
+  bool _isLoadingMore = false;
+  bool _isPaused = false;
+  bool _isPlaying = false;
+  bool _isRecording = false;
+  bool _isSelectionMode = false;
+
+  bool _isTyping = false;
+  int _limit = 10;
+
+  final TextEditingController _messageController = TextEditingController();
+
+  final FlutterSoundPlayer _player = FlutterSoundPlayer();
+  int _recordDuration = 0;
+  Timer? _recordTimer;
+  File? _recordedFile;
+  String? _recordedFilePath;
+  final FlutterSoundRecorder _recorder = FlutterSoundRecorder();
+  late final RecorderController _recorderController = RecorderController();
+  Timer? _recordingTimer;
+  Map<String, dynamic>? _replyMessage;
+  final ScrollController _scrollController = ScrollController();
+  final Set<String> _selectedMessageIds = {};
+  final Set<String> _selectedMessageKeys = {};
+  List<dynamic> _selectedMessages = [];
+  bool _showEmoji = false;
+  bool _showSearchAppBar = false;
+  Timer? _timer;
+  Duration _totalDuration = Duration.zero;
+  bool _permissionChecked = false;
+
+  // 👇 NEW: reaction stream + seen ids (for dedupe)
+  StreamSubscription<MessageReaction>? _reactionSubscription;
+  StreamSubscription<Map<String, dynamic>>? _messageSubscription;
+  final Set<String> _seenMessageIds = {};
+
+  // Track last loaded data to prevent overwrite
+  List<dynamic>? _lastLoadedData;
+
+  @override
+  void dispose() {
+    final unsentText = _messageController.text.trim();
+    if (unsentText.isNotEmpty) {
+      GrpLocalChatStorage.saveDraftMessage(widget.conversationId, unsentText);
+    } else {
+      GrpLocalChatStorage.clearDraftMessage(widget.conversationId);
+    }
+    _messageController.dispose();
+    _focusNode.dispose();
+    _scrollController.removeListener(_scrollListener);
+    _scrollController.dispose();
+
+    _timer?.cancel();
+    _recordingTimer?.cancel();
+    _recordTimer?.cancel();
+
+    _reactionSubscription?.cancel();
+    _messageSubscription?.cancel();
+
+    _clearSessionImagePath();
+    SocketService().disconnect();
+
+    super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    currentUserId = widget.currentUserId; // Initialize from widget
+    _initMessages();
+
+    _groupBloc = GroupChatBloc(socketService, GrpMessagerApiService());
+
+    _initializeSocket();
+    _loadCurrentUserId();
+
+    if (!_permissionChecked) {
+      _groupBloc.add(PermissionCheck(widget.datumId));
+      _permissionChecked = true;
+    }
+
+    _fetchMessages2();
+
+    _scrollController.addListener(_scrollListener);
+    _setupReactionListener();
+    _setupMessageListener();
+    // Add text change listener for draft saving
+    _messageController.addListener(() {
+      final text = _messageController.text.trim();
+      if (text.isEmpty) {
+        _clearDraft();
+      } else {
+        _saveDraft(text);
+      }
+    });
+
+    // Load draft after initialization
+    _loadDraft();
+    _loadCurrentUserName();
+  }
+
+  String currentUserName = "";
+  Future<void> _loadCurrentUserName() async {
+    final name = await UserPreferences.getUsername();
+    if (name != null) {
+      setState(() {
+        currentUserName = name;
+      });
+    }
+  }
+
+  Future<void> _openCamera() async {
+    try {
+      final XFile? file =
+          await ImagePicker().pickImage(source: ImageSource.camera);
+
+      if (file != null) {
+        final File localFile = File(file.path);
+
+        if (!localFile.existsSync()) {
+          log("  File does not exist at: ${file.path}");
+          Messenger.alert(msg: "Selected image is missing.");
+          return;
+        }
+
+        final mimeType = lookupMimeType(file.path);
+        final isImage = mimeType != null && mimeType.startsWith('image/');
+        log("📄 MIME Type: $mimeType");
+        log("🖼️ Is Image: $isImage");
+
+        final prefs = await SharedPreferences.getInstance();
+
+        if (isImage) {
+          await prefs.setString('chat_image_path', localFile.path);
+          log(" Image path saved: ${localFile.path}");
+        }
+
+        GrpShowAltDialog.grpshowOptionsDialog(context,
+            conversationId: widget.conversationId,
+            senderId: currentUserId,
+            receiverId: widget.datumId,
+            isGroupChat: true,
+            onOptionSelected: _sendMessageImage);
+
+        final message = {
+          'content': '',
+          'sender': {'_id': currentUserId},
+          'receiver': {'_id': widget.datumId},
+          'messageStatus': 'pending',
+          'time': DateTime.now().toIso8601String(),
+          'localImagePath': file.path,
+          'fileName': file.name,
+          'fileType': mimeType,
+          'imageUrl': file.path,
+          'fileUrl': null,
+        };
+
+        log("🟢 Local message metadata: $message");
+
+        setState(() {
+          socketMessages.add(message);
+        });
+
+        context.read<GroupChatBloc>().add(
+              GrpUploadFileEvent(
+                file: localFile,
+                convoId: widget.conversationId,
+                senderId: currentUserId,
+                receiverId: widget.datumId,
+                groupId: widget.datumId,
+                message: "",
+                isGroupMessage: false,
+                groupMessageId: null,
+              ),
+            );
+
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      log('  Error opening camera: $e');
+      Messenger.alert(msg: "Could not open camera.");
+    }
+  }
+
+  Future<void> startRecording() async {
+    try {
+      if (await _audioRecorder.hasPermission()) {
+        final directory = await getApplicationDocumentsDirectory();
+        final path =
+            '${directory.path}/audio_message_${DateTime.now().millisecondsSinceEpoch}.m4a';
+
+        await _audioRecorder.start(
+          const RecordConfig(encoder: AudioEncoder.aacLc),
+          path: path,
+        );
+
+        _startTimer();
+
+        setState(() {
+          _isRecording = true;
+          _recordedFilePath = path;
+        });
+      } else {
+        Messenger.alert(msg: "Microphone permission denied");
+      }
+    } catch (e) {
+      log('Error starting recording: $e');
+      setState(() => _isRecording = false);
+    }
+  }
+
+  bool isSameDay(DateTime? date1, DateTime? date2) {
+    if (date1 == null || date2 == null) return false;
+    return date1.year == date2.year &&
+        date1.month == date2.month &&
+        date1.day == date2.day;
+  }
+
+  void toggleSearchAppBar() {
+    setState(() {
+      _showSearchAppBar = !_showSearchAppBar;
+    });
+  }
+
+  /// 🔁 SOCKET CALLBACK – now also understands reaction events, like private chat
+  void onMessageReceived(Map<String, dynamic> rawData) {
+    // Step 1: Extract the actual message from the weird wrapper
+    Map<String, dynamic> messageData;
+
+    if (rawData['data'] != null) {
+      // Case 1: { "data": { ...message... } } → your log shows this
+      messageData = rawData['data'] as Map<String, dynamic>;
+    } else if (rawData is Map && rawData.values.isNotEmpty) {
+      // Case 2: The message is directly in rawData (fallback)
+      messageData = rawData;
+    } else {
+      log("Invalid message format: $rawData");
+      return;
+    }
+
+    // Step 2: Handle reactions (if backend sends event separately)
+    if (messageData['event'] == 'updated_reaction') {
+      _handleReactionUpdate(messageData['data']);
+      return;
+    }
+
+    // Step 3: Extract fields safely
+    final content = (messageData['content'] ?? '').toString().trim();
+    final imageUrl = messageData['thumbnailUrl'] ?? messageData['originalUrl'];
+    final fileUrl = messageData['originalUrl'] ?? messageData['fileUrl'];
+    final fileName = messageData['fileName'];
+    final userName = messageData['userName'] ?? 'Unknown';
+
+    if (content.isEmpty && imageUrl == null && fileUrl == null) return;
+
+    final messageId =
+        (messageData['message_id'] ?? messageData['id'])?.toString();
+    if (messageId != null && _seenMessageIds.contains(messageId)) {
+      log("Duplicate group message ignored: $messageId");
+      return;
+    }
+    if (messageId != null) _seenMessageIds.add(messageId);
+
+    final newMessage = {
+      'message_id': messageId,
+      'content': content,
+      'sender': messageData['sender'] ?? {},
+      'receiver': messageData['receiver'] ?? {},
+      'messageStatus': messageData['messageStatus'] ?? 'delivered',
+      'time': messageData['time'],
+      'imageUrl': imageUrl,
+      'fileName': fileName,
+      'userName': userName,
+      'fileUrl': fileUrl,
+      'fileType': messageData['mimeType'] ?? messageData['fileType'],
+      'isForwarded': messageData['isForwarded'] ?? false,
+      'ContentType': messageData['ContentType'] ?? 'text',
+      'isReplyMessage': messageData['isReplyMessage'] ?? false,
+      'repliedMessage': messageData['reply'] ?? messageData['repliedMessage'],
+      'reactions': messageData['reactions'] ?? [],
+    };
+
+    if (!mounted) return;
+
+    setState(() {
+      final exists = socketMessages.any((msg) =>
+          (msg['message_id'] ?? msg['id']) == newMessage['message_id']);
+
+      if (!exists) {
+        socketMessages.add(newMessage);
+        _scrollToBottom();
+        log("NEW GROUP MESSAGE ADDED: $content - $userName");
+      }
+
+      final combined = [...dbMessages, ...messages, ...socketMessages];
+      GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
+    });
+  }
+
+  void _handleReactionUpdate(dynamic reactionData) {
+    try {
+      MessageReaction? reaction;
+      if (reactionData is Map<String, dynamic>) {
+        reaction = MessageReaction.fromMap(reactionData);
+      } else if (reactionData is List &&
+          reactionData.isNotEmpty &&
+          reactionData.first is Map) {
+        reaction = MessageReaction.fromMap(
+            Map<String, dynamic>.from(reactionData.first));
+      }
+      if (reaction == null) return;
+      _updateMessageWithReaction(reaction);
+    } catch (e, st) {
+      debugPrint('❌ Group reaction update failed: $e\n$st');
+    }
+  }
+
+  /// 🔁 listen to SocketService.reactionStream (same as private)
+  void _setupReactionListener() {
+    _reactionSubscription?.cancel();
+    _reactionSubscription = _reactionSubscription =
+        socketService.reactionStream.listen((MessageReaction reaction) {
+      _updateMessageWithReaction(reaction);
+    });
+  }
+
+  /// 🔁 Listen to Message Stream
+  void _setupMessageListener() {
+    _messageSubscription?.cancel();
+    _messageSubscription =
+        socketService.messageStream.listen((Map<String, dynamic> data) {
+      log("📩 Stream received message update: $data");
+      onMessageReceived(data);
+    });
+  }
+
+  /// Actually apply reaction change to in-memory lists and save
+  void _updateMessageWithReaction(MessageReaction reaction) {
+    if (!mounted) return;
+    String normalizeId(dynamic id) => id?.toString().trim() ?? '';
+
+    bool updated = false;
+    final targetId = normalizeId(reaction.messageId);
+    log('🔍 _updateMessageWithReaction: Target ID: $targetId, Emoji: ${reaction.emoji}');
+
+    void updateReactions(List<Map<String, dynamic>> list, String listName) {
+      for (var msg in list) {
+        final msgId = normalizeId(
+            msg['message_id'] ?? msg['messageId'] ?? msg['_id'] ?? msg['id']);
+        if (msgId == targetId) {
+          log('✅ Found message in $listName. Updating reactions...');
+          List<Map<String, dynamic>> oldReactions =
+              List<Map<String, dynamic>>.from(msg['reactions'] ?? []);
+
+          // remove old reaction from same user
+          oldReactions.removeWhere((r) =>
+              normalizeId(r['user']?['_id']) == normalizeId(reaction.user.id));
+
+          if (!reaction.isRemoval) {
+            oldReactions.add({
+              'emoji': reaction.emoji,
+              'reacted_at': reaction.reactedAt.toIso8601String(),
+              'user': {
+                '_id': reaction.user.id,
+                'first_name': reaction.user.firstName,
+                'last_name': reaction.user.lastName,
+              }
+            });
+          }
+
+          msg['reactions'] = List<Map<String, dynamic>>.from(oldReactions);
+          updated = true;
+          break;
+        }
+      }
+    }
+
+    updateReactions(dbMessages, 'dbMessages');
+    updateReactions(messages, 'messages');
+    updateReactions(socketMessages, 'socketMessages');
+
+    if (updated) {
+      log('🔄 Reaction update successful. Triggering rebuild.');
+      setState(() {
+        // _reactionRebuildCounter++; // Force rebuild - Removed
+      });
+      final combined = _getCombinedMessages();
+      GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
+    } else {
+      log('⚠️ Message with ID $targetId not found in any list.');
+    }
+  }
+
+  // ------------------ Reaction Helpers ------------------
+
+  List<Map<String, dynamic>> _extractReactions(dynamic raw) {
+    final List<Map<String, dynamic>> out = [];
+
+    if (raw is! List) return out;
+
+    for (final e in raw) {
+      if (e is! Map) continue;
+      final m = Map<String, dynamic>.from(e);
+
+      final emoji = m['emoji']?.toString();
+      if (emoji == null || emoji.trim().isEmpty) continue;
+
+      String? userId = m['userId']?.toString();
+      final user = m['user'];
+
+      // user is full object
+      if ((userId == null || userId.isEmpty) && user is Map) {
+        userId = (user['_id'] ?? user['id'] ?? user['userId'])?.toString();
+      }
+
+      // user is just string id
+      if ((userId == null || userId.isEmpty) && user is String) {
+        userId = user;
+      }
+
+      if (userId == null || userId.isEmpty) {
+        userId = "unknown";
+      }
+
+      out.add({
+        'emoji': emoji,
+        'userId': userId,
+        'user': user is Map ? Map<String, dynamic>.from(user) : null,
+        'reacted_at': (m['reacted_at'] ?? m['createdAt'] ?? '').toString(),
+      });
+    }
+
+    return out;
+  }
+
+  String _normalizeMessageIdForApi(String messageId) {
+    if (messageId.isEmpty) return messageId;
+
+    if (messageId.startsWith('forward_')) {
+      final parts = messageId.split('_');
+      if (parts.length >= 3) {
+        return parts[1];
+      }
+    }
+    return messageId;
+  }
+
+  void _updateLocalReactions(String targetMessageId, String? newEmoji) {
+    if (targetMessageId.trim().isEmpty) return;
+
+    String normalizeId(dynamic id) => id?.toString().trim() ?? '';
+    final apiTargetId = _normalizeMessageIdForApi(targetMessageId);
+
+    bool changed = false;
+
+    void updateList(List<Map<String, dynamic>> list, String listName) {
+      for (int i = 0; i < list.length; i++) {
+        final msg = list[i];
+        final rawMsgId = normalizeId(
+          msg['message_id'] ?? msg['messageId'] ?? msg['id'] ?? msg['_id'],
+        );
+        final normalizedMsgId = _normalizeMessageIdForApi(rawMsgId);
+
+        // Check both exact match and normalized match
+        if (rawMsgId != targetMessageId && normalizedMsgId != apiTargetId) {
+          continue;
+        }
+
+        debugPrint(
+            "⚡ [GroupChat] Optimistic reaction update for $targetMessageId in $listName");
+
+        // Normalize existing reactions
+        final reactions = _extractReactions(msg['reactions']);
+
+        // remove my old reaction (if any)
+        reactions.removeWhere((r) {
+          final uid = (r['userId'] ?? r['user']?['_id'])?.toString();
+          return uid == currentUserId;
+        });
+
+        // add new reaction if not null/empty
+        if (newEmoji != null && newEmoji.isNotEmpty) {
+          final nameParts = currentUserName.split(" ");
+          final firstName = nameParts.length > 0 ? nameParts.first : "";
+          final lastName =
+              nameParts.length > 1 ? nameParts.sublist(1).join(" ") : "";
+
+          reactions.add({
+            'emoji': newEmoji,
+            'userId': currentUserId,
+            'user': {
+              '_id': currentUserId,
+              'first_name': firstName,
+              'last_name': lastName,
+            },
+            'reacted_at': DateTime.now().toIso8601String(),
+          });
+        }
+
+        // DEEP COPY the message map to force UI rebuild
+        final newMessageMap = Map<String, dynamic>.from(msg);
+        newMessageMap['reactions'] = reactions;
+
+        list[i] = newMessageMap; // Replace with new reference
+        changed = true;
+      }
+    }
+
+    setState(() {
+      updateList(dbMessages, "dbMessages");
+      updateList(messages, "messages");
+      updateList(socketMessages, "socketMessages");
+
+      if (changed) {
+        debugPrint(
+            "✅ [GroupChat] Reaction state updated locally. Saving to storage.");
+        // We need to ensure _getCombinedMessages will pick up the changes.
+        // Since we modified the source lists in place (with new maps), it should work.
+        final combined = _getCombinedMessages();
+        GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
+      } else {
+        debugPrint(
+            "⚠️ [GroupChat] Reaction target $targetMessageId (API: $apiTargetId) not found locally.");
+      }
+    });
+  }
+
+  void _handleReactionTap(Map<String, dynamic> message, String emoji) {
+    try {
+      String rawId = (message['message_id'] ??
+              message['messageId'] ??
+              message['id'] ??
+              message['_id'] ??
+              '')
+          .toString();
+
+      if (rawId.isEmpty) {
+        log('⚠️ Skipping reaction: message has empty id');
+        return;
+      }
+
+      final apiMessageId = _normalizeMessageIdForApi(rawId);
+
+      // normalize reactions for this message
+      final List<Map<String, dynamic>> reactions =
+          _extractReactions(message['reactions']);
+
+      int myIndex = -1;
+      String? oldEmoji;
+
+      for (var i = 0; i < reactions.length; i++) {
+        final r = reactions[i];
+        final uid = (r['userId'] ?? r['user']?['_id'])?.toString();
+        if (uid == currentUserId) {
+          myIndex = i;
+          oldEmoji = r['emoji']?.toString();
+          break;
+        }
+      }
+
+      final bool hasMyReaction = myIndex != -1;
+
+      // CASE 1: tap same emoji → remove
+      if (hasMyReaction && oldEmoji == emoji) {
+        _updateLocalReactions(rawId, null);
+
+        context.read<GroupChatBloc>().add(GroupRemoveReaction(
+              messageId: apiMessageId,
+              conversationId: widget.conversationId,
+              emoji: emoji,
+              userId: currentUserId,
+              receiverId: widget.datumId,
+            ));
+        return;
+      }
+
+      // CASE 2: change emoji
+      if (hasMyReaction && oldEmoji != emoji) {
+        _updateLocalReactions(rawId, emoji);
+
+        context.read<GroupChatBloc>().add(GroupRemoveReaction(
+              messageId: apiMessageId,
+              conversationId: widget.conversationId,
+              emoji: oldEmoji ?? '',
+              userId: currentUserId,
+              receiverId: widget.datumId,
+            ));
+
+        context.read<GroupChatBloc>().add(GroupAddReaction(
+              messageId: apiMessageId,
+              conversationId: widget.conversationId,
+              emoji: emoji,
+              userId: currentUserId,
+              receiverId: widget.datumId,
+            ));
+        return;
+      }
+
+      // CASE 3: first time reacting
+      _updateLocalReactions(rawId, emoji);
+
+      context.read<GroupChatBloc>().add(GroupAddReaction(
+            messageId: apiMessageId,
+            conversationId: widget.conversationId,
+            emoji: emoji,
+            userId: currentUserId,
+            receiverId: widget.datumId,
+          ));
+
+      // Clear selection mode after reacting
+      if (_isSelectionMode) {
+        setState(() {
+          _isSelectionMode = false;
+          _selectedMessages.clear();
+          _selectedMessageIds.clear();
+          _selectedMessageKeys.clear();
+        });
+      }
+    } catch (e, st) {
+      log('❌ Error handling reaction tap: $e\n$st');
+    }
+  }
+
+  Map<String, dynamic> normalizeMessage(dynamic rawMsg) {
+    if (rawMsg == null) return {};
+    if (rawMsg is String) return {};
+    if (rawMsg is! Map && rawMsg is! GroupMessageModel) return {};
+
+    Map<String, dynamic> message = {};
+
+    if (rawMsg is GroupMessageModel) {
+      message = rawMsg.toJson();
+    } else if (rawMsg is Map) {
+      try {
+        message = Map<String, dynamic>.from(rawMsg);
+      } catch (e) {
+        return {};
+      }
+    }
+
+    final content = message['content']?.toString().trim() ?? '';
+    final userName = message['userName'] ?? '';
+    final isForwarded = message['isForwarded'] ?? false;
+    final imageUrl = message['originalUrl'] ?? message['imageUrl'];
+    final fileUrl = message['originalUrl'] ?? message['fileUrl'];
+    final fileName = message['fileName'];
+    final fileType = message['mimeType'] ?? message['fileType'];
+    final messageId = message['message_id'] ?? message['id'];
+    final contentType = message['ContentType'] ?? message['contentType'];
+
+    final isReplyMessage = message['isReplyMessage'] ?? false;
+    final reply = message['reply'] ?? message['repliedMessage'];
+
+    final senderData = message['sender'] is Map ? message['sender'] : {};
+    final String profilePic = senderData['profile_pic_path'] ??
+        senderData['profilePic'] ??
+        senderData['avatar'] ??
+        '';
+
+    final normalizedReply = (reply != null && reply is Map<String, dynamic>)
+        ? {
+            "userId": reply["userId"] ?? reply["senderId"],
+            "id": reply["id"] ?? reply["message_id"] ?? reply["messageId"],
+            "mimeType": reply["mimeType"] ?? "",
+            "ContentType": reply["ContentType"] ?? "",
+            "replyContent": reply["content"] ?? reply["replyContent"] ?? "",
+            "replyToUser": reply["replyToUser"] ?? reply["replyToUSer"] ?? "",
+            "fileName": reply["fileName"] ?? "",
+            "first_name": reply["first_name"] ?? "",
+            "last_name": reply["last_name"] ?? "",
+            'profile_pic_path': message['sender']?['profile_pic_path'] ??
+                message['sender']?['profilePic'] ??
+                message['profile_pic_path'] ??
+                '',
+          }
+        : null;
+
+    // 🔥 NEW: Deep normalization of reactions to prevent "Unknown User"
+    final rawReactions = message['reactions'] as List? ?? [];
+    final List<Map<String, dynamic>> normalizedReactions = [];
+
+    for (var r in rawReactions) {
+      if (r is! Map) continue;
+      final reactionMap = Map<String, dynamic>.from(r);
+
+      // Fix User Data Structure
+      var userObj = reactionMap['user'];
+      String? userId = reactionMap['userId']?.toString();
+
+      // Case: user is just an ID string
+      if (userObj is String) {
+        if (userId == null || userId.isEmpty) userId = userObj;
+        userObj = {'_id': userId}; // Create stub user object
+      }
+      // Case: user is Map
+      else if (userObj is Map) {
+        if (userId == null || userId.isEmpty) {
+          userId = userObj['_id']?.toString() ??
+              userObj['id']?.toString() ??
+              userObj['userId']?.toString();
+        }
+      }
+
+      // Ensure we have a valid userId at the top level for _extractReactions
+      reactionMap['userId'] = userId;
+      reactionMap['user'] = userObj;
+
+      normalizedReactions.add(reactionMap);
+    }
+
+    return {
+      'message_id': messageId,
+      'content': content,
+      'userName': userName,
+      'sender': message['sender'],
+      'receiver': message['receiver'],
+      'messageStatus': message['messageStatus'] ?? 'delivered',
+      'time': message['time'],
+      'imageUrl': imageUrl,
+      'fileName': fileName,
+      'ContentType': contentType,
+      'fileUrl': fileUrl,
+      'fileType': fileType,
+      'isForwarded': isForwarded,
+      'isReplyMessage': isReplyMessage,
+      'repliedMessage': normalizedReply,
+      'reactions': normalizedReactions, // ✅ Use normalized list
+      'profile_pic_path': profilePic,
+    };
+  }
+
+  bool isValidUrl(String url) {
+    return url.startsWith('http://') || url.startsWith('https://');
+  }
+
+  void _showFullImage(BuildContext context, String imageUrl) {
+    log(imageUrl);
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: const EdgeInsets.all(10),
+        child: GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: InteractiveViewer(
+            panEnabled: true,
+            minScale: 0.8,
+            maxScale: 4,
+            child: imageUrl.startsWith('https')
+                ? Image.network(
+                    imageUrl,
+                    fit: BoxFit.cover,
+                    filterQuality: FilterQuality.high,
+                    errorBuilder: (context, error, stackTrace) => const Center(
+                      child: Text("Failed to load image",
+                          style: TextStyle(color: Colors.white)),
+                    ),
+                  )
+                : Image.file(
+                    File(imageUrl),
+                    fit: BoxFit.cover,
+                    filterQuality: FilterQuality.high,
+                    errorBuilder: (context, error, stackTrace) => const Center(
+                      child: Text("Failed to load image",
+                          style: TextStyle(color: Colors.white)),
+                    ),
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  IconData _getFileIcon(String? fileType) {
+    if (fileType == null) return Icons.insert_drive_file;
+
+    switch (fileType.toLowerCase()) {
+      case 'pdf':
+        return Icons.picture_as_pdf;
+      case 'doc':
+      case 'docx':
+        return Icons.description;
+      case 'xls':
+      case 'xlsx':
+        return Icons.grid_on;
+      case 'ppt':
+      case 'pptx':
+        return Icons.slideshow;
+      case 'mp3':
+      case 'wav':
+        return Icons.audiotrack;
+      case 'mp4':
+      case 'mov':
+      case 'avi':
+        return Icons.movie;
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+      case 'gif':
+        return Icons.image;
+      default:
+        return Icons.insert_drive_file;
+    }
+  }
+
+  Future<void> _initMessages() async {
+    final savedMessages =
+        await GrpLocalChatStorage.loadMessages(widget.conversationId);
+
+    setState(() {
+      dbMessages = savedMessages
+          .map<Map<String, dynamic>>((msg) => normalizeMessage(msg))
+          .where((m) => m.isNotEmpty)
+          .toList();
+
+      for (var m in dbMessages) {
+        final id = (m['message_id'] ?? m['id'])?.toString();
+        if (id != null && id.isNotEmpty) _seenMessageIds.add(id);
+      }
+    });
+  }
+
+// ------------------ Draft Methods ------------------
+
+  void _saveDraft(String draft) {
+    if (widget.conversationId.isEmpty) return;
+    GrpLocalChatStorage.saveDraftMessage(widget.conversationId, draft);
+    ChatSessionStorage.updateDraftMessage(
+      convoId: widget.conversationId,
+      draftMessage: draft.isEmpty ? null : draft,
+    );
+    // Trigger UI refresh in chat list
+    if (mounted) {
+      context.read<ChatListBloc>().add(UpdateLocalChatList());
+    }
+  }
+
+  void _clearDraft() {
+    if (widget.conversationId.isEmpty) return;
+    GrpLocalChatStorage.clearDraftMessage(widget.conversationId);
+    ChatSessionStorage.updateDraftMessage(
+      convoId: widget.conversationId,
+      draftMessage: null,
+    );
+    // Trigger UI refresh in chat list
+    if (mounted) {
+      context.read<ChatListBloc>().add(UpdateLocalChatList());
+    }
+  }
+
+  Future<void> _loadDraft() async {
+    if (widget.conversationId.isEmpty) return;
+    final draft = GrpLocalChatStorage.getDraftMessage(widget.conversationId);
+    if (draft != null && draft.isNotEmpty) {
+      _messageController.text = draft;
+    }
+  }
+
+  Future<void> _initializeSocket() async {
+    final String? token = await UserPreferences.getAccessToken();
+    if (token == null) {
+      log("Access token is null. Socket connection not initialized.");
+    }
+  }
+
+  Future<void> _loadCurrentUserId() async {
+    currentUserId = await UserPreferences.getUserId() ?? '';
+
+    if (currentUserId.isNotEmpty && widget.datumId.isNotEmpty) {
+      log("currentUserId  ..$currentUserId");
+      log("datumId  ..${widget.datumId}");
+
+      SocketService().connectPrivateRoom(
+          currentUserId, widget.datumId, onMessageReceived, true);
+
+      _setupReactionListener();
+    }
+    setState(() {});
+  }
+
+  void _fetchMessages2() {
+    _groupBloc.add(
+      FetchGroupMessages(
+        convoId: widget.conversationId,
+        page: _currentPage,
+        limit: 40,
+      ),
+    );
+  }
+
+  void _fetchMessages() {
+    _groupBloc.add(
+      FetchGroupMessages(
+        convoId: widget.conversationId,
+        page: _currentPage,
+        limit: _limit,
+      ),
+    );
+
+    _checkingPersmmion();
+  }
+
+  void _checkingPersmmion() {
+    context.read<GroupChatBloc>().add(
+          PermissionCheck(widget.datumId),
+        );
+  }
+
+  Future<void> _loadSessionImagePath() async {
+    final prefs = await SharedPreferences.getInstance();
+    final imagePath = prefs.getString('chat_image_path');
+
+    if (imagePath != null && imagePath.isNotEmpty) {
+      setState(() {
+        _imageFile = File(imagePath);
+        log(" -----image-- $_imageFile");
+      });
+    }
+  }
+
+  Future<void> _clearSessionPaths() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('chat_image_path');
+    await prefs.remove('chat_file_path');
+  }
+
+  Future<void> _loadSessionFilePath() async {
+    final prefs = await SharedPreferences.getInstance();
+    final filePath = prefs.getString('chat_file_path');
+
+    if (filePath != null && filePath.isNotEmpty) {
+      setState(() {
+        _fileUrl = File(filePath);
+        log(" ------- $_fileUrl");
+      });
+    }
+  }
+
+  void _sendMessage() async {
+    if (_messageController.text.trim().isEmpty || widget.datumId.isEmpty) {
+      return;
+    }
+
+    final nowIso = DateTime.now().toIso8601String();
+    final messageId = ObjectId().toString();
+
+    final reply = _replyMessage;
+
+    final message = {
+      'message_id': messageId,
+      'content': _messageController.text.trim(),
+      'sender': {'_id': currentUserId},
+      'receiver': {'_id': widget.datumId},
+      'messageStatus': 'delivered',
+      'time': nowIso,
+      if (reply != null) 'repliedMessage': reply,
+      if (reply != null) 'isReplyMessage': true,
+    };
+
+    setState(() {
+      socketMessages.add(message);
+
+      final combined = [...dbMessages, ...messages, ...socketMessages];
+      GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
+    });
+
+    _groupBloc.add(
+      SendMessageEvent(
+        convoId: widget.conversationId,
+        message: _messageController.text.trim(),
+        senderId: currentUserId,
+        receiverId: widget.datumId,
+        replyTo: reply,
+      ),
+    );
+
+    setState(() {
+      _messageController.clear();
+      _replyMessage = null;
+      _imageFile = null;
+    });
+    _clearDraft();
+  }
+
+  void _sendMessageImage() async {
+    await _loadSessionImagePath();
+    await _loadSessionFilePath();
+
+    log("Sending message with image and file");
+    final nowIso = DateTime.now().toIso8601String();
+    final messageId = ObjectId().toString(); // Generate ID
+    final String? mimeType =
+        _fileUrl != null ? lookupMimeType(_fileUrl!.path) : null;
+
+    final message = {
+      'message_id': messageId, // Add ID
+      'localImagePath': _imageFile?.path, // Add localImagePath for consistency
+      'content': _messageController.text.trim(),
+      'sender': {'_id': currentUserId},
+      'receiver': {'_id': widget.datumId},
+      'messageStatus': 'delivered',
+      'time': nowIso,
+      'fileName': _fileUrl?.path.split('/').last,
+      'fileType': mimeType,
+      'imageUrl': _imageFile?.path,
+      'fileUrl': _fileUrl?.path,
+    };
+
+    log(message.toString());
+    setState(() {
+      socketMessages.add(message);
+      _scrollToBottom();
+
+      final combined = [...dbMessages, ...messages, ...socketMessages];
+      GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
+    });
+    setState(() {
+      _messageController.clear();
+      _imageFile = null;
+      _fileUrl = null;
+    });
+
+    await _clearSessionPaths();
+    _clearDraft();
+  }
+
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      Timer(
+          const Duration(milliseconds: 400),
+          () => _scrollController.animateTo(
+                0.0,
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeInOut,
+              ));
+    }
+  }
+
+  void _scrollListener() {
+    if (!_scrollController.hasClients) return;
+
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 120 &&
+        _hasNextPage &&
+        !_isLoadingMore) {
+      _loadMoreMessages();
+    }
+  }
+
+  void _loadMoreMessages() {
+    if (_hasNextPage && !_isLoadingMore) {
+      setState(() => _isLoadingMore = true);
+
+      _currentPage++;
+      _fetchMessages();
+    }
+  }
+
+  void _appendMessage(Map<String, dynamic> message) {
+    setState(() {
+      messages.add(message);
+    });
+  }
+
+  String _formatDateTime(DateTime? dateTime) {
+    if (dateTime == null) return '';
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final messageDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
+
+    if (messageDate == today) return 'Today';
+    if (messageDate == yesterday) return 'Yesterday';
+    return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
+  }
+
+  void _toggleSelectionMode() {
+    setState(() {
+      _isSelectionMode = false;
+      _selectedMessages.clear();
+      _selectedMessageKeys.clear();
+    });
+  }
+
+  void _markMessagesAsDeleted(List<String> messageIds) {
+    log("Marking messages as deleted: $messageIds");
+
+    setState(() {
+      List<Map<String, dynamic>> updateMessages(
+          List<Map<String, dynamic>> list) {
+        return list.map((msg) {
+          if (messageIds.contains(msg['message_id']?.toString())) {
+            return {
+              ...msg,
+              'content': 'Message Deleted',
+              'imageUrl': null,
+              'fileUrl': null,
+              'fileName': null,
+              'fileType': null,
+              'isDeleted': true,
+            };
+          }
+          return msg;
+        }).toList();
+      }
+
+      messages = updateMessages(messages);
+      dbMessages = updateMessages(dbMessages);
+      socketMessages = updateMessages(socketMessages);
+
+      final combined = [...dbMessages, ...messages, ...socketMessages];
+      GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
+    });
+  }
+
+  void _deleteSelectedMessages() {
+    if (_selectedMessageIds.isEmpty) {
+      log("No messages selected to delete");
+      return;
+    }
+
+    setState(() {
+      _isDeletingMessages = true;
+    });
+
+    _markMessagesAsDeleted(_selectedMessageIds.toList());
+
+    _groupBloc.add(DeleteMessagesEvent(
+      messageIds: _selectedMessageIds.toList(),
+      convoId: widget.conversationId,
+      senderId: currentUserId,
+      receiverId: widget.datumId,
+      message: _selectedMessageKeys.first,
+    ));
+
+    setState(() {
+      _selectedMessages.clear();
+      _selectedMessageIds.clear();
+      _selectedMessageKeys.clear();
+      _isSelectionMode = false;
+      _isDeletingMessages = false;
+    });
+  }
+
+  void _toggleMessageSelection(Map<String, dynamic> msg) {
+    final key = _generateMessageKey(msg);
+    final String? messageId = msg['message_id']?.toString();
+
+    setState(() {
+      if (_selectedMessageIds.contains(messageId)) {
+        _selectedMessageIds.remove(messageId);
+        _selectedMessageKeys.remove(key);
+        _selectedMessages.removeWhere((m) => _generateMessageKey(m) == key);
+      } else if (messageId != null) {
+        _selectedMessageIds.add(messageId);
+        _selectedMessageKeys.add(key);
+        _selectedMessages.add(msg);
+      }
+      _isSelectionMode = _selectedMessageIds.isNotEmpty;
+    });
+  }
+
+  void _forwardSelectedMessages() {
+    MyRouter.pushReplace(
+      screen: ForwardMessageScreen(
+        messages: _selectedMessages.toList(),
+        currentUserId: currentUserId,
+        conversionalid: "",
+        username: widget.groupName,
+      ),
+    );
+
+    setState(() {
+      _selectedMessages.clear();
+      _selectedMessageKeys.clear();
+      _selectedMessageIds.clear();
+      _isSelectionMode = false;
+    });
+  }
+
+  void _starSelectedMessages() {
+    setState(() {
+      _selectedMessages.clear();
+      _isSelectionMode = false;
+    });
+  }
+
+  void _replyToMessage(Map<String, dynamic> message) {
+    if (message.isEmpty) return;
+    setState(() {
+      _replyMessage = message;
+      _focusNode.requestFocus();
+    });
+  }
+
+  void _toggleEmojiKeyboard() {
+    setState(() {
+      _showEmoji = !_showEmoji;
+    });
+
+    if (_showEmoji) {
+      _focusNode.unfocus();
+    } else {
+      _focusNode.requestFocus();
+    }
+  }
+
+  Future<void> _clearSessionImagePath() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('chat_image_path');
+    await prefs.remove('chat_file_path');
+  }
+
+  String _generateMessageKey(Map<String, dynamic> msg) {
+    return '${msg['message_id'] ?? msg['time']}_${msg['content']}_${msg['imageUrl'] ?? ''}_${msg['fileUrl'] ?? ''}${msg['userName'] ?? ''}';
+  }
+
+  List<Map<String, dynamic>> _inferGrouping(
+      List<Map<String, dynamic>> messages) {
+    if (messages.isEmpty) return messages;
+
+    for (int i = 0; i < messages.length; i++) {
+      final currentMsg = messages[i];
+
+      // Skip if already grouped or not an image
+      if (currentMsg['is_group_message'] == true &&
+          currentMsg['group_message_id'] != null) {
+        continue;
+      }
+
+      final isImage = (currentMsg['imageUrl'] != null &&
+              currentMsg['imageUrl'].toString().isNotEmpty) ||
+          (currentMsg['localImagePath'] != null &&
+              currentMsg['localImagePath'].toString().isNotEmpty);
+
+      if (!isImage) continue;
+
+      // Look ahead for consecutive images from same sender within time threshold
+      List<int> groupIndices = [i];
+      final currentSender = currentMsg['sender'] is Map
+          ? currentMsg['sender']['_id']?.toString() // Ensure string
+          : currentMsg['sender']?.toString();
+      final currentTime = _parseTime(currentMsg['time']);
+
+      for (int j = i + 1; j < messages.length; j++) {
+        final nextMsg = messages[j];
+        final nextSender = nextMsg['sender'] is Map
+            ? nextMsg['sender']['_id']?.toString() // Ensure string
+            : nextMsg['sender']?.toString();
+        final nextTime = _parseTime(nextMsg['time']);
+
+        final isNextImage = (nextMsg['imageUrl'] != null &&
+                nextMsg['imageUrl'].toString().isNotEmpty) ||
+            (nextMsg['localImagePath'] != null &&
+                nextMsg['localImagePath'].toString().isNotEmpty);
+
+        if (!isNextImage) break;
+
+        // Debug log for potential grouping failure
+        if (currentSender != nextSender) {
+          // log('Grouping break: Sender mismatch. $currentSender vs $nextSender');
+          break;
+        }
+
+        final difference = nextTime.difference(currentTime).inMinutes.abs();
+        if (difference > 1) {
+          // log('Grouping break: Time diff $difference > 1');
+          break;
+        }
+
+        groupIndices.add(j);
+      }
+
+      // If we found a group of 2+ images
+      if (groupIndices.length > 1) {
+        final groupId =
+            'generated_group_${currentTime.millisecondsSinceEpoch}_$i';
+        log('🔍 Infereing group $groupId for ${groupIndices.length} images');
+        for (final index in groupIndices) {
+          messages[index]['is_group_message'] = true;
+          messages[index]['group_message_id'] = groupId;
+        }
+        // Skip the processed messages in the outer loop
+        i = groupIndices.last;
+      }
+    }
+    return messages;
+  }
+
+  /// Merge all messages (db + messages + socket), sort, dedupe
+  List<Map<String, dynamic>> _getCombinedMessages() {
+    final List<Map<String, dynamic>> combined = [];
+
+    void addUnique(Map<String, dynamic> msg) {
+      if (msg['content']?.toString().trim() == '' &&
+          (msg['imageUrl'] == null || msg['imageUrl'].toString().isEmpty) &&
+          (msg['fileUrl'] == null || msg['fileUrl'].toString().isEmpty)) {
+        return;
+      }
+
+      // 1. Check by ID first (strongest check)
+      final msgId =
+          msg['message_id'] ?? msg['messageId'] ?? msg['_id'] ?? msg['id'];
+      if (msgId != null) {
+        final idString = msgId.toString();
+        final existsById = combined.any((m) {
+          final mId = m['message_id'] ?? m['messageId'] ?? m['_id'] ?? m['id'];
+          return mId != null && mId.toString() == idString;
+        });
+        if (existsById) return;
+      }
+
+      // 2. Fallback to content/time check
+      bool exists = combined.any((m) =>
+          m['time'] == msg['time'] &&
+          m['content'] == msg['content'] &&
+          m['ContentType'] == msg['ContentType'] &&
+          (m['isReplyMessage'] ?? false) == (msg['isReplyMessage'] ?? false) &&
+          (m['imageUrl'] ?? '') == (msg['imageUrl'] ?? '') &&
+          (m['fileName'] ?? '') == (msg['fileName'] ?? '') &&
+          (m['fileUrl'] ?? '') == (msg['fileUrl'] ?? ''));
+
+      if (!exists) {
+        // Create a copy to ensure Flutter detects changes when reactions are modified
+        final copy = Map<String, dynamic>.from(msg);
+        combined.add(copy);
+      }
+    }
+
+    // Prioritize LIVE messages (socket) > Fetched (messages) > Local (dbMessages)
+    for (var m in socketMessages) addUnique(m);
+    for (var m in messages) addUnique(m);
+    for (var m in dbMessages) addUnique(m);
+
+    combined.sort(
+      (a, b) => _parseTime(a['time']).compareTo(_parseTime(b['time'])),
+    );
+
+    return _inferGrouping(combined);
+  }
+
+  /// Load older pages until message with [messageId] exists or no more pages
+  Future<bool> _fetchUntilMessageFound(String messageId) async {
+    if (messageId.isEmpty) return false;
+    int safety = 0;
+
+    while (safety < 10 && mounted) {
+      safety++;
+
+      final combined = _getCombinedMessages();
+      final exists = combined.any((m) {
+        final mid = (m['message_id'] ?? m['id'])?.toString() ?? '';
+        return mid == messageId;
+      });
+
+      if (exists) return true;
+      if (!_hasNextPage) return false;
+
+      final completer = Completer<void>();
+      late final StreamSubscription sub;
+
+      sub = _groupBloc.stream.listen((state) {
+        if (state is GroupChatLoaded && !completer.isCompleted) {
+          completer.complete();
+        }
+      });
+
+      _currentPage++;
+      _groupBloc.add(
+        FetchGroupMessages(
+          convoId: widget.conversationId,
+          page: _currentPage,
+          limit: _limit,
+        ),
+      );
+
+      try {
+        await completer.future;
+      } finally {
+        await sub.cancel();
+      }
+    }
+
+    final combined = _getCombinedMessages();
+    return combined.any((m) {
+      final mid = (m['message_id'] ?? m['id'])?.toString() ?? '';
+      return mid == messageId;
+    });
+  }
+
+  /// Scroll to message used in reply, with pagination + local storage
+  Future<bool> _scrollToMessageById(String messageId,
+      {bool fetchIfMissing = true}) async {
+    if (messageId.isEmpty) return false;
+
+    List<Map<String, dynamic>> combined = _getCombinedMessages();
+
+    int index = combined.indexWhere((m) {
+      final mid = (m['message_id'] ?? m['id'])?.toString() ?? '';
+      return mid == messageId;
+    });
+
+    if (index == -1 && fetchIfMissing) {
+      final found = await _fetchUntilMessageFound(messageId);
+      if (!found) return false;
+
+      combined = _getCombinedMessages();
+      index = combined.indexWhere((m) {
+        final mid = (m['message_id'] ?? m['id'])?.toString() ?? '';
+        return mid == messageId;
+      });
+
+      if (index == -1) return false;
+    }
+
+    if (!_scrollController.hasClients) return false;
+
+    await Future.delayed(const Duration(milliseconds: 50));
+
+    const double itemHeightEstimate = 80.0;
+    final double offset = (index * itemHeightEstimate)
+        .clamp(0.0, _scrollController.position.maxScrollExtent);
+
+    await _scrollController.animateTo(
+      offset,
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeOut,
+    );
+
+    return true;
+  }
+
+  /// Reply preview (tap → scroll to original). Works after reopen because ids are persisted.
+  Widget _buildReplyPreview(Map<String, dynamic> message, bool isSentByMe) {
+    final Map<String, dynamic>? reply = (message['repliedMessage'] ??
+        message['reply']) as Map<String, dynamic>?;
+
+    if (reply == null) return const SizedBox.shrink();
+
+    final replyId = (reply['id'] ?? reply['message_id'] ?? reply['messageId'])
+            ?.toString() ??
+        '';
+
+    final replyUser = (reply['replyToUser'] ??
+            '${reply['first_name'] ?? ''} ${reply['last_name'] ?? ''}')
+        .toString()
+        .trim();
+
+    final replyContent =
+        (reply['replyContent'] ?? reply['content'] ?? '').toString();
+
+    if (replyId.isEmpty && replyContent.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return GestureDetector(
+      onTap: () async {
+        if (replyId.isEmpty) return;
+        final ok = await _scrollToMessageById(replyId, fetchIfMissing: true);
+        if (!ok && mounted) {
+          Messenger.alert(
+            msg:
+                "Original message not loaded. Scroll up to load older messages.",
+          );
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 3,
+              height: 32,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade500,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (replyUser.isNotEmpty)
+                    Text(
+                      replyUser,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  if (replyContent.isNotEmpty)
+                    Text(
+                      replyContent,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Tap to view original',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Map<String, dynamic>> flattenGroupedMessages(
+      List<GroupMessageGroup> groups) {
+    final List<Map<String, dynamic>> flat = [];
+
+    for (var group in groups) {
+      for (var msg in group.messages) {
+        flat.add(msg.toJson());
+      }
+    }
+
+    return flat;
+  }
+
+  Widget _buildChatBody() {
+    return BlocListener<GroupChatBloc, GroupChatState>(
+      listener: (context, state) {
+        if (state is GrpMessageSentSuccessfully) {
+          final newMessage = state.sentMessage;
+
+          if (newMessage != null) {
+            setState(() {
+              socketMessages.removeWhere((msg) =>
+                  msg['content'] == newMessage.message &&
+                  msg['time'] == newMessage.time);
+              messages.add(newMessage.toJson());
+              _scrollToBottom();
+
+              final combined = [...dbMessages, ...messages, ...socketMessages];
+              GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
+            });
+          }
+        } else if (state is GroupChatError) {
+          setState(() => _isDeletingMessages = false);
+        }
+      },
+      child: BlocBuilder<GroupChatBloc, GroupChatState>(
+        buildWhen: (previous, current) =>
+            true, // Always rebuild, including on setState
+        builder: (context, state) {
+          // List<dynamic> loadedMessages =
+          //     (state is GroupChatLoaded) ? state.response.data ?? [] : [];
+          List<Map<String, dynamic>> loadedMessages = [];
+
+          if (state is GroupChatLoaded) {
+            // Only update dbMessages if the data from the BLoC has actually changed
+            if (_lastLoadedData != state.response.data) {
+              _lastLoadedData = state.response.data;
+              loadedMessages = flattenGroupedMessages(state.response.data);
+
+              _hasNextPage = state.response.hasNextPage;
+              _isLoadingMore = false;
+
+              final newDbMessages = loadedMessages
+                  .map<Map<String, dynamic>>((msg) => normalizeMessage(msg))
+                  .where((m) => m.isNotEmpty)
+                  .toList();
+              _isSelectionMode ? voidBox : _scrollToBottom();
+
+              dbMessages = newDbMessages;
+              GrpLocalChatStorage.saveMessages(
+                  widget.conversationId, dbMessages);
+
+              for (var m in newDbMessages) {
+                final id = (m['message_id'] ?? m['id'])?.toString();
+                if (id != null && id.isNotEmpty) _seenMessageIds.add(id);
+              }
+            }
+          }
+
+          if (state is GroupChatLoading &&
+              _currentPage == 1 &&
+              messages.isEmpty &&
+              socketMessages.isEmpty) {
+            return ListView.builder(
+              itemCount: 10,
+              itemBuilder: (context, index) {
+                final isSentByMe = index % 3 == 0;
+                return ShimmerMessageBubble(
+                  isSentByMe: isSentByMe,
+                );
+              },
+            );
+          }
+
+          final combinedMessages = _getCombinedMessages();
+
+          GrpLocalChatStorage.saveMessages(
+              widget.conversationId, combinedMessages);
+
+          return ListView.builder(
+            // key: const PageStorageKey('group_chat_list'), // Removed to force scroll to bottom
+            controller: _scrollController,
+            reverse: true, // Start from bottom
+            itemCount: combinedMessages.length + (_hasNextPage ? 1 : 0),
+            itemBuilder: (context, index) {
+              // Loader at the "top" of scroll (which is end of list in reverse)
+              if (_hasNextPage && index == combinedMessages.length) {
+                if (_isLoadingMore) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8.0),
+                    child: Center(
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  );
+                } else {
+                  return const SizedBox(height: 8);
+                }
+              }
+
+              // Calculate real index (Newest is at visual bottom/index 0)
+              // combinedMessages is Sorted Old -> New.
+              // So combinedMessages.last is Newest.
+              final int realIndex = combinedMessages.length - 1 - index;
+
+              if (realIndex < 0 || realIndex >= combinedMessages.length) {
+                return const SizedBox.shrink();
+              }
+
+              final message = combinedMessages[realIndex];
+              final senderMap = (message['sender'] is Map)
+                  ? Map<String, dynamic>.from(message['sender'])
+                  : <String, dynamic>{};
+
+              final isSentByMe = senderMap['_id'] == currentUserId;
+              final isSystem = message['ContentType'] == "system";
+              final content = message['content']?.toString() ?? '';
+
+              final currentTime = _parseTime(message['time']);
+              // Previous time (visually above, so older) is at realIndex - 1
+              final prevTime = realIndex > 0
+                  ? _parseTime(combinedMessages[realIndex - 1]['time'])
+                  : null;
+
+              // Grouping Logic
+              final isGroupMessage = message['is_group_message'] == true;
+              final groupMessageId = message['group_message_id']?.toString();
+
+              if (isGroupMessage &&
+                  groupMessageId != null &&
+                  groupMessageId.isNotEmpty) {
+                // Check if this is the first message in the group
+                final isFirstInGroup = realIndex == 0 ||
+                    combinedMessages[realIndex - 1]['group_message_id']
+                            ?.toString() !=
+                        groupMessageId;
+
+                // Skip if not the first in group
+                if (!isFirstInGroup) {
+                  return const SizedBox.shrink();
+                }
+
+                List<String> groupImages = [];
+                for (int i = realIndex; i < combinedMessages.length; i++) {
+                  final nextMsg = combinedMessages[i];
+                  final nextGrpId = nextMsg['group_message_id']?.toString();
+                  if (nextGrpId == groupMessageId) {
+                    final imgUrl = nextMsg['originalUrl']?.toString() ??
+                        nextMsg['thumbnailUrl']?.toString() ??
+                        nextMsg['imageUrl']?.toString() ??
+                        nextMsg['localImagePath']?.toString() ??
+                        '';
+                    if (imgUrl.isNotEmpty) {
+                      groupImages.add(imgUrl);
+                    }
+                  } else {
+                    break;
+                  }
+                }
+
+                if (groupImages.isNotEmpty) {
+                  log('🖼️ Rendering grouped images: ${groupImages.length} images with group_id: $groupMessageId');
+                  return Column(
+                    crossAxisAlignment: isSentByMe
+                        ? CrossAxisAlignment.end
+                        : CrossAxisAlignment.start,
+                    children: [
+                      if (realIndex == 0 || !isSameDay(currentTime, prevTime))
+                        _buildDateSeparator(currentTime),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8.0, vertical: 4.0),
+                        child: Align(
+                          alignment: isSentByMe
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxWidth:
+                                  MediaQuery.of(context).size.width * 0.75,
+                            ),
+                            child: GroupedImagesWidget(
+                              images: groupImages,
+                              onImageTap: (index) {
+                                log('📱 Tapped image $index from grouped widget');
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => GroupedMediaViewer(
+                                      mediaUrls: groupImages,
+                                      initialIndex: index,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }
+              }
+
+              // final isSystem = message['ContentType'] == "system"; // REMOVED DUPLICATE
+              // final content = message['content']?.toString() ?? ''; // REMOVED DUPLICATE
+
+              List<Widget> children = [];
+
+              if (isSystem &&
+                  (content.contains('Group created by') ||
+                      content.contains('added') ||
+                      content.contains('left'))) {
+                children.add(_buildtextSeparator(content));
+              }
+
+              if (realIndex == 0 || !isSameDay(currentTime, prevTime)) {
+                children.add(_buildDateSeparator(currentTime));
+              }
+
+              children.add(_buildMessageBubble(message, isSentByMe));
+
+              return Column(
+                crossAxisAlignment: isSentByMe
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
+                children: children,
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildVideoPreviewTile(
+    BuildContext context,
+    String fileUrl,
+    String fileName,
+    bool isSentByMe,
+    Map<String, dynamic> message,
+  ) {
+    return Container(
+      width: 260,
+      margin: const EdgeInsets.only(top: 8),
+      child: Stack(
+        children: [
+          GestureDetector(
+            onTap: () {
+              final isNetwork = fileUrl.startsWith('http://') ||
+                  fileUrl.startsWith('https://');
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => VideoPlayerScreen(
+                    path: fileUrl,
+                    isNetwork: isNetwork,
+                  ),
+                ),
+              );
+            },
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                width: 300,
+                height: 200,
+                color: Colors.black,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    const Icon(
+                      Icons.videocam,
+                      size: 40,
+                      color: Colors.white70,
+                    ),
+                    const Icon(
+                      Icons.play_circle_fill,
+                      size: 64,
+                      color: Colors.white,
+                    ),
+                    Positioned(
+                      bottom: 8,
+                      left: 8,
+                      right: 8,
+                      child: Text(
+                        fileName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 6,
+            right: 6,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.45),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    TimeUtils.formatUtcToIst(message['time']),
+                    style: const TextStyle(fontSize: 10, color: Colors.white),
+                  ),
+                  if (isSentByMe) ...[
+                    const SizedBox(width: 4),
+                    Builder(builder: (context) {
+                      final status =
+                          message['messageStatus']?.toString() ?? 'sent';
+                      switch (status) {
+                        case 'sent':
+                          return const Icon(Icons.check,
+                              size: 12, color: Colors.white);
+                        case 'delivered':
+                          return const Icon(Icons.done_all_rounded,
+                              size: 12, color: Colors.white);
+                        case 'read':
+                          return const Icon(Icons.done_all,
+                              size: 12, color: Colors.blue);
+                        default:
+                          return const SizedBox.shrink();
+                      }
+                    }),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMessageBubble(Map<String, dynamic> message, bool isSentByMe) {
+    final String content = message['content']?.toString() ?? '';
+    final String? imageUrl = message['imageUrl'] ?? _imageFile;
+    final String? fileUrl = message['fileUrl'] ?? _fileUrl;
+    final String? fileName = message['fileName'];
+    final String? fileType = message['fileType'];
+    final bool? isForwarded = message['isForwarded'];
+    final String userName = message['userName'] ?? "";
+    final String contentType = message['ContentType'] ?? "";
+    final senderData = message['sender'] is Map ? message['sender'] : {};
+    final String profileImageUrl = senderData['profile_pic_path']?.toString() ??
+        senderData['profilePic']?.toString() ??
+        senderData['avatar']?.toString() ??
+        message['profile_pic_path']?.toString() ??
+        "";
+
+    final bool isImage =
+        (fileType != null && fileType.toLowerCase().startsWith("image")) ||
+            (fileName != null &&
+                RegExp(r'\.(jpg|jpeg|png|gif|webp|bmp)$', caseSensitive: false)
+                    .hasMatch(fileName));
+
+    final bool isVideo =
+        (fileType != null && fileType.toLowerCase().startsWith("video")) ||
+            (fileName != null &&
+                RegExp(r'\.(mp4|mov|avi|mkv|webm)$', caseSensitive: false)
+                    .hasMatch(fileName));
+
+    if (message['isDeleted'] == true ||
+        message['content'] == 'Message Deleted') {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Text(
+          "This message was deleted",
+          style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+        ),
+      );
+    }
+
+    final String messageStatus =
+        message['messageStatus']?.toString() ?? 'delivered';
+
+    if (content.isEmpty &&
+        (imageUrl == null || imageUrl.isEmpty) &&
+        (fileUrl == null || fileUrl.isEmpty)) {
+      return const SizedBox.shrink();
+    }
+
+    final isSelected =
+        _selectedMessageKeys.contains(_generateMessageKey(message));
+
+    // reply detection – don't depend only on isReplyMessage flag
+    final bool hasReply = (message['repliedMessage'] is Map &&
+            (message['repliedMessage']['id'] ??
+                    message['repliedMessage']['message_id'] ??
+                    message['repliedMessage']['messageId']) !=
+                null) ||
+        (message['reply'] is Map &&
+            (message['reply']['id'] ??
+                    message['reply']['message_id'] ??
+                    message['reply']['messageId']) !=
+                null);
+
+    return message['content'].contains('Group created by')
+        ? voidBox
+        : (contentType == "system" &&
+                (content.contains('added') || content.contains('left')))
+            ? voidBox
+            : SwipeTo(
+                animationDuration: const Duration(milliseconds: 300),
+                iconOnRightSwipe: Icons.reply,
+                iconColor: Colors.grey.shade600,
+                iconSize: 24.0,
+                offsetDx: 0.3,
+                swipeSensitivity: 5,
+                onRightSwipe: (details) {
+                  _replyToMessage(message);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      vertical: 5.0, horizontal: 4.0),
+                  child: GestureDetector(
+                    onTap: () {
+                      if (_isSelectionMode) {
+                        _toggleMessageSelection(message);
+                      }
+                    },
+                    onLongPress: () {
+                      if (_isSelectionMode) {
+                        _toggleMessageSelection(message);
+                      } else {
+                        _showReactionPicker(context, message);
+
+                        // Enter selection mode
+                        setState(() {
+                          _isSelectionMode = true;
+                        });
+                        _toggleMessageSelection(message);
+                      }
+                    },
+                    child: Align(
+                      alignment: isSentByMe
+                          ? Alignment.centerRight
+                          : Alignment.centerLeft,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(left: 36),
+                            child: Container(
+                              margin: EdgeInsets.only(
+                                left: 5,
+                                right: 5,
+                                top: 6,
+                                bottom: (message['reactions'] != null &&
+                                        message['reactions'].isNotEmpty)
+                                    ? 20 // WHEN REACTION EXISTS
+                                    : 6,
+                              ),
+                              padding: const EdgeInsets.all(7),
+                              constraints: const BoxConstraints(maxWidth: 250),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? senderColor.withOpacity(0.2)
+                                    : (isSentByMe
+                                        ? senderColor
+                                        : receiverColor),
+                                borderRadius: BorderRadius.only(
+                                  topLeft: isSentByMe
+                                      ? const Radius.circular(18)
+                                      : const Radius.circular(18),
+                                  topRight: isSentByMe
+                                      ? const Radius.circular(18)
+                                      : const Radius.circular(18),
+                                  bottomLeft: isSentByMe
+                                      ? const Radius.circular(18)
+                                      : Radius.zero,
+                                  bottomRight: isSentByMe
+                                      ? Radius.zero
+                                      : const Radius.circular(16),
+                                ),
+                                border: isSelected
+                                    ? Border.all(color: Colors.blue, width: 2)
+                                    : null,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.05),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (!isSentByMe && userName.isNotEmpty)
+                                    Padding(
+                                      padding:
+                                          const EdgeInsets.only(bottom: 4.0),
+                                      child: Text(
+                                        userName,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black87,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ),
+
+                                  // REPLY PREVIEW
+                                  if (hasReply)
+                                    _buildReplyPreview(message, isSentByMe),
+
+                                  if (isForwarded == true)
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Image.asset(
+                                          "assets/images/forward.png",
+                                          height: 14,
+                                          width: 14,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          "Forwarded",
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey[700],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+
+                                  if (imageUrl != null &&
+                                      imageUrl.isNotEmpty &&
+                                      (isImage || imageUrl != fileUrl))
+                                    content == "Message Deleted"
+                                        ? const SizedBox.shrink()
+                                        : Stack(
+                                            clipBehavior: Clip.none,
+                                            children: [
+                                              GestureDetector(
+                                                onTap: () => _showFullImage(
+                                                    context, imageUrl),
+                                                child: ClipRRect(
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                  child: imageUrl.startsWith(
+                                                              'https') ||
+                                                          imageUrl.startsWith(
+                                                              'http')
+                                                      ? CachedNetworkImage(
+                                                          imageUrl: imageUrl,
+                                                          width: 240,
+                                                          height: 240,
+                                                          fit: BoxFit.cover,
+                                                          placeholder: (context,
+                                                                  url) =>
+                                                              const Center(
+                                                                  child:
+                                                                      CircularProgressIndicator()),
+                                                          errorWidget: (context,
+                                                                  url, error) =>
+                                                              const Icon(
+                                                                  Icons.error,
+                                                                  color: Colors
+                                                                      .red),
+                                                        )
+                                                      : Image.file(
+                                                          File(imageUrl),
+                                                          width: 240,
+                                                          height: 240,
+                                                          fit: BoxFit.cover),
+                                                ),
+                                              ),
+                                              Positioned(
+                                                top: 0,
+                                                bottom: 0,
+                                                left: isSentByMe ? -60 : null,
+                                                right: isSentByMe ? null : -60,
+                                                child: Center(
+                                                  child: Material(
+                                                    color: Colors.transparent,
+                                                    child: InkWell(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              20),
+                                                      onTap: () {
+                                                        MyRouter.push(
+                                                          screen:
+                                                              ForwardMessageScreen(
+                                                            messages: [message],
+                                                            currentUserId:
+                                                                currentUserId,
+                                                            conversionalid: "",
+                                                            username: widget
+                                                                .groupName,
+                                                          ),
+                                                        );
+                                                      },
+                                                      child: CircleAvatar(
+                                                        maxRadius: 16,
+                                                        backgroundColor:
+                                                            Colors.white,
+                                                        child: Image.asset(
+                                                          "assets/images/forward.png",
+                                                          height: 20,
+                                                          width: 20,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              Positioned(
+                                                bottom: 5,
+                                                right: 4,
+                                                child: Container(
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                      horizontal: 6,
+                                                      vertical: 2),
+                                                  decoration: BoxDecoration(
+                                                    boxShadow: [
+                                                      BoxShadow(
+                                                        color: Colors.black
+                                                            .withOpacity(0.2),
+                                                        blurRadius: 2,
+                                                        offset:
+                                                            const Offset(0, 1),
+                                                      ),
+                                                    ],
+                                                    color: Colors.black45
+                                                        .withOpacity(0.1),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            8),
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      Text(
+                                                        TimeUtils
+                                                            .formatUtcToIst(
+                                                                message[
+                                                                    'time']),
+                                                        style: const TextStyle(
+                                                          fontSize: 10,
+                                                          color: Colors.white,
+                                                        ),
+                                                      ),
+                                                      if (isSentByMe) ...[
+                                                        const SizedBox(
+                                                            width: 4),
+                                                        Builder(
+                                                            builder: (context) {
+                                                          switch (
+                                                              messageStatus) {
+                                                            case 'sent':
+                                                              return const Icon(
+                                                                  Icons.check,
+                                                                  size: 12,
+                                                                  color: Colors
+                                                                      .white);
+                                                            case 'delivered':
+                                                              return const Icon(
+                                                                  Icons
+                                                                      .done_all_rounded,
+                                                                  size: 12,
+                                                                  color: Colors
+                                                                      .white);
+                                                            case 'read':
+                                                              return const Icon(
+                                                                  Icons
+                                                                      .done_all,
+                                                                  size: 12,
+                                                                  color: Colors
+                                                                      .blue);
+                                                            default:
+                                                              return const SizedBox
+                                                                  .shrink();
+                                                          }
+                                                        }),
+                                                      ],
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+
+                                  if (fileUrl != null &&
+                                      fileUrl.isNotEmpty &&
+                                      isVideo)
+                                    _buildVideoPreviewTile(
+                                        context,
+                                        fileUrl,
+                                        fileName ?? 'Video',
+                                        isSentByMe,
+                                        message)
+                                  else if (fileUrl != null &&
+                                      fileUrl.isNotEmpty &&
+                                      !(content == "Message Deleted" ||
+                                          isImage || // Use pre-calculated isImage
+                                          (fileType != null &&
+                                              fileType
+                                                  .toLowerCase()
+                                                  .startsWith("image")) ||
+                                          (fileName != null &&
+                                              RegExp(r'\.(jpg|jpeg|png|gif|webp|bmp)$',
+                                                      caseSensitive: false)
+                                                  .hasMatch(fileName))))
+                                    Stack(
+                                      clipBehavior: Clip.none,
+                                      children: [
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.end,
+                                          children: [
+                                            Container(
+                                              width: 300,
+                                              margin:
+                                                  const EdgeInsets.only(top: 8),
+                                              padding: const EdgeInsets.all(8),
+                                              decoration: BoxDecoration(
+                                                color: Colors.grey[200],
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(_getFileIcon(fileType),
+                                                      color: chatColor,
+                                                      size: 30),
+                                                  const SizedBox(width: 8),
+                                                  Expanded(
+                                                    child: Text(
+                                                      fileName ??
+                                                          'Download file',
+                                                      style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  IconButton(
+                                                    icon: const Icon(
+                                                        Icons.download_rounded),
+                                                    onPressed: () => _openFile(
+                                                        fileUrl, fileType),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                  top: 2, right: 0),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Text(
+                                                    TimeUtils.formatUtcToIst(
+                                                        message['time']),
+                                                    style: const TextStyle(
+                                                        fontSize: 10,
+                                                        color: Colors.black54),
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  if (isSentByMe)
+                                                    _buildStatusIcon(
+                                                        messageStatus),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        Positioned(
+                                          top: 0,
+                                          bottom: 0,
+                                          left: isSentByMe ? -60 : null,
+                                          right: isSentByMe ? null : -60,
+                                          child: Center(
+                                            child: Material(
+                                              color: Colors.transparent,
+                                              child: InkWell(
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                                onTap: () {
+                                                  MyRouter.push(
+                                                    screen:
+                                                        ForwardMessageScreen(
+                                                      messages: [message],
+                                                      currentUserId:
+                                                          currentUserId,
+                                                      conversionalid: "",
+                                                      username:
+                                                          widget.groupName,
+                                                    ),
+                                                  );
+                                                },
+                                                child: CircleAvatar(
+                                                  maxRadius: 16,
+                                                  backgroundColor: Colors.white,
+                                                  child: Image.asset(
+                                                    "assets/images/forward.png",
+                                                    height: 20,
+                                                    width: 20,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  else
+                                    const SizedBox.shrink(),
+
+                                  if (content.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 6),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          if (RegExp(r'https?:\/\/[^\s]+')
+                                              .hasMatch(content))
+                                            Stack(
+                                              clipBehavior: Clip.none,
+                                              children: [
+                                                AnyLinkPreview(
+                                                  link:
+                                                      RegExp(r'https?:\/\/[^\s]+')
+                                                              .firstMatch(
+                                                                  content)
+                                                              ?.group(0) ??
+                                                          '',
+                                                  displayDirection: UIDirection
+                                                      .uiDirectionVertical,
+                                                  showMultimedia: true,
+                                                  backgroundColor:
+                                                      Colors.grey.shade200,
+                                                  bodyStyle: const TextStyle(
+                                                      color:
+                                                          Colors.transparent),
+                                                  cache:
+                                                      const Duration(hours: 1),
+                                                ),
+                                                Positioned(
+                                                  top: 100,
+                                                  bottom: 0,
+                                                  left: isSentByMe ? -60 : null,
+                                                  right:
+                                                      isSentByMe ? null : -60,
+                                                  child: Center(
+                                                    child: Material(
+                                                      color: Colors.transparent,
+                                                      child: InkWell(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(20),
+                                                        onTap: () {
+                                                          MyRouter.push(
+                                                            screen:
+                                                                ForwardMessageScreen(
+                                                              messages: [
+                                                                message
+                                                              ],
+                                                              currentUserId:
+                                                                  currentUserId,
+                                                              conversionalid:
+                                                                  "",
+                                                              username: widget
+                                                                  .groupName,
+                                                            ),
+                                                          );
+                                                        },
+                                                        child: CircleAvatar(
+                                                          maxRadius: 16,
+                                                          backgroundColor:
+                                                              Colors.white,
+                                                          child: Image.asset(
+                                                            "assets/images/forward.png",
+                                                            height: 20,
+                                                            width: 20,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          Stack(
+                                            children: [
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                    bottom: 5.0),
+                                                child: RichText(
+                                                  text: TextSpan(
+                                                    children: [
+                                                      ...(() {
+                                                        final List<InlineSpan>
+                                                            spans = [];
+                                                        final RegExp urlRegExp =
+                                                            RegExp(
+                                                                r'((https?:\/\/)|(www\.))[^\s]+');
+                                                        final matches =
+                                                            urlRegExp
+                                                                .allMatches(
+                                                                    content);
+                                                        int start = 0;
+
+                                                        for (final match
+                                                            in matches) {
+                                                          if (match.start >
+                                                              start) {
+                                                            spans.add(
+                                                              TextSpan(
+                                                                text: content
+                                                                    .substring(
+                                                                        start,
+                                                                        match
+                                                                            .start),
+                                                                style: const TextStyle(
+                                                                    fontSize:
+                                                                        15,
+                                                                    color: Colors
+                                                                        .black87),
+                                                              ),
+                                                            );
+                                                          }
+
+                                                          final String url =
+                                                              content.substring(
+                                                                  match.start,
+                                                                  match.end);
+
+                                                          spans.add(
+                                                            TextSpan(
+                                                              text: url,
+                                                              style:
+                                                                  const TextStyle(
+                                                                color:
+                                                                    Colors.blue,
+                                                                decoration:
+                                                                    TextDecoration
+                                                                        .underline,
+                                                              ),
+                                                              recognizer:
+                                                                  TapGestureRecognizer()
+                                                                    ..onTap =
+                                                                        () async {
+                                                                      try {
+                                                                        final uri = Uri.parse(url.startsWith('www.')
+                                                                            ? 'https://$url'
+                                                                            : url);
+                                                                        if (!await launchUrl(
+                                                                            uri,
+                                                                            mode:
+                                                                                LaunchMode.externalApplication)) {
+                                                                          throw 'Could not launch $uri';
+                                                                        }
+                                                                      } catch (e) {
+                                                                        debugPrint(
+                                                                            'Could not launch url: $e');
+                                                                      }
+                                                                    },
+                                                            ),
+                                                          );
+
+                                                          start = match.end;
+                                                        }
+
+                                                        if (start <
+                                                            content.length) {
+                                                          spans.add(
+                                                            TextSpan(
+                                                              text: content
+                                                                  .substring(
+                                                                      start),
+                                                              style: const TextStyle(
+                                                                  fontSize: 15,
+                                                                  color: Colors
+                                                                      .black87),
+                                                            ),
+                                                          );
+                                                        }
+
+                                                        return spans;
+                                                      })(),
+                                                      WidgetSpan(
+                                                          child: SizedBox(
+                                                        width: isSentByMe
+                                                            ? 75
+                                                            : 60,
+                                                      )),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+
+                                              Positioned(
+                                                top: 0,
+                                                bottom: 0,
+                                                left: isSentByMe ? -60 : null,
+                                                right: isSentByMe ? null : -60,
+                                                child: Center(
+                                                  child: Material(
+                                                    color: Colors.transparent,
+                                                    child: InkWell(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              20),
+                                                      onTap: () {
+                                                        MyRouter.push(
+                                                          screen:
+                                                              ForwardMessageScreen(
+                                                            messages: [message],
+                                                            currentUserId:
+                                                                currentUserId,
+                                                            conversionalid: "",
+                                                            username: widget
+                                                                .groupName,
+                                                          ),
+                                                        );
+                                                      },
+                                                      child: CircleAvatar(
+                                                        maxRadius: 16,
+                                                        backgroundColor:
+                                                            Colors.white,
+                                                        child: Image.asset(
+                                                          "assets/images/forward.png",
+                                                          height: 20,
+                                                          width: 20,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+
+                                              /// ---- TIMESTAMP & STATUS (DISABLED TOUCH) ----
+                                              Positioned(
+                                                bottom: 0,
+                                                right: 0,
+                                                child: IgnorePointer(
+                                                  ignoring: true,
+                                                  child: Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      Text(
+                                                        TimeUtils
+                                                            .formatUtcToIst(
+                                                                message[
+                                                                    'time']),
+                                                        style: const TextStyle(
+                                                            fontSize: 10,
+                                                            color:
+                                                                Colors.black54),
+                                                      ),
+                                                      const SizedBox(width: 4),
+                                                      if (isSentByMe &&
+                                                          content !=
+                                                              "Message Deleted")
+                                                        _buildStatusIcon(
+                                                            messageStatus),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          // REACTIONS BAR - Positioned outside the Container
+                          if (message['reactions'] != null &&
+                              message['reactions'].isNotEmpty)
+                            Positioned(
+                              bottom: -10,
+                              left: isSentByMe ? 48 : 48,
+                              right: null,
+                              child: Padding(
+                                padding: EdgeInsets.only(
+                                  bottom: 12,
+                                  left: isSentByMe ? 0 : 0,
+                                ),
+                                child: GestureDetector(
+                                  onTap: () {
+                                    debugPrint('🔥 Tapped on reacted emoji!');
+                                    debugPrint(
+                                        '🔥 Message: ${message['message_id']}');
+                                    // Get first emoji from reactions or default to empty
+                                    final reactions =
+                                        _extractReactions(message['reactions']);
+                                    final firstEmoji = reactions.isNotEmpty
+                                        ? (reactions.first['emoji']
+                                                ?.toString() ??
+                                            '')
+                                        : '';
+                                    debugPrint(
+                                        '🔥 About to call _showReactionsBottomSheet');
+                                    _showReactionsBottomSheet(
+                                        message, firstEmoji);
+                                  },
+                                  child:
+                                      _buildReactionsBar(message, isSentByMe),
+                                ),
+                              ),
+                            ),
+                          isSentByMe
+                              ? const SizedBox.shrink()
+                              : Positioned(
+                                  left: isSentByMe ? null : 2,
+                                  right: isSentByMe ? 2 : null,
+                                  top: 10,
+                                  child: CircleAvatar(
+                                    radius: 16,
+                                    backgroundColor: Colors.transparent,
+                                    child: ClipOval(
+                                      child: profileImageUrl.isNotEmpty
+                                          ? CachedNetworkImage(
+                                              imageUrl: profileImageUrl,
+                                              width: 32,
+                                              height: 32,
+                                              fit: BoxFit.cover,
+                                              placeholder: (context, url) =>
+                                                  _buildAvatarWithInitial(
+                                                      userName),
+                                              errorWidget:
+                                                  (context, url, error) =>
+                                                      _buildAvatarWithInitial(
+                                                          userName),
+                                            )
+                                          : _buildAvatarWithInitial(userName),
+                                    ),
+                                  ),
+                                ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+  }
+
+  void _openFile(String urlOrPath, String? fileType) async {
+    if (urlOrPath.startsWith('http://') || urlOrPath.startsWith('https://')) {
+      try {
+        await launchUrl(Uri.parse(urlOrPath),
+            mode: LaunchMode.externalApplication);
+      } catch (e) {
+        Messenger.alertError("Could not open file from URL.");
+      }
+    } else {
+      final result = await OpenFile.open(urlOrPath);
+      if (result.type != ResultType.done) {
+        Messenger.alertError("Could not open local file.");
+      }
+    }
+  }
+
+  DateTime _parseTime(dynamic time) {
+    if (time == null) return DateTime.now();
+    if (time is int) return DateTime.fromMillisecondsSinceEpoch(time);
+    if (time is String) {
+      try {
+        return DateTime.parse(time);
+      } catch (_) {
+        return DateTime.now();
+      }
+    }
+    return DateTime.now();
+  }
+
+  Widget _buildStatusIcon(String status) {
+    switch (status) {
+      case 'sent':
+        return Icon(Icons.check, size: 16, color: Colors.grey.shade600);
+      case 'delivered':
+        return Icon(Icons.done_all_rounded,
+            size: 16, color: Colors.grey.shade600);
+      case 'read':
+        return const Icon(Icons.done_all, size: 16, color: Colors.blue);
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildDateSeparator(DateTime? dateTime) {
+    if (dateTime == null) return const SizedBox.shrink();
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          _formatDateTime(dateTime),
+          style: const TextStyle(
+            fontSize: 12,
+            color: Colors.grey,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildtextSeparator(String? text) {
+    if (text == null) return const SizedBox.shrink();
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          text,
+          style: const TextStyle(
+            fontSize: 12,
+            color: Colors.grey,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _cancelReply() {
+    setState(() {
+      _replyMessage = null;
+    });
+  }
+
+  void _startRecordingFs() async {
+    await _recorder.startRecorder(toFile: 'voice.aac');
+    setState(() {
+      _isRecording = true;
+      _isPaused = false;
+      _recordDuration = 0;
+    });
+    _startTimer();
+  }
+
+  void _pauseRecordingFs() async {
+    await _recorder.pauseRecorder();
+    setState(() {
+      _isPaused = true;
+    });
+    _timer?.cancel();
+  }
+
+  void _resumeRecordingFs() async {
+    await _recorder.resumeRecorder();
+    setState(() {
+      _isPaused = false;
+    });
+    _startTimer();
+  }
+
+  void _stopRecordingFs() async {
+    String? path = await _recorder.stopRecorder();
+    _timer?.cancel();
+    setState(() {
+      _isRecording = false;
+      _isPaused = false;
+      _recordedFilePath = path;
+    });
+  }
+
+  void _playRecording() async {
+    if (_recordedFilePath != null) {
+      await _player.startPlayer(fromURI: _recordedFilePath);
+    }
+  }
+
+  void _sendRecording() {
+    if (_recordedFilePath != null) {
+      log("Send: $_recordedFilePath");
+    }
+  }
+
+  void _startTimer() {
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      setState(() {
+        _recordDuration++;
+      });
+    });
+  }
+
+  String _formatDuration(int seconds) {
+    final minutes = (seconds ~/ 60).toString().padLeft(2, '0');
+    final secs = (seconds % 60).toString().padLeft(2, '0');
+    return '$minutes:$secs';
+  }
+
+  Widget _buildVoiceRecordingUI() {
+    return VoiceRecordingWidget(
+      isRecording: _isRecording,
+      isPaused: _isPaused,
+      recordDuration: Duration(seconds: _recordDuration),
+      formatDuration: (duration) => _formatDuration(duration.inSeconds),
+      onStartRecording: _startRecordingFs,
+      onPauseRecording: _pauseRecordingFs,
+      onResumeRecording: _resumeRecordingFs,
+      onStopRecording: _stopRecordingFs,
+      onPlayRecording: _playRecording,
+      onSendRecording: _sendRecording,
+      recordedFilePath: _recordedFilePath,
+      onCancel: () {
+        _timer?.cancel();
+        setState(() {
+          _isRecording = false;
+          _isPaused = false;
+          _recordedFilePath = null;
+        });
+      },
+    );
+  }
+
+  Widget _buildMessageInputField(bool isKeyboardVisible, bool thereORleft) {
+    return MessageInputField(
+      messageController: _messageController,
+      reciverID: widget.datumId,
+      focusNode: _focusNode,
+      onSendPressed: _sendMessage,
+      onEmojiPressed: _toggleEmojiKeyboard,
+      onAttachmentPressed: () => GrpShowAltDialog.grpshowOptionsDialog(
+        context,
+        conversationId: widget.conversationId,
+        senderId: currentUserId,
+        receiverId: widget.datumId,
+        isGroupChat: true,
+        onOptionSelected: _sendMessageImage,
+      ),
+
+      //     (List<Map<String, dynamic>> localMessages) {
+      //   setState(() {
+      //     socketMessages.addAll(localMessages);
+      //   });
+      // }),
+      onCameraPressed: _openCamera,
+      onRecordPressed: _isRecording ? _stopRecordingFs : _startRecordingFs,
+      isRecording: _isRecording,
+      replyText: _replyMessage,
+      onCancelReply: _cancelReply,
+      thereORleft: thereORleft,
+    );
+  }
+
+  void _showReactionPicker(BuildContext context, Map<String, dynamic> message) {
+    final List<String> emojis = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          margin: const EdgeInsets.all(40),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(30),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: emojis
+                .map((emoji) => GestureDetector(
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _handleReactionTap(message, emoji);
+                      },
+                      child: Text(emoji, style: const TextStyle(fontSize: 26)),
+                    ))
+                .toList(),
+          ),
+        );
+      },
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    return CommonAppBarBuilder.build(
+        context: context,
+        showSearchAppBar: _showSearchAppBar,
+        isSelectionMode: _isSelectionMode,
+        selectedMessages: _selectedMessages,
+        toggleSelectionMode: _toggleSelectionMode,
+        deleteSelectedMessages: _deleteSelectedMessages,
+        forwardSelectedMessages: _forwardSelectedMessages,
+        starSelectedMessages: _starSelectedMessages,
+        replyToMessage: _replyToMessage,
+        profileAvatarUrl: widget.groupAvatarUrl,
+        convertionId: widget.conversationId,
+        userName: widget.groupName,
+        firstname: widget.groupName,
+        grpId: widget.datumId,
+        grpChat: widget.grpChat,
+        resvID: widget.datumId,
+        favouitre: widget.favorite,
+        onSearchTap: () {
+          setState(() {
+            _showSearchAppBar = !_showSearchAppBar;
+          });
+        },
+        onCloseSearch: () {
+          setState(() {
+            _showSearchAppBar = false;
+          });
+        });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ReusableChatScaffold(
+      appBar: _buildAppBar(),
+      chatBody: _buildChatBody(),
+      voiceRecordingUI: _buildVoiceRecordingUI(),
+      messageInputBuilder: (context) {
+        return BlocBuilder<GroupChatBloc, GroupChatState>(
+          buildWhen: (previous, current) =>
+              current is GroupLeftState || current is GroupChatError,
+          builder: (context, state) {
+            if (state is GroupChatError) {
+              log("GroupChatError: ${state.message}");
+            }
+
+            if (state is GroupLeftState) {
+              return const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text(
+                  'You have left the group',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.redAccent,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              );
+            }
+
+            final isKeyboardVisible =
+                WidgetsBinding.instance.window.viewInsets.bottom > 0;
+
+            return _buildMessageInputField(isKeyboardVisible, false);
+          },
+        );
+      },
+      isRecording: _isRecording,
+      bloc: _groupBloc,
+    );
+  }
+
+  Widget _buildAvatarWithInitial(String name) {
+    final String initial = name.isNotEmpty ? name[0].toUpperCase() : "?";
+    return Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: name.isNotEmpty
+            ? ColorUtil.getColorFromAlphabet(name)
+            : Colors.grey.shade400,
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        initial,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 15,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReactionsBar(Map<String, dynamic> message, bool isSentByMe) {
+    final reactionsRaw = message['reactions'] ?? [];
+
+    final reactions = (reactionsRaw as List?)
+            ?.where((r) => r is Map)
+            .map((r) => Map<String, dynamic>.from(r as Map))
+            .toList() ??
+        [];
+
+    if (reactions.isEmpty) return const SizedBox.shrink();
+
+    // Count occurrences of each emoji
+    final Map<String, int> reactionCounts = {};
+    for (final reaction in reactions) {
+      final emoji = reaction['emoji']?.toString();
+      if (emoji != null && emoji.isNotEmpty) {
+        reactionCounts[emoji] = (reactionCounts[emoji] ?? 0) + 1;
+      }
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 2,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: reactionCounts.entries.map((entry) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: Text(
+              entry.value > 1 ? '${entry.key} ${entry.value}' : entry.key,
+              style: const TextStyle(fontSize: 14),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Future<void> _showReactionsBottomSheet(
+      Map<String, dynamic> message, String initialEmoji) async {
+    // helper to build normalized reactions list for a message object
+    List<Map<String, dynamic>> _normalizeFromMap(Map<String, dynamic> msg) {
+      final List<Map<String, dynamic>> out = [];
+      if (msg['reactions'] is! List) return out;
+      for (final r in (msg['reactions'] as List)) {
+        if (r is! Map) continue;
+        final mm = Map<String, dynamic>.from(r);
+        final emoji = (mm['emoji'] ?? '').toString();
+        if (emoji.isEmpty) continue;
+
+        String? userId = mm['userId']?.toString();
+        final user = mm['user'];
+
+        // Try to extract userId from user object if userId is null
+        if ((userId == null || userId.isEmpty) && user is Map) {
+          userId = (user['_id'] ?? user['id'] ?? user['userId'])?.toString();
+        }
+
+        // IMPORTANT: Allow reactions even without userId - use "unknown" as fallback
+        // This ensures the bottom sheet shows even when user info is incomplete
+        if (userId == null || userId.isEmpty) {
+          userId =
+              "unknown_${DateTime.now().millisecondsSinceEpoch}"; // unique fallback
+        }
+
+        out.add({
+          'emoji': emoji,
+          'userId': userId,
+          'user': user is Map ? Map<String, dynamic>.from(user) : null,
+          'reacted_at': (mm['reacted_at'] ?? mm['createdAt'] ?? '').toString(),
+        });
+      }
+      return out;
+    }
+
+    // default emoji set (change if you want)
+    const List<String> pickerEmojis = [
+      '👍',
+      '❤️',
+      '😂',
+      '😮',
+      '😢',
+      '👏',
+      '🔥',
+      '🎉',
+      '🤝',
+      '💯'
+    ];
+
+    // first build the initial normalized list
+    List<Map<String, dynamic>> allReacts = _normalizeFromMap(message);
+
+    // Debug logging
+    debugPrint('🔍 _showReactionsBottomSheet called');
+    debugPrint('🔍 Message reactions raw: ${message['reactions']}');
+    debugPrint('🔍 Normalized reactions: $allReacts');
+    debugPrint('🔍 Initial emoji: $initialEmoji');
+
+    // Allow showing sheet even if empty - users can still add reactions
+    // if (allReacts.isEmpty) {
+    //   return;
+    // }
+
+    // group builder (returns grouped map)
+    Map<String, List<Map<String, dynamic>>> buildGroupedFromList(
+        List<Map<String, dynamic>> list) {
+      final Map<String, List<Map<String, dynamic>>> grouped = {};
+      for (final r in list) {
+        final e = r['emoji'] as String;
+        grouped.putIfAbsent(e, () => []).add(r);
+      }
+      return grouped;
+    }
+
+    // show sheet
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        // local UI state inside sheet
+        bool showEmojiPicker = false;
+        Map<String, List<Map<String, dynamic>>> grouped =
+            buildGroupedFromList(allReacts);
+        final emojis = grouped.keys.toList();
+        String selectedEmoji = emojis.contains(initialEmoji)
+            ? initialEmoji
+            : (emojis.isNotEmpty
+                ? emojis.first
+                : (initialEmoji.isNotEmpty
+                    ? initialEmoji
+                    : pickerEmojis.first));
+
+        // function to attempt to refresh `message` from current combined store
+        void refreshFromStore(StateSetter setStateSB) {
+          try {
+            final id = (message['message_id'] ??
+                    message['messageId'] ??
+                    message['id'] ??
+                    '')
+                .toString();
+            if (id.isNotEmpty) {
+              final latest = _getCombinedMessages().firstWhere((m) {
+                final mid = (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '')
+                    .toString();
+                return mid == id;
+              }, orElse: () => message);
+              // rebuild normalized list and grouped
+              allReacts = _normalizeFromMap(latest);
+              grouped = buildGroupedFromList(allReacts);
+              final newEmojis = grouped.keys.toList();
+              if (!newEmojis.contains(selectedEmoji) && newEmojis.isNotEmpty) {
+                selectedEmoji = newEmojis.first;
+              }
+              setStateSB(() {}); // rebuild sheet
+            } else {
+              // no id: just keep what we have
+              setStateSB(() {});
+            }
+          } catch (_) {
+            // ignore and keep current values
+            setStateSB(() {});
+          }
+        }
+
+        return StatefulBuilder(builder: (ctx2, setStateSB) {
+          final reactors = grouped[selectedEmoji] ?? [];
+
+          return SafeArea(
+            child: Container(
+              constraints: BoxConstraints(
+                maxHeight: showEmojiPicker
+                    ? MediaQuery.of(context).size.height * 0.45
+                    : MediaQuery.of(context).size.height * 0.30,
+              ),
+              padding: const EdgeInsets.only(top: 8, bottom: 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // drag handle
+                  Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(4)),
+                  ),
+
+                  // TOP: emoji chips (Add first)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 11),
+                    child: Row(
+                      children: [
+                        // Add chip (always visible)
+                        GestureDetector(
+                          onTap: () {
+                            setStateSB(() {
+                              showEmojiPicker =
+                                  !showEmojiPicker; // toggle emoji picker inside sheet
+                            });
+                          },
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 6),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: showEmojiPicker
+                                  ? Colors.green.withOpacity(0.12)
+                                  : Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: Row(
+                              children: const [
+                                Icon(Icons.emoji_emotions_outlined, size: 18),
+                                SizedBox(width: 6),
+                                Text('Add',
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(width: 8),
+
+                        // existing reaction chips (scrollable)
+                        Expanded(
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: grouped.keys.map((e) {
+                                final cnt = grouped[e]?.length ?? 0;
+                                final isSelected = e == selectedEmoji;
+                                return GestureDetector(
+                                  onTap: () {
+                                    setStateSB(() {
+                                      selectedEmoji = e;
+                                      showEmojiPicker =
+                                          false; // hide picker if open
+                                    });
+                                  },
+                                  child: Container(
+                                    margin: const EdgeInsets.symmetric(
+                                        horizontal: 6),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? Colors.greenAccent.withOpacity(0.3)
+                                          : Colors.grey.shade100,
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                          color: isSelected
+                                              ? Colors.green
+                                              : Colors.grey.shade300),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Text(e,
+                                            style:
+                                                const TextStyle(fontSize: 18)),
+                                        const SizedBox(width: 6),
+                                        Text('$cnt',
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.w600)),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // optionally show emoji picker panel inside sheet
+                  if (showEmojiPicker) ...[
+                    Divider(
+                      height: 1,
+                      color: Colors.grey.shade200,
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: pickerEmojis.map((emo) {
+                          return GestureDetector(
+                            onTap: () async {
+                              // user selected an emoji to add/change their reaction:
+                              try {
+                                // call your existing handler which handles add/change/remove logic
+                                _handleReactionTap(message, emo);
+                                Navigator.pop(context);
+                              } catch (e) {
+                                debugPrint(
+                                    'Error while handling reaction pick: $e');
+                              }
+
+                              // hide picker and refresh sheet lists
+                              setStateSB(() {
+                                showEmojiPicker = false;
+                              });
+
+                              // give a tiny delay to allow local updates to settle, then refresh the grouped list
+                              await Future.delayed(
+                                  const Duration(milliseconds: 120));
+                              refreshFromStore(setStateSB);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(10),
+                                color: Colors.grey.shade100,
+                              ),
+                              child: Text(emo,
+                                  style: const TextStyle(fontSize: 22)),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
+
+                  Divider(
+                    height: 1,
+                    color: Colors.grey.shade200,
+                  ),
+
+                  // header: "X reactions"
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Row(
+                      children: [
+                        Text('${grouped[selectedEmoji]?.length ?? 0} reactions',
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w600)),
+                        const Spacer(),
+                        TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(),
+                            child: const Text('Close')),
+                      ],
+                    ),
+                  ),
+
+                  Divider(
+                    height: 1,
+                    color: Colors.grey.shade200,
+                  ),
+
+                  // reactors list
+                  Expanded(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: reactors.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (c, i) {
+                        final r = reactors[i];
+                        final user = r['user'];
+                        String userId;
+                        String displayName = '';
+                        String? avatarUrl;
+
+                        if (user is Map) {
+                          userId = (user['_id'] ??
+                                  user['id'] ??
+                                  user['userId'] ??
+                                  '')
+                              .toString();
+                          displayName = (user['first_name'] ??
+                                  user['name'] ??
+                                  user['firstName'] ??
+                                  user['email'] ??
+                                  '')
+                              .toString();
+                          avatarUrl = user['avatar']?.toString();
+                        } else {
+                          userId = (r['userId'] ?? '').toString();
+                          displayName = userId;
+                        }
+
+                        final isMe = userId == currentUserId;
+
+                        return ListTile(
+                          leading: CircleAvatar(
+                            backgroundImage:
+                                avatarUrl != null && avatarUrl.isNotEmpty
+                                    ? NetworkImage(avatarUrl) as ImageProvider
+                                    : null,
+                            child: (avatarUrl == null || avatarUrl.isEmpty)
+                                ? Text(displayName.isNotEmpty
+                                    ? displayName[0].toUpperCase()
+                                    : '?')
+                                : null,
+                          ),
+                          title: Text(isMe
+                              ? 'You'
+                              : (displayName.isNotEmpty
+                                  ? displayName
+                                  : 'Unknown User')),
+                          subtitle: isMe
+                              ? const Text('Tap to remove',
+                                  style: TextStyle(fontSize: 12))
+                              : null,
+                          trailing: isMe
+                              ? TextButton(
+                                  onPressed: () async {
+                                    Navigator.of(ctx).pop(); // close sheet
+                                    final msgId = (message['message_id'] ??
+                                            message['messageId'] ??
+                                            '')
+                                        .toString();
+                                    if (msgId.isEmpty) return;
+
+                                    // optimistic local removal of current user's reaction
+                                    _updateLocalReactions(msgId,
+                                        null); // remove my reaction locally
+                                    final apiMessageId =
+                                        _normalizeMessageIdForApi(msgId);
+
+                                    // dispatch your GroupRemoveReaction event
+                                    context
+                                        .read<GroupChatBloc>()
+                                        .add(GroupRemoveReaction(
+                                          messageId: apiMessageId,
+                                          conversationId: widget.conversationId,
+                                          emoji: selectedEmoji,
+                                          userId: currentUserId,
+                                          receiverId: widget.datumId,
+                                        ));
+                                  },
+                                  child: const Text('Remove',
+                                      style: TextStyle(color: Colors.red)),
+                                )
+                              : null,
+                          onTap: () {
+                            // optional: open user profile
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        });
+      },
+    );
+  }
+}

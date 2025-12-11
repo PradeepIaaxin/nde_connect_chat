@@ -1,0 +1,2 @@
+D:/NDE_EMAIL-nde_email/android/app/.cxx/Debug/5a5l4q51/x86_64/CMakeFiles/edit_cache.dir
+D:/NDE_EMAIL-nde_email/android/app/.cxx/Debug/5a5l4q51/x86_64/CMakeFiles/rebuild_cache.dir

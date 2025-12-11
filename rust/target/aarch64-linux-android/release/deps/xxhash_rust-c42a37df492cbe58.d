@@ -1,0 +1,10 @@
+/Users/sharmila/Downloads/Nde_chat_11dec/rust/target/aarch64-linux-android/release/deps/xxhash_rust-c42a37df492cbe58.d: /Users/sharmila/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xxhash-rust-0.8.15/src/lib.rs /Users/sharmila/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xxhash-rust-0.8.15/src/utils.rs /Users/sharmila/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xxhash-rust-0.8.15/src/xxh32_common.rs /Users/sharmila/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xxhash-rust-0.8.15/src/xxh32.rs
+
+/Users/sharmila/Downloads/Nde_chat_11dec/rust/target/aarch64-linux-android/release/deps/libxxhash_rust-c42a37df492cbe58.rlib: /Users/sharmila/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xxhash-rust-0.8.15/src/lib.rs /Users/sharmila/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xxhash-rust-0.8.15/src/utils.rs /Users/sharmila/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xxhash-rust-0.8.15/src/xxh32_common.rs /Users/sharmila/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xxhash-rust-0.8.15/src/xxh32.rs
+
+/Users/sharmila/Downloads/Nde_chat_11dec/rust/target/aarch64-linux-android/release/deps/libxxhash_rust-c42a37df492cbe58.rmeta: /Users/sharmila/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xxhash-rust-0.8.15/src/lib.rs /Users/sharmila/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xxhash-rust-0.8.15/src/utils.rs /Users/sharmila/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xxhash-rust-0.8.15/src/xxh32_common.rs /Users/sharmila/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xxhash-rust-0.8.15/src/xxh32.rs
+
+/Users/sharmila/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xxhash-rust-0.8.15/src/lib.rs:
+/Users/sharmila/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xxhash-rust-0.8.15/src/utils.rs:
+/Users/sharmila/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xxhash-rust-0.8.15/src/xxh32_common.rs:
+/Users/sharmila/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xxhash-rust-0.8.15/src/xxh32.rs:
