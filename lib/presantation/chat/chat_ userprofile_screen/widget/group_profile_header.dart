@@ -131,6 +131,8 @@ class GroupProfileHeader extends StatelessWidget {
     );
   }
 
+
+
   Widget _buildProfileTextInfo() {
     return Column(
       children: [
