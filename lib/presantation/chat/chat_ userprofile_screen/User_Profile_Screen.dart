@@ -1,5 +1,4 @@
 import 'dart:developer';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -143,6 +142,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             mailName: widget.mailName,
             fullName: fullName,
             grpChat: widget.isGrp,
+            
           ),
           _buildUserInfoSection(),
           if (!widget.isGrp) _buildCommonGroupsSection(),

@@ -153,6 +153,7 @@ class GroupProfileHeader extends StatelessWidget {
     );
   }
 
+
   Widget _buildMemberCountInfo(int memberCount) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
