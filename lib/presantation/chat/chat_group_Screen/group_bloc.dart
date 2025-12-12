@@ -54,13 +54,14 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
   Future<void> _onFetchGroupMessages(
       FetchGroupMessages event, Emitter<GroupChatState> emit) async {
     try {
+      List<GroupMessageModel> localMessages = [];
       if (event.page == 1) {
         emit(GroupChatLoading());
 
         /// Load local stored (flat) messages
         final localMaps = GrpLocalChatStorage.loadMessages(event.convoId);
 
-        final localMessages =
+        localMessages =
             localMaps.map((json) => GroupMessageModel.fromJson(json)).toList();
 
         if (localMessages.isNotEmpty) {
@@ -95,6 +96,32 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
       // Flatten messages for saving to local
       final flatIncoming =
           incomingGroups.expand((group) => group.messages).toList();
+
+      // 🛠️ FIX: Preserve pending 'sending' messages from local cache that are missing in API
+      // Because API sync might be faster than upload + server indexing
+      final pendingMessages = localMessages.where((m) {
+        return m.messageStatus == 'sending' &&
+            !flatIncoming.any((apiMsg) =>
+                apiMsg.id == m.id || apiMsg.messageId == m.messageId);
+      }).toList();
+
+      if (pendingMessages.isNotEmpty) {
+        log("🔄 Providing persistence for ${pendingMessages.length} pending messages");
+        flatIncoming.addAll(pendingMessages);
+
+        // Also add to incomingGroups for immediate UI reflection
+        // We find the group for "Today" or create it
+        final todayLabel = _formatDate(DateTime.now());
+        final todayGroupIndex =
+            incomingGroups.indexWhere((g) => g.label == todayLabel);
+
+        if (todayGroupIndex != -1) {
+          incomingGroups[todayGroupIndex].messages.addAll(pendingMessages);
+        } else {
+          incomingGroups.insert(0,
+              GroupMessageGroup(label: todayLabel, messages: pendingMessages));
+        }
+      }
 
       if (flatIncoming.isNotEmpty) {
         await GrpLocalChatStorage.saveMessages(

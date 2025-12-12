@@ -22,6 +22,7 @@ class GrpShowAltDialog {
     required String receiverId,
     required bool isGroupChat,
     required VoidCallback onOptionSelected,
+    Function(List<XFile>)? onFilesSelected,
   }) {
     List<XFile>? selectedFiles;
     String? selectedLabel;
@@ -57,18 +58,35 @@ class GrpShowAltDialog {
                           mainAxisSpacing: 16,
                           crossAxisSpacing: 16,
                           children: [
-                            // MULTIPLE IMAGES
+                            // GALLERY (Images)
                             _buildOption(
                               context,
                               Icons.photo_library,
-                              "Images",
+                              "Gallery",
                               () async {
                                 final files =
                                     await ImagePicker().pickMultiImage();
-                                if (files != null && files.isNotEmpty) {
+                                if (files.isNotEmpty) {
                                   setState(() {
                                     selectedFiles = files;
                                     selectedLabel = 'Image';
+                                  });
+                                }
+                              },
+                            ),
+
+                            // VIDEO
+                            _buildOption(
+                              context,
+                              Icons.videocam,
+                              "Video",
+                              () async {
+                                final files =
+                                    await ImagePicker().pickMultiVideo();
+                                if (files.isNotEmpty) {
+                                  setState(() {
+                                    selectedFiles = files;
+                                    selectedLabel = 'Video';
                                   });
                                 }
                               },
@@ -83,7 +101,6 @@ class GrpShowAltDialog {
                                 final file = await ImagePicker().pickImage(
                                   source: ImageSource.camera,
                                 );
-
                                 if (file != null) {
                                   setState(() {
                                     selectedFiles = [file];
@@ -97,13 +114,12 @@ class GrpShowAltDialog {
                             _buildOption(
                               context,
                               Icons.insert_drive_file,
-                              "Documents",
+                              "Document",
                               () async {
                                 final result =
                                     await FilePicker.platform.pickFiles(
                                   allowMultiple: true,
                                 );
-
                                 if (result != null) {
                                   setState(() {
                                     selectedFiles = result.paths
@@ -127,7 +143,6 @@ class GrpShowAltDialog {
                                   type: FileType.audio,
                                   allowMultiple: true,
                                 );
-
                                 if (result != null) {
                                   setState(() {
                                     selectedFiles = result.paths
@@ -139,6 +154,16 @@ class GrpShowAltDialog {
                                 }
                               },
                             ),
+
+                            // LOCATION
+                            _buildOption(
+                              context,
+                              Icons.location_on,
+                              "Location",
+                              () async {
+                                // Placeholder for location logic
+                              },
+                            ),
                           ],
                         )
                       ]
@@ -146,21 +171,45 @@ class GrpShowAltDialog {
                       else ...[
                         const SizedBox(height: 10),
 
-                        // IMAGE PREVIEW
-                        if (selectedLabel == "Image")
+                        // IMAGE OR VIDEO PREVIEW
+                        if (selectedLabel == "Image" ||
+                            selectedLabel == "Video")
                           SizedBox(
-                            height: 400,
+                            height:
+                                200, // Reduced height to match private chat style
                             child: ListView.builder(
                               scrollDirection: Axis.horizontal,
                               itemCount: selectedFiles!.length,
                               itemBuilder: (context, index) {
+                                final file = selectedFiles![index];
+                                final mime = lookupMimeType(file.path) ?? '';
+                                final isVideo = mime.startsWith('video/') ||
+                                    selectedLabel == 'Video';
+
                                 return Padding(
                                   padding: const EdgeInsets.all(8.0),
-                                  child: Image.file(
-                                    File(selectedFiles![index].path),
-                                    width: 320,
-                                    fit: BoxFit.cover,
-                                  ),
+                                  child: isVideo
+                                      ? Stack(
+                                          alignment: Alignment.center,
+                                          children: [
+                                            Container(
+                                              width: 150,
+                                              height: 200,
+                                              color: Colors.black12,
+                                              child: const Icon(Icons.videocam,
+                                                  size: 50,
+                                                  color: Colors.white70),
+                                            ),
+                                            const Icon(Icons.play_circle_fill,
+                                                size: 40, color: Colors.white),
+                                          ],
+                                        )
+                                      : Image.file(
+                                          File(file.path),
+                                          width: 150,
+                                          height: 200,
+                                          fit: BoxFit.cover,
+                                        ),
                                 );
                               },
                             ),
@@ -193,6 +242,15 @@ class GrpShowAltDialog {
                             backgroundColor: Colors.green,
                           ),
                           onPressed: () async {
+                            if (onFilesSelected != null &&
+                                selectedFiles != null) {
+                              // ✅ New path: Pass files back to caller to handle optimistic updates
+                              onFilesSelected(selectedFiles!);
+                              Navigator.of(context).pop();
+                              return;
+                            }
+
+                            // ⚠️ Legacy path: Handling internally (race condition prone for optimistic IO)
                             final count = selectedFiles!.length;
                             final isGrouped = count >= 4;
                             final String? groupMessageId =
@@ -291,8 +349,8 @@ class GrpShowAltDialog {
                 file: localFile,
                 convoId: conversationId,
                 senderId: senderId,
-                receiverId: receiverId, 
-                groupId: receiverId, 
+                receiverId: receiverId,
+                groupId: receiverId,
                 message: "",
                 isGroupMessage: isGroupMessage,
                 groupMessageId: groupMessageId,
