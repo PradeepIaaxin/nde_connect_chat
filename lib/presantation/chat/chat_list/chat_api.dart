@@ -165,13 +165,15 @@ class ChatListApiService {
 
     if (response.statusCode == 200) {
       final jsonData = jsonDecode(response.body);
-
+     
       // NEW: Check for Loro snapshot
       if (jsonData["snapshot"] != null) {
         final snapshotBase64 = jsonData["snapshot"];
         log("📥 Received Loro Snapshot. Decoding using Rust...");
 
         final chats = await decodeChatsFromLoro(snapshotBase64);
+         log(chats.map((e) => e.toJson()).toList().toString());
+
 
         return chats;
       }
@@ -179,6 +181,7 @@ class ChatListApiService {
       // BACKUP: If normal JSON array is sent instead of snapshot
       final List<dynamic> chatJson = jsonData["data"] ?? [];
       final chats = chatJson.map((e) => Datu.fromJson(e)).toList();
+      log(chatJson.toString());
 
       return chats;
     } else if (response.statusCode == 401) {

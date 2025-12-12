@@ -1,4 +1,8 @@
-import 'dart:developer';
+
+
+
+import 'dart:developer' show log;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -28,6 +32,7 @@ class UserProfileScreen extends StatefulWidget {
   final bool isGrp;
   final String reciverId;
   final bool favourite;
+  final bool hasLeftGroup; 
 
   const UserProfileScreen(
       {super.key,
@@ -40,7 +45,9 @@ class UserProfileScreen extends StatefulWidget {
       this.grpId,
       required this.isGrp,
       required this.reciverId,
-      required this.favourite});
+      required this.favourite
+      , this.hasLeftGroup = false
+      });
 
   @override
   State<UserProfileScreen> createState() => _UserProfileScreenState();
@@ -281,7 +288,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             grpChat: true,
             currentUserId: firstMember?.lastName ?? '',
             groupAvatarUrl: group.groupAvatar,
-            participants: [],
+            onlineParticipants: [],
           ),
         );
       },

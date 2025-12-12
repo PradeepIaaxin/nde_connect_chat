@@ -47,7 +47,7 @@ class ChatListTileReusable extends StatelessWidget {
               GestureDetector(
                 onTap: onAvatarTap,
                 child: Hero(
-                    transitionOnUserGestures: true,
+                  transitionOnUserGestures: true,
                   tag: "uiui_${chat.id}",
                   child: CircleAvatar(
                     radius: 24,
@@ -55,8 +55,9 @@ class ChatListTileReusable extends StatelessWidget {
                         ? ColorUtil.getColorFromAlphabet(profileAvatar)
                         : Colors.transparent,
                     child: ProfileAvatar(
-                      profileAvatarUrl: profileAvatarUrl,
-                      profileAvatar: profileAvatar,
+                      imageUrl: profileAvatarUrl,
+                      name: profileAvatar,
+                      size: 48,
                     ),
                   ),
                 ),
