@@ -31,9 +31,11 @@ class CommonAppBarBuilder {
     String? firstname,
     String? lastname,
     String? lastSeen,
+     required bool hasLeftGroup, 
     required String grpId,
     required String resvID,
     required bool grpChat,
+    required List<String> groupMembers,
     required bool favouitre,
     required VoidCallback onSearchTap,
     required VoidCallback onCloseSearch,
@@ -49,11 +51,11 @@ class CommonAppBarBuilder {
     if (isSelectionMode) {
       return LongPressAppBar(
         title: '${selectedMessages.length} selected',
-        onBackPressed: toggleSelectionMode,
-        onDeletePressed: deleteSelectedMessages,
-        onForwardPressed: forwardSelectedMessages,
-        onStarPressed: starSelectedMessages,
-        onReplayPressed: selectedMessages.length == 1
+        onBackPressed: hasLeftGroup == true ? null : toggleSelectionMode,
+        onDeletePressed: hasLeftGroup == true ? null :   deleteSelectedMessages,
+        onForwardPressed: hasLeftGroup == true ? null :  forwardSelectedMessages,
+        onStarPressed: hasLeftGroup == true ? null :  starSelectedMessages,
+        onReplayPressed:  selectedMessages.length == 1
             ? () => replyToMessage(selectedMessages.first)
             : null,
         additionalMenuItems: [
@@ -219,6 +221,8 @@ class CommonAppBarBuilder {
                 // Is this specific user online?
                 final isUserOnline = SocketService().onlineUsers.contains(resvID);
 
+                print("🔥Buildingpresencefor  $isUserOnline ");
+
 
                 return StreamBuilder<String>(
                   stream: SocketService().typingStream,
@@ -295,6 +299,8 @@ class CommonAppBarBuilder {
               grpChat: grpChat,
               favouite: favouitre,
               onSearchTap: onSearchTap,
+
+              
             );
           },
         ),

@@ -19,6 +19,12 @@ class GroupChatMessageDeletedSuccessfully extends GroupChatState {
   const GroupChatMessageDeletedSuccessfully({required this.deletedMessageIds});
 }
 
+class PermissionState extends GroupChatState {
+  final Map<String, dynamic>? response;
+  
+  PermissionState(this.response);
+}
+
 class GroupChatMessagesDeleted extends GroupChatState {}
 
 class GroupChatMessagesStarred extends GroupChatState {}
