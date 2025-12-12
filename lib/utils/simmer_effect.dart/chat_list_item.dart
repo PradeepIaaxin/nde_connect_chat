@@ -53,7 +53,7 @@ class ChatListItem extends StatelessWidget {
                       showDialog(
                         context: context,
                         builder: (_) => ProfileDialog(
-                          tag: 'profile_hero_${chat.id}',
+                          tag: 'bkjn_cahtlist${chat.id}',
                           imageUrl: profileAvatarUrl,
                           fallbackText: profileAvatar,
                           actions: [
@@ -74,7 +74,8 @@ class ChatListItem extends StatelessWidget {
                       );
                     },
                     child: Hero(
-                      tag: 'profile_hero_${chat.id}',
+                      transitionOnUserGestures: true,
+                      tag: '9iprofile_hero_chatList_${chat.id}',
                       child: CircleAvatar(
                         radius: 24,
                         backgroundColor: profileAvatarUrl.isEmpty

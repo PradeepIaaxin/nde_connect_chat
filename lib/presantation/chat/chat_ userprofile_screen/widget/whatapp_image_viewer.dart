@@ -320,6 +320,7 @@ class _WhatsAppImageViewerState extends State<WhatsAppImageViewer> {
                 maxScale: 4.0,
                 child: Center(
                   child: Hero(
+                   transitionOnUserGestures: true,
                     tag: widget.imageUrls[index],
                     child: Image.network(
                       widget.imageUrls[index],

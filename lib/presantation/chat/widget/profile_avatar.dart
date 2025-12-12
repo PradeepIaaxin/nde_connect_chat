@@ -26,8 +26,6 @@ class ProfileAvatar extends StatelessWidget {
           fadeInDuration: Duration(milliseconds: 0),
           fadeOutDuration: Duration(milliseconds: 0),
           placeholderFadeInDuration: Duration(milliseconds: 0),
-          // memCacheWidth: 300,
-          // memCacheHeight: 300,
           useOldImageOnUrlChange: true,
           imageUrl: profileAvatarUrl,
           width: size,
@@ -44,10 +42,6 @@ class ProfileAvatar extends StatelessWidget {
               child: SizedBox(
                 width: 48,
                 height: 48,
-                // child: CircularProgressIndicator(
-                //   strokeWidth: 2,
-                //   valueColor: AlwaysStoppedAnimation<Color>(chatColor),
-                // ),
               ),
             ),
           ),
@@ -75,7 +69,6 @@ class ProfileAvatar extends StatelessWidget {
 
   Widget _buildFallbackAvatar(String displayText, double size) {
     final bgColor = ColorUtil.getColorFromAlphabet(displayText);
-
     return Container(
       width: size,
       height: size,
