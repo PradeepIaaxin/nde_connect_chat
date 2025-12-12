@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:any_link_preview/any_link_preview.dart';
 import 'package:audio_waveforms/audio_waveforms.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -25,7 +26,7 @@ import 'package:nde_email/presantation/chat/widget/custom_appbar.dart';
 import 'package:nde_email/presantation/chat/widget/delete_dialogue.dart';
 import 'package:nde_email/presantation/chat/widget/scaffold.dart';
 import 'package:nde_email/presantation/chat/widget/voicerec_ui.dart';
-import 'package:nde_email/presantation/widgets/chat_widgets/Common/group_image_ui.dart';
+import 'package:nde_email/presantation/widgets/chat_widgets/Common/grouped_media_widget.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/grp_showbottom_sheet.dart';
 import 'package:nde_email/utils/const/consts.dart';
 import 'package:nde_email/utils/datetime/date_time_utils.dart';
@@ -49,6 +50,9 @@ import '../Socket/Socket_Service.dart';
 import 'group_media_widget.dart';
 import 'group_media_viewer.dart';
 import '../chat_private_screen/messager_Bloc/widget/VideoPlayerScreen.dart';
+import '../chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
+import '../chat_private_screen/messager_Bloc/widget/double_tick_ui.dart';
+import 'package:nde_email/presantation/chat/widget/image_viewer.dart';
 import '../chat_list/chat_session_storage/chat_session.dart';
 import '../chat_list/chat_bloc.dart';
 import '../chat_list/chat_event.dart';
@@ -130,7 +134,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   late final RecorderController _recorderController = RecorderController();
   Timer? _recordingTimer;
   Map<String, dynamic>? _replyMessage;
+  Map<String, dynamic>? _replyPreview;
   final ScrollController _scrollController = ScrollController();
+  // 🔥 Highlight Logic
+  String? _highlightedMessageId;
+  Timer? _highlightTimer;
   final Set<String> _selectedMessageIds = {};
   final Set<String> _selectedMessageKeys = {};
   List<dynamic> _selectedMessages = [];
@@ -143,7 +151,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   // 👇 NEW: reaction stream + seen ids (for dedupe)
   StreamSubscription<MessageReaction>? _reactionSubscription;
   StreamSubscription<Map<String, dynamic>>? _messageSubscription;
+  StreamSubscription<Map<String, dynamic>>? _statusSubscription;
   final Set<String> _seenMessageIds = {};
+
+  // Status & Connectivity
+  bool _isOnline = true;
+  StreamSubscription<List<ConnectivityResult>>? _connSub;
+  final Set<String> _alreadyRead = {};
+  final List<Map<String, dynamic>> _offlineQueue = [];
 
   // Track last loaded data to prevent overwrite
   List<dynamic>? _lastLoadedData;
@@ -167,6 +182,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     _reactionSubscription?.cancel();
     _messageSubscription?.cancel();
+    _statusSubscription?.cancel();
+    _connSub?.cancel();
 
     _clearSessionImagePath();
     SocketService().disconnect();
@@ -197,6 +214,25 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     _checkingPersmmion();
     _initMessages();
+
+    // Check connectivity
+    Connectivity().checkConnectivity().then((results) {
+      final hasNet =
+          results.isNotEmpty && results.first != ConnectivityResult.none;
+      if (mounted) setState(() => _isOnline = hasNet);
+    });
+
+    _connSub = Connectivity().onConnectivityChanged.listen((results) {
+      final hasNet =
+          results.isNotEmpty && results.first != ConnectivityResult.none;
+
+      if (hasNet != _isOnline) {
+        if (mounted) setState(() => _isOnline = hasNet);
+        if (hasNet) {
+          _flushOfflinePendingMessages();
+        }
+      }
+    });
 
     _groupBloc = GroupChatBloc(socketService, GrpMessagerApiService());
 
@@ -229,6 +265,20 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     print("Group Members: $groupMembers");
 
     _loadCurrentUserName();
+
+    // Listen to BLoC states for instant status updates
+    _groupBloc.stream.listen((state) {
+      if (state is GrpMessageSentSuccessfully) {
+        final serverMessageId = state.sentMessage.messageId;
+        final serverStatus = state.sentMessage.messageStatus ?? 'sent';
+
+        if (serverMessageId != null && serverMessageId.isNotEmpty) {
+          debugPrint(
+              '📤 Message sent successfully: $serverMessageId with status: $serverStatus');
+          _updateMessageStatus(serverMessageId, serverStatus);
+        }
+      }
+    });
   }
 
   String currentUserName = "";
@@ -463,6 +513,81 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         socketService.messageStream.listen((Map<String, dynamic> data) {
       log("📩 Stream received message update: $data");
       onMessageReceived(data);
+    });
+  }
+
+  /// 🔁 Listen to Status Update Stream
+  void _setupStatusListener() {
+    _statusSubscription?.cancel();
+    _statusSubscription =
+        socketService.statusUpdateStream.listen((statusUpdate) {
+      if (!mounted) return;
+
+      final dynamic rawStatus =
+          statusUpdate['messageStatus'] ?? statusUpdate['status'];
+      final status = (rawStatus ?? '').toString().trim();
+      if (status.isEmpty) return;
+
+      final ids = statusUpdate['messageIds'] ??
+          statusUpdate['singleMessageId'] ??
+          statusUpdate['messageId'];
+
+      debugPrint('📥 Group Status update received: $statusUpdate');
+
+      // normalize to List<String>
+      final List<String> idList = [];
+      if (ids is List) {
+        for (final id in ids) {
+          if (id != null) idList.add(id.toString());
+        }
+      } else if (ids != null) {
+        idList.add(ids.toString());
+      }
+
+      for (final id in idList) {
+        _updateMessageStatus(id, status);
+      }
+    });
+  }
+
+  /// Update message status in all local lists
+  void _updateMessageStatus(String messageId, String status) {
+    if (messageId.isEmpty || status.isEmpty) return;
+
+    bool updated = false;
+
+    void updateInList(List<Map<String, dynamic>> list, String listName) {
+      for (int i = 0; i < list.length; i++) {
+        final msg = list[i];
+        final msgId = (msg['message_id'] ?? msg['messageId'] ?? msg['id'] ?? '')
+            .toString();
+        if (msgId == messageId) {
+          final oldStatus = (msg['messageStatus'] ?? '').toString();
+
+          // Don't downgrade status (read > delivered > sent)
+          if (oldStatus != 'read' || status == 'read') {
+            // Create new map instance to force UI rebuild
+            final newMsg = Map<String, dynamic>.from(msg);
+            newMsg['messageStatus'] = status;
+            list[i] = newMsg;
+            updated = true;
+            debugPrint(
+                '✅ Updated message $messageId status to $status in $listName');
+          }
+          break;
+        }
+      }
+    }
+
+    setState(() {
+      updateInList(dbMessages, 'dbMessages');
+      updateInList(messages, 'messages');
+      updateInList(socketMessages, 'socketMessages');
+
+      if (updated) {
+        final combined = _getCombinedMessages();
+        GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
+      }
     });
   }
 
@@ -798,13 +923,22 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         ? {
             "userId": reply["userId"] ?? reply["senderId"],
             "id": reply["id"] ?? reply["message_id"] ?? reply["messageId"],
-            "mimeType": reply["mimeType"] ?? "",
+            "mimeType": reply["mimeType"] ?? reply["fileType"] ?? "",
+            "fileType": reply["fileType"] ?? reply["mimeType"] ?? "",
             "ContentType": reply["ContentType"] ?? "",
             "replyContent": reply["content"] ?? reply["replyContent"] ?? "",
-            "replyToUser": reply["replyToUser"] ?? reply["replyToUSer"] ?? "",
+            "replyToUser": reply["senderName"] ??
+                reply["userName"] ??
+                reply["replyToUser"] ??
+                reply["replyToUSer"] ??
+                "",
             "fileName": reply["fileName"] ?? "",
             "first_name": reply["first_name"] ?? "",
             "last_name": reply["last_name"] ?? "",
+            "imageUrl": reply["imageUrl"] ?? reply["thumbnailUrl"] ?? "",
+            "fileUrl": reply["fileUrl"] ?? "",
+            "originalUrl": reply["originalUrl"] ?? "",
+            "videoDuration": reply["videoDuration"] ?? reply["duration"],
             'profile_pic_path': message['sender']?['profile_pic_path'] ??
                 message['sender']?['profilePic'] ??
                 message['profile_pic_path'] ??
@@ -845,13 +979,19 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       normalizedReactions.add(reactionMap);
     }
 
+    final messageStatus = (message['messageStatus'] ??
+            message['status'] ??
+            message['deliveryStatus'] ??
+            'sent')
+        .toString();
+
     return {
       'message_id': messageId,
       'content': content,
       'userName': userName,
       'sender': message['sender'],
       'receiver': message['receiver'],
-      'messageStatus': message['messageStatus'] ?? 'delivered',
+      'messageStatus': messageStatus.isEmpty ? 'sent' : messageStatus,
       'time': message['time'],
       'imageUrl': imageUrl,
       'fileName': fileName,
@@ -1011,6 +1151,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           currentUserId, widget.datumId, onMessageReceived, true);
 
       _setupReactionListener();
+      _setupStatusListener();
     }
     setState(() {});
   }
@@ -1121,44 +1262,110 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
 
     final nowIso = DateTime.now().toIso8601String();
-    final messageId = ObjectId().toString();
+    final tempId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
 
-    final reply = _replyMessage;
+    // 🛠 Construct a clean reply payload
+    final Map<String, dynamic>? replyPayload = _replyMessage != null
+        ? {
+            'message_id': _replyMessage!['message_id'] ?? _replyMessage!['id'],
+            'content': _replyMessage!['content'] ?? '',
+            'id': _replyMessage!['message_id'] ??
+                _replyMessage!['id'], // redundant but safe
+            'sender': _replyMessage!['sender'],
+            'replyToUser': _replyMessage!['senderName'] ??
+                _replyMessage!['userName'] ??
+                (_replyMessage!['sender'] is Map
+                    ? _replyMessage!['sender']['name']
+                    : ''),
+            'imageUrl': _replyMessage!['imageUrl'] ??
+                _replyMessage!['thumbnailUrl'] ??
+                _replyMessage!['localImagePath'],
+            'fileUrl': _replyMessage!['fileUrl'],
+            'fileName': _replyMessage!['fileName'],
+            'fileType': _replyMessage!['fileType'],
+            'originalUrl': _replyMessage!['originalUrl'],
+          }
+        : null;
 
     final message = {
-      'message_id': messageId,
+      'message_id': tempId,
       'content': _messageController.text.trim(),
       'sender': {'_id': currentUserId},
       'receiver': {'_id': widget.datumId},
-      'messageStatus': 'delivered',
+      // 🟢 Check connectivity for initial status
+      'messageStatus': (_isOnline && socketService.isConnected)
+          ? 'sending'
+          : 'pending_offline',
       'time': nowIso,
-      if (reply != null) 'repliedMessage': reply,
-      if (reply != null) 'isReplyMessage': true,
+      if (replyPayload != null) 'repliedMessage': replyPayload,
+      if (replyPayload != null) 'isReplyMessage': true,
     };
 
     setState(() {
       socketMessages.add(message);
+      _scrollToBottom();
 
       final combined = [...dbMessages, ...messages, ...socketMessages];
       GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
     });
 
-    _groupBloc.add(
-      SendMessageEvent(
-        convoId: widget.conversationId,
-        message: _messageController.text.trim(),
-        senderId: currentUserId,
-        receiverId: widget.datumId,
-        replyTo: reply,
-      ),
-    );
+    final String textToSend = _messageController.text.trim();
 
     setState(() {
       _messageController.clear();
       _replyMessage = null;
+      _replyPreview = null;
       _imageFile = null;
     });
     _clearDraft();
+
+    if (!(_isOnline && socketService.isConnected)) {
+      // Offline: Add to queue
+      _offlineQueue.add({
+        'message_id': tempId, // Store tempId to replace later if needed
+        'content': textToSend,
+        'replyTo': replyPayload,
+      });
+      return;
+    }
+
+    try {
+      final completer = Completer<GrpMessage>();
+      final subscription = _groupBloc.stream.listen((state) {
+        if (state is GrpMessageSentSuccessfully) {
+          // We assume the next success is ours.
+          // Ideally we'd match ID, but the server generates a new one.
+          // Matching content/time is a heuristics.
+          // For now, satisfy with the first success event.
+          if (!completer.isCompleted) {
+            completer.complete(state.sentMessage);
+          }
+        }
+      });
+
+      _groupBloc.add(
+        SendMessageEvent(
+          convoId: widget.conversationId,
+          message: textToSend,
+          senderId: currentUserId,
+          receiverId: widget.datumId,
+          replyTo: replyPayload,
+        ),
+      );
+
+      final sentMsg = await completer.future;
+      await subscription.cancel();
+
+      // Swap temp ID with real server ID
+      _replaceTempMessageWithReal(
+        tempId: tempId,
+        realId: sentMsg.messageId,
+        status: 'sent',
+      );
+    } catch (e) {
+      log('❌ Send message error: $e');
+      _updateMessageStatus(tempId, 'failed');
+    }
   }
 
   void _sendMessageImage() async {
@@ -1177,7 +1384,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       'content': _messageController.text.trim(),
       'sender': {'_id': currentUserId},
       'receiver': {'_id': widget.datumId},
-      'messageStatus': 'delivered',
+      'messageStatus': 'sending',
       'time': nowIso,
       'fileName': _fileUrl?.path.split('/').last,
       'fileType': mimeType,
@@ -1201,6 +1408,64 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     await _clearSessionPaths();
     _clearDraft();
+  }
+
+  void _sendMultipleFiles(List<XFile> files) async {
+    if (files.isEmpty) return;
+    log("📤 Sending ${files.length} multiple files");
+
+    final count = files.length;
+    final isGrouped = count >= 4;
+    final String? groupMessageId = isGrouped ? ObjectId().toString() : null;
+    final nowIso = DateTime.now().toIso8601String();
+
+    for (final file in files) {
+      final localFile = File(file.path);
+      final String? mimeType = lookupMimeType(file.path);
+      final bool isImage = mimeType != null && mimeType.startsWith('image/');
+      final messageId = ObjectId().toString();
+
+      final message = {
+        'message_id': messageId,
+        'localImagePath': isImage ? file.path : null,
+        'content': '', // No caption for bulk upload
+        'sender': {'_id': currentUserId},
+        'receiver': {'_id': widget.datumId},
+        'messageStatus':
+            'sending', // Optimistic status (marked sending until synced)
+        'time': nowIso,
+        'fileName': file.name,
+        'fileType': mimeType,
+        'imageUrl': isImage ? file.path : null,
+        'fileUrl': !isImage ? file.path : null,
+      };
+
+      // 1. Optimistic Update
+      setState(() {
+        socketMessages.add(message);
+      });
+
+      // 2. Send Event via BLoC
+      // Note: We replicate the logic from GrpShowAltDialog's legacy path here
+      context.read<GroupChatBloc>().add(
+            GrpUploadFileEvent(
+              file: localFile,
+              convoId: widget.conversationId,
+              senderId: currentUserId,
+              receiverId: widget.datumId,
+              groupId: widget.datumId,
+              message: "",
+              isGroupMessage: isGrouped,
+              groupMessageId: groupMessageId,
+            ),
+          );
+    }
+
+    _scrollToBottom();
+
+    // Persist optimistic messages
+    final combined = [...dbMessages, ...messages, ...socketMessages];
+    GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
   }
 
   void _scrollToBottom() {
@@ -1364,10 +1629,99 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     });
   }
 
+  void _onMessageTap(Map<String, dynamic> message) async {
+    if (_isSelectionMode) {
+      _toggleMessageSelection(message);
+      return;
+    }
+
+    debugPrint('📩 tapped message id: ${message['message_id']}');
+
+    String? extractReplyId(Map<String, dynamic> m) {
+      final reply = m['reply'] ?? m['repliedMessage'];
+
+      // 1️⃣ Check inside reply map
+      if (reply is Map<String, dynamic>) {
+        for (final key in [
+          'reply_message_id',
+          'message_id',
+          'messageId',
+          'id',
+          '_id',
+        ]) {
+          final v = reply[key];
+          if (v != null && v.toString().isNotEmpty) {
+            return v.toString();
+          }
+        }
+      }
+
+      // 2️⃣ Check top-level reply fields
+      for (final key in ['reply_message_id', 'replyId', 'reply_to_id']) {
+        final v = m[key];
+        if (v != null && v.toString().isNotEmpty) {
+          return v.toString();
+        }
+      }
+
+      return null;
+    }
+
+    final replyId = extractReplyId(message);
+    debugPrint('📌 extracted replyId: $replyId');
+
+    if (replyId != null && replyId.isNotEmpty) {
+      final found = await _scrollToMessageById(replyId, fetchIfMissing: true);
+      if (!found) {
+        Messenger.alert(
+          msg: "Original message not loaded. Scroll up to load older messages.",
+        );
+      }
+    }
+  }
+
   void _replyToMessage(Map<String, dynamic> message) {
     if (message.isEmpty) return;
+
+    // 🔹 Raw data from original message
+    final String content =
+        (message['content'] ?? message['message'] ?? '').toString();
+
+    final String? imageUrl = message['imageUrl'] ??
+        message['thumbnailUrl'] ??
+        message['localImagePath'];
+
+    final String? fileUrl = message['fileUrl'];
+    final String? fileName = message['fileName'];
+    final String? fileType = message['fileType'];
+    final String? originalUrl = message['originalUrl'] ?? fileUrl;
+
+    final String userName = message['senderName'] ??
+        message['userName'] ??
+        (message['sender']?['name'] ?? '');
+
+    final String ftLower = (fileType ?? '').toLowerCase();
+    final bool isVideo = ftLower.startsWith('video/');
+
     setState(() {
+      // 1️⃣ Keep the FULL message as-is for _sendMessage
       _replyMessage = message;
+
+      // 2️⃣ Build a lightweight map only for the input field UI
+      _replyPreview = {
+        'message_id':
+            (message['message_id'] ?? message['messageId'] ?? message['id'])
+                ?.toString(),
+        'content': content,
+        'imageUrl': imageUrl ?? '',
+        'fileUrl': fileUrl ?? '',
+        'fileName': fileName ?? '',
+        'fileType': fileType ?? '',
+        'originalUrl': originalUrl ?? '',
+        'userName': userName,
+        'isVideo': isVideo,
+      };
+
       _focusNode.requestFocus();
     });
   }
@@ -1401,69 +1755,127 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     for (int i = 0; i < messages.length; i++) {
       final currentMsg = messages[i];
 
-      // Skip if already grouped or not an image
+      // Skip if already grouped
       if (currentMsg['is_group_message'] == true &&
           currentMsg['group_message_id'] != null) {
         continue;
       }
 
-      final isImage = (currentMsg['imageUrl'] != null &&
+      // 🔹 Detect image
+      final hasImage = (currentMsg['imageUrl'] != null &&
               currentMsg['imageUrl'].toString().isNotEmpty) ||
           (currentMsg['localImagePath'] != null &&
               currentMsg['localImagePath'].toString().isNotEmpty);
 
-      if (!isImage) continue;
+      // 🔹 Detect video
+      final String fileType =
+          (currentMsg['fileType'] ?? currentMsg['mimeType'] ?? '')
+              .toString()
+              .toLowerCase();
+      final String fileUrl =
+          (currentMsg['fileUrl'] ?? currentMsg['originalUrl'] ?? '').toString();
 
-      // Look ahead for consecutive images from same sender within time threshold
+      final bool hasVideo = fileType.startsWith('video/') ||
+          ['.mp4', '.mov', '.mkv', '.avi', '.webm']
+              .any((ext) => fileUrl.toLowerCase().endsWith(ext));
+
+      final bool isMedia = hasImage || hasVideo;
+      if (!isMedia) continue;
+
+      // Look ahead for consecutive media from same sender within time threshold
       List<int> groupIndices = [i];
       final currentSender = currentMsg['sender'] is Map
-          ? currentMsg['sender']['_id']?.toString() // Ensure string
+          ? currentMsg['sender']['_id']?.toString()
           : currentMsg['sender']?.toString();
       final currentTime = _parseTime(currentMsg['time']);
 
       for (int j = i + 1; j < messages.length; j++) {
         final nextMsg = messages[j];
         final nextSender = nextMsg['sender'] is Map
-            ? nextMsg['sender']['_id']?.toString() // Ensure string
+            ? nextMsg['sender']['_id']?.toString()
             : nextMsg['sender']?.toString();
         final nextTime = _parseTime(nextMsg['time']);
 
-        final isNextImage = (nextMsg['imageUrl'] != null &&
+        // Detect media for next message
+        final nextHasImage = (nextMsg['imageUrl'] != null &&
                 nextMsg['imageUrl'].toString().isNotEmpty) ||
             (nextMsg['localImagePath'] != null &&
                 nextMsg['localImagePath'].toString().isNotEmpty);
 
-        if (!isNextImage) break;
+        final String nextFileType =
+            (nextMsg['fileType'] ?? nextMsg['mimeType'] ?? '')
+                .toString()
+                .toLowerCase();
+        final String nextFileUrl =
+            (nextMsg['fileUrl'] ?? nextMsg['originalUrl'] ?? '').toString();
+        final bool nextHasVideo = nextFileType.startsWith('video/') ||
+            ['.mp4', '.mov', '.mkv', '.avi', '.webm']
+                .any((ext) => nextFileUrl.toLowerCase().endsWith(ext));
 
-        // Debug log for potential grouping failure
-        if (currentSender != nextSender) {
-          // log('Grouping break: Sender mismatch. $currentSender vs $nextSender');
+        final bool nextIsMedia = nextHasImage || nextHasVideo;
+
+        if (nextSender != currentSender ||
+            !nextIsMedia ||
+            nextTime.difference(currentTime).inMinutes.abs() > 1) {
           break;
         }
 
-        final difference = nextTime.difference(currentTime).inMinutes.abs();
-        if (difference > 1) {
-          // log('Grouping break: Time diff $difference > 1');
+        // Already grouped by server? Treat as boundary
+        if (nextMsg['is_group_message'] == true &&
+            nextMsg['group_message_id'] != null) {
           break;
         }
 
         groupIndices.add(j);
       }
 
-      // If we found a group of 2+ images
+      // If we found a group of 2+ media items
       if (groupIndices.length > 1) {
         final groupId =
             'generated_group_${currentTime.millisecondsSinceEpoch}_$i';
-        log('🔍 Infereing group $groupId for ${groupIndices.length} images');
+        log('🔍 Inferring group $groupId for ${groupIndices.length} media items');
+
+        // ✅ CRITICAL: Persist grouping info to the ORIGINAL SOURCE messages
         for (final index in groupIndices) {
-          messages[index]['is_group_message'] = true;
-          messages[index]['group_message_id'] = groupId;
+          final messageToGroup = messages[index];
+          final msgId = (messageToGroup['message_id'] ??
+                  messageToGroup['messageId'] ??
+                  messageToGroup['id'])
+              ?.toString();
+
+          // Apply grouping to combined list
+          messageToGroup['is_group_message'] = true;
+          messageToGroup['group_message_id'] = groupId;
+
+          // Also persist to source arrays
+          if (msgId != null) {
+            _applyGroupingToSource(msgId, groupId);
+          }
         }
         // Skip the processed messages in the outer loop
         i = groupIndices.last;
       }
     }
     return messages;
+  }
+
+  /// Persist grouping info to source message arrays
+  void _applyGroupingToSource(String messageId, String groupId) {
+    void applyToList(List<Map<String, dynamic>> list) {
+      for (var msg in list) {
+        final mId =
+            (msg['message_id'] ?? msg['messageId'] ?? msg['id'])?.toString();
+        if (mId == messageId) {
+          msg['is_group_message'] = true;
+          msg['group_message_id'] = groupId;
+          break;
+        }
+      }
+    }
+
+    applyToList(socketMessages);
+    applyToList(messages);
+    applyToList(dbMessages);
   }
 
   /// Merge all messages (db + messages + socket), sort, dedupe
@@ -1576,8 +1988,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     int index = combined.indexWhere((m) {
       final mid = (m['message_id'] ?? m['id'])?.toString() ?? '';
+      // log("Comparing $mid with $messageId"); // Too verbose, maybe just log match
       return mid == messageId;
     });
+
+    debugPrint(
+        "🔍 _scrollToMessageById: Looking for $messageId, found at index $index (List size: ${combined.length})");
 
     if (index == -1 && fetchIfMissing) {
       final found = await _fetchUntilMessageFound(messageId);
@@ -1596,8 +2012,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     await Future.delayed(const Duration(milliseconds: 50));
 
+    // ✨ CRITICAL: ListView is REVERSED (newest at bottom, oldest at top)
+    // So we need to calculate from the END of the list, not the start
     const double itemHeightEstimate = 80.0;
-    final double offset = (index * itemHeightEstimate)
+
+    // Reverse the index since ListView.builder uses reverse: true
+    final reversedIndex = combined.length - 1 - index;
+    final double offset = (reversedIndex * itemHeightEstimate)
         .clamp(0.0, _scrollController.position.maxScrollExtent);
 
     await _scrollController.animateTo(
@@ -1606,98 +2027,289 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       curve: Curves.easeOut,
     );
 
+    // ✨ Highlight the target message
+    if (mounted) {
+      setState(() => _highlightedMessageId = messageId);
+
+      _highlightTimer?.cancel();
+      _highlightTimer = Timer(const Duration(seconds: 2), () {
+        if (mounted) {
+          setState(() => _highlightedMessageId = null);
+        }
+      });
+    }
+
     return true;
   }
 
   /// Reply preview (tap → scroll to original). Works after reopen because ids are persisted.
   Widget _buildReplyPreview(Map<String, dynamic> message, bool isSentByMe) {
-    final Map<String, dynamic>? reply = (message['repliedMessage'] ??
-        message['reply']) as Map<String, dynamic>?;
+    final Map<String, dynamic> replyMap =
+        (message['repliedMessage'] ?? message['reply']) is Map
+            ? Map<String, dynamic>.from(
+                message['repliedMessage'] ?? message['reply'])
+            : <String, dynamic>{};
 
-    if (reply == null) return const SizedBox.shrink();
+    if (replyMap.isEmpty) return const SizedBox.shrink();
 
-    final replyId = (reply['id'] ?? reply['message_id'] ?? reply['messageId'])
+    final replyId = (replyMap['id'] ??
+                replyMap['message_id'] ??
+                replyMap['messageId'] ??
+                replyMap['reply_message_id'])
             ?.toString() ??
         '';
 
-    final replyUser = (reply['replyToUser'] ??
-            '${reply['first_name'] ?? ''} ${reply['last_name'] ?? ''}')
+    final senderName = (replyMap['senderName'] ??
+            replyMap['userName'] ??
+            replyMap['first_name'] ??
+            replyMap['replyToUser'] ??
+            '')
+        .toString();
+
+    final replyContent = (replyMap['replyContent'] ??
+            replyMap['content'] ??
+            replyMap['message'] ??
+            '')
+        .toString();
+
+    // 👇 media info
+    String fileType = (replyMap['fileType'] ??
+            replyMap['mimeType'] ??
+            replyMap['mimetype'] ??
+            '')
         .toString()
-        .trim();
+        .toLowerCase();
 
-    final replyContent =
-        (reply['replyContent'] ?? reply['content'] ?? '').toString();
+    String imageOrVideoUrl = (replyMap['originalUrl'] ??
+            replyMap['imageUrl'] ??
+            replyMap['fileUrl'] ??
+            '')
+        .toString();
 
-    if (replyId.isEmpty && replyContent.isEmpty) {
+    // 👇 duration in seconds (change key if needed)
+    final dynamic durRaw = replyMap['videoDuration'] ?? replyMap['duration'];
+    final int durationSec =
+        durRaw is int ? durRaw : int.tryParse(durRaw?.toString() ?? '') ?? 0;
+
+    String _formatDuration(int sec) {
+      if (sec <= 0) return '';
+      final d = Duration(seconds: sec);
+      final m = d.inMinutes;
+      final s = d.inSeconds % 60;
+      return '$m:${s.toString().padLeft(2, '0')}';
+    }
+
+    // Try to recover media info from original message if missing in reply map
+    if (imageOrVideoUrl.isEmpty && replyId.isNotEmpty) {
+      try {
+        final all = _getCombinedMessages();
+        final original = all.firstWhere(
+          (m) {
+            final mid =
+                (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '').toString();
+            return mid == replyId;
+          },
+          orElse: () => <String, dynamic>{},
+        );
+
+        if (original.isNotEmpty) {
+          imageOrVideoUrl = (original['originalUrl'] ??
+                  original['imageUrl'] ??
+                  original['thumbnailUrl'] ??
+                  original['fileUrl'] ??
+                  '')
+              .toString();
+
+          if (fileType.isEmpty) {
+            fileType = (original['fileType'] ??
+                    original['mimeType'] ??
+                    original['mimetype'] ??
+                    original['ContentType'] ??
+                    '')
+                .toString()
+                .toLowerCase();
+          }
+        }
+      } catch (e) {
+        debugPrint('reply preview lookup failed: $e');
+      }
+    }
+
+    final bool isVideo = fileType.startsWith('video/') ||
+        ['mp4', 'mov', 'mkv', 'avi', 'webm']
+            .any((ext) => imageOrVideoUrl.toLowerCase().endsWith(ext));
+
+    final bool isImage = fileType.startsWith('image/') ||
+        ['jpg', 'jpeg', 'png', 'gif', 'webp']
+            .any((ext) => imageOrVideoUrl.toLowerCase().endsWith(ext));
+
+    bool _looksLikeNetwork(String s) =>
+        s.startsWith('http://') || s.startsWith('https://');
+
+    if (replyId.isEmpty && replyContent.isEmpty && imageOrVideoUrl.isEmpty) {
       return const SizedBox.shrink();
     }
 
     return GestureDetector(
       onTap: () async {
-        if (replyId.isEmpty) return;
-        final ok = await _scrollToMessageById(replyId, fetchIfMissing: true);
-        if (!ok && mounted) {
-          Messenger.alert(
-            msg:
-                "Original message not loaded. Scroll up to load older messages.",
+        // open original based on media
+        if (isVideo && imageOrVideoUrl.isNotEmpty) {
+          final isNetwork = _looksLikeNetwork(imageOrVideoUrl);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => VideoPlayerScreen(
+                path: imageOrVideoUrl,
+                isNetwork: isNetwork,
+              ),
+            ),
           );
+        } else if (isImage && imageOrVideoUrl.isNotEmpty) {
+          ImageViewer.show(context, imageOrVideoUrl);
+        } else if (replyId.isNotEmpty) {
+          debugPrint("🖱️ Tapped reply preview. ID: $replyId");
+          final found =
+              await _scrollToMessageById(replyId, fetchIfMissing: true);
+          if (!found && mounted) {
+            Messenger.alert(
+                msg:
+                    "Original message not loaded. Scroll up to load older messages.");
+          }
         }
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
           color: Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(10),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // left colored bar
             Container(
               width: 3,
-              height: 32,
+              height: 40,
               decoration: BoxDecoration(
-                color: Colors.grey.shade500,
+                color: Colors.grey.shade600,
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
+
+            // TEXT PART
             Flexible(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (replyUser.isNotEmpty)
+                  if (senderName.isNotEmpty)
                     Text(
-                      replyUser,
+                      senderName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: Colors.black87,
                       ),
                     ),
-                  if (replyContent.isNotEmpty)
+                  if (isVideo) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.videocam, size: 14),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Video'
+                              '${durationSec > 0 ? " (${_formatDuration(durationSec)})" : ""}',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ] else if (isImage) ...[
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(Icons.image, size: 14),
+                        SizedBox(width: 4),
+                        Text('Photo', style: TextStyle(fontSize: 12)),
+                      ],
+                    ),
+                  ] else if (replyContent.isNotEmpty) ...[
                     Text(
                       replyContent,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Colors.black87,
-                      ),
+                      style:
+                          const TextStyle(fontSize: 11, color: Colors.black87),
                     ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Tap to view original',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.grey.shade600,
+                  ],
+                  if (replyContent.isNotEmpty && (isVideo || isImage))
+                    Text(
+                      replyContent,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style:
+                          const TextStyle(fontSize: 10, color: Colors.black54),
                     ),
-                  ),
                 ],
               ),
             ),
+
+            const SizedBox(width: 8),
+
+            // THUMBNAIL ON THE RIGHT
+            if (imageOrVideoUrl.isNotEmpty)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: SizedBox(
+                  width: 42,
+                  height: 42,
+                  child: isVideo
+                      // 🎥 VIDEO
+                      ? FutureBuilder<File?>(
+                          future:
+                              VideoThumbUtil.generateFromUrl(imageOrVideoUrl),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return Container(color: Colors.grey.shade300);
+                            }
+                            if (!snapshot.hasData || snapshot.data == null) {
+                              return Container(
+                                color: Colors.black,
+                                child: const Icon(Icons.videocam,
+                                    color: Colors.white, size: 18),
+                              );
+                            }
+                            return Image.file(
+                              snapshot.data!,
+                              fit: BoxFit.cover,
+                            );
+                          },
+                        )
+                      // 🖼 IMAGE
+                      : (_looksLikeNetwork(imageOrVideoUrl)
+                          ? CachedNetworkImage(
+                              imageUrl: imageOrVideoUrl,
+                              fit: BoxFit.cover,
+                              placeholder: (c, _) =>
+                                  Container(color: Colors.grey.shade300),
+                              errorWidget: (c, _, __) => Container(
+                                color: Colors.grey.shade300,
+                                child: const Icon(Icons.error, size: 18),
+                              ),
+                            )
+                          : Image.file(
+                              File(imageOrVideoUrl),
+                              fit: BoxFit.cover,
+                            )),
+                ),
+              ),
           ],
         ),
       ),
@@ -1724,57 +2336,45 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           _handlePermissionResponse(state.response);
         }
         if (state is GrpMessageSentSuccessfully) {
-          final newMessage = state.sentMessage;
-
-          if (newMessage != null) {
-            setState(() {
-              socketMessages.removeWhere((msg) =>
-                  msg['content'] == newMessage.message &&
-                  msg['time'] == newMessage.time);
-              messages.add(newMessage.toJson());
-              _scrollToBottom();
-
-              final combined = [...dbMessages, ...messages, ...socketMessages];
-              GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
-            });
-          }
+          // Handled by _sendMessage completer to avoid race conditions & ID updates
         } else if (state is GroupChatError) {
           setState(() => _isDeletingMessages = false);
+        } else if (state is GroupChatLoaded) {
+          // Only update dbMessages if the data from the BLoC has actually changed
+          if (_lastLoadedData != state.response.data) {
+            _lastLoadedData = state.response.data;
+            final loadedMessages = flattenGroupedMessages(state.response.data);
+
+            _hasNextPage = state.response.hasNextPage;
+            _isLoadingMore = false;
+
+            final newDbMessages = loadedMessages
+                .map<Map<String, dynamic>>((msg) => normalizeMessage(msg))
+                .where((m) => m.isNotEmpty)
+                .toList();
+
+            setState(() {
+              dbMessages = newDbMessages;
+              // Only scroll to bottom on initial load (page 1), not pagination
+              if (state.response.page == 1 && !_isSelectionMode) {
+                _scrollToBottom();
+              }
+            });
+
+            GrpLocalChatStorage.saveMessages(widget.conversationId, dbMessages);
+
+            for (var m in newDbMessages) {
+              final id = (m['message_id'] ?? m['id'])?.toString();
+              if (id != null && id.isNotEmpty) _seenMessageIds.add(id);
+            }
+          }
         }
       },
       child: BlocBuilder<GroupChatBloc, GroupChatState>(
         buildWhen: (previous, current) =>
             true, // Always rebuild, including on setState
         builder: (context, state) {
-          // List<dynamic> loadedMessages =
-          //     (state is GroupChatLoaded) ? state.response.data ?? [] : [];
-          List<Map<String, dynamic>> loadedMessages = [];
-
-          if (state is GroupChatLoaded) {
-            // Only update dbMessages if the data from the BLoC has actually changed
-            if (_lastLoadedData != state.response.data) {
-              _lastLoadedData = state.response.data;
-              loadedMessages = flattenGroupedMessages(state.response.data);
-
-              _hasNextPage = state.response.hasNextPage;
-              _isLoadingMore = false;
-
-              final newDbMessages = loadedMessages
-                  .map<Map<String, dynamic>>((msg) => normalizeMessage(msg))
-                  .where((m) => m.isNotEmpty)
-                  .toList();
-              _isSelectionMode ? voidBox : _scrollToBottom();
-
-              dbMessages = newDbMessages;
-              GrpLocalChatStorage.saveMessages(
-                  widget.conversationId, dbMessages);
-
-              for (var m in newDbMessages) {
-                final id = (m['message_id'] ?? m['id'])?.toString();
-                if (id != null && id.isNotEmpty) _seenMessageIds.add(id);
-              }
-            }
-          }
+          // Logic moved to BlocListener to avoid side effects during build
 
           if (state is GroupChatLoading &&
               _currentPage == 1 &&
@@ -1792,6 +2392,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           }
 
           final combinedMessages = _getCombinedMessages();
+
+          if (combinedMessages.isNotEmpty) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _markVisibleMessagesAsRead(combinedMessages);
+            });
+          }
 
           GrpLocalChatStorage.saveMessages(
               widget.conversationId, combinedMessages);
@@ -1867,13 +2473,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                   final nextMsg = combinedMessages[i];
                   final nextGrpId = nextMsg['group_message_id']?.toString();
                   if (nextGrpId == groupMessageId) {
-                    final imgUrl = nextMsg['originalUrl']?.toString() ??
+                    // Collect both images and videos
+                    final mediaUrl = nextMsg['originalUrl']?.toString() ??
+                        nextMsg['fileUrl']?.toString() ??
                         nextMsg['thumbnailUrl']?.toString() ??
                         nextMsg['imageUrl']?.toString() ??
                         nextMsg['localImagePath']?.toString() ??
                         '';
-                    if (imgUrl.isNotEmpty) {
-                      groupImages.add(imgUrl);
+                    if (mediaUrl.isNotEmpty) {
+                      groupImages.add(mediaUrl);
                     }
                   } else {
                     break;
@@ -1883,27 +2491,37 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 if (groupImages.isNotEmpty) {
                   log('🖼️ Rendering grouped images: ${groupImages.length} images with group_id: $groupMessageId');
                   return _hasLeftGroup
-                      ? SizedBox()
-                      : Column(
-                          crossAxisAlignment: isSentByMe
-                              ? CrossAxisAlignment.end
-                              : CrossAxisAlignment.start,
-                          children: [
-                            if (realIndex == 0 ||
-                                !isSameDay(currentTime, prevTime))
-                              _buildDateSeparator(currentTime),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8.0, vertical: 4.0),
-                              child: Align(
-                                alignment: isSentByMe
-                                    ? Alignment.centerRight
-                                    : Alignment.centerLeft,
-                                child: ConstrainedBox(
-                                  constraints: BoxConstraints(
-                                    maxWidth:
-                                        MediaQuery.of(context).size.width *
-                                            0.75,
+                  ? SizedBox()
+                  :Column(
+                    crossAxisAlignment: isSentByMe
+                        ? CrossAxisAlignment.end
+                        : CrossAxisAlignment.start,
+                    children: [
+                      if (realIndex == 0 || !isSameDay(currentTime, prevTime))
+                        _buildDateSeparator(currentTime),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8.0, vertical: 4.0),
+                        child: Align(
+                          alignment: isSentByMe
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxWidth:
+                                  MediaQuery.of(context).size.width * 0.75,
+                            ),
+                            child: GroupedMediaWidget(
+                              mediaUrls: groupImages,
+                              onMediaTap: (index) {
+                                log('📱 Tapped media $index from grouped widget');
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => GroupedMediaViewer(
+                                      mediaUrls: groupImages,
+                                      initialIndex: index,
+                                    ),
                                   ),
                                   child: GroupedImagesWidget(
                                     images: groupImages,
@@ -1946,14 +2564,28 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
               children.add(_buildMessageBubble(message, isSentByMe));
 
+              final messageId = (message['message_id'] ??
+                      message['messageId'] ??
+                      message['id'])
+                  ?.toString();
+              final isHighlighted = _highlightedMessageId == messageId;
+
               return _hasLeftGroup
                   ? SizedBox()
-                  : Column(
-                      crossAxisAlignment: isSentByMe
-                          ? CrossAxisAlignment.end
-                          : CrossAxisAlignment.start,
-                      children: children,
-                    );
+                  :  AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOut,
+                margin: const EdgeInsets.symmetric(vertical: 2),
+                color: isHighlighted
+                    ? Colors.yellow.withOpacity(0.25)
+                    : Colors.transparent,
+                child: Column(
+                  crossAxisAlignment: isSentByMe
+                      ? CrossAxisAlignment.end
+                      : CrossAxisAlignment.start,
+                  children: children,
+                ),
+              );
             },
           );
         },
@@ -1991,37 +2623,39 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: Container(
-                width: 300,
-                height: 200,
+                height: 300,
                 color: Colors.black,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    const Icon(
-                      Icons.videocam,
-                      size: 40,
-                      color: Colors.white70,
-                    ),
-                    const Icon(
-                      Icons.play_circle_fill,
-                      size: 64,
-                      color: Colors.white,
-                    ),
-                    Positioned(
-                      bottom: 8,
-                      left: 8,
-                      right: 8,
-                      child: Text(
-                        fileName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                        ),
+                child: Center(
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      FutureBuilder<File?>(
+                        future: VideoThumbUtil.generateFromUrl(fileUrl),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                                child: CircularProgressIndicator());
+                          }
+                          if (snapshot.hasData && snapshot.data != null) {
+                            return Image.file(
+                              snapshot.data!,
+                              width: 260,
+                              height: 200,
+                              fit: BoxFit.cover,
+                            );
+                          }
+                          return const Icon(Icons.videocam,
+                              color: Colors.white, size: 50);
+                        },
                       ),
-                    ),
-                  ],
+                      Container(
+                        color: Colors.black26,
+                        child: const Icon(Icons.play_circle_fill,
+                            color: Colors.white, size: 50),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -2158,11 +2792,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                   padding: const EdgeInsets.symmetric(
                       vertical: 5.0, horizontal: 4.0),
                   child: GestureDetector(
-                    onTap: () {
-                      if (_isSelectionMode) {
-                        _toggleMessageSelection(message);
-                      }
-                    },
+                    onTap: () => _onMessageTap(message),
                     onLongPress: () {
                       if (_isSelectionMode) {
                         _toggleMessageSelection(message);
@@ -2290,7 +2920,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                       ? CachedNetworkImage(
                                                           imageUrl: imageUrl,
                                                           width: 240,
-                                                          height: 240,
+                                                          height: 300,
                                                           fit: BoxFit.cover,
                                                           placeholder: (context,
                                                                   url) =>
@@ -2923,17 +3553,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   Widget _buildStatusIcon(String status) {
-    switch (status) {
-      case 'sent':
-        return Icon(Icons.check, size: 16, color: Colors.grey.shade600);
-      case 'delivered':
-        return Icon(Icons.done_all_rounded,
-            size: 16, color: Colors.grey.shade600);
-      case 'read':
-        return const Icon(Icons.done_all, size: 16, color: Colors.blue);
-      default:
-        return const SizedBox.shrink();
-    }
+    return MessageStatusIcon(status: status);
   }
 
   Widget _buildDateSeparator(DateTime? dateTime) {
@@ -2983,6 +3603,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   void _cancelReply() {
     setState(() {
       _replyMessage = null;
+      _replyPreview = null;
     });
   }
 
@@ -3086,6 +3707,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         receiverId: widget.datumId,
         isGroupChat: true,
         onOptionSelected: _sendMessageImage,
+        onFilesSelected: _sendMultipleFiles,
       ),
 
       //     (List<Map<String, dynamic>> localMessages) {
@@ -3096,7 +3718,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       onCameraPressed: _openCamera,
       onRecordPressed: _isRecording ? _stopRecordingFs : _startRecordingFs,
       isRecording: _isRecording,
-      replyText: _replyMessage,
+      replyText: _replyPreview,
       onCancelReply: _cancelReply,
       thereORleft: thereORleft,
     );
@@ -3761,5 +4383,132 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         });
       },
     );
+  }
+
+  // ------------------ Helper Methods for Read Receipts ------------------
+
+  bool _isUnreadMessage(dynamic msg) {
+    if (msg is Map<String, dynamic>) {
+      String? senderId = msg['senderId']?.toString();
+      if (senderId == null) {
+        final dynamic sender = msg['sender'];
+        if (sender is Map) {
+          senderId = (sender['_id'] ?? sender['id'])?.toString();
+        } else if (sender is String) {
+          senderId = sender;
+        }
+      }
+
+      return msg['messageStatus'] != 'read' &&
+          senderId != null &&
+          senderId != currentUserId && // 👈 only msgs from others
+          msg['message_id'] != null;
+    }
+    return false;
+  }
+
+  List<String> _getUnreadMessageIds(List<Map<String, dynamic>> messages) {
+    return messages
+        .where(_isUnreadMessage)
+        .map((m) => (m['message_id'] ?? m['messageId'] ?? m['id']).toString())
+        .where((id) => id.isNotEmpty)
+        .toList();
+  }
+
+  void _replaceTempMessageWithReal({
+    required String tempId,
+    required String realId,
+    required String status,
+  }) {
+    bool changed = false;
+
+    void updateList(List<Map<String, dynamic>> list) {
+      for (var i = 0; i < list.length; i++) {
+        final m = list[i];
+        final mid = (m['message_id'] ?? m['messageId'] ?? '').toString();
+        if (mid == tempId) {
+          final copy = Map<String, dynamic>.from(m);
+
+          // Assign server id + status
+          copy['message_id'] = realId;
+          copy['messageStatus'] = status;
+
+          list[i] = copy;
+          changed = true;
+          break;
+        }
+      }
+    }
+
+    // Usually optimistic messages are only in socketMessages
+    updateList(socketMessages);
+    updateList(messages);
+    updateList(dbMessages);
+
+    if (changed) {
+      if (!_seenMessageIds.contains(realId)) _seenMessageIds.add(realId);
+      final combined = _getCombinedMessages();
+      GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
+      setState(() {}); // Trigger rebuild
+    }
+  }
+
+  void _markVisibleMessagesAsRead(List<Map<String, dynamic>> combined) {
+    final allUnreadIds = _getUnreadMessageIds(combined);
+    final idsToSend = allUnreadIds
+        .where((id) => id.trim().isNotEmpty && !_alreadyRead.contains(id))
+        .toList();
+
+    if (idsToSend.isEmpty) return;
+
+    // bool updated = false; // logic unused for now
+    for (final id in idsToSend) {
+      _updateMessageStatus(id, 'read');
+    }
+
+    _alreadyRead.addAll(idsToSend);
+
+    _sendReadReceipts(idsToSend);
+  }
+
+  void _sendReadReceipts(List<String> messageIds) {
+    if (messageIds.isEmpty || widget.conversationId.isEmpty) return;
+
+    // Using conversationId as roomId/channelId for group logic if applicable
+    socketService.sendReadReceipts(
+      messageIds: messageIds,
+      conversationId: widget.conversationId,
+      roomId: widget.datumId,
+    );
+  }
+
+  Future<void> _flushOfflinePendingMessages() async {
+    if (_offlineQueue.isEmpty) return;
+
+    final pending = List<Map<String, dynamic>>.from(_offlineQueue);
+    _offlineQueue.clear();
+
+    for (final item in pending) {
+      final String? messageId = item['message_id'];
+      final String content = item['content'];
+      final Map<String, dynamic>? replyTo = item['replyTo'];
+
+      if (messageId == null) continue;
+
+      try {
+        _groupBloc.add(
+          SendMessageEvent(
+            convoId: widget.conversationId,
+            message: content,
+            senderId: currentUserId,
+            receiverId: widget.datumId,
+            replyTo: replyTo,
+          ),
+        );
+        _updateMessageStatus(messageId, 'sending');
+      } catch (e) {
+        _updateMessageStatus(messageId, 'failed');
+      }
+    }
   }
 }
