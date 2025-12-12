@@ -26,6 +26,7 @@ import 'package:nde_email/presantation/chat/widget/custom_appbar.dart';
 import 'package:nde_email/presantation/chat/widget/delete_dialogue.dart';
 import 'package:nde_email/presantation/chat/widget/scaffold.dart';
 import 'package:nde_email/presantation/chat/widget/voicerec_ui.dart';
+import 'package:nde_email/presantation/widgets/chat_widgets/Common/group_image_ui.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/grouped_media_widget.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/grp_showbottom_sheet.dart';
 import 'package:nde_email/utils/const/consts.dart';
@@ -2491,42 +2492,33 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 if (groupImages.isNotEmpty) {
                   log('🖼️ Rendering grouped images: ${groupImages.length} images with group_id: $groupMessageId');
                   return _hasLeftGroup
-                  ? SizedBox()
-                  :Column(
-                    crossAxisAlignment: isSentByMe
-                        ? CrossAxisAlignment.end
-                        : CrossAxisAlignment.start,
-                    children: [
-                      if (realIndex == 0 || !isSameDay(currentTime, prevTime))
-                        _buildDateSeparator(currentTime),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8.0, vertical: 4.0),
-                        child: Align(
-                          alignment: isSentByMe
-                              ? Alignment.centerRight
-                              : Alignment.centerLeft,
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              maxWidth:
-                                  MediaQuery.of(context).size.width * 0.75,
-                            ),
-                            child: GroupedMediaWidget(
-                              mediaUrls: groupImages,
-                              onMediaTap: (index) {
-                                log('📱 Tapped media $index from grouped widget');
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => GroupedMediaViewer(
-                                      mediaUrls: groupImages,
-                                      initialIndex: index,
-                                    ),
+                      ? SizedBox()
+                      : Column(
+                          crossAxisAlignment: isSentByMe
+                              ? CrossAxisAlignment.end
+                              : CrossAxisAlignment.start,
+                          children: [
+                            if (realIndex == 0 ||
+                                !isSameDay(currentTime, prevTime))
+                              _buildDateSeparator(currentTime),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8.0, vertical: 4.0),
+                              child: Align(
+                                alignment: isSentByMe
+                                    ? Alignment.centerRight
+                                    : Alignment.centerLeft,
+                                child: ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    maxWidth:
+                                        MediaQuery.of(context).size.width *
+                                            0.75,
                                   ),
-                                  child: GroupedImagesWidget(
-                                    images: groupImages,
-                                    onImageTap: (index) {
-                                      log('📱 Tapped image $index from grouped widget');
+                                  child: GroupedMediaWidget(
+                                    mediaUrls: groupImages,
+                                    onMediaTap: (index) {
+                                      log('📱 Tapped media $index from grouped widget');
+
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
@@ -2572,20 +2564,20 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
               return _hasLeftGroup
                   ? SizedBox()
-                  :  AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeOut,
-                margin: const EdgeInsets.symmetric(vertical: 2),
-                color: isHighlighted
-                    ? Colors.yellow.withOpacity(0.25)
-                    : Colors.transparent,
-                child: Column(
-                  crossAxisAlignment: isSentByMe
-                      ? CrossAxisAlignment.end
-                      : CrossAxisAlignment.start,
-                  children: children,
-                ),
-              );
+                  : AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOut,
+                      margin: const EdgeInsets.symmetric(vertical: 2),
+                      color: isHighlighted
+                          ? Colors.yellow.withOpacity(0.25)
+                          : Colors.transparent,
+                      child: Column(
+                        crossAxisAlignment: isSentByMe
+                            ? CrossAxisAlignment.end
+                            : CrossAxisAlignment.start,
+                        children: children,
+                      ),
+                    );
             },
           );
         },
