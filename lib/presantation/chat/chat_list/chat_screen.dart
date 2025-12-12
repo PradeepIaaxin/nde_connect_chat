@@ -51,7 +51,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
   bool _isLoadingMore = false;
   bool _hasMoreItems = true;
 
-  late final StreamSubscription _userStatusSub;
+  // late final StreamSubscription _userStatusSub;
 
   bool _initialFetchDone = false;
 
@@ -61,9 +61,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
     _scrollController.addListener(_scrollListener);
 
-    _userStatusSub = SocketService().userStatusStream.listen((data) {
-      if (mounted) setState(() {});
-    });
+    // _userStatusSub = SocketService().userStatusStream.listen((data) {
+    //   if (mounted) setState(() {});
+    // });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -120,7 +120,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
   @override
   void dispose() {
-    _userStatusSub.cancel();
+    // _userStatusSub.cancel();
     _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
@@ -531,194 +531,216 @@ class _ChatListScreenState extends State<ChatListScreen> {
                               ? chat.name![0].toUpperCase()
                               : 'U';
 
-                          final isOnline = SocketService()
-                              .onlineUsers
-                              .contains(chat.datumId);
+                          return ValueListenableBuilder(
+                              valueListenable:
+                                  SocketService().userStatusNotifier,
+                              builder: (context, onlineUsers, _) {
+                                final isOnline = SocketService()
+                                    .onlineUsers
+                                    .contains(chat.datumId);
+                                return GestureDetector(
+                                  onTap: () {
+                                    if (longPressed) {
+                                      _toggleSelection(chat);
+                                    } else {
+                                      if (chat.isGroupChat == true) {
+                                        context.read<GroupChatBloc>().add(
+                                              FetchGroupMessages(
+                                                convoId: chat.id ?? "",
+                                                page: 1,
+                                                limit: 10,
+                                              ),
+                                            );
+                                      } else {
+                                        context.read<MessagerBloc>().add(
+                                              FetchMessagesEvent(
+                                                convoId: chat.id ?? '',
+                                                page: 1,
+                                                limit: 10,
+                                              ),
+                                            );
+                                      }
 
-                          return GestureDetector(
-                            onTap: () {
-                              if (longPressed) {
-                                _toggleSelection(chat);
-                              } else {
-                                if (chat.isGroupChat == true) {
-                                  context.read<GroupChatBloc>().add(
-                                        FetchGroupMessages(
-                                          convoId: chat.id ?? "",
-                                          page: 1,
-                                          limit: 10,
-                                        ),
-                                      );
-                                } else {
-                                  context.read<MessagerBloc>().add(
-                                        FetchMessagesEvent(
-                                          convoId: chat.id ?? '',
-                                          page: 1,
-                                          limit: 10,
-                                        ),
-                                      );
-                                }
-
-                                MyRouter.push(
-                                  screen: chat.isGroupChat == true
-                                      ? GroupChatScreen(
-                                          groupName: chat.name ?? 'Group Chat',
-                                          groupAvatarUrl: profileAvatarUrl,
-                                          participants: [],
-                                          currentUserId: '',
-                                          conversationId: chat.id ?? "",
-                                          datumId: chat.datumId ?? "",
-                                          grpChat: true,
-                                          favorite: chat.isFavorites ?? false,
-                                        )
-                                      : PrivateChatScreen(
-                                          userName: chat.name ?? 'Unknown User',
-                                          profileAvatarUrl: profileAvatarUrl,
-                                          lastSeen: chat.lastMessageTime != null
-                                              ? DateTimeUtils.formatMessageTime(
-                                                  chat.lastMessageTime!)
-                                              : 'No activity',
-                                          convoId: chat.id ?? "",
-                                          datumId: chat.datumId,
-                                          firstname: chat.firstName,
-                                          grpChat: false,
-                                          lastname: chat.lastName,
-                                          favourite: chat.isFavorites ?? false,
-                                        ),
-                                ).then((_) {
-                                  if (mounted) {
-                                    context
-                                        .read<ChatListBloc>()
-                                        .add(UpdateLocalChatList());
-                                  }
-                                });
-                              }
-                            },
-                            onLongPress: () {
-                              if (!longPressed) {
-                                HapticFeedback.heavyImpact();
-                                setState(() {
-                                  longPressed = true;
-                                  selectedUsers.add(chat);
-                                });
-                              } else {
-                                HapticFeedback.selectionClick();
-                                _toggleSelection(chat);
-                              }
-                            },
-                            child: Container(
-                              color: isSelected
-                                  ? chatColor.withOpacity(0.3)
-                                  : Colors.transparent,
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 8),
-                              child: ListTile(
-                                contentPadding:
-                                    const EdgeInsets.symmetric(horizontal: 4),
-                                leading: Stack(
-                                  clipBehavior: Clip.none,
-                                  children: [
-                                    GestureDetector(
-                                      onTap: () {
-                                        showDialog(
-                                          context: context,
-                                          builder: (_) => ProfileDialog(
-                                            tag:
-                                                'p00rofile_hero_profiledialog_${chat.id}',
-                                            imageUrl: profileAvatarUrl,
-                                            fallbackText: profileAvatar,
-                                            actions: [
-                                              ProfileAction(
-                                                  icon: Icons.chat,
-                                                  label: 'Chat',
-                                                  onTap: () {}),
-                                              ProfileAction(
-                                                  icon: Icons.call,
-                                                  label: 'Call',
-                                                  onTap: () {}),
-                                              ProfileAction(
-                                                  icon: Icons.videocam,
-                                                  label: 'Video',
-                                                  onTap: () {}),
-                                              ProfileAction(
-                                                  icon: Icons.info,
-                                                  label: 'Info',
-                                                  onTap: () {}),
-                                            ],
-                                            userName: chat.firstName ?? "",
-                                            groupName: chat.name ?? "",
+                                      MyRouter.push(
+                                        screen: chat.isGroupChat == true
+                                            ? GroupChatScreen(
+                                                groupName:
+                                                    chat.name ?? 'Group Chat',
+                                                groupAvatarUrl:
+                                                    profileAvatarUrl,
+                                                onlineParticipants: chat
+                                                        .onlineParticipants
+                                                        ?.cast<String>() ??
+                                                    [],
+                                                currentUserId: '',
+                                                conversationId: chat.id ?? "",
+                                                datumId: chat.datumId ?? "",
+                                                grpChat: true,
+                                                favorite:
+                                                    chat.isFavorites ?? false,
+                                              )
+                                            : PrivateChatScreen(
+                                                userName:
+                                                    chat.name ?? 'Unknown User',
+                                                profileAvatarUrl:
+                                                    profileAvatarUrl,
+                                                lastSeen: chat
+                                                            .lastMessageTime !=
+                                                        null
+                                                    ? DateTimeUtils
+                                                        .formatMessageTime(chat
+                                                            .lastMessageTime!)
+                                                    : 'No activity',
+                                                convoId: chat.id ?? "",
+                                                datumId: chat.datumId,
+                                                firstname: chat.firstName,
+                                                grpChat: false,
+                                                lastname: chat.lastName,
+                                                favourite:
+                                                    chat.isFavorites ?? false,
+                                              ),
+                                      ).then((_) {
+                                        if (mounted) {
+                                          context
+                                              .read<ChatListBloc>()
+                                              .add(UpdateLocalChatList());
+                                        }
+                                      });
+                                    }
+                                  },
+                                  onLongPress: () {
+                                    if (!longPressed) {
+                                      HapticFeedback.heavyImpact();
+                                      setState(() {
+                                        longPressed = true;
+                                        selectedUsers.add(chat);
+                                      });
+                                    } else {
+                                      HapticFeedback.selectionClick();
+                                      _toggleSelection(chat);
+                                    }
+                                  },
+                                  child: Container(
+                                    color: isSelected
+                                        ? chatColor.withOpacity(0.3)
+                                        : Colors.transparent,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8),
+                                    child: ListTile(
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 4),
+                                      leading: Stack(
+                                        clipBehavior: Clip.none,
+                                        children: [
+                                          GestureDetector(
+                                            onTap: () {
+                                              showDialog(
+                                                context: context,
+                                                builder: (_) => ProfileDialog(
+                                                  tag:
+                                                      'p00rofile_hero_profiledialog_${chat.id}',
+                                                  imageUrl: profileAvatarUrl,
+                                                  fallbackText: profileAvatar,
+                                                  actions: [
+                                                    ProfileAction(
+                                                        icon: Icons.chat,
+                                                        label: 'Chat',
+                                                        onTap: () {}),
+                                                    ProfileAction(
+                                                        icon: Icons.call,
+                                                        label: 'Call',
+                                                        onTap: () {}),
+                                                    ProfileAction(
+                                                        icon: Icons.videocam,
+                                                        label: 'Video',
+                                                        onTap: () {}),
+                                                    ProfileAction(
+                                                        icon: Icons.info,
+                                                        label: 'Info',
+                                                        onTap: () {}),
+                                                  ],
+                                                  userName:
+                                                      chat.firstName ?? "",
+                                                  groupName: chat.name ?? "",
+                                                ),
+                                              );
+                                            },
+                                            child: Hero(
+                                              transitionOnUserGestures: true,
+                                              tag:
+                                                  'prouuufile_hero_archive1_${chat.id ?? ""}_${chat.lastMessageId ?? ""}_${index}',
+                                              child: CircleAvatar(
+                                                  radius: 24,
+                                                  backgroundColor: profileAvatarUrl
+                                                          .isEmpty
+                                                      ? ColorUtil
+                                                          .getColorFromAlphabet(
+                                                              profileAvatar)
+                                                      : Colors.transparent,
+                                                  child: ProfileAvatar(
+                                                    imageUrl: profileAvatarUrl,
+                                                    name: chat.name,
+                                                    size: 48,
+                                                  )),
+                                            ),
                                           ),
-                                        );
-                                      },
-                                      child: Hero(
-                                        transitionOnUserGestures: true,
-                                        tag:
-                                            'prouuufile_hero_archive1_${chat.id}',
-                                        child: CircleAvatar(
-                                          radius: 24,
-                                          backgroundColor: profileAvatarUrl
-                                                  .isEmpty
-                                              ? ColorUtil.getColorFromAlphabet(
-                                                  profileAvatar)
-                                              : Colors.transparent,
-                                          child: ProfileAvatar(
-                                            profileAvatarUrl: profileAvatarUrl,
-                                            profileAvatar: profileAvatar,
-                                          ),
+                                          if (isOnline)
+                                            Positioned(
+                                              right: 0,
+                                              bottom: 0,
+                                              child: Container(
+                                                width: 14,
+                                                height: 14,
+                                                decoration: BoxDecoration(
+                                                  color: Colors.green,
+                                                  shape: BoxShape.circle,
+                                                  border: Border.all(
+                                                      color: Colors.white,
+                                                      width: 2),
+                                                ),
+                                              ),
+                                            ),
+                                          if (isSelected)
+                                            Positioned(
+                                              right: -4,
+                                              top: 30,
+                                              child: Container(
+                                                padding:
+                                                    const EdgeInsets.all(2),
+                                                decoration: BoxDecoration(
+                                                  color: chatColor,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: const Icon(
+                                                  Icons.check,
+                                                  color: Colors.white,
+                                                  size: 14,
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                      title: Text(
+                                        chat.firstName?.isNotEmpty == true &&
+                                                chat.lastName?.isNotEmpty ==
+                                                    true
+                                            ? "${chat.firstName} ${chat.lastName}"
+                                            : (chat.name?.isNotEmpty == true
+                                                ? chat.name!
+                                                : "Unknown"),
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w500,
                                         ),
                                       ),
+                                      subtitle: _buildSubtitle(chat),
+                                      trailing: _buildTrailing(chat),
                                     ),
-                                    if (isOnline)
-                                      Positioned(
-                                        right: 0,
-                                        bottom: 0,
-                                        child: Container(
-                                          width: 14,
-                                          height: 14,
-                                          decoration: BoxDecoration(
-                                            color: Colors.green,
-                                            shape: BoxShape.circle,
-                                            border: Border.all(
-                                                color: Colors.white, width: 2),
-                                          ),
-                                        ),
-                                      ),
-                                    if (isSelected)
-                                      Positioned(
-                                        right: -4,
-                                        top: 30,
-                                        child: Container(
-                                          padding: const EdgeInsets.all(2),
-                                          decoration: BoxDecoration(
-                                            color: chatColor,
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: const Icon(
-                                            Icons.check,
-                                            color: Colors.white,
-                                            size: 14,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                                title: Text(
-                                  chat.firstName?.isNotEmpty == true &&
-                                          chat.lastName?.isNotEmpty == true
-                                      ? "${chat.firstName} ${chat.lastName}"
-                                      : (chat.name?.isNotEmpty == true
-                                          ? chat.name!
-                                          : "Unknown"),
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
                                   ),
-                                ),
-                                subtitle: _buildSubtitle(chat),
-                                trailing: _buildTrailing(chat),
-                              ),
-                            ),
-                          );
+                                );
+                              });
                         },
                         childCount: searchedChats.length,
                       ),

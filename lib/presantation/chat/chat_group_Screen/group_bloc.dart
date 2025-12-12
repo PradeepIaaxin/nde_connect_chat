@@ -156,6 +156,17 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
     }
   }
 
+  Stream<GroupChatState> mapEventToState(GroupChatEvent event) async* {
+    if (event is PermissionCheck) {
+      try {
+        final response = await api.checkPermission(grpId: event.grpId);
+        yield PermissionState(response);
+      } catch (e) {
+        yield GroupChatError(e.toString());
+      }
+    }
+  }
+
   // ==========================================================
   //                📌 MERGE PAGINATION GROUPS
   // ==========================================================

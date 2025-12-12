@@ -65,15 +65,16 @@ class _NewGroupChoosenState extends State<NewGroupChoosen> {
     currentUserId = await UserPreferences.getUserId();
     token = await UserPreferences.getAccessToken();
     wrkspacetoken = await UserPreferences.getDefaultWorkspace();
+    await SocketService().ensureConnected();
 
-    socketService.grpCreatSocket(
-        token ?? "",
-        currentUserId ?? "",
-        wrkspacetoken ?? "",
-        currentUserId ?? "",
-        wrkspacetoken ?? "",
-        (p0) => "",
-        false);
+    // socketService.grpCreatSocket(
+    //     token ?? "",
+    //     currentUserId ?? "",
+    //     wrkspacetoken ?? "",
+    //     currentUserId ?? "",
+    //     wrkspacetoken ?? "",
+    //     (p0) => "",
+    //     false);
   }
 
   void removeRoomId() async {
