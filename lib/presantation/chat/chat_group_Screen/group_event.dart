@@ -69,7 +69,8 @@ class SendMessageEvent extends GroupChatEvent {
     required this.convoId,
     this.contentType = 'text',
     this.mediaUrl,
-    this.replyTo, this.replyMessageId,
+    this.replyTo,
+    this.replyMessageId,
   });
 
   @override
@@ -82,7 +83,7 @@ class GrpUploadFileEvent extends GroupChatEvent {
   final String convoId;
   final String senderId;
   final String receiverId;
-  final String groupId;     
+  final String groupId;
   final String message;
   final bool isGroupMessage;
   final String? groupMessageId;
@@ -102,7 +103,6 @@ class GrpUploadFileEvent extends GroupChatEvent {
   List<Object?> get props =>
       [file, convoId, senderId, receiverId, groupId, message, isGroupMessage];
 }
-
 
 class ForwardMessageEvent extends GroupChatEvent {
   final String senderId;
@@ -180,6 +180,7 @@ class StarMessagesEvent extends GroupChatEvent {
   @override
   List<Object> get props => [messageIds, convoId];
 }
+
 class GroupAddReaction extends GroupChatEvent {
   final String messageId;
   final String conversationId;
