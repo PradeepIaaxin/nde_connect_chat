@@ -65,6 +65,7 @@ class ProfileDialog extends StatelessWidget {
                 children: [
                   /// Avatar + Hero Animation
                   Hero(
+                  transitionOnUserGestures: true,
                     tag: tag,
                     child: GestureDetector(
                       onTap: () {

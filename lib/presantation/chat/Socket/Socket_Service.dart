@@ -1,10 +1,7 @@
 import 'dart:convert';
 
 import 'package:nde_email/data/respiratory.dart';
-import 'package:nde_email/presantation/chat/chat_list/chat_bloc.dart';
-import 'package:nde_email/presantation/chat/chat_list/chat_event.dart';
 import 'package:nde_email/presantation/chat/chat_list/chat_response_model.dart';
-import 'package:nde_email/presantation/chat/chat_list/chat_session_storage/chat_session.dart';
 import 'package:nde_email/presantation/chat/model/emoj_model.dart';
 import 'package:nde_email/rust/api.dart/api.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
@@ -77,27 +74,27 @@ class SocketService {
     _onChatListUpdatedCallback = callback;
   }
 
-  void _setupChatRefreshListener() {
-    if (socket == null) return;
+  // void _setupChatRefreshListener() {
+  //   if (socket == null) return;
 
-    socket!.on("refetch_chat_list", (response) {
-      try {
-        final chats = (response as List).map((e) => Datu.fromJson(e)).toList();
-        _onChatListUpdatedCallback?.call(chats);
-      } catch (e) {
-        log("❌ Error parsing chat list from socket: $e");
-      }
-    });
-  }
+  //   socket!.on("refetch_chat_list", (response) {
+  //     try {
+  //       final chats = (response as List).map((e) => Datu.fromJson(e)).toList();
+  //       _onChatListUpdatedCallback?.call(chats);
+  //     } catch (e) {
+  //       log("❌ Error parsing chat list from socket: $e");
+  //     }
+  //   });
+  // }
 
-  void listenForGlobalEvents() {
-    _setupChatRefreshListener();
-  }
+  // void listenForGlobalEvents() {
+  //   _setupChatRefreshListener();
+  // }
 
-  void onSocketConnected() {
-    log("⚡ Socket Connected! Ready to handle chats...");
-    listenForGlobalEvents();
-  }
+  // void onSocketConnected() {
+  //   log("⚡ Socket Connected! Ready to handle chats...");
+  //   listenForGlobalEvents();
+  // }
 
   Future<void> ensureConnected() async {
     log("connctiog.....");
@@ -181,19 +178,9 @@ class SocketService {
     int maxRetries = 3,
     int retryDelay = 2000,
   }) async {
-    // if (socket != null && socket!.connected) {
-    //   log("⚠ Socket already connected. Reusing existing connection.");
-    //   return;
-    // }
-    // Disconnect existing socket if any
-    // if (socket != null) {
-    //   socket!.disconnect();
-    //   socket = null;
-    // }
-
-    const String socketUrl =  'https://api.nowdigitaleasy.com/wschat';
+    const String socketUrl = 'https://api.nowdigitaleasy.com/wschat';
     //"https://86b66c8cd7bd.ngrok-free.app/wschat";
-  // 'https://api.nowdigitaleasy.com/wschat';
+    // 'https://api.nowdigitaleasy.com/wschat';
     int attempt = 0;
 
     Future<void> connectSocket() async {
@@ -203,6 +190,7 @@ class SocketService {
       socket = IO.io(
         socketUrl,
         IO.OptionBuilder()
+
             ///wschat
             .setPath('/wschat/socket.io')
             .setQuery({
@@ -224,16 +212,17 @@ class SocketService {
             .build(),
       );
 
-socket!.onAny((event, data) {
+      socket!.onAny((event, data) {
         print("📡 CLIENT EVENT RECEIVED → $event : $data");
       });
+
       _setupSocketListeners(
           senderId, receiverId, onMessageReceived, isGroupchat);
 
       socket!.onConnect((_) {
         log('Socket connected successfully');
         log(socket!.id.toString());
-        onSocketConnected();
+        // onSocketConnected();
         log("socket id : ${socket!.id.toString()}");
         attempt = 0;
         _joinWorkspace(workspaceId, clientId);
@@ -342,180 +331,6 @@ socket!.onAny((event, data) {
       log('🏢 Workspace room joined: $response');
       if (response is Map) {
         _onlineStatusController.add(true);
-      }
-    });
-    // socket!.on('receive_message', (response) {
-    //   log('📨 New message received - triggering chat list refresh');
-    //   // Trigger chat list refresh when new messages arrive
-    //   if (onChatListRefresh != null) {
-    //     onChatListRefresh!();
-    //   }
-    //   _chatListRefreshController.add(null);
-    // });
-
-    // socket!.on("message_update", (response) {
-    //   log('📨 New message_update - triggering chat list refresh');
-
-    //   if (response is List && response.isNotEmpty) {
-    //     response = response.first;
-    //   }
-
-    //   if (response is Map<String, dynamic> && response['data'] != null) {
-    //     final data = response['data'];
-
-    //     ChatSessionStorage.updateChat(
-    //       convoId: data['conversation_id'],
-    //       lastMessage: data['content'] ?? '',
-    //       lastMessageTime: DateTime.tryParse(data['time'] ?? ''),
-    //       contentType: data['ContentType'],
-    //       unreadIncrement: data['messageType'] == 'received' ? 1 : 0,
-    //     );
-
-    //     MyRouter.navigatorKey.currentContext!
-    //         .read<ChatListBloc>()
-    //         .add(UpdateLocalChatList());
-    //   }
-    // });
-
-    // socket!.off("message_update");
-
-    // socket!.on("message_update", (response) async {
-    //   if (response is List && response.isNotEmpty) {
-    //     response = response.first;
-    //   }
-
-    //   // 🔥 Broadcast update via Stream (New Stream Logic)
-    //   if (response is Map) {
-    //     _messageController.add(Map<String, dynamic>.from(response));
-    //   } else if (response is Map<String, dynamic>) {
-    //     _messageController.add(response);
-    //   }
-
-    //   if (response is! Map || response['data'] == null) return;
-
-    //   final data = response['data'];
-
-    //   final convoId =
-    //       data['conversation_id'] ?? data['conversationId'] ?? data['roomId'];
-
-    //   if (convoId == null) return;
-
-    //   final messageId = data['_id'] ?? data['id']; // UNIQUE
-
-    //   final currentUserId = await UserPreferences.getUserId();
-    //   final senderId = data['sender']?['_id'];
-    //   final isIncoming = senderId != currentUserId;
-
-    //   ChatSessionStorage.updateChat(
-    //     convoId: convoId,
-    //     messageId: messageId,
-    //     lastMessage: data['content'] ?? '',
-    //     lastMessageTime: DateTime.tryParse(data['time'] ?? ''),
-    //     contentType: data['ContentType'],
-    //     unreadIncrement: isIncoming ? 1 : 0,
-    //   );
-
-    //   MyRouter.navigatorKey.currentContext!
-    //       .read<ChatListBloc>()
-    //       .add(UpdateLocalChatList());
-    // });
-
-    // socket!.on("message_update", (response) async {
-    //   log('📨 New message_update - triggering chat list refresh');
-
-    //   if (response is List && response.isNotEmpty) {
-    //     response = response.first;
-    //   }
-
-    //   if (response is Map<String, dynamic> && response['data'] != null) {
-    //     final data = response['data'];
-
-    //     String? convoId = data['conversation_id'] ?? data['conversationId'];
-    //     if (convoId == null && data['roomId'] != null) {
-    //       convoId = data['roomId'];
-    //     }
-
-    //     if (convoId == null) {
-    //       log("⚠ Skipping update - convoId still null!");
-    //       return;
-    //     }
-
-    //     final currentUserId = await UserPreferences.getUserId();
-    //     final messageSenderId = data['sender']?['_id'];
-    //     final isIncoming = messageSenderId != currentUserId;
-
-    //     ChatSessionStorage.updateChat(
-    //       convoId: convoId,
-    //       lastMessage: data['content'] ?? '',
-    //       lastMessageTime: DateTime.tryParse(data['time'] ?? ''),
-    //       contentType: data['ContentType'],
-    //       unreadIncrement: isIncoming ? 1 : 0,
-    //     );
-
-    //     MyRouter.navigatorKey.currentContext!
-    //         .read<ChatListBloc>()
-    //         .add(UpdateLocalChatList());
-    //   }
-    // });
-
-    // socket!.on('message_update', (response) {
-    //   log('📨 New message_update - triggering chat list refresh');
-
-    //   if (response is List && response.isNotEmpty) {
-    //     final first = response.first;
-    //     if (first is Map<String, dynamic>) {
-    //       _statusUpdateController.add(first);
-    //     }
-    //   } else if (response is Map<String, dynamic>) {
-    //     _statusUpdateController.add(response);
-    //   }
-    // });
-
-    socket!.on("new_conversation", (response) {
-      log("📥 New conversation event");
-
-      // Handle List response
-      if (response is List && response.isNotEmpty) {
-        response = response.first;
-      }
-
-      // Validate type & extract
-      if (response is Map<String, dynamic> && response["data"] != null) {
-        final data = response["data"];
-        final msg = data["data"];
-
-        if (msg == null) return;
-        // 🛠 Extract message/sendParams
-        final sendParams = {
-          "conversationId": data["conversationId"],
-          "participants": data["participants"],
-          "messageId": msg["messageId"],
-          "message": msg["message"],
-          "sender": msg["sender"],
-          "receiver": msg["receiver"],
-          "roomId": msg["roomId"],
-          "content": msg["content"],
-          "contentType": msg["ContentType"],
-          "messageType": msg["messageType"],
-          "time": msg["time"],
-        };
-
-        log("📌 Extracted SendParams: $sendParams");
-
-        // 📌 Update local storage/chat head UI
-        ChatSessionStorage.updateChat(
-          messageId: msg["messageId"],
-          convoId: data["conversationId"],
-          lastMessage: msg["content"] ?? "",
-          lastMessageTime: DateTime.tryParse(msg["time"] ?? ""),
-          contentType: msg["ContentType"],
-          unreadIncrement: msg["messageType"] == "received" ? 1 : 0,
-        );
-
-        // 🔄 Update Bloc UI
-        MyRouter.navigatorKey.currentContext!
-            .read<ChatListBloc>()
-            .add(UpdateLocalChatList());
       }
     });
 
@@ -945,8 +760,9 @@ socket!.onAny((event, data) {
       }
     });
 
-     socket!.on("chatlistUpdate", (payload) async {
+    socket!.on("chatlistUpdate", (payload) async {
       print("💥 chatlistUpdate received");
+      socket!.off("chatlistUpdate");
 
       try {
         Uint8List bytes;
@@ -1293,56 +1109,56 @@ socket!.onAny((event, data) {
     final roomId = generateRoomId(senderId, receiverId);
     log("📡 Listening in room: $roomId");
 
-    socket!.on('receive_message', (response) {
-      log("📥 receive_message: ${response.runtimeType}  for room=$roomId");
+    // socket!.on('receive_message', (response) {
+    //   log("📥 receive_message: ${response.runtimeType}  for room=$roomId");
 
-      final messageIds = <String>[];
-      bool hasValidMessage = false;
+    //   final messageIds = <String>[];
+    //   bool hasValidMessage = false;
 
-      void processMessage(Map<String, dynamic> message) {
-        try {
-          final data = message['data'] as Map<String, dynamic>?;
-          if (data == null) return;
+    //   void processMessage(Map<String, dynamic> message) {
+    //     try {
+    //       final data = message['data'] as Map<String, dynamic>?;
+    //       if (data == null) return;
 
-          final messageId = data['message_id']?.toString();
-          if (messageId == null || messageId.isEmpty) return;
+    //       final messageId = data['message_id']?.toString();
+    //       if (messageId == null || messageId.isEmpty) return;
 
-          // ✅ NO roomId filtering here. Let the screen filter by conversationId.
-          onMessageReceived({
-            'event': 'receive_message',
-            'data': data,
-          });
+    //       // ✅ NO roomId filtering here. Let the screen filter by conversationId.
+    //       onMessageReceived({
+    //         'event': 'receive_message',
+    //         'data': data,
+    //       });
 
-          // 🔥 Broadcast update via Stream (Unify receive_message)
-          _messageController.add(data);
+    //       // 🔥 Broadcast update via Stream (Unify receive_message)
+    //       _messageController.add(data);
 
-          messageIds.add(messageId);
-          hasValidMessage = true;
+    //       messageIds.add(messageId);
+    //       hasValidMessage = true;
 
-          log("✅ Delivered socket message $messageId to UI listener");
-        } catch (e) {
-          log("❌ Error processing message: $e");
-        }
-      }
+    //       log("✅ Delivered socket message $messageId to UI listener");
+    //     } catch (e) {
+    //       log("❌ Error processing message: $e");
+    //     }
+    //   }
 
-      if (response is List) {
-        for (final item in response) {
-          if (item is Map<String, dynamic>) processMessage(item);
-        }
-      } else if (response is Map<String, dynamic>) {
-        processMessage(response);
-      }
+    //   if (response is List) {
+    //     for (final item in response) {
+    //       if (item is Map<String, dynamic>) processMessage(item);
+    //     }
+    //   } else if (response is Map<String, dynamic>) {
+    //     processMessage(response);
+    //   }
 
-      if (hasValidMessage && messageIds.isNotEmpty) {
-        final readPayload = {
-          'messageIds': messageIds,
-          'roomId': roomId,
-          'timestamp': DateTime.now().toIso8601String(),
-        };
-        log("📤 Emitting read_message: $readPayload");
-        socket!.emit('read_message', readPayload);
-      }
-    });
+    //   if (hasValidMessage && messageIds.isNotEmpty) {
+    //     final readPayload = {
+    //       'messageIds': messageIds,
+    //       'roomId': roomId,
+    //       'timestamp': DateTime.now().toIso8601String(),
+    //     };
+    //     log("📤 Emitting read_message: $readPayload");
+    //     socket!.emit('read_message', readPayload);
+    //   }
+    // });
 
     // socket!.on('update_message_read', (data) {
     //   log("🟢 Read receipt update: $data");

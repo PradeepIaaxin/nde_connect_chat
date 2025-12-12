@@ -526,11 +526,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
                               chat.profilePic?.isNotEmpty == true
                                   ? chat.profilePic!
                                   : '';
-                          final profileAvatar = profileAvatarUrl.isEmpty
-                              ? (chat.name?.isNotEmpty == true
-                                  ? chat.name![0].toUpperCase()
-                                  : 'U')
-                              : profileAvatarUrl;
+
+                          final profileAvatar = (chat.name?.isNotEmpty == true)
+                              ? chat.name![0].toUpperCase()
+                              : 'U';
 
                           final isOnline = SocketService()
                               .onlineUsers
@@ -594,18 +593,18 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                 });
                               }
                             },
-                              onLongPress: () {
-                                if (!longPressed) {
-                                  HapticFeedback.heavyImpact();
-                                  setState(() {
-                                    longPressed = true;
-                                    selectedUsers.add(chat);
-                                  });
-                                } else {
-                                  HapticFeedback.selectionClick();
-                                  _toggleSelection(chat);
-                                }
-                              },
+                            onLongPress: () {
+                              if (!longPressed) {
+                                HapticFeedback.heavyImpact();
+                                setState(() {
+                                  longPressed = true;
+                                  selectedUsers.add(chat);
+                                });
+                              } else {
+                                HapticFeedback.selectionClick();
+                                _toggleSelection(chat);
+                              }
+                            },
                             child: Container(
                               color: isSelected
                                   ? chatColor.withOpacity(0.3)
@@ -623,7 +622,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                         showDialog(
                                           context: context,
                                           builder: (_) => ProfileDialog(
-                                            tag: 'profile_hero_${chat.id}',
+                                            tag:
+                                                'p00rofile_hero_profiledialog_${chat.id}',
                                             imageUrl: profileAvatarUrl,
                                             fallbackText: profileAvatar,
                                             actions: [
@@ -650,7 +650,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                         );
                                       },
                                       child: Hero(
-                                        tag: 'profile_hero_${chat.id}',
+                                        transitionOnUserGestures: true,
+                                        tag:
+                                            'prouuufile_hero_archive1_${chat.id}',
                                         child: CircleAvatar(
                                           radius: 24,
                                           backgroundColor: profileAvatarUrl
