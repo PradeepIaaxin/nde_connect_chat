@@ -380,7 +380,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
                                       showDialog(
                                         context: context,
                                         builder: (_) => ProfileDialog(
-                                          tag: 'profile_hero_${chat.id}',
+                                          tag: 'profileyy_hero_archivedig_${chat.id}',
                                           imageUrl: profileAvatarUrl,
                                           fallbackText: profileAvatar,
                                           actions: [
@@ -407,7 +407,8 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
                                       );
                                     },
                                     child: Hero(
-                                      tag: 'profile_hero_${chat.id}',
+                                       transitionOnUserGestures: true,
+                                      tag: 'jhbhb_arcgHero_${chat.id}',
                                       child: CircleAvatar(
                                         radius: 24,
                                         backgroundColor: profileAvatarUrl
