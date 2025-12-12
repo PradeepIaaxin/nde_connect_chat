@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:any_link_preview/any_link_preview.dart';
 import 'package:audio_waveforms/audio_waveforms.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -49,6 +50,7 @@ import 'group_media_widget.dart';
 import 'group_media_viewer.dart';
 import '../chat_private_screen/messager_Bloc/widget/VideoPlayerScreen.dart';
 import '../chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
+import '../chat_private_screen/messager_Bloc/widget/double_tick_ui.dart';
 import 'package:nde_email/presantation/chat/widget/image_viewer.dart';
 import '../chat_list/chat_session_storage/chat_session.dart';
 import '../chat_list/chat_bloc.dart';
@@ -146,7 +148,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   // 👇 NEW: reaction stream + seen ids (for dedupe)
   StreamSubscription<MessageReaction>? _reactionSubscription;
   StreamSubscription<Map<String, dynamic>>? _messageSubscription;
+  StreamSubscription<Map<String, dynamic>>? _statusSubscription;
   final Set<String> _seenMessageIds = {};
+
+  // Status & Connectivity
+  bool _isOnline = true;
+  StreamSubscription<List<ConnectivityResult>>? _connSub;
+  final Set<String> _alreadyRead = {};
+  final List<Map<String, dynamic>> _offlineQueue = [];
 
   // Track last loaded data to prevent overwrite
   List<dynamic>? _lastLoadedData;
@@ -170,6 +179,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     _reactionSubscription?.cancel();
     _messageSubscription?.cancel();
+    _statusSubscription?.cancel();
+    _connSub?.cancel();
 
     _clearSessionImagePath();
     SocketService().disconnect();
@@ -182,6 +193,25 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     super.initState();
     currentUserId = widget.currentUserId; // Initialize from widget
     _initMessages();
+
+    // Check connectivity
+    Connectivity().checkConnectivity().then((results) {
+      final hasNet =
+          results.isNotEmpty && results.first != ConnectivityResult.none;
+      if (mounted) setState(() => _isOnline = hasNet);
+    });
+
+    _connSub = Connectivity().onConnectivityChanged.listen((results) {
+      final hasNet =
+          results.isNotEmpty && results.first != ConnectivityResult.none;
+
+      if (hasNet != _isOnline) {
+        if (mounted) setState(() => _isOnline = hasNet);
+        if (hasNet) {
+          _flushOfflinePendingMessages();
+        }
+      }
+    });
 
     _groupBloc = GroupChatBloc(socketService, GrpMessagerApiService());
 
@@ -211,6 +241,20 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     // Load draft after initialization
     _loadDraft();
     _loadCurrentUserName();
+
+    // Listen to BLoC states for instant status updates
+    _groupBloc.stream.listen((state) {
+      if (state is GrpMessageSentSuccessfully) {
+        final serverMessageId = state.sentMessage.messageId;
+        final serverStatus = state.sentMessage.messageStatus ?? 'sent';
+
+        if (serverMessageId != null && serverMessageId.isNotEmpty) {
+          debugPrint(
+              '📤 Message sent successfully: $serverMessageId with status: $serverStatus');
+          _updateMessageStatus(serverMessageId, serverStatus);
+        }
+      }
+    });
   }
 
   String currentUserName = "";
@@ -445,6 +489,81 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         socketService.messageStream.listen((Map<String, dynamic> data) {
       log("📩 Stream received message update: $data");
       onMessageReceived(data);
+    });
+  }
+
+  /// 🔁 Listen to Status Update Stream
+  void _setupStatusListener() {
+    _statusSubscription?.cancel();
+    _statusSubscription =
+        socketService.statusUpdateStream.listen((statusUpdate) {
+      if (!mounted) return;
+
+      final dynamic rawStatus =
+          statusUpdate['messageStatus'] ?? statusUpdate['status'];
+      final status = (rawStatus ?? '').toString().trim();
+      if (status.isEmpty) return;
+
+      final ids = statusUpdate['messageIds'] ??
+          statusUpdate['singleMessageId'] ??
+          statusUpdate['messageId'];
+
+      debugPrint('📥 Group Status update received: $statusUpdate');
+
+      // normalize to List<String>
+      final List<String> idList = [];
+      if (ids is List) {
+        for (final id in ids) {
+          if (id != null) idList.add(id.toString());
+        }
+      } else if (ids != null) {
+        idList.add(ids.toString());
+      }
+
+      for (final id in idList) {
+        _updateMessageStatus(id, status);
+      }
+    });
+  }
+
+  /// Update message status in all local lists
+  void _updateMessageStatus(String messageId, String status) {
+    if (messageId.isEmpty || status.isEmpty) return;
+
+    bool updated = false;
+
+    void updateInList(List<Map<String, dynamic>> list, String listName) {
+      for (int i = 0; i < list.length; i++) {
+        final msg = list[i];
+        final msgId = (msg['message_id'] ?? msg['messageId'] ?? msg['id'] ?? '')
+            .toString();
+        if (msgId == messageId) {
+          final oldStatus = (msg['messageStatus'] ?? '').toString();
+
+          // Don't downgrade status (read > delivered > sent)
+          if (oldStatus != 'read' || status == 'read') {
+            // Create new map instance to force UI rebuild
+            final newMsg = Map<String, dynamic>.from(msg);
+            newMsg['messageStatus'] = status;
+            list[i] = newMsg;
+            updated = true;
+            debugPrint(
+                '✅ Updated message $messageId status to $status in $listName');
+          }
+          break;
+        }
+      }
+    }
+
+    setState(() {
+      updateInList(dbMessages, 'dbMessages');
+      updateInList(messages, 'messages');
+      updateInList(socketMessages, 'socketMessages');
+
+      if (updated) {
+        final combined = _getCombinedMessages();
+        GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
+      }
     });
   }
 
@@ -831,13 +950,19 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       normalizedReactions.add(reactionMap);
     }
 
+    final messageStatus = (message['messageStatus'] ??
+            message['status'] ??
+            message['deliveryStatus'] ??
+            'sent')
+        .toString();
+
     return {
       'message_id': messageId,
       'content': content,
       'userName': userName,
       'sender': message['sender'],
       'receiver': message['receiver'],
-      'messageStatus': message['messageStatus'] ?? 'delivered',
+      'messageStatus': messageStatus.isEmpty ? 'sent' : messageStatus,
       'time': message['time'],
       'imageUrl': imageUrl,
       'fileName': fileName,
@@ -997,6 +1122,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           currentUserId, widget.datumId, onMessageReceived, true);
 
       _setupReactionListener();
+      _setupStatusListener();
     }
     setState(() {});
   }
@@ -1065,7 +1191,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
 
     final nowIso = DateTime.now().toIso8601String();
-    final messageId = ObjectId().toString();
+    final tempId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
 
     // 🛠 Construct a clean reply payload
     final Map<String, dynamic>? replyPayload = _replyMessage != null
@@ -1091,11 +1217,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         : null;
 
     final message = {
-      'message_id': messageId,
+      'message_id': tempId,
       'content': _messageController.text.trim(),
       'sender': {'_id': currentUserId},
       'receiver': {'_id': widget.datumId},
-      'messageStatus': 'delivered',
+      // 🟢 Check connectivity for initial status
+      'messageStatus': (_isOnline && socketService.isConnected)
+          ? 'sending'
+          : 'pending_offline',
       'time': nowIso,
       if (replyPayload != null) 'repliedMessage': replyPayload,
       if (replyPayload != null) 'isReplyMessage': true,
@@ -1103,20 +1232,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     setState(() {
       socketMessages.add(message);
+      _scrollToBottom();
 
       final combined = [...dbMessages, ...messages, ...socketMessages];
       GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
     });
 
-    _groupBloc.add(
-      SendMessageEvent(
-        convoId: widget.conversationId,
-        message: _messageController.text.trim(),
-        senderId: currentUserId,
-        receiverId: widget.datumId,
-        replyTo: replyPayload,
-      ),
-    );
+    final String textToSend = _messageController.text.trim();
 
     setState(() {
       _messageController.clear();
@@ -1125,6 +1247,54 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       _imageFile = null;
     });
     _clearDraft();
+
+    if (!(_isOnline && socketService.isConnected)) {
+      // Offline: Add to queue
+      _offlineQueue.add({
+        'message_id': tempId, // Store tempId to replace later if needed
+        'content': textToSend,
+        'replyTo': replyPayload,
+      });
+      return;
+    }
+
+    try {
+      final completer = Completer<GrpMessage>();
+      final subscription = _groupBloc.stream.listen((state) {
+        if (state is GrpMessageSentSuccessfully) {
+          // We assume the next success is ours.
+          // Ideally we'd match ID, but the server generates a new one.
+          // Matching content/time is a heuristics.
+          // For now, satisfy with the first success event.
+          if (!completer.isCompleted) {
+            completer.complete(state.sentMessage);
+          }
+        }
+      });
+
+      _groupBloc.add(
+        SendMessageEvent(
+          convoId: widget.conversationId,
+          message: textToSend,
+          senderId: currentUserId,
+          receiverId: widget.datumId,
+          replyTo: replyPayload,
+        ),
+      );
+
+      final sentMsg = await completer.future;
+      await subscription.cancel();
+
+      // Swap temp ID with real server ID
+      _replaceTempMessageWithReal(
+        tempId: tempId,
+        realId: sentMsg.messageId,
+        status: 'sent',
+      );
+    } catch (e) {
+      log('❌ Send message error: $e');
+      _updateMessageStatus(tempId, 'failed');
+    }
   }
 
   void _sendMessageImage() async {
@@ -1143,7 +1313,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       'content': _messageController.text.trim(),
       'sender': {'_id': currentUserId},
       'receiver': {'_id': widget.datumId},
-      'messageStatus': 'delivered',
+      'messageStatus': 'sending',
       'time': nowIso,
       'fileName': _fileUrl?.path.split('/').last,
       'fileType': mimeType,
@@ -1167,6 +1337,64 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     await _clearSessionPaths();
     _clearDraft();
+  }
+
+  void _sendMultipleFiles(List<XFile> files) async {
+    if (files.isEmpty) return;
+    log("📤 Sending ${files.length} multiple files");
+
+    final count = files.length;
+    final isGrouped = count >= 4;
+    final String? groupMessageId = isGrouped ? ObjectId().toString() : null;
+    final nowIso = DateTime.now().toIso8601String();
+
+    for (final file in files) {
+      final localFile = File(file.path);
+      final String? mimeType = lookupMimeType(file.path);
+      final bool isImage = mimeType != null && mimeType.startsWith('image/');
+      final messageId = ObjectId().toString();
+
+      final message = {
+        'message_id': messageId,
+        'localImagePath': isImage ? file.path : null,
+        'content': '', // No caption for bulk upload
+        'sender': {'_id': currentUserId},
+        'receiver': {'_id': widget.datumId},
+        'messageStatus':
+            'sending', // Optimistic status (marked sending until synced)
+        'time': nowIso,
+        'fileName': file.name,
+        'fileType': mimeType,
+        'imageUrl': isImage ? file.path : null,
+        'fileUrl': !isImage ? file.path : null,
+      };
+
+      // 1. Optimistic Update
+      setState(() {
+        socketMessages.add(message);
+      });
+
+      // 2. Send Event via BLoC
+      // Note: We replicate the logic from GrpShowAltDialog's legacy path here
+      context.read<GroupChatBloc>().add(
+            GrpUploadFileEvent(
+              file: localFile,
+              convoId: widget.conversationId,
+              senderId: currentUserId,
+              receiverId: widget.datumId,
+              groupId: widget.datumId,
+              message: "",
+              isGroupMessage: isGrouped,
+              groupMessageId: groupMessageId,
+            ),
+          );
+    }
+
+    _scrollToBottom();
+
+    // Persist optimistic messages
+    final combined = [...dbMessages, ...messages, ...socketMessages];
+    GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
   }
 
   void _scrollToBottom() {
@@ -2034,20 +2262,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     return BlocListener<GroupChatBloc, GroupChatState>(
       listener: (context, state) {
         if (state is GrpMessageSentSuccessfully) {
-          final newMessage = state.sentMessage;
-
-          if (newMessage != null) {
-            setState(() {
-              socketMessages.removeWhere((msg) =>
-                  msg['content'] == newMessage.message &&
-                  msg['time'] == newMessage.time);
-              messages.add(newMessage.toJson());
-              _scrollToBottom();
-
-              final combined = [...dbMessages, ...messages, ...socketMessages];
-              GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
-            });
-          }
+          // Handled by _sendMessage completer to avoid race conditions & ID updates
         } else if (state is GroupChatError) {
           setState(() => _isDeletingMessages = false);
         } else if (state is GroupChatLoaded) {
@@ -2103,6 +2318,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           }
 
           final combinedMessages = _getCombinedMessages();
+
+          if (combinedMessages.isNotEmpty) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _markVisibleMessagesAsRead(combinedMessages);
+            });
+          }
 
           GrpLocalChatStorage.saveMessages(
               widget.conversationId, combinedMessages);
@@ -2312,37 +2533,39 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: Container(
-                width: 300,
-                height: 200,
+                height: 300,
                 color: Colors.black,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    const Icon(
-                      Icons.videocam,
-                      size: 40,
-                      color: Colors.white70,
-                    ),
-                    const Icon(
-                      Icons.play_circle_fill,
-                      size: 64,
-                      color: Colors.white,
-                    ),
-                    Positioned(
-                      bottom: 8,
-                      left: 8,
-                      right: 8,
-                      child: Text(
-                        fileName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                        ),
+                child: Center(
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      FutureBuilder<File?>(
+                        future: VideoThumbUtil.generateFromUrl(fileUrl),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                                child: CircularProgressIndicator());
+                          }
+                          if (snapshot.hasData && snapshot.data != null) {
+                            return Image.file(
+                              snapshot.data!,
+                              width: 260,
+                              height: 200,
+                              fit: BoxFit.cover,
+                            );
+                          }
+                          return const Icon(Icons.videocam,
+                              color: Colors.white, size: 50);
+                        },
                       ),
-                    ),
-                  ],
+                      Container(
+                        color: Colors.black26,
+                        child: const Icon(Icons.play_circle_fill,
+                            color: Colors.white, size: 50),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -2607,7 +2830,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                       ? CachedNetworkImage(
                                                           imageUrl: imageUrl,
                                                           width: 240,
-                                                          height: 240,
+                                                          height: 300,
                                                           fit: BoxFit.cover,
                                                           placeholder: (context,
                                                                   url) =>
@@ -3240,17 +3463,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   Widget _buildStatusIcon(String status) {
-    switch (status) {
-      case 'sent':
-        return Icon(Icons.check, size: 16, color: Colors.grey.shade600);
-      case 'delivered':
-        return Icon(Icons.done_all_rounded,
-            size: 16, color: Colors.grey.shade600);
-      case 'read':
-        return const Icon(Icons.done_all, size: 16, color: Colors.blue);
-      default:
-        return const SizedBox.shrink();
-    }
+    return MessageStatusIcon(status: status);
   }
 
   Widget _buildDateSeparator(DateTime? dateTime) {
@@ -3404,6 +3617,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         receiverId: widget.datumId,
         isGroupChat: true,
         onOptionSelected: _sendMessageImage,
+        onFilesSelected: _sendMultipleFiles,
       ),
 
       //     (List<Map<String, dynamic>> localMessages) {
@@ -4015,5 +4229,132 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         });
       },
     );
+  }
+
+  // ------------------ Helper Methods for Read Receipts ------------------
+
+  bool _isUnreadMessage(dynamic msg) {
+    if (msg is Map<String, dynamic>) {
+      String? senderId = msg['senderId']?.toString();
+      if (senderId == null) {
+        final dynamic sender = msg['sender'];
+        if (sender is Map) {
+          senderId = (sender['_id'] ?? sender['id'])?.toString();
+        } else if (sender is String) {
+          senderId = sender;
+        }
+      }
+
+      return msg['messageStatus'] != 'read' &&
+          senderId != null &&
+          senderId != currentUserId && // 👈 only msgs from others
+          msg['message_id'] != null;
+    }
+    return false;
+  }
+
+  List<String> _getUnreadMessageIds(List<Map<String, dynamic>> messages) {
+    return messages
+        .where(_isUnreadMessage)
+        .map((m) => (m['message_id'] ?? m['messageId'] ?? m['id']).toString())
+        .where((id) => id.isNotEmpty)
+        .toList();
+  }
+
+  void _replaceTempMessageWithReal({
+    required String tempId,
+    required String realId,
+    required String status,
+  }) {
+    bool changed = false;
+
+    void updateList(List<Map<String, dynamic>> list) {
+      for (var i = 0; i < list.length; i++) {
+        final m = list[i];
+        final mid = (m['message_id'] ?? m['messageId'] ?? '').toString();
+        if (mid == tempId) {
+          final copy = Map<String, dynamic>.from(m);
+
+          // Assign server id + status
+          copy['message_id'] = realId;
+          copy['messageStatus'] = status;
+
+          list[i] = copy;
+          changed = true;
+          break;
+        }
+      }
+    }
+
+    // Usually optimistic messages are only in socketMessages
+    updateList(socketMessages);
+    updateList(messages);
+    updateList(dbMessages);
+
+    if (changed) {
+      if (!_seenMessageIds.contains(realId)) _seenMessageIds.add(realId);
+      final combined = _getCombinedMessages();
+      GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
+      setState(() {}); // Trigger rebuild
+    }
+  }
+
+  void _markVisibleMessagesAsRead(List<Map<String, dynamic>> combined) {
+    final allUnreadIds = _getUnreadMessageIds(combined);
+    final idsToSend = allUnreadIds
+        .where((id) => id.trim().isNotEmpty && !_alreadyRead.contains(id))
+        .toList();
+
+    if (idsToSend.isEmpty) return;
+
+    // bool updated = false; // logic unused for now
+    for (final id in idsToSend) {
+      _updateMessageStatus(id, 'read');
+    }
+
+    _alreadyRead.addAll(idsToSend);
+
+    _sendReadReceipts(idsToSend);
+  }
+
+  void _sendReadReceipts(List<String> messageIds) {
+    if (messageIds.isEmpty || widget.conversationId.isEmpty) return;
+
+    // Using conversationId as roomId/channelId for group logic if applicable
+    socketService.sendReadReceipts(
+      messageIds: messageIds,
+      conversationId: widget.conversationId,
+      roomId: widget.datumId,
+    );
+  }
+
+  Future<void> _flushOfflinePendingMessages() async {
+    if (_offlineQueue.isEmpty) return;
+
+    final pending = List<Map<String, dynamic>>.from(_offlineQueue);
+    _offlineQueue.clear();
+
+    for (final item in pending) {
+      final String? messageId = item['message_id'];
+      final String content = item['content'];
+      final Map<String, dynamic>? replyTo = item['replyTo'];
+
+      if (messageId == null) continue;
+
+      try {
+        _groupBloc.add(
+          SendMessageEvent(
+            convoId: widget.conversationId,
+            message: content,
+            senderId: currentUserId,
+            receiverId: widget.datumId,
+            replyTo: replyTo,
+          ),
+        );
+        _updateMessageStatus(messageId, 'sending');
+      } catch (e) {
+        _updateMessageStatus(messageId, 'failed');
+      }
+    }
   }
 }
