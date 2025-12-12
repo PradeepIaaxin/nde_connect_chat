@@ -333,7 +333,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
                                     ? GroupChatScreen(
                                         groupName: chat.name ?? 'Group Chat',
                                         groupAvatarUrl: profileAvatarUrl,
-                                        participants: [],
+                                        onlineParticipants: [],
                                         currentUserId: '',
                                         conversationId: chat.id ?? "",
                                         datumId: chat.datumId ?? "",
@@ -380,7 +380,8 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
                                       showDialog(
                                         context: context,
                                         builder: (_) => ProfileDialog(
-                                          tag: 'profileyy_hero_archivedig_${chat.id}',
+                                          tag:
+                                              'profileyy_hero_archivedig_${chat.id}',
                                           imageUrl: profileAvatarUrl,
                                           fallbackText: profileAvatar,
                                           actions: [
@@ -407,7 +408,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
                                       );
                                     },
                                     child: Hero(
-                                       transitionOnUserGestures: true,
+                                      transitionOnUserGestures: true,
                                       tag: 'jhbhb_arcgHero_${chat.id}',
                                       child: CircleAvatar(
                                         radius: 24,
@@ -591,7 +592,6 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
             );
           },
         ),
-       
       ),
     );
   }

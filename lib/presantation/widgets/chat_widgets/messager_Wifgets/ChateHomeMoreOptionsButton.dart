@@ -1,4 +1,5 @@
 import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/user_profile_screen.dart'
     show UserProfileScreen;
@@ -16,6 +17,7 @@ class MoreOptionsButton extends StatefulWidget {
   final bool grpChat;
   final bool favouite;
   final VoidCallback onSearchTap;
+  final bool hasLeftGroup;
 
   const MoreOptionsButton({
     super.key,
@@ -29,6 +31,7 @@ class MoreOptionsButton extends StatefulWidget {
     required this.grpChat,
     required this.favouite,
     required this.onSearchTap,
+    this.hasLeftGroup = false,
   });
 
   @override
@@ -46,36 +49,53 @@ class MoreOptionsButton extends StatefulWidget {
     required bool favouite,
     required VoidCallback onSearchTap,
     String? resvId,
+    bool hasLeftGroup = false, // ADD THIS PARAMETER
   }) {
-    showMenu(
-      context: context,
-      position: const RelativeRect.fromLTRB(100, 80, 0, 0),
-      items: [
-        const PopupMenuItem<int>(value: 0, child: Text('View Contact')),
-        const PopupMenuItem<int>(value: 1, child: Text('Search')),
+    // Create menu items based on whether user has left the group
+    final List<PopupMenuItem<int>> menuItems = [
+      const PopupMenuItem<int>(value: 0, child: Text('View Contact')),
+      const PopupMenuItem<int>(value: 1, child: Text('Search')),
+    ];
+
+    // Only show these options if user hasn't left the group
+    if (!hasLeftGroup) {
+      menuItems.addAll([
         const PopupMenuItem<int>(value: 2, child: Text('Add to list')),
         const PopupMenuItem<int>(value: 3, child: Text('Media, Link & Docs')),
         const PopupMenuItem<int>(value: 4, child: Text('Mute notifications')),
         const PopupMenuItem<int>(
             value: 5, child: Text('Disappearing messages')),
-        const PopupMenuItem<int>(value: 6, child: Text('Chat theme')),
-        PopupMenuItem<int>(
-          value: 7,
-          child: GestureDetector(
-            onTap: () {
-              Navigator.pop(context);
-              showMoreOptions(context);
-            },
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('More'),
-                Icon(Icons.arrow_right),
-              ],
-            ),
+      ]);
+    }
+
+    menuItems.add(const PopupMenuItem<int>(value: 6, child: Text('Chat theme')));
+
+    if (!hasLeftGroup) {
+      menuItems.add(PopupMenuItem<int>(
+        value: 7,
+        child: GestureDetector(
+          onTap: () {
+            Navigator.pop(context);
+            showMoreOptions(context, hasLeftGroup: hasLeftGroup);
+          },
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('More'),
+              Icon(Icons.arrow_right),
+            ],
           ),
         ),
-      ],
+      ));
+    } else {
+      // If left, show a disabled "More" option or hide it
+      menuItems.add(const PopupMenuItem<int>(value: 7, child: Text('More (Disabled)')));
+    }
+
+    showMenu(
+      context: context,
+      position: const RelativeRect.fromLTRB(100, 80, 0, 0),
+      items: menuItems,
     ).then((value) {
       if (value != null) {
         if (value == 1) {
@@ -95,25 +115,41 @@ class MoreOptionsButton extends StatefulWidget {
           resvId: resvId,
           grpChat: grpChat,
           favorite: favouite,
+          hasLeftGroup: hasLeftGroup, // PASS THIS
         );
       }
     });
   }
 
-  static void showMoreOptions(BuildContext context) {
+  static void showMoreOptions(BuildContext context, {bool hasLeftGroup = false}) {
+    final List<PopupMenuItem<int>> moreItems = [
+      const PopupMenuItem<int>(value: 8, child: Text('Report')),
+    ];
+
+    // Only show these options if user hasn't left the group
+    if (!hasLeftGroup) {
+      moreItems.addAll([
+        const PopupMenuItem<int>(value: 9, child: Text('Block')),
+        PopupMenuItem<int>(
+          value: 13,
+          child: Text('Leave Group', style: TextStyle(color: Colors.red)),
+        ),
+      ]);
+    }
+
+    moreItems.addAll([
+      const PopupMenuItem<int>(value: 10, child: Text('Clear chat')),
+      const PopupMenuItem<int>(value: 11, child: Text('Export chat')),
+      const PopupMenuItem<int>(value: 12, child: Text('Add shortcut')),
+    ]);
+
     showMenu(
       context: context,
       position: const RelativeRect.fromLTRB(100, 180, 0, 0),
-      items: const [
-        PopupMenuItem<int>(value: 8, child: Text('Report')),
-        PopupMenuItem<int>(value: 9, child: Text('Block')),
-        PopupMenuItem<int>(value: 10, child: Text('Clear chat')),
-        PopupMenuItem<int>(value: 11, child: Text('Export chat')),
-        PopupMenuItem<int>(value: 12, child: Text('Add shortcut')),
-      ],
+      items: moreItems,
     ).then((value) {
       if (value != null) {
-        handleMoreOptions(value);
+        handleMoreOptions(value, hasLeftGroup: hasLeftGroup);
       }
     });
   }
@@ -130,6 +166,7 @@ class MoreOptionsButton extends StatefulWidget {
     String? resvId,
     required bool grpChat,
     required bool favorite,
+    required bool hasLeftGroup, 
   }) {
     switch (value) {
       case 0:
@@ -144,13 +181,22 @@ class MoreOptionsButton extends StatefulWidget {
             isGrp: grpChat,
             reciverId: resvId ?? "",
             favourite: favorite,
+            
           ),
         );
         break;
       case 2:
+        if (hasLeftGroup) {
+          _showLeftGroupMessage(context);
+          return;
+        }
         log('Add to list tapped');
         break;
       case 3:
+        if (hasLeftGroup) {
+          _showLeftGroupMessage(context);
+          return;
+        }
         String fullName = '$userName $lastname';
         log('Media, Link & Docs tapped for $fullName');
         MyRouter.push(
@@ -161,23 +207,40 @@ class MoreOptionsButton extends StatefulWidget {
         );
         break;
       case 4:
+        if (hasLeftGroup) {
+          _showLeftGroupMessage(context);
+          return;
+        }
         log('Mute notifications tapped');
         break;
       case 5:
+        if (hasLeftGroup) {
+          _showLeftGroupMessage(context);
+          return;
+        }
         log('Disappearing messages tapped');
         break;
       case 6:
         log('Chat theme tapped');
         break;
+      case 7:
+        if (hasLeftGroup) {
+          _showLeftGroupMessage(context);
+          return;
+        }
+        break;
     }
   }
 
-  static void handleMoreOptions(int value) {
+  static void handleMoreOptions(int value, {bool hasLeftGroup = false}) {
     switch (value) {
       case 8:
         log('Report tapped');
         break;
       case 9:
+        if (hasLeftGroup) {
+          return;
+        }
         log('Block tapped');
         break;
       case 10:
@@ -189,7 +252,30 @@ class MoreOptionsButton extends StatefulWidget {
       case 12:
         log('Add shortcut tapped');
         break;
+      case 13:
+        if (hasLeftGroup) {
+          return;
+        }
+        log('Leave Group tapped');
+        // Handle leave group logic here
+        break;
     }
+  }
+
+  static void _showLeftGroupMessage(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Action Not Available'),
+        content: Text('You have left this group. This action is not available.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -211,6 +297,7 @@ class _MoreOptionsButtonState extends State<MoreOptionsButton> {
           grpChat: widget.grpChat,
           favouite: widget.favouite,
           onSearchTap: widget.onSearchTap,
+          hasLeftGroup: widget.hasLeftGroup, // PASS THIS
         );
       },
     );

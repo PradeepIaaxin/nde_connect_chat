@@ -22,6 +22,7 @@ import 'package:nde_email/presantation/chat/chat_group_Screen/group_event.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_model.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_state.dart';
 import 'package:nde_email/presantation/chat/widget/custom_appbar.dart';
+import 'package:nde_email/presantation/chat/widget/delete_dialogue.dart';
 import 'package:nde_email/presantation/chat/widget/scaffold.dart';
 import 'package:nde_email/presantation/chat/widget/voicerec_ui.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/group_image_ui.dart';
@@ -59,7 +60,7 @@ class GroupChatScreen extends StatefulWidget {
     super.key,
     required this.groupName,
     required this.groupAvatarUrl,
-    this.participants,
+    required this.onlineParticipants,
     required this.currentUserId,
     required this.conversationId,
     required this.datumId,
@@ -72,7 +73,7 @@ class GroupChatScreen extends StatefulWidget {
   final String datumId;
   final String groupAvatarUrl;
   final String groupName;
-  final List<String>? participants;
+  final List<String>? onlineParticipants;
   final bool grpChat;
   final bool favorite;
 
@@ -85,6 +86,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   List<Map<String, dynamic>> dbMessages = [];
 
   final ValueNotifier<bool> isLongPressed = ValueNotifier<bool>(false);
+  late List<String> groupMembers;
 
   List<Map<String, dynamic>> messages = [];
   List<Map<String, dynamic>> socketMessages = [];
@@ -94,7 +96,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioRecorder _audioRecorder = AudioRecorder();
   Duration _currentDuration = Duration.zero;
-
+  bool _hasLeftGroup = false;
+  Map<String, dynamic>? _permissionResponse;
   int _currentPage = 1;
 
   File? _fileUrl;
@@ -171,10 +174,28 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     super.dispose();
   }
 
+  List<String> extractGroupMembers(List<dynamic> messages) {
+    final Set<String> memberIds = {};
+
+    for (var msg in messages) {
+      if (msg['properties'] != null) {
+        for (var prop in msg['properties']) {
+          if (prop['user'] != null && prop['user']['_id'] != null) {
+            memberIds.add(prop['user']['_id']);
+          }
+        }
+      }
+    }
+
+    return memberIds.toList();
+  }
+
   @override
   void initState() {
     super.initState();
-    currentUserId = widget.currentUserId; // Initialize from widget
+    currentUserId = widget.currentUserId;
+
+    _checkingPersmmion();
     _initMessages();
 
     _groupBloc = GroupChatBloc(socketService, GrpMessagerApiService());
@@ -204,6 +225,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     // Load draft after initialization
     _loadDraft();
+    groupMembers = widget.onlineParticipants ?? [];
+    print("Group Members: $groupMembers");
+
     _loadCurrentUserName();
   }
 
@@ -635,6 +659,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   void _handleReactionTap(Map<String, dynamic> message, String emoji) {
     try {
+      if (_hasLeftGroup) {
+        Messenger.alert(msg: "You have left this group");
+        return;
+      }
+
       String rawId = (message['message_id'] ??
               message['messageId'] ??
               message['id'] ??
@@ -1005,13 +1034,55 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       ),
     );
 
-    _checkingPersmmion();
+    // _checkingPersmmion();
   }
 
   void _checkingPersmmion() {
     context.read<GroupChatBloc>().add(
           PermissionCheck(widget.datumId),
         );
+  }
+
+// Add this method to handle permission state changes
+  void _handlePermissionResponse(Map<String, dynamic>? response) {
+    print("Handling permission response: $response");
+
+    if (response != null && response['type'] == 'left') {
+      if (mounted) {
+        setState(() {
+          _hasLeftGroup = true;
+          _permissionResponse = response;
+        });
+      }
+
+      print("❌ User has left the group: $_hasLeftGroup");
+
+      // Clear any draft messages
+      if (mounted) {
+        _messageController.clear();
+        _clearDraft();
+      }
+
+      // Show a snackbar notification
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('You have left this group'),
+            backgroundColor: Colors.redAccent,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          _hasLeftGroup = false;
+          _permissionResponse = null;
+        });
+      }
+
+      print("✅ User has permission to chat: $_hasLeftGroup");
+    }
   }
 
   Future<void> _loadSessionImagePath() async {
@@ -1649,6 +1720,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Widget _buildChatBody() {
     return BlocListener<GroupChatBloc, GroupChatState>(
       listener: (context, state) {
+        if (state is PermissionState) {
+          _handlePermissionResponse(state.response);
+        }
         if (state is GrpMessageSentSuccessfully) {
           final newMessage = state.sentMessage;
 
@@ -1808,45 +1882,49 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
                 if (groupImages.isNotEmpty) {
                   log('🖼️ Rendering grouped images: ${groupImages.length} images with group_id: $groupMessageId');
-                  return Column(
-                    crossAxisAlignment: isSentByMe
-                        ? CrossAxisAlignment.end
-                        : CrossAxisAlignment.start,
-                    children: [
-                      if (realIndex == 0 || !isSameDay(currentTime, prevTime))
-                        _buildDateSeparator(currentTime),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8.0, vertical: 4.0),
-                        child: Align(
-                          alignment: isSentByMe
-                              ? Alignment.centerRight
-                              : Alignment.centerLeft,
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              maxWidth:
-                                  MediaQuery.of(context).size.width * 0.75,
-                            ),
-                            child: GroupedImagesWidget(
-                              images: groupImages,
-                              onImageTap: (index) {
-                                log('📱 Tapped image $index from grouped widget');
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => GroupedMediaViewer(
-                                      mediaUrls: groupImages,
-                                      initialIndex: index,
-                                    ),
+                  return _hasLeftGroup
+                      ? SizedBox()
+                      : Column(
+                          crossAxisAlignment: isSentByMe
+                              ? CrossAxisAlignment.end
+                              : CrossAxisAlignment.start,
+                          children: [
+                            if (realIndex == 0 ||
+                                !isSameDay(currentTime, prevTime))
+                              _buildDateSeparator(currentTime),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8.0, vertical: 4.0),
+                              child: Align(
+                                alignment: isSentByMe
+                                    ? Alignment.centerRight
+                                    : Alignment.centerLeft,
+                                child: ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    maxWidth:
+                                        MediaQuery.of(context).size.width *
+                                            0.75,
                                   ),
-                                );
-                              },
+                                  child: GroupedImagesWidget(
+                                    images: groupImages,
+                                    onImageTap: (index) {
+                                      log('📱 Tapped image $index from grouped widget');
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => GroupedMediaViewer(
+                                            mediaUrls: groupImages,
+                                            initialIndex: index,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
+                          ],
+                        );
                 }
               }
 
@@ -1868,12 +1946,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
               children.add(_buildMessageBubble(message, isSentByMe));
 
-              return Column(
-                crossAxisAlignment: isSentByMe
-                    ? CrossAxisAlignment.end
-                    : CrossAxisAlignment.start,
-                children: children,
-              );
+              return _hasLeftGroup
+                  ? SizedBox()
+                  : Column(
+                      crossAxisAlignment: isSentByMe
+                          ? CrossAxisAlignment.end
+                          : CrossAxisAlignment.start,
+                      children: children,
+                    );
             },
           );
         },
@@ -3052,35 +3132,86 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     );
   }
 
+  // PreferredSizeWidget _buildAppBar() {
+  //   return CommonAppBarBuilder.build(
+  //       context: context,
+  //       showSearchAppBar: _showSearchAppBar,
+  //       isSelectionMode: _isSelectionMode,
+  //       selectedMessages: _selectedMessages,
+  //       toggleSelectionMode: _toggleSelectionMode,
+  //       deleteSelectedMessages: _deleteSelectedMessages,
+  //       forwardSelectedMessages: _forwardSelectedMessages,
+  //       starSelectedMessages: _starSelectedMessages,
+  //       replyToMessage: _replyToMessage,
+  //       profileAvatarUrl: widget.groupAvatarUrl,
+  //       convertionId: widget.conversationId,
+  //       userName: widget.groupName,
+  //       firstname: widget.groupName,
+  //       grpId: widget.datumId,
+  //       grpChat: widget.grpChat,
+  //       resvID: widget.datumId,
+  //       favouitre: widget.favorite,
+  //       onSearchTap: () {
+  //         setState(() {
+  //           _showSearchAppBar = !_showSearchAppBar;
+  //         });
+  //       },
+  //       onCloseSearch: () {
+  //         setState(() {
+  //           _showSearchAppBar = false;
+  //         });
+  //       });
+  // }
+
   PreferredSizeWidget _buildAppBar() {
+    print(_hasLeftGroup);
     return CommonAppBarBuilder.build(
-        context: context,
-        showSearchAppBar: _showSearchAppBar,
-        isSelectionMode: _isSelectionMode,
-        selectedMessages: _selectedMessages,
-        toggleSelectionMode: _toggleSelectionMode,
-        deleteSelectedMessages: _deleteSelectedMessages,
-        forwardSelectedMessages: _forwardSelectedMessages,
-        starSelectedMessages: _starSelectedMessages,
-        replyToMessage: _replyToMessage,
-        profileAvatarUrl: widget.groupAvatarUrl,
-        convertionId: widget.conversationId,
-        userName: widget.groupName,
-        firstname: widget.groupName,
-        grpId: widget.datumId,
-        grpChat: widget.grpChat,
-        resvID: widget.datumId,
-        favouitre: widget.favorite,
-        onSearchTap: () {
-          setState(() {
-            _showSearchAppBar = !_showSearchAppBar;
-          });
-        },
-        onCloseSearch: () {
-          setState(() {
-            _showSearchAppBar = false;
-          });
-        });
+      context: context,
+      showSearchAppBar: _showSearchAppBar,
+      groupMembers: groupMembers,
+      isSelectionMode: _isSelectionMode,
+      selectedMessages: _selectedMessages,
+      toggleSelectionMode: _hasLeftGroup
+          ? () {}
+          : () {
+              print(_hasLeftGroup);
+              if (_hasLeftGroup) return;
+
+              setState(() {
+                _isSelectionMode = !_isSelectionMode;
+                if (!_isSelectionMode) {
+                  _selectedMessages.clear();
+                  _selectedMessageIds.clear();
+                  _selectedMessageKeys.clear();
+                }
+              });
+            },
+      deleteSelectedMessages: _hasLeftGroup
+          ? () {}
+          : () {
+              print(_hasLeftGroup);
+              if (_hasLeftGroup) return;
+              DeleteMessageDialog.show(
+                context: context,
+                onDeleteForEveryone: () {},
+                onDeleteForMe: () => _deleteSelectedMessages(),
+              );
+            },
+      forwardSelectedMessages: _hasLeftGroup ? () {} : _forwardSelectedMessages,
+      starSelectedMessages: _hasLeftGroup ? () {} : _starSelectedMessages,
+      replyToMessage: _replyToMessage,
+      profileAvatarUrl: widget.groupAvatarUrl,
+      userName: widget.groupName,
+      firstname: widget.groupName,
+      grpId: widget.datumId,
+      convertionId: widget.conversationId,
+      resvID: widget.datumId,
+      favouitre: widget.favorite,
+      grpChat: widget.grpChat,
+      onSearchTap: _hasLeftGroup ? () {} : () => toggleSearchAppBar(),
+      onCloseSearch: _hasLeftGroup ? () {} : () => toggleSearchAppBar(),
+      hasLeftGroup: _hasLeftGroup,
+    );
   }
 
   @override
@@ -3090,33 +3221,46 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       chatBody: _buildChatBody(),
       voiceRecordingUI: _buildVoiceRecordingUI(),
       messageInputBuilder: (context) {
-        return BlocBuilder<GroupChatBloc, GroupChatState>(
-          buildWhen: (previous, current) =>
+        return BlocListener<GroupChatBloc, GroupChatState>(
+          listenWhen: (previous, current) =>
               current is GroupLeftState || current is GroupChatError,
-          builder: (context, state) {
+          listener: (context, state) {
+            if (state is GroupLeftState) {
+              setState(() {
+                _hasLeftGroup = true;
+              });
+            }
+
             if (state is GroupChatError) {
               log("GroupChatError: ${state.message}");
             }
-
-            if (state is GroupLeftState) {
-              return const Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Text(
-                  'You have left the group',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.redAccent,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              );
-            }
-
-            final isKeyboardVisible =
-                WidgetsBinding.instance.window.viewInsets.bottom > 0;
-
-            return _buildMessageInputField(isKeyboardVisible, false);
           },
+          child: BlocBuilder<GroupChatBloc, GroupChatState>(
+            buildWhen: (previous, current) =>
+                current is! GroupLeftState, // Avoid conflict with listener
+            builder: (context, state) {
+              /// 🔒 User has left the group — show banner instead of input
+              if (_hasLeftGroup) {
+                return const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text(
+                    'You have left the group',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.redAccent,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                );
+              }
+
+              final isKeyboardVisible =
+                  WidgetsBinding.instance.window.viewInsets.bottom > 0;
+
+              /// Normal message input UI
+              return _buildMessageInputField(isKeyboardVisible, false);
+            },
+          ),
         );
       },
       isRecording: _isRecording,

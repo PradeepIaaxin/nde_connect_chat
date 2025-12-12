@@ -1,89 +1,68 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:nde_email/utils/reusbale/colour_utlis.dart';
-
 class ProfileAvatar extends StatelessWidget {
-  final String profileAvatarUrl;
-  final String profileAvatar;
+  final String? imageUrl;
+  final String? name;
   final double size;
 
   const ProfileAvatar({
     super.key,
-    required this.profileAvatarUrl,
-    required this.profileAvatar,
+    required this.imageUrl,
+    required this.name,
     this.size = 48,
   });
 
   @override
   Widget build(BuildContext context) {
-    final displayText = (profileAvatar.isNotEmpty)
-        ? profileAvatar.trim()[0].toUpperCase()
-        : '?';
+    final initials = (name != null && name!.trim().isNotEmpty)
+        ? name!.trim()[0].toUpperCase()
+        : 'U';
 
-    if (profileAvatarUrl.isNotEmpty) {
-      return ClipOval(
-        child: CachedNetworkImage(
-          fadeInDuration: Duration(milliseconds: 0),
-          fadeOutDuration: Duration(milliseconds: 0),
-          placeholderFadeInDuration: Duration(milliseconds: 0),
-          useOldImageOnUrlChange: true,
-          imageUrl: profileAvatarUrl,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          placeholder: (context, url) => Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              color: Colors.grey[200],
-              shape: BoxShape.circle,
-            ),
-            child: const Center(
-              child: SizedBox(
-                width: 48,
-                height: 48,
-              ),
-            ),
-          ),
-          errorWidget: (context, url, error) =>
-              _buildFallbackAvatar(displayText, size),
-          imageBuilder: (context, imageProvider) {
-            return Container(
-              width: size,
-              height: size,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                image: DecorationImage(
-                  image: imageProvider,
-                  fit: BoxFit.cover,
-                ),
-              ),
-            );
-          },
-        ),
-      );
-    } else {
-      return _buildFallbackAvatar(displayText, size);
+    // If no URL → instantly show fallback (no flicker)
+    if (imageUrl == null || imageUrl!.isEmpty) {
+      return _fallback(initials);
     }
+
+    return ClipOval(
+      child: CachedNetworkImage(
+        imageUrl: imageUrl!,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+
+        // FIXES BLACK FLASH / BLANK FRAME
+        fadeInDuration: Duration(milliseconds: 0),
+        fadeOutDuration: Duration(milliseconds: 0),
+        placeholderFadeInDuration: Duration(milliseconds: 0),
+
+        memCacheWidth: 200,  // SPEED BOOST
+        memCacheHeight: 200,
+
+        placeholder: (_, __) => _fallback(initials),
+        errorWidget: (_, __, ___) => _fallback(initials),
+
+        // This improves performance and avoids rebuild flicker
+        useOldImageOnUrlChange: true,
+      ),
+    );
   }
 
-  Widget _buildFallbackAvatar(String displayText, double size) {
-    final bgColor = ColorUtil.getColorFromAlphabet(displayText);
+  Widget _fallback(String initial) {
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: bgColor,
+        color: ColorUtil.getColorFromAlphabet(initial),
         shape: BoxShape.circle,
       ),
       alignment: Alignment.center,
       child: Text(
-        displayText,
+        initial,
         style: TextStyle(
+          fontSize: size * 0.40,
           color: Colors.white,
-          fontSize: size * 0.42,
           fontWeight: FontWeight.bold,
-          fontFamily: 'Roboto',
         ),
       ),
     );

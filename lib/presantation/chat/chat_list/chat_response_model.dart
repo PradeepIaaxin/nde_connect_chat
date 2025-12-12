@@ -6,7 +6,9 @@ ChatListResponse authResponseFromJson(String str) =>
 
 String authResponseToJson(ChatListResponse data) => json.encode(data.toJson());
 
-// Main Classes
+// -------------------------------
+// MAIN RESPONSE MODEL
+// -------------------------------
 class ChatListResponse {
   List<String>? onlineUsers;
   List<Datu>? data;
@@ -34,11 +36,11 @@ class ChatListResponse {
         onlineUsers: (json["onlineUsers"] is List)
             ? List<String>.from(json["onlineUsers"]!.map((x) => x.toString()))
             : [],
+
         data: (json["data"] is List)
-            ? List<Datu>.from(
-                json["data"]!.map((x) => Datu.fromJson(x)),
-              )
+            ? List<Datu>.from(json["data"]!.map((x) => Datu.fromJson(x)))
             : [],
+
         paginationData: json["paginationData"] != null
             ? PaginationData.fromJson(json["paginationData"])
             : null,
@@ -51,6 +53,9 @@ class ChatListResponse {
       };
 }
 
+// -------------------------------
+// DATU MODEL
+// -------------------------------
 class Datu {
   String? id;
   bool? isGroupChat;
@@ -72,103 +77,127 @@ class Datu {
   bool? isArchived;
   bool? isFavorites;
   String? groupName;
-  String ? draftMessage;
+  String? draftMessage;
 
-  Datu(
-      {this.id,
-      this.isGroupChat,
-      this.lastMessageId,
-      this.mimeType,
-      this.contentType,
-      this.fileName,
-      this.lastMessage,
-      this.lastMessageTime,
-      this.unreadCount,
-      this.firstName,
-      this.lastName,
-      this.name,
-      this.profilePic,
-      this.datumId,
-      this.lastMessageSender,
-      this.conversationId,
-      this.isPinned,
-      this.isFavorites,
-      this.isArchived,
-      this.groupName, 
-      this.draftMessage
-      });
+  /// ⭐ NEW FIELD — ALL MEMBERS OF GROUP
+  List<String>? participants;
 
-  Datu copyWith(
-          {String? id,
-          bool? isGroupChat,
-          String? lastMessageId,
-          String? mimeType,
-          String? contentType,
-          String? fileName,
-          String? lastMessage,
-          DateTime? lastMessageTime,
-          int? unreadCount,
-          String? firstName,
-          String? lastName,
-          String? name,
-          String? profilePic,
-          String? datumId,
-          String? lastMessageSender,
-          String? conversationId,
-          bool? isPinned,
-          bool? isArchived,
-          bool? isFavorites,
-          String? groupName, 
-          String ? draftMessage
-          }) =>
+  /// ⭐ NEW FIELD — ACTIVE/ONLINE MEMBERS
+  List<String>? onlineParticipants;
+
+  Datu({
+    this.id,
+    this.isGroupChat,
+    this.lastMessageId,
+    this.mimeType,
+    this.contentType,
+    this.fileName,
+    this.lastMessage,
+    this.lastMessageTime,
+    this.unreadCount,
+    this.firstName,
+    this.lastName,
+    this.name,
+    this.profilePic,
+    this.datumId,
+    this.lastMessageSender,
+    this.conversationId,
+    this.isPinned,
+    this.isFavorites,
+    this.isArchived,
+    this.groupName,
+    this.draftMessage,
+    this.participants,
+    this.onlineParticipants,
+  });
+
+  Datu copyWith({
+    String? id,
+    bool? isGroupChat,
+    String? lastMessageId,
+    String? mimeType,
+    String? contentType,
+    String? fileName,
+    String? lastMessage,
+    DateTime? lastMessageTime,
+    int? unreadCount,
+    String? firstName,
+    String? lastName,
+    String? name,
+    String? profilePic,
+    String? datumId,
+    String? lastMessageSender,
+    String? conversationId,
+    bool? isPinned,
+    bool? isArchived,
+    bool? isFavorites,
+    String? groupName,
+    String? draftMessage,
+    List<String>? participants,
+    List<String>? onlineParticipants,
+  }) =>
       Datu(
-          id: id ?? this.id,
-          isGroupChat: isGroupChat ?? this.isGroupChat,
-          lastMessageId: lastMessageId ?? this.lastMessageId,
-          mimeType: mimeType ?? this.mimeType,
-          contentType: contentType ?? this.contentType,
-          fileName: fileName ?? this.fileName,
-          lastMessage: lastMessage ?? this.lastMessage,
-          lastMessageTime: lastMessageTime ?? this.lastMessageTime,
-          unreadCount: unreadCount ?? this.unreadCount,
-          firstName: firstName ?? this.firstName,
-          lastName: lastName ?? this.lastName,
-          name: name ?? this.name,
-          profilePic: profilePic ?? this.profilePic,
-          datumId: datumId ?? this.datumId,
-          lastMessageSender: lastMessageSender ?? this.lastMessageSender,
-          conversationId: conversationId ?? this.conversationId,
-          isPinned: isPinned ?? this.isPinned,
-          isArchived: isArchived ?? this.isArchived,
-          isFavorites: isFavorites ?? this.isFavorites,
-          groupName: groupName ?? this.groupName, 
-          draftMessage: draftMessage ?? this.draftMessage
-          );
+        id: id ?? this.id,
+        isGroupChat: isGroupChat ?? this.isGroupChat,
+        lastMessageId: lastMessageId ?? this.lastMessageId,
+        mimeType: mimeType ?? this.mimeType,
+        contentType: contentType ?? this.contentType,
+        fileName: fileName ?? this.fileName,
+        lastMessage: lastMessage ?? this.lastMessage,
+        lastMessageTime: lastMessageTime ?? this.lastMessageTime,
+        unreadCount: unreadCount ?? this.unreadCount,
+        firstName: firstName ?? this.firstName,
+        lastName: lastName ?? this.lastName,
+        name: name ?? this.name,
+        profilePic: profilePic ?? this.profilePic,
+        datumId: datumId ?? this.datumId,
+        lastMessageSender: lastMessageSender ?? this.lastMessageSender,
+        conversationId: conversationId ?? this.conversationId,
+        isPinned: isPinned ?? this.isPinned,
+        isArchived: isArchived ?? this.isArchived,
+        isFavorites: isFavorites ?? this.isFavorites,
+        groupName: groupName ?? this.groupName,
+        draftMessage: draftMessage ?? this.draftMessage,
+        participants: participants ?? this.participants,
+        onlineParticipants: onlineParticipants ?? this.onlineParticipants,
+      );
 
   factory Datu.fromJson(Map<String, dynamic> json) => Datu(
-      id: json["_id"] ?? "",
-      isGroupChat: json["is_group_chat"] ?? false,
-      lastMessageId: json["lastMessageId"] ?? "",
-      mimeType: json["mimeType"] ?? "",
-      contentType: json["ContentType"] ?? "",
-      fileName: json["fileName"] ?? "",
-      lastMessage: json["lastMessage"] ?? "",
-      lastMessageTime: json["lastMessageTime"] != null
-          ? DateTime.tryParse(json["lastMessageTime"] ?? "")
-          : null,
-      unreadCount: json["unreadCount"] ?? 0,
-      firstName: json["first_name"] ?? "",
-      lastName: json["last_name"] ?? "",
-      name: json["name"] ?? "",
-      profilePic: json["profile_pic"] ?? "",
-      datumId: json["id"] ?? "",
-      lastMessageSender: json["lastMessageSender"] ?? "",
-      conversationId: json['conversationId'] ?? "",
-      isPinned: json['isPinned'] ?? false,
-      isFavorites: json['favourites'] ?? false,
-      isArchived: json['isArchived'] ?? false,
-      groupName: json['groupName'] ?? "", 
-      draftMessage: json['draftMessage']
+        id: json["_id"] ?? "",
+        isGroupChat: json["is_group_chat"] ?? false,
+        lastMessageId: json["lastMessageId"] ?? "",
+        mimeType: json["mimeType"] ?? "",
+        contentType: json["ContentType"] ?? "",
+        fileName: json["fileName"] ?? "",
+        lastMessage: json["lastMessage"] ?? "",
+        lastMessageTime: json["lastMessageTime"] != null
+            ? DateTime.tryParse(json["lastMessageTime"])
+            : null,
+        unreadCount: json["unreadCount"] ?? 0,
+
+        firstName: json["first_name"] ?? "",
+        lastName: json["last_name"] ?? "",
+        name: json["name"] ?? "",
+        profilePic: json["profile_pic"] ?? "",
+        datumId: json["id"] ?? "",
+        lastMessageSender: json["lastMessageSender"] ?? "",
+        conversationId: json["conversationId"] ?? "",
+        isPinned: json["isPinned"] ?? false,
+        isFavorites: json["favourites"] ?? false,
+        isArchived: json["isArchived"] ?? false,
+        groupName: json["groupName"] ?? "",
+        draftMessage: json["draftMessage"],
+
+        /// ⭐ PARTICIPANTS LIST
+        participants: json["participants"] != null
+            ? List<String>.from(json["participants"].map((x) => x.toString()))
+            : [],
+
+        /// ⭐ ONLINE PARTICIPANTS LIST
+        onlineParticipants: json["onlineParticipants"] != null
+            ? List<String>.from(
+                json["onlineParticipants"].map((x) => x.toString()))
+            : [],
       );
 
   Map<String, dynamic> toJson() => {
@@ -187,14 +216,21 @@ class Datu {
         "profile_pic": profilePic,
         "id": datumId,
         "lastMessageSender": lastMessageSender,
+        "conversationId": conversationId,
         "isPinned": isPinned,
         "isArchived": isArchived,
         "favourites": isFavorites,
         "groupName": groupName,
-        'draftMessage': draftMessage,
+        "draftMessage": draftMessage,
+
+        "participants": participants ?? [],
+        "onlineParticipants": onlineParticipants ?? [],
       };
 }
 
+// -------------------------------
+// PAGINATION MODEL
+// -------------------------------
 class PaginationData {
   int? totalDocs;
   int? page;
@@ -212,24 +248,8 @@ class PaginationData {
     this.prevPage,
   });
 
-  PaginationData copyWith({
-    int? totalDocs,
-    int? page,
-    int? limit,
-    int? totalPages,
-    int? nextPage,
-    int? prevPage,
-  }) =>
+  factory PaginationData.fromJson(Map<String, dynamic> json) =>
       PaginationData(
-        totalDocs: totalDocs ?? this.totalDocs,
-        page: page ?? this.page,
-        limit: limit ?? this.limit,
-        totalPages: totalPages ?? this.totalPages,
-        nextPage: nextPage ?? this.nextPage,
-        prevPage: prevPage ?? this.prevPage,
-      );
-
-  factory PaginationData.fromJson(Map<String, dynamic> json) => PaginationData(
         totalDocs: json["totalDocs"] ?? 0,
         page: json["page"] ?? 0,
         limit: json["limit"] ?? 0,

@@ -24,6 +24,8 @@ class FetchGroupMessages extends GroupChatEvent {
   List<Object> get props => [convoId, page, limit];
 }
 
+
+
 class ListenToMessages extends GroupChatEvent {
   final String senderId;
   final String receiverId;
