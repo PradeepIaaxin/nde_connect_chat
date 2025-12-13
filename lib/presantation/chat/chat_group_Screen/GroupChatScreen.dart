@@ -156,6 +156,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   StreamSubscription<List<ConnectivityResult>>? _connSub;
   final Set<String> _alreadyRead = {};
   final List<Map<String, dynamic>> _offlineQueue = [];
+  final Map<String, String> _pendingStatusUpdates =
+      {}; // Buffer for race conditions
 
   // Track last loaded data to prevent overwrite
   List<dynamic>? _lastLoadedData;
@@ -232,8 +234,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     });
 
     _groupBloc = GroupChatBloc(socketService, GrpMessagerApiService());
-
     _initializeSocket();
+
     _loadCurrentUserId();
 
     if (!_permissionChecked) {
@@ -584,6 +586,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       if (updated) {
         final combined = _getCombinedMessages();
         GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
+      } else {
+        // ⚠️ Race condition handling: Message might be temporary (pending replacement)
+        // Store status to apply later when real ID arrives
+        _pendingStatusUpdates[messageId] = status;
+        debugPrint(
+            '⏳ Buffered status update for missing ID: $messageId -> $status');
       }
     });
   }
@@ -2510,21 +2518,85 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                         MediaQuery.of(context).size.width *
                                             0.75,
                                   ),
-                                  child: GroupedMediaWidget(
-                                    mediaUrls: groupImages,
-                                    onMediaTap: (index) {
-                                      log('📱 Tapped media $index from grouped widget');
+                                  child: Stack(
+                                    children: [
+                                      GroupedMediaWidget(
+                                        mediaUrls: groupImages,
+                                        onMediaTap: (index) {
+                                          log('📱 Tapped media $index from grouped widget');
 
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => GroupedMediaViewer(
-                                            mediaUrls: groupImages,
-                                            initialIndex: index,
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  GroupedMediaViewer(
+                                                mediaUrls: groupImages,
+                                                initialIndex: index,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                      Positioned(
+                                        bottom: 5,
+                                        right: 5,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color:
+                                                Colors.black.withOpacity(0.45),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                TimeUtils.formatUtcToIst(
+                                                    message['time']),
+                                                style: const TextStyle(
+                                                    fontSize: 10,
+                                                    color: Colors.white),
+                                              ),
+                                              if (isSentByMe) ...[
+                                                const SizedBox(width: 4),
+                                                Builder(builder: (context) {
+                                                  final status =
+                                                      message['messageStatus']
+                                                              ?.toString() ??
+                                                          'sent';
+                                                  switch (status) {
+                                                    case 'sent':
+                                                      return const Icon(
+                                                          Icons.check,
+                                                          size: 12,
+                                                          color: Colors.white);
+                                                    case 'delivered':
+                                                      return const Icon(
+                                                          Icons
+                                                              .done_all_rounded,
+                                                          size: 12,
+                                                          color: Colors.white);
+                                                    case 'read':
+                                                      return const Icon(
+                                                          Icons.done_all,
+                                                          size: 12,
+                                                          color: Colors
+                                                              .blueAccent);
+                                                    default:
+                                                      return const Icon(
+                                                          Icons.access_time,
+                                                          size: 12,
+                                                          color: Colors.white);
+                                                  }
+                                                }),
+                                              ],
+                                            ],
                                           ),
                                         ),
-                                      );
-                                    },
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
@@ -2746,7 +2818,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final isSelected =
         _selectedMessageKeys.contains(_generateMessageKey(message));
 
-    // reply detection – don't depend only on isReplyMessage flag
+    // reply detection – don't depend only on isReplyMessage flagvered status io
     final bool hasReply = (message['repliedMessage'] is Map &&
             (message['repliedMessage']['id'] ??
                     message['repliedMessage']['message_id'] ??
@@ -2844,7 +2916,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                 ],
                               ),
                               child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment: hasReply
+                                    ? CrossAxisAlignment.stretch
+                                    : CrossAxisAlignment.start,
                                 children: [
                                   if (!isSentByMe && userName.isNotEmpty)
                                     Padding(
@@ -3177,8 +3251,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                     Padding(
                                       padding: const EdgeInsets.only(top: 6),
                                       child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                                        crossAxisAlignment: hasReply
+                                            ? CrossAxisAlignment.stretch
+                                            : CrossAxisAlignment.start,
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           if (RegExp(r'https?:\/\/[^\s]+')
@@ -4407,6 +4482,17 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }) {
     bool changed = false;
 
+    // Check if we have a buffered status update for this realId
+    String finalStatus = status;
+    if (_pendingStatusUpdates.containsKey(realId)) {
+      final bufferedStatus = _pendingStatusUpdates[realId]!;
+      // Only apply if buffered status is "better" (e.g. read > delivered > sent)
+      // For simplicity, we assume buffered is always newer/better than "sent"
+      finalStatus = bufferedStatus;
+      _pendingStatusUpdates.remove(realId);
+      debugPrint('🚀 Applied buffered status $finalStatus to new ID $realId');
+    }
+
     void updateList(List<Map<String, dynamic>> list) {
       for (var i = 0; i < list.length; i++) {
         final m = list[i];
@@ -4416,7 +4502,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
           // Assign server id + status
           copy['message_id'] = realId;
-          copy['messageStatus'] = status;
+          copy['messageStatus'] = finalStatus;
 
           list[i] = copy;
           changed = true;
