@@ -73,7 +73,7 @@ class MessageBubble extends StatelessWidget {
     final bool? isForwarded = message['isForwarded'];
     final bool? isReplyMessage = message['isReplyMessage'];
     final String messageStatus = message['messageStatus']?.toString() ?? 'sent';
-    print("imagesUrllss ${imageUrl}");
+
     if (content.isEmpty &&
         (imageUrl == null || imageUrl.isEmpty) &&
         (fileUrl == null || fileUrl.isEmpty)) {

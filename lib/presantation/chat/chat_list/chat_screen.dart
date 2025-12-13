@@ -980,7 +980,6 @@
 //   );
 // }
 
-
 import 'dart:convert';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -1083,14 +1082,14 @@ class _ChatListScreenState extends State<ChatListScreen> {
     if (!_scrollController.hasClients) return;
 
     final offset = _scrollController.offset;
-    
+
     // Check if at top
     _isAtTop = offset <= 0;
-    
+
     // Determine scroll direction
     final isScrollingDown = offset > _lastScrollOffset;
     _isScrollingDown = isScrollingDown;
-    
+
     // Show search bar only when scrolling UP (not down) and past a threshold
     if (!isScrollingDown && offset > 100 && !_isAtTop) {
       if (!_showSearchBar) {
@@ -1103,7 +1102,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
         setState(() => _showSearchBar = false);
       }
     }
-    
+
     // Show filter chips only when at top AND scrolling up (not initially)
     // This prevents chips from showing when scrolling down from top
     if (_isAtTop && !isScrollingDown && offset <= 0) {
@@ -1205,47 +1204,57 @@ class _ChatListScreenState extends State<ChatListScreen> {
     "Groups": (chat) => chat.isGroupChat == true,
   };
 
-  Widget _buildFilterChip(String label, {required bool isSelected}) {
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          selectedFilter = label;
-          final apiFilter = switch (label) {
-            "Favourite" => "favorites",
-            "Unread" => "unread",
-            "Groups" => "group",
-            _ => "",
-          };
+ Widget _buildFilterChip(
+  String label, {
+  required bool isSelected,
+}) {
+  return GestureDetector(
+    onTap: () {
+      setState(() {
+        selectedFilter = label;
 
-          context
-              .read<ChatListBloc>()
-              .add(FetchChatList(page: 1, limit: 20, filter: apiFilter));
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: isSelected
-                ? const Color(0xFF0011FF).withOpacity(0.1)
-                : Colors.white,
-          ),
+        final apiFilter = switch (label) {
+          "Favorites" => "favorites",
+          "Unread" => "unread",
+          "Groups" => "group",
+          _ => "",
+        };
+
+        context.read<ChatListBloc>().add(
+              FetchChatList(
+                page: 1,
+                limit: 20,
+                filter: apiFilter,
+              ),
+            );
+      });
+    },
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(40),
+        color: isSelected
+            ? const Color(0xFF0011FF).withOpacity(0.1) // selected bg
+            : Colors.white,                             // unselected bg
+        border: Border.all(
           color: isSelected
-              ? const Color(0xFF0011FF).withOpacity(0.1)
-              : Colors.black.withOpacity(0.08),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
-            color: isSelected ? const Color(0xFF0011FF) : Colors.grey,
-          ),
+              ? const Color(0xFF0011FF).withOpacity(0.1) // selected border
+              : Colors.grey.shade300,                    // unselected border
         ),
       ),
-    );
-  }
+      child: Text(
+        label,
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 14,
+          color: isSelected
+              ? const Color(0xFF0011FF)       
+              : Colors.grey.shade600,        
+        ),
+      ),
+    ),
+  );
+}
 
   void _loadChats() {
     context
@@ -1462,16 +1471,18 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                     border: InputBorder.none,
                                     contentPadding: const EdgeInsets.symmetric(
                                         vertical: 12, horizontal: 16),
-                                    suffixIcon: _searchController.text.isNotEmpty
-                                        ? IconButton(
-                                            icon: const Icon(Icons.close,
-                                                size: 18, color: Colors.grey),
-                                            onPressed: () {
-                                              _searchController.clear();
-                                              setState(() {});
-                                            },
-                                          )
-                                        : null,
+                                    suffixIcon:
+                                        _searchController.text.isNotEmpty
+                                            ? IconButton(
+                                                icon: const Icon(Icons.close,
+                                                    size: 18,
+                                                    color: Colors.grey),
+                                                onPressed: () {
+                                                  _searchController.clear();
+                                                  setState(() {});
+                                                },
+                                              )
+                                            : null,
                                   ),
                                   style: const TextStyle(
                                       color: Colors.black, fontSize: 16),
@@ -1509,7 +1520,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                       isSelected: selectedFilter == "Groups"),
                                   const SizedBox(width: 10),
                                   _buildFilterChip("Favourite",
-                                      isSelected: selectedFilter == "Favourite"),
+                                      isSelected:
+                                          selectedFilter == "Favourite"),
                                   const SizedBox(width: 10),
                                   GestureDetector(
                                     onTap: () {
