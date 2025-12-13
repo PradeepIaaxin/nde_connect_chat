@@ -231,7 +231,7 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
         senderId: event.senderId,
         receiverId: event.receiverId,
         message: event.message,
-        roomId: grpSocket.generateRoomId(event.senderId, event.receiverId),
+        roomId: event.receiverId,
         workspaceId: workspace!,
         isGroupChat: true,
         contentType: event.contentType,
