@@ -81,7 +81,6 @@ class Message {
   final String? fileUrl;
   final String? fileType;
 
-
   final bool? isTemporary;
   final File? localImagePath;
   final bool? isGroupMessage;
@@ -203,10 +202,9 @@ class Datum {
       this.time,
       this.messageStatus,
       this.isReplyMessage,
-      this.reactions, 
+      this.reactions,
       this.isGroupMessage,
-      this.groupMessageId
-      });
+      this.groupMessageId});
 
   Datum copyWith({
     String? id,
@@ -235,39 +233,39 @@ class Datum {
     String? messageStatus,
     bool? isReplyMessage,
     List<Reaction>? reactions,
-    bool? isGroupMessage, 
+    bool? isGroupMessage,
     String? groupMessageId,
   }) =>
       Datum(
-          id: id ?? this.id,
-          sender: sender ?? this.sender,
-          receiver: receiver ?? this.receiver,
-          conversationId: conversationId ?? this.conversationId,
-          isDeleted: isDeleted ?? this.isDeleted,
-          properties: properties ?? this.properties,
-          messageType: messageType ?? this.messageType,
-          isStarred: isStarred ?? this.isStarred,
-          reply: reply ?? this.reply,
-          messageId: messageId ?? this.messageId,
-          fileWithText: fileWithText ?? this.fileWithText,
-          content: content ?? this.content,
-          thumbNailKey: thumbNailKey ?? this.thumbNailKey,
-          ContentType: ContentType ?? this.ContentType,
-          originalKey: originalKey ?? this.originalKey,
-          originalUrl: originalUrl ?? this.originalUrl,
-          thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
-          mimeType: mimeType ?? this.mimeType,
-          isForwarded: isForwarded ?? this.isForwarded,
-          userName: userName ?? this.userName,
-          fileName: fileName ?? this.fileName,
-          isPinned: isPinned ?? this.isPinned,
-          time: time ?? this.time,
-          messageStatus: messageStatus ?? this.messageStatus,
-          isReplyMessage: isReplyMessage ?? this.isReplyMessage,
-          reactions: reactions ?? this.reactions, 
-          isGroupMessage: isGroupMessage ?? this.isGroupMessage,
-          groupMessageId: groupMessageId ?? this.groupMessageId,
-          );
+        id: id ?? this.id,
+        sender: sender ?? this.sender,
+        receiver: receiver ?? this.receiver,
+        conversationId: conversationId ?? this.conversationId,
+        isDeleted: isDeleted ?? this.isDeleted,
+        properties: properties ?? this.properties,
+        messageType: messageType ?? this.messageType,
+        isStarred: isStarred ?? this.isStarred,
+        reply: reply ?? this.reply,
+        messageId: messageId ?? this.messageId,
+        fileWithText: fileWithText ?? this.fileWithText,
+        content: content ?? this.content,
+        thumbNailKey: thumbNailKey ?? this.thumbNailKey,
+        ContentType: ContentType ?? this.ContentType,
+        originalKey: originalKey ?? this.originalKey,
+        originalUrl: originalUrl ?? this.originalUrl,
+        thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
+        mimeType: mimeType ?? this.mimeType,
+        isForwarded: isForwarded ?? this.isForwarded,
+        userName: userName ?? this.userName,
+        fileName: fileName ?? this.fileName,
+        isPinned: isPinned ?? this.isPinned,
+        time: time ?? this.time,
+        messageStatus: messageStatus ?? this.messageStatus,
+        isReplyMessage: isReplyMessage ?? this.isReplyMessage,
+        reactions: reactions ?? this.reactions,
+        isGroupMessage: isGroupMessage ?? this.isGroupMessage,
+        groupMessageId: groupMessageId ?? this.groupMessageId,
+      );
 
   factory Datum.fromRawJson(String str) => Datum.fromJson(json.decode(str));
 
@@ -311,7 +309,7 @@ class Datum {
       userName: json["userName"],
       fileName: json["fileName"],
       isPinned: json["isPinned"],
-  isGroupMessage: json['is_group_message'] ?? json['isGroupMessage'],
+      isGroupMessage: json['is_group_message'] ?? json['isGroupMessage'],
       groupMessageId: json['group_message_id']?.toString() ??
           json['groupMessageId']?.toString(),
       time: json["time"] != null ? DateTime.parse(json["time"]) : null,
@@ -965,7 +963,6 @@ class MessageListResponse {
       };
 }
 
-
 class MessageGroup {
   final String label;
   final List<Datum> messages;
@@ -988,7 +985,6 @@ class MessageGroup {
         "messages": List<dynamic>.from(messages.map((x) => x.toJson())),
       };
 }
-
 
 class Sender {
   final String? id;

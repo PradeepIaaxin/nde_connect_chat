@@ -78,22 +78,22 @@ class GroupedMediaWidget extends StatelessWidget {
           children: [
             Row(
               children: [
-                Expanded(child: _buildSingleMedia(context, 0, height: 100)),
+                Expanded(child: _buildSingleMedia(context, 0, height: 140)),
                 const SizedBox(width: 0),
-                Expanded(child: _buildSingleMedia(context, 1, height: 100)),
+                Expanded(child: _buildSingleMedia(context, 1, height: 140)),
               ],
             ),
             const SizedBox(height: 0),
             Row(
               children: [
-                Expanded(child: _buildSingleMedia(context, 2, height: 100)),
+                Expanded(child: _buildSingleMedia(context, 2, height: 140)),
                 const SizedBox(width: 0),
                 Expanded(
                   child: count > 4
                       ? Stack(
                           alignment: Alignment.center,
                           children: [
-                            _buildSingleMedia(context, 3, height: 100),
+                            _buildSingleMedia(context, 3, height: 140),
                             Positioned.fill(
                               child: Container(
                                 color: Colors.black54,
@@ -111,7 +111,7 @@ class GroupedMediaWidget extends StatelessWidget {
                             ),
                           ],
                         )
-                      : _buildSingleMedia(context, 3, height: 100),
+                      : _buildSingleMedia(context, 3, height: 140),
                 ),
               ],
             ),
