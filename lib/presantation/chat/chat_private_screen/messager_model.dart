@@ -893,47 +893,32 @@ class Receiver {
 }
 
 class Reply {
-  String? id;
-  String? userId;
-  String? firstName;
-  String? lastName;
-  String? fileName;
-  String? replyUrl;
-  ContentType? contentType;
-  String? replyContent;
+  final String? replyContent;
+  final String? replyToUser;
 
   Reply({
-    this.id,
-    this.userId,
-    this.firstName,
-    this.lastName,
-    this.fileName,
-    this.replyUrl,
-    this.contentType,
     this.replyContent,
+    this.replyToUser,
   });
 
+  Reply copyWith({
+    String? replyContent,
+    String? replyToUser,
+  }) =>
+      Reply(
+        replyContent: replyContent ?? this.replyContent,
+        replyToUser: replyToUser ?? this.replyToUser,
+      );
+
   factory Reply.fromJson(Map<String, dynamic> json) => Reply(
-    id: json["id"],
-    userId: json["userId"]!,
-    firstName:json["first_name"]!,
-    lastName: json["last_name"]!,
-    fileName: json["fileName"],
-    replyUrl: json["replyUrl"],
-    contentType: json["ContentType"]!,
-    replyContent: json["replyContent"],
-  );
+        replyContent: json["replyContent"],
+        replyToUser: json["replyToUser"],
+      );
 
   Map<String, dynamic> toJson() => {
-    "id": id,
-    "userId":userId,
-    "first_name":firstName,
-    "last_name": lastName,
-    "fileName": fileName,
-    "replyUrl": replyUrl,
-    "ContentType":contentType,
-    "replyContent": replyContent,
-  };
+        "replyContent": replyContent,
+        "replyToUser": replyToUser,
+      };
 }
 
 class MessageListResponse {
