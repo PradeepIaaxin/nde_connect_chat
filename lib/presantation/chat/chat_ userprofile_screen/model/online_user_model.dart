@@ -1,23 +1,39 @@
-class OnlineUserModel {
+import 'package:equatable/equatable.dart';
+
+class OnlineUserModel extends Equatable {
   final bool isFavourite;
   final List<SharedGroupModel> sharedGroups;
 
-  OnlineUserModel({
+  const OnlineUserModel({
     required this.isFavourite,
     required this.sharedGroups,
   });
 
+  // ADD THIS copyWith
+  OnlineUserModel copyWith({
+    bool? isFavourite,
+    List<SharedGroupModel>? sharedGroups,
+  }) {
+    return OnlineUserModel(
+      isFavourite: isFavourite ?? this.isFavourite,
+      sharedGroups: sharedGroups ?? this.sharedGroups,
+    );
+  }
+
   factory OnlineUserModel.fromJson(Map<String, dynamic> json) {
     return OnlineUserModel(
       isFavourite: json['isFavourite'] ?? false,
-      sharedGroups: (json['sharedGroups'] as List<dynamic>)
-          .map((e) => SharedGroupModel.fromJson(e))
+      sharedGroups: (json['sharedGroups'] as List<dynamic>? ?? [])
+          .map((e) => SharedGroupModel.fromJson(e as Map<String, dynamic>))
           .toList(),
     );
   }
+
+  @override
+  List<Object?> get props => [isFavourite, sharedGroups];
 }
 
-class SharedGroupModel {
+class SharedGroupModel extends Equatable {
   final String id;
   final String groupName;
   final String description;
@@ -26,7 +42,7 @@ class SharedGroupModel {
   final String createdAt;
   final List<SampleMember> sampleMembers;
 
-  SharedGroupModel({
+  const SharedGroupModel({
     required this.id,
     required this.groupName,
     required this.description,
@@ -36,6 +52,19 @@ class SharedGroupModel {
     required this.sampleMembers,
   });
 
+  // ADD THIS copyWith
+  SharedGroupModel copyWith({String? groupName}) {
+    return SharedGroupModel(
+      id: id,
+      groupName: groupName ?? this.groupName,
+      description: description,
+      createdBy: createdBy,
+      groupAvatar: groupAvatar,
+      createdAt: createdAt,
+      sampleMembers: sampleMembers,
+    );
+  }
+
   factory SharedGroupModel.fromJson(Map<String, dynamic> json) {
     return SharedGroupModel(
       id: json['_id'] ?? '',
@@ -44,18 +73,29 @@ class SharedGroupModel {
       createdBy: json['created_by'] ?? '',
       groupAvatar: json['group_avatar'] ?? '',
       createdAt: json['createdAt'] ?? '',
-      sampleMembers: (json['sampleMembers'] as List<dynamic>)
-          .map((e) => SampleMember.fromJson(e))
+      sampleMembers: (json['sampleMembers'] as List<dynamic>? ?? [])
+          .map((e) => SampleMember.fromJson(e as Map<String, dynamic>))
           .toList(),
     );
   }
+
+  @override
+  List<Object?> get props => [
+        id,
+        groupName,
+        description,
+        createdBy,
+        groupAvatar,
+        createdAt,
+        sampleMembers,
+      ];
 }
 
-class SampleMember {
+class SampleMember extends Equatable {
   final String firstName;
   final String lastName;
 
-  SampleMember({
+  const SampleMember({
     required this.firstName,
     required this.lastName,
   });
@@ -66,4 +106,7 @@ class SampleMember {
       lastName: json['last_name'] ?? '',
     );
   }
+
+  @override
+  List<Object?> get props => [firstName, lastName];
 }

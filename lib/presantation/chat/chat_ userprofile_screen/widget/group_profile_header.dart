@@ -16,14 +16,15 @@ class GroupProfileHeader extends StatelessWidget {
   final String fullName;
   final bool grpChat;
 
-  const GroupProfileHeader(
-      {super.key,
-      required this.groupId,
-      required this.profileAvatarUrl,
-      required this.userName,
-      required this.mailName,
-      required this.fullName,
-      required this.grpChat});
+  const GroupProfileHeader({
+    super.key,
+    required this.groupId,
+    required this.profileAvatarUrl,
+    required this.userName,
+    required this.mailName,
+    required this.fullName,
+    required this.grpChat,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -32,14 +33,23 @@ class GroupProfileHeader extends StatelessWidget {
         final group = _getGroupFromState(state);
         final memberCount = _getMemberCount(group);
 
+        // Use live group name from BLoC, fallback to props if not loaded yet
+        final String currentGroupName = group?.groupName?.isNotEmpty == true
+            ? group!.groupName!
+            : (userName.isNotEmpty ? userName : fullName);
+
+        final String displayLetter = currentGroupName.isNotEmpty
+            ? currentGroupName[0].toUpperCase()
+            : 'G';
+
         return Container(
           color: Colors.transparent,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              _buildProfileAvatar(context),
+              _buildProfileAvatar(context, displayLetter),
               const SizedBox(height: 16),
-              _buildProfileTextInfo(),
+              _buildProfileTextInfo(currentGroupName),
               const SizedBox(height: 8),
               if (state is ContactLoaded) _buildMemberCountInfo(memberCount),
               const SizedBox(height: 16),
@@ -65,16 +75,15 @@ class GroupProfileHeader extends StatelessWidget {
     return group.totalMembers ?? group.groupMembers.length;
   }
 
-  Widget _buildProfileAvatar(BuildContext context) {
-    final displayLetter = userName.isNotEmpty ? userName[0].toUpperCase() : 'G';
-
+  Widget _buildProfileAvatar(BuildContext context, String displayLetter) {
     return GestureDetector(
       onTap: () {
-        MyRouter.push(screen:  ViewImage(
-        imageurl: profileAvatarUrl,
-        username: userName,     // or whatever your variable is
-          // optional
-      ),);
+        MyRouter.push(
+          screen: ViewImage(
+            imageurl: profileAvatarUrl,
+            username: displayLetter,
+          ),
+        );
       },
       child: CircleAvatar(
         radius: 60,
@@ -131,17 +140,16 @@ class GroupProfileHeader extends StatelessWidget {
     );
   }
 
-
-
-  Widget _buildProfileTextInfo() {
+  Widget _buildProfileTextInfo(String currentGroupName) {
     return Column(
       children: [
         Text(
-          fullName,
+          currentGroupName,
           style: const TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.bold,
           ),
+          textAlign: TextAlign.center,
         ),
         const SizedBox(height: 4),
         Text(
@@ -154,7 +162,6 @@ class GroupProfileHeader extends StatelessWidget {
       ],
     );
   }
-
 
   Widget _buildMemberCountInfo(int memberCount) {
     return Row(
@@ -273,10 +280,12 @@ class GroupProfileHeader extends StatelessWidget {
             GestureDetector(
               onTap: () {
                 MyRouter.push(
-                    screen: GroupNameEditScreen(
-                        initialValue: group.description ?? "",
-                        keyToEdit: "description",
-                        groupId: groupId));
+                  screen: GroupNameEditScreen(
+                    initialValue: group.description ?? "",
+                    keyToEdit: "description",
+                    groupId: groupId,
+                  ),
+                );
               },
               child: Text(
                 group.description?.isNotEmpty == true

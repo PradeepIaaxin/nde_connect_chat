@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'dart:developer';
+import 'dart:io';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:nde_email/data/respiratory.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/localstorage/local_storage.dart';
 import 'package:objectid/objectid.dart';
@@ -18,7 +21,6 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
   MessagerBloc({required this.apiService, required this.socketService})
       : super(MessagerInitial()) {
     on<FetchMessagesEvent>(_onFetchMessages);
-    //on<ListenToMessages>(_onListenToMessages);
     on<NewMessageReceived>(_onNewMessageReceived);
     on<UploadFileEvent>(_onUploadFile);
     on<DeleteMessagesEvent>(_onDeleteMessage);
@@ -311,7 +313,6 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
           senderId: event.senderId,
           receiverIds: [receiverId],
           originalMessageId: event.originalMessageId,
-          
           messageContent: event.message,
           conversationId: event.conversationId,
           workspaceId: event.workspaceId,
@@ -376,7 +377,8 @@ print("datasssss $data");
               socketService.generateRoomId(event.senderId, event.receiverId);
 
           final msgId = ObjectId().toString();
-
+print("iiiiiiiiiiiiiiii${event.contentType}");
+print("iiiiiiiiiiiiiiii${data["ContentType"]}");
           socketService.sendMessage(
             isGroupMessage: event.isGroupMessage,
             groupMessageId: event.groupMesageId,
@@ -453,18 +455,7 @@ print("datasssss $data");
   }
 
   // =====================================================
-  // LISTEN SOCKET
-  // =====================================================
-  // Future<void> _onListenToMessages(
-  //   ListenToMessages event,
-  //   Emitter<MessagerState> emit,
-  // ) async {
-  //   socketService.listenToMessages(
-  //     event.senderId,
-  //     event.receiverId,
-  //     (data) => add(NewMessageReceived(data)),
-  //   );
-  // }
+  
 
   void _onNewMessageReceived(
     NewMessageReceived event,

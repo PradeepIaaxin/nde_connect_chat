@@ -31,7 +31,7 @@ class Auth {
       }
 
       if (statusCode == 200) {
-        Messenger.alertSuccess("Email verified successfully");
+       log("Email verified successfully");
       } else if (statusCode == 404) {
         throw AuthException("Email not found. Please check and try again.");
       } else {

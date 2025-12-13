@@ -1,12 +1,17 @@
+// presantation/chat/chat_userprofile_screen/widget/grp_create_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nde_email/data/respiratory.dart';
+import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/bloc/profile_screen_event.dart';
+
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/imports/common_imports.dart';
 
 class GroupNameEditScreen extends StatefulWidget {
   final String groupId;
-  final String keyToEdit;
+  final String keyToEdit; // 'group_name' or 'description'
   final String initialValue;
 
   const GroupNameEditScreen({
@@ -28,6 +33,16 @@ class _GroupNameEditScreenState extends State<GroupNameEditScreen> {
   void initState() {
     super.initState();
     _controller = TextEditingController(text: widget.initialValue);
+
+    // Debug logs
+    debugPrint('Editing field: ${widget.keyToEdit}');
+    debugPrint('Initial value from navigation: "${widget.initialValue}"');
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   Future<void> _updateGroupField() async {
@@ -61,16 +76,32 @@ class _GroupNameEditScreenState extends State<GroupNameEditScreen> {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        Navigator.pop(context, updatedValue);
+        debugPrint('API Success: Updated ${widget.keyToEdit} to "$updatedValue"');
+
+        // INSTANT LOCAL UPDATE — This will make it reflect immediately
+        context.read<MediaBloc>().add(
+          UpdateGroupLocally(
+            groupId: widget.groupId,
+            newName: widget.keyToEdit == 'group_name' ? updatedValue : null,
+            newDescription: widget.keyToEdit == 'description' ? updatedValue : null,
+          ),
+        );
+
         Messenger.alertSuccess("Group updated successfully");
+
+        if (mounted) {
+          Navigator.pop(context, updatedValue);
+        }
       } else {
-        throw Exception('Unexpected status: ${response.statusCode}');
+        throw Exception('API Error: ${response.statusCode}');
       }
     } catch (e) {
       Messenger.alertError('Update failed. Please try again.');
-      print("❌ Error: $e");
+      debugPrint("Error updating group: $e");
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -94,19 +125,19 @@ class _GroupNameEditScreenState extends State<GroupNameEditScreen> {
             TextField(
               controller: _controller,
               autofocus: true,
+              maxLines: isGroupName ? 1 : 4,
               decoration: InputDecoration(
-                hintText:
-                    isGroupName ? 'Enter group name' : 'Enter description',
+                hintText: isGroupName ? 'Enter group name' : 'Enter description',
                 prefixIcon: const Icon(Icons.edit, color: Colors.green),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.emoji_emotions_outlined,
-                      color: Colors.grey),
-                  onPressed: () {},
-                ),
+                suffixIcon: isGroupName
+                    ? IconButton(
+                        icon: const Icon(Icons.emoji_emotions_outlined, color: Colors.grey),
+                        onPressed: () {},
+                      )
+                    : null,
                 filled: true,
                 fillColor: Colors.grey[100],
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: const BorderSide(color: Colors.green),
@@ -127,8 +158,7 @@ class _GroupNameEditScreenState extends State<GroupNameEditScreen> {
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.green,
                       side: const BorderSide(color: Colors.green),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                     child: const Text('Cancel'),
                   ),
@@ -142,17 +172,13 @@ class _GroupNameEditScreenState extends State<GroupNameEditScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                     child: _isLoading
                         ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                           )
                         : const Text('Save'),
                   ),

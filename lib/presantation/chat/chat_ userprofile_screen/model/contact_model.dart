@@ -1,4 +1,8 @@
-class ContactModel {
+// presantation/chat/chat_userprofile_screen/model/contact_model.dart
+
+import 'package:equatable/equatable.dart';
+
+class ContactModel extends Equatable {
   final String? id;
   final String? groupAvatar;
   final String? groupName;
@@ -10,36 +14,64 @@ class ContactModel {
   final List<GroupMember> groupMembers;
   final bool isFavourite;
 
-  ContactModel(
-      {this.id,
-      this.groupAvatar,
-      this.groupName,
-      this.isPinned,
-      this.description,
-      this.createdBy,
-      this.createdAt,
-      this.totalMembers,
-      this.groupMembers = const [],
-      this.isFavourite = false});
+  const ContactModel({
+    this.id,
+    this.groupAvatar,
+    this.groupName,
+    this.isPinned,
+    this.description,
+    this.createdBy,
+    this.createdAt,
+    this.totalMembers,
+    this.groupMembers = const [],
+    this.isFavourite = false,
+  });
+
+  // Essential for instant local updates in BLoC
+  ContactModel copyWith({
+    String? id,
+    String? groupAvatar,
+    String? groupName,
+    bool? isPinned,
+    String? description,
+    CreatedBy? createdBy,
+    String? createdAt,
+    int? totalMembers,
+    List<GroupMember>? groupMembers,
+    bool? isFavourite,
+  }) {
+    return ContactModel(
+      id: id ?? this.id,
+      groupAvatar: groupAvatar ?? this.groupAvatar,
+      groupName: groupName ?? this.groupName,
+      isPinned: isPinned ?? this.isPinned,
+      description: description ?? this.description,
+      createdBy: createdBy ?? this.createdBy,
+      createdAt: createdAt ?? this.createdAt,
+      totalMembers: totalMembers ?? this.totalMembers,
+      groupMembers: groupMembers ?? this.groupMembers,
+      isFavourite: isFavourite ?? this.isFavourite,
+    );
+  }
 
   factory ContactModel.fromJson(Map<String, dynamic> json) {
     return ContactModel(
-        id: json['_id'],
-        groupAvatar: json['group_avatar'],
-        groupName: json['group_name'],
-        isPinned: json['is_pinned'],
-        description: json['description'],
-        createdBy: json['createdBy'] != null
-            ? CreatedBy.fromJson(json['createdBy'])
-            : null,
-        createdAt: json['createdAt'],
-        totalMembers: json['totalMembers'],
-        groupMembers: (json['groupMembers'] is List)
-            ? (json['groupMembers'] as List)
-                .map((x) => GroupMember.fromJson(x))
-                .toList()
-            : [],
-        isFavourite: json['isFavourite'] ?? false);
+      id: json['_id'] as String?,
+      groupAvatar: json['group_avatar'] as String?,
+      groupName: json['group_name'] as String?,
+      isPinned: json['is_pinned'] as bool?,
+      description: json['description'] as String?,
+      createdBy: json['createdBy'] != null
+          ? CreatedBy.fromJson(json['createdBy'] as Map<String, dynamic>)
+          : null,
+      createdAt: json['createdAt'] as String?,
+      totalMembers: json['totalMembers'] as int?,
+      groupMembers: (json['groupMembers'] as List<dynamic>?) 
+          ?.map((x) => GroupMember.fromJson(x as Map<String, dynamic>))
+          .toList() ??
+          const [],
+      isFavourite: json['isFavourite'] as bool? ?? false,
+    );
   }
 
   Map<String, dynamic> toJson() {
@@ -53,23 +85,37 @@ class ContactModel {
       'createdAt': createdAt,
       'totalMembers': totalMembers,
       'groupMembers': groupMembers.map((member) => member.toJson()).toList(),
-      'isFavourite' : isFavourite
+      'isFavourite': isFavourite,
     };
   }
+
+  @override
+  List<Object?> get props => [
+        id,
+        groupAvatar,
+        groupName,
+        isPinned,
+        description,
+        createdBy,
+        createdAt,
+        totalMembers,
+        groupMembers,
+        isFavourite,
+      ];
 }
 
-class CreatedBy {
+class CreatedBy extends Equatable {
   final String? id;
   final String? firstName;
   final String? lastName;
 
-  CreatedBy({this.id, this.firstName, this.lastName});
+  const CreatedBy({this.id, this.firstName, this.lastName});
 
   factory CreatedBy.fromJson(Map<String, dynamic> json) {
     return CreatedBy(
-      id: json['_id'],
-      firstName: json['first_name'],
-      lastName: json['last_name'],
+      id: json['_id'] as String?,
+      firstName: json['first_name'] as String?,
+      lastName: json['last_name'] as String?,
     );
   }
 
@@ -80,9 +126,12 @@ class CreatedBy {
       'last_name': lastName,
     };
   }
+
+  @override
+  List<Object?> get props => [id, firstName, lastName];
 }
 
-class GroupMember {
+class GroupMember extends Equatable {
   final bool? isAdmin;
   final String? role;
   final String? joinDate;
@@ -92,7 +141,7 @@ class GroupMember {
   final String? firstName;
   final String? lastName;
 
-  GroupMember({
+  const GroupMember({
     this.isAdmin,
     this.role,
     this.joinDate,
@@ -105,14 +154,14 @@ class GroupMember {
 
   factory GroupMember.fromJson(Map<String, dynamic> json) {
     return GroupMember(
-      isAdmin: json['is_admin'],
-      role: json['role'],
-      joinDate: json['join_date'],
-      memberId: json['member_id'],
-      memberEmail: json['memberEmail'],
-      profilePic: json['profile_pic'],
-      firstName: json['first_name'],
-      lastName: json['last_name'],
+      isAdmin: json['is_admin'] as bool?,
+      role: json['role'] as String?,
+      joinDate: json['join_date'] as String?,
+      memberId: json['member_id'] as String?,
+      memberEmail: json['memberEmail'] as String?,
+      profilePic: json['profile_pic'] as String?,
+      firstName: json['first_name'] as String?,
+      lastName: json['last_name'] as String?,
     );
   }
 
@@ -128,4 +177,16 @@ class GroupMember {
       'last_name': lastName,
     };
   }
+
+  @override
+  List<Object?> get props => [
+        isAdmin,
+        role,
+        joinDate,
+        memberId,
+        memberEmail,
+        profilePic,
+        firstName,
+        lastName,
+      ];
 }

@@ -1,4 +1,4 @@
-import 'package:nde_email/presantation/chat/Socket/socket_bloc/socket_bloc.dart';
+import 'package:flutter/services.dart';
 import 'package:nde_email/presantation/login/login_screen.dart';
 import 'package:nde_email/presantation/update_screen/update_bloc/update_bloc.dart';
 import 'package:nde_email/presantation/update_screen/update_repo/update_repo.dart';
@@ -9,10 +9,14 @@ import 'package:nde_email/utils/reusbale/common_import.dart';
 // GLOBAL SINGLETONS
 late final SocketService socketService;
 late final WebSocketService webSocketService;
-late final SocketBloc socketBloc;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+  ));
+
   await RustLib.init();
   // PARALLEL INIT — MAX SPEED
   await Future.wait([
@@ -22,7 +26,7 @@ void main() async {
   ]);
 
   socketService = SocketService();
-  socketBloc = SocketBloc(socketService);
+
   webSocketService = WebSocketService();
 
   final prefs = await SharedPreferences.getInstance();
@@ -45,7 +49,6 @@ Future<void> _connectSocketOnStartup(String refreshToken) async {
   try {
     final success = await LoginBloc(
       authRepository: Auth(),
-      socketBloc: socketBloc,
     ).refreshTokenOnStartup(refreshToken);
 
     if (success) {
@@ -69,12 +72,8 @@ class MyRootApp extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider(
-          create: (_) => socketBloc,
-        ),
-        BlocProvider(
             create: (context) => LoginBloc(
                   authRepository: Auth(),
-                  socketBloc: context.read<SocketBloc>(),
                 )),
         BlocProvider(
             create: (context) =>
@@ -127,9 +126,6 @@ class MyRootApp extends StatelessWidget {
             create: (context) => InfoDetailsBloc(MyInfoRepository())
               ..add(FetchInfoDetails(fileID: ""))),
         BlocProvider(
-          create: (_) => SocketBloc(SocketService()),
-        ),
-        BlocProvider(
             create: (context) => InsideBloc(repository: InsidefileRepo())),
         BlocProvider(
             create: (context) =>
@@ -159,6 +155,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      // showPerformanceOverlay: true,
       navigatorKey: MyRouter.navigatorKey,
       scaffoldMessengerKey: Messenger.rootScaffoldMessengerKey,
       debugShowCheckedModeBanner: false,
@@ -189,4 +186,19 @@ Future<void> initializeStorage() async {
 
 
 
-//41 - 17
+
+//correction 
+//1. IN chatlisrt - > header
+//2. in chat ui fornt , time , secnorio and image , ui 
+// 3. in chat list > font bold ness and time formate and colour 
+//4. bottom icon 
+//5,app logout transion 
+//6 , nnetowrk secnior 
+//7, in grop chat name displaying different colours 
+//8, search bar implemenation in header 
+//9, header icons follow same formate 
+// while texting new message automaticallyb we need to disokay upper case 
+// 10 . in card all cards ui abd and card ui // 
+//11 ,typing suguesstion 
+//12 , in side chat screen we need to remove shadow and border from appbar
+//13,  
