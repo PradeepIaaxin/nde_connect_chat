@@ -1874,13 +1874,22 @@ class SocketService {
         'update_delivered',
         (data) => scheduleMicrotask(() {
               _slog('update_delivered -> $data');
-              if (data is! List) return;
-              for (final item in data) {
+
+              // Handle both List and single Map
+              final List listData = (data is List) ? data : [data];
+
+              for (final item in listData) {
                 if (item is! Map) continue;
                 final ids = (item['messageIds'] as List?)
                         ?.map((e) => e.toString())
                         .toList() ??
                     [];
+
+                // Fallback: if 'messageIds' is missing but 'messageId' exists
+                if (ids.isEmpty && item['messageId'] != null) {
+                  ids.add(item['messageId'].toString());
+                }
+
                 if (ids.isEmpty) continue;
                 final rawStatus =
                     (item['messageStatus'] ?? item['status'] ?? 'delivered')
@@ -1902,8 +1911,11 @@ class SocketService {
         'message_delivered',
         (data) => scheduleMicrotask(() {
               _slog('message_delivered -> $data');
-              if (data is! List) return;
-              for (final item in data) {
+
+              // Handle both List and single Map
+              final List listData = (data is List) ? data : [data];
+
+              for (final item in listData) {
                 if (item is! Map<String, dynamic>) continue;
                 if (!item.containsKey('messageId')) continue;
                 final id = item['messageId'].toString();
@@ -2094,7 +2106,9 @@ class SocketService {
       'message',
       'newMessage',
       'message_created',
-      'send_message' // server echo
+      'send_message', // server echo
+      'receive_group_message',
+      'group_message',
     ];
     for (final ev in messageEventNames) {
       reg(
