@@ -1,5 +1,4 @@
-import 'dart:developer';
-
+import 'dart:developer' as developer;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/bloc/profile_screen_event.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/bloc/profile_screen_state.dart';
@@ -16,8 +15,11 @@ class MediaBloc extends Bloc<MediaEvent, MediaState> {
     on<ExitGroup>(_onExitgrp);
     on<MakeAdmin>(_onMakeAdmin);
     on<ToggleFavourite>(_onToggleFavourite);
+    on<UpdateGroupNameLocally>(_onUpdateGroupNameLocally);
+    on<UpdateGroupLocally>(_onUpdateGroupLocally);
   }
 
+  // === Existing handlers (unchanged) ===
   Future<void> _onFetchMedia(FetchMedia event, Emitter<MediaState> emit) async {
     emit(MediaLoading());
     try {
@@ -32,8 +34,8 @@ class MediaBloc extends Bloc<MediaEvent, MediaState> {
       FetchContact event, Emitter<MediaState> emit) async {
     emit(MediaLoading());
     try {
-      final contacts = await repository.fetchContact(event.grpId);
-      emit(ContactLoaded([contacts]));
+      final contact = await repository.fetchContact(event.grpId);
+      emit(ContactLoaded([contact]));
     } catch (e) {
       emit(MediaError(e.toString()));
     }
@@ -42,9 +44,8 @@ class MediaBloc extends Bloc<MediaEvent, MediaState> {
   Future<void> _onfetchCommonPeople(
       FetchgrpOrNot event, Emitter<MediaState> emit) async {
     try {
-      final contacts = await repository.fetchCommongrp(event.recvId);
-
-      emit(CommonDataLoaded([contacts]));
+      final data = await repository.fetchCommongrp(event.recvId);
+      emit(CommonDataLoaded([data]));
     } catch (e) {
       emit(MediaError(e.toString()));
     }
@@ -54,14 +55,12 @@ class MediaBloc extends Bloc<MediaEvent, MediaState> {
     try {
       await repository.exitGroup(event.grpId);
     } catch (e) {
-      log(e.toString());
+      developer.log('Exit group failed: $e');
     }
   }
 
   Future<void> _onRemoveUser(
-    RemoveUserFromGroupEvent event,
-    Emitter<MediaState> emit,
-  ) async {
+      RemoveUserFromGroupEvent event, Emitter<MediaState> emit) async {
     try {
       final success = await MediaRepository.removeUserFromGroup(
         groupId: event.groupId,
@@ -69,54 +68,115 @@ class MediaBloc extends Bloc<MediaEvent, MediaState> {
       );
 
       if (success) {
-        final contacts = await repository.fetchContact(event.groupId);
-        emit(ContactLoaded([contacts]));
+        final contact = await repository.fetchContact(event.groupId);
+        emit(ContactLoaded([contact]));
       } else {
-        emit(RemoveUserErrorState("Failed to remove user from group."));
+        emit(const RemoveUserErrorState("Failed to remove user"));
       }
     } catch (e) {
-      emit(RemoveUserErrorState("Error removing user: ${e.toString()}"));
+      emit(RemoveUserErrorState(e.toString()));
     }
   }
 
-  Future<void> _onMakeAdmin(
-    MakeAdmin event,
-    Emitter<MediaState> emit,
-  ) async {
+  Future<void> _onMakeAdmin(MakeAdmin event, Emitter<MediaState> emit) async {
     try {
       await repository.updateAdmins(
-        groupId: event.groupId,
-        updates: event.updates,
-      );
-
-      final contacts = await repository.fetchContact(event.groupId);
-
-      emit(ContactLoaded([contacts]));
-    } catch (e, stacktrace) {
-      log('❌ Error in _onMakeAdmin: $e\n📍$stacktrace');
+          groupId: event.groupId, updates: event.updates);
+      final contact = await repository.fetchContact(event.groupId);
+      emit(ContactLoaded([contact]));
+    } catch (e) {
+      developer.log('Make admin error: $e');
     }
   }
 
   Future<void> _onToggleFavourite(
-    ToggleFavourite event,
-    Emitter<MediaState> emit,
-  ) async {
+      ToggleFavourite event, Emitter<MediaState> emit) async {
     try {
       await repository.updateFavourite(
         targetId: event.targetId,
         isFavourite: event.isFavourite,
       );
 
-      if (event.grp == true) {
-        final contacts = await repository.fetchContact(event.targetId);
-        emit(ContactLoaded([contacts]));
+      if (event.grp) {
+        final contact = await repository.fetchContact(event.targetId);
+        emit(ContactLoaded([contact]));
       } else {
-        final contacts = await repository.fetchCommongrp(event.targetId);
-
-        emit(CommonDataLoaded([contacts]));
+        final data = await repository.fetchCommongrp(event.targetId);
+        emit(CommonDataLoaded([data]));
       }
-    } catch (e, stacktrace) {
-      log("❌ Error in _onToggleFavourite: $e\n📍$stacktrace");
+    } catch (e) {
+      developer.log('Toggle favourite error: $e');
     }
+  }
+
+  // === OLD: Only updates group name ===
+  Future<void> _onUpdateGroupNameLocally(
+    UpdateGroupNameLocally event,
+    Emitter<MediaState> emit,
+  ) async {
+    final groupId = event.groupId;
+    final newName = event.newName;
+
+    if (state is ContactLoaded) {
+      final currentList = (state as ContactLoaded).contacts;
+      final updatedList = currentList.map((contact) {
+        if (contact.id == groupId) {
+          return contact.copyWith(groupName: newName);
+        }
+        return contact;
+      }).toList();
+      emit(ContactLoaded(updatedList));
+    }
+
+    if (state is CommonDataLoaded) {
+      final currentList = (state as CommonDataLoaded).commongrp;
+      final updatedOnlineUsers = currentList.map((onlineUser) {
+        final updatedSharedGroups = onlineUser.sharedGroups.map((sharedGroup) {
+          if (sharedGroup.id == groupId) {
+            return sharedGroup.copyWith(groupName: newName);
+          }
+          return sharedGroup;
+        }).toList();
+        return onlineUser.copyWith(sharedGroups: updatedSharedGroups);
+      }).toList();
+      emit(CommonDataLoaded(updatedOnlineUsers));
+    }
+
+    _scheduleRefresh(groupId);
+  }
+
+  // === NEW: Unified handler for both name AND description ===
+  Future<void> _onUpdateGroupLocally(
+    UpdateGroupLocally event,
+    Emitter<MediaState> emit,
+  ) async {
+    final groupId = event.groupId;
+    final newName = event.newName;
+    final newDescription = event.newDescription;
+
+    if (state is ContactLoaded) {
+      final currentList = (state as ContactLoaded).contacts;
+      final updatedList = currentList.map((contact) {
+        if (contact.id == groupId) {
+          return contact.copyWith(
+            groupName: newName ?? contact.groupName,
+            description: newDescription ?? contact.description,
+          );
+        }
+        return contact;
+      }).toList();
+      emit(ContactLoaded(updatedList));
+    }
+
+    _scheduleRefresh(groupId);
+  }
+
+  // Helper to avoid duplicate refresh code
+  void _scheduleRefresh(String groupId) {
+    Future.delayed(const Duration(milliseconds: 400), () {
+      if (groupId.isNotEmpty) {
+        add(FetchContact(grpId: groupId));
+      }
+    });
   }
 }

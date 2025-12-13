@@ -7,7 +7,6 @@ import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
 import 'package:nde_email/data/respiratory.dart';
 import 'package:nde_email/main.dart';
-import 'package:nde_email/presantation/chat/Socket/socket_bloc/socket_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/local_strorage.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/localstorage/local_storage.dart';
 import 'package:nde_email/presantation/drive/Bloc/file_bloc/drive_local_storage.dart'
@@ -21,13 +20,13 @@ import 'package:nde_email/presantation/login/login_screen_state.dart';
 import 'package:nde_email/presantation/login/login_req.dart';
 
 class LoginBloc extends Bloc<LoginEvent, LoginState> {
-  final SocketBloc socketBloc;
+  
   final Auth authRepository;
   Timer? _refreshTimer;
   bool _isRefreshing = false;
   Completer<void>? _refreshCompleter;
 
-  LoginBloc({required this.authRepository, required this.socketBloc})
+  LoginBloc({required this.authRepository,})
       : super(const LoginState()) {
     on<EmailChanged>(_onEmailChanged);
     on<PasswordChanged>(_onPasswordChanged);

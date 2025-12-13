@@ -172,9 +172,7 @@ class ChatListApiService {
         log("📥 Received Loro Snapshot. Decoding using Rust...");
 
         final chats = await decodeChatsFromLoro(snapshotBase64);
-         log(chats.map((e) => e.toJson()).toList().toString());
-
-
+        // log(chats.map((e) => e.toJson()).toList().toString());
         return chats;
       }
 

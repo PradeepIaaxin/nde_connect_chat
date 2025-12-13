@@ -39,7 +39,6 @@ class MessageHandler {
     if (rawMsg is Datum && rawMsg.reply != null) {
       // Prefer strongly typed reply
       replyContent = rawMsg.reply?.replyContent ?? '';
-      replyToUser = rawMsg.reply?.replyToUser ?? '';
       normalizedReply = rawMsg.reply!.toJson();
     } else if (message['reply'] is Map) {
       final replyMap = Map<String, dynamic>.from(message['reply']);
@@ -52,8 +51,8 @@ class MessageHandler {
         "mimeType": replyMap["mimeType"] ?? '',
         "ContentType": replyMap["ContentType"] ?? '',
         "replyContent": replyContent,
-        "replyToUser": replyToUser,
-        "fileName": replyMap["fileName"] ?? '',
+        "replyToUser":  replyMap["fileName"],
+        "replyUrl": replyMap["replyUrl"] ?? '',
         "first_name": replyMap["first_name"] ?? '',
         "last_name": replyMap["last_name"] ?? '',
       };

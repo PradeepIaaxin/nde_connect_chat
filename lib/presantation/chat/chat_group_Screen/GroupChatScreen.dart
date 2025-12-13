@@ -9,10 +9,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
 import 'package:flutter_sound/public/flutter_sound_player.dart';
 import 'package:flutter_sound/public/flutter_sound_recorder.dart';
-
 import 'package:image_picker/image_picker.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:mime/mime.dart';
@@ -26,7 +24,6 @@ import 'package:nde_email/presantation/chat/widget/custom_appbar.dart';
 import 'package:nde_email/presantation/chat/widget/delete_dialogue.dart';
 import 'package:nde_email/presantation/chat/widget/scaffold.dart';
 import 'package:nde_email/presantation/chat/widget/voicerec_ui.dart';
-import 'package:nde_email/presantation/widgets/chat_widgets/Common/group_image_ui.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/grouped_media_widget.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/grp_showbottom_sheet.dart';
 import 'package:nde_email/utils/const/consts.dart';
@@ -46,7 +43,6 @@ import '../../../data/respiratory.dart';
 import '../../../utils/simmer_effect.dart/chat_simmerefect.dart';
 import '../../widgets/chat_widgets/messager_Wifgets/ForwardMessageScreen_widget.dart';
 import '../../widgets/chat_widgets/messager_Wifgets/buildMessageInputField_widgets.dart';
-
 import '../Socket/Socket_Service.dart';
 import 'group_media_widget.dart';
 import 'group_media_viewer.dart';
@@ -187,7 +183,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     _connSub?.cancel();
 
     _clearSessionImagePath();
-    SocketService().disconnect();
+    // SocketService().disconnect();
 
     super.dispose();
   }
@@ -2537,9 +2533,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                         );
                 }
               }
-
-              // final isSystem = message['ContentType'] == "system"; // REMOVED DUPLICATE
-              // final content = message['content']?.toString() ?? ''; // REMOVED DUPLICATE
 
               List<Widget> children = [];
 

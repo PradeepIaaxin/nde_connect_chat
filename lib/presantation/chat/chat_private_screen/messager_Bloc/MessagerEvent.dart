@@ -50,6 +50,7 @@ class UploadFileEvent extends MessagerEvent {
   final String message;
   final bool isGroupMessage;
   final String? groupMesageId;
+  final String? contentType;
 
   const UploadFileEvent(
     this.file,
@@ -58,7 +59,7 @@ class UploadFileEvent extends MessagerEvent {
     this.receiverId,
     this.message, {
     this.isGroupMessage = false,
-    this.groupMesageId,
+    this.groupMesageId, this.contentType,
   });
 
   @override

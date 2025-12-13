@@ -91,6 +91,8 @@ class AddDrawer extends StatelessWidget {
                         ),
                       ),
                     ),
+
+                    SizedBox(width: 10,),
             ],
           ),
         ),

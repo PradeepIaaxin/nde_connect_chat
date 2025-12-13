@@ -25,8 +25,8 @@ class ReusableChatScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     final isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
 
-    return BlocProvider(
-      create: (_) => bloc,
+    return BlocProvider.value(
+      value:  bloc,
       child: Scaffold(
         backgroundColor: bgColor,
         resizeToAvoidBottomInset: true,

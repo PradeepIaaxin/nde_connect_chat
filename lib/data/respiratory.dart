@@ -173,13 +173,12 @@ class UserPreferences {
       context,
       MaterialPageRoute(
         builder: (_) => BlocProvider(
-          create: (context) => LoginBloc(authRepository: Auth(),socketBloc: context.read()),
+          create: (context) => LoginBloc(authRepository: Auth()),
           child: const LoginScreen(),
         ),
       ),
       (route) => false,
     );
-
     log("✅ User logged out and offline status synced!");
   }
 }
