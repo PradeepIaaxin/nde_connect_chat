@@ -625,8 +625,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   void _setupMessageListener() {
     if (currentUserId.isEmpty || widget.datumId == null) return;
 
-    _messagerBloc.add(
-        ListenToMessages(senderId: currentUserId, receiverId: widget.datumId!));
+    // _messagerBloc.add(
+    //     ListenToMessages(senderId: currentUserId, receiverId: widget.datumId!));
     _statusSubscription ??=
         socketService.statusUpdateStream.listen((statusUpdate) {
           if (!mounted) return;

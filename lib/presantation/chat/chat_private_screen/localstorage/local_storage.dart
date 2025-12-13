@@ -8,7 +8,7 @@ class LocalChatStorage {
       String convoId, List<Map<String, dynamic>> messages) async {
     final box = Hive.box(boxName);
 
-    await box.put('chat_messages_$convoId', messages);
+     await box.put('chat_messages_$convoId', messages);
   }
 
   /// Load messages list from local storage by convoId
