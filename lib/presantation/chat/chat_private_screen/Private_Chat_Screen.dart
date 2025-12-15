@@ -3932,7 +3932,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                               : Colors.white),
                                           borderRadius: BorderRadius.only(
                                             topLeft: isSentByMe
-                                                ? Radius.zero
+                                                ? const Radius.circular(18)
                                                 : const Radius.circular(18),
                                             topRight: isSentByMe
                                                 ? const Radius.circular(18)
