@@ -40,7 +40,7 @@ class MessageBubble extends StatelessWidget {
   final Function(Map<String, dynamic> message, String emoji)? onReact;
   final VoidCallback? emojpicker;
   final bool isReply;
-   MessageBubble({
+  MessageBubble({
     super.key,
     required this.message,
     required this.isSentByMe,
@@ -84,16 +84,15 @@ class MessageBubble extends StatelessWidget {
           margin: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
           constraints: const BoxConstraints(maxWidth: 260),
           child: const ShimmerImagePlaceholder(
-            width: 260,   // <= adjust as you like
-            height: 300,  // or 150 / 180
+            width: 260, // <= adjust as you like
+            height: 300, // or 150 / 180
           ),
         ),
       );
     }
 
-
     return Padding(
-      padding:  EdgeInsets.symmetric(vertical:emojpicker != null?8.0:0),
+      padding: EdgeInsets.symmetric(vertical: emojpicker != null ? 8.0 : 0),
       child: SwipeTo(
         animationDuration: const Duration(milliseconds: 350),
         iconOnRightSwipe: Icons.reply,
@@ -196,10 +195,11 @@ class MessageBubble extends StatelessWidget {
                           ],
                         ),
                       if (imageUrl != null && imageUrl.isNotEmpty)
-                        _buildImage(context,content, imageUrl, fileName,
+                        _buildImage(context, content, imageUrl, fileName,
                             isSentByMe: isSentByMe),
                       if (fileUrl != null && fileUrl.isNotEmpty)
-                        _buildFile(context,fileUrl, fileName, fileType, content,
+                        _buildFile(
+                            context, fileUrl, fileName, fileType, content,
                             isSentByMe: isSentByMe),
                       if (content.isNotEmpty)
                         _buildTextMessage(content, messageStatus),
@@ -224,15 +224,15 @@ class MessageBubble extends StatelessWidget {
                           print("hiiiiieeeee");
                           // open detailed picker (who reacted, change emoji, etc.)
                           if (emojpicker != null) {
-                            _showReactionPicker(context);                        } else {  _showReactionPicker(context);
-
+                            _showReactionPicker(context);
+                          } else {
+                            _showReactionPicker(context);
                           }
                         },
                         child: buildReactionsBar!(message, isSentByMe),
                       ),
                     ),
                   ),
-
               ],
             ),
           ),
@@ -316,7 +316,7 @@ class MessageBubble extends StatelessWidget {
   }
 
   Widget _buildImage(
-      BuildContext context,
+    BuildContext context,
     String content,
     String imageUrl,
     String? fileName, {
@@ -326,7 +326,7 @@ class MessageBubble extends StatelessWidget {
     final String name = fileName ?? 'Unknown file';
     final String extension = name.split('.').last.toLowerCase();
     final String? fileSize = message['fileSize']?.toString();
-print("imageUrl $imageUrl");
+    print("imageUrl $imageUrl");
     // List of image extensions
     final Set<String> imageExtensions = {
       'jpg',
@@ -384,7 +384,6 @@ print("imageUrl $imageUrl");
             await ImageViewer.show(context, imageUrl);
           },
 
-
           child: ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: Container(
@@ -400,28 +399,28 @@ print("imageUrl $imageUrl");
               ),
               child: imageUrl.startsWith('http')
                   ? CachedNetworkImage(
-                imageUrl: imageUrl,
-                width: 260,
-                height: isImage ? 350 : 200,
-                fit: BoxFit.cover,
-                placeholder: (context, url) => const ShimmerImagePlaceholder(
-                  width: 260,
-                  height: 200, // or 350 if you always want tall preview
-                ),
-                errorWidget: (context, url, error) => Container(
-                  width: 260,
-                  height: 200,
-                  color: Colors.grey.shade300,
-                  child: const Icon(Icons.error, color: Colors.red),
-                ),
-              )
+                      imageUrl: imageUrl,
+                      width: 260,
+                      height: isImage ? 350 : 200,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) =>
+                          const ShimmerImagePlaceholder(
+                        width: 260,
+                        height: 200, // or 350 if you always want tall preview
+                      ),
+                      errorWidget: (context, url, error) => Container(
+                        width: 260,
+                        height: 200,
+                        color: Colors.grey.shade300,
+                        child: const Icon(Icons.error, color: Colors.red),
+                      ),
+                    )
                   : Image.file(
-                File(imageUrl),
-                width: 260,
-                height: 200,
-                fit: BoxFit.cover,
-              ),
-
+                      File(imageUrl),
+                      width: 260,
+                      height: 200,
+                      fit: BoxFit.cover,
+                    ),
             ),
           ),
         ),
@@ -502,16 +501,20 @@ print("imageUrl $imageUrl");
   bool _isPresignedUrlExpired(String url) {
     try {
       final u = Uri.parse(url);
-      final xDate = u.queryParameters['X-Amz-Date'] ?? u.queryParameters['x-amz-date'];
-      final expires = int.tryParse(u.queryParameters['X-Amz-Expires'] ?? u.queryParameters['x-amz-expires'] ?? '') ?? 0;
+      final xDate =
+          u.queryParameters['X-Amz-Date'] ?? u.queryParameters['x-amz-date'];
+      final expires = int.tryParse(u.queryParameters['X-Amz-Expires'] ??
+              u.queryParameters['x-amz-expires'] ??
+              '') ??
+          0;
       if (xDate == null || expires == 0) return false;
       // xDate like 20251204T052751Z
-      final year = int.parse(xDate.substring(0,4));
-      final month = int.parse(xDate.substring(4,6));
-      final day = int.parse(xDate.substring(6,8));
-      final hour = int.parse(xDate.substring(9,11));
-      final minute = int.parse(xDate.substring(11,13));
-      final second = int.parse(xDate.substring(13,15));
+      final year = int.parse(xDate.substring(0, 4));
+      final month = int.parse(xDate.substring(4, 6));
+      final day = int.parse(xDate.substring(6, 8));
+      final hour = int.parse(xDate.substring(9, 11));
+      final minute = int.parse(xDate.substring(11, 13));
+      final second = int.parse(xDate.substring(13, 15));
       final signedAt = DateTime.utc(year, month, day, hour, minute, second);
       final expiryAt = signedAt.add(Duration(seconds: expires));
       return DateTime.now().toUtc().isAfter(expiryAt);
@@ -521,7 +524,7 @@ print("imageUrl $imageUrl");
     }
   }
 
- Future<String?> fetchFreshPresignedUrlFromServer(String imageKeyOrUrl) async {
+  Future<String?> fetchFreshPresignedUrlFromServer(String imageKeyOrUrl) async {
     // If you store objectKey in message, pass that. If you only have URL, you may need the server
     // to map from object key extracted from URL to a new presigned URL.
     // Example pseudo:
@@ -547,7 +550,8 @@ print("imageUrl $imageUrl");
 
       // 2) If URL looks like an S3 presigned and expired, request a fresh URL
       if (_isPresignedUrlExpired(imageUrl)) {
-        debugPrint('openImageSmart: presigned URL appears expired, asking server for fresh URL.');
+        debugPrint(
+            'openImageSmart: presigned URL appears expired, asking server for fresh URL.');
         final fresh = await fetchFreshPresignedUrlFromServer(imageUrl);
         if (fresh != null && fresh.isNotEmpty) {
           debugPrint('openImageSmart: got fresh presigned url.');
@@ -556,7 +560,8 @@ print("imageUrl $imageUrl");
           ImageViewer.show(context, fetched.path);
           return;
         } else {
-          debugPrint('openImageSmart: failed to obtain fresh presigned url from server.');
+          debugPrint(
+              'openImageSmart: failed to obtain fresh presigned url from server.');
           // fallthrough to attempt direct download (may fail)
         }
       }
@@ -571,13 +576,18 @@ print("imageUrl $imageUrl");
       }
 
       // 4) final fallback -> show error dialog
-      debugPrint('openImageSmart: file not available after attempts for $imageUrl');
+      debugPrint(
+          'openImageSmart: file not available after attempts for $imageUrl');
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
           title: const Text('Unable to open image'),
           content: const Text('Image failed to load.'),
-          actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'))
+          ],
         ),
       );
     } catch (e, st) {
@@ -587,20 +597,24 @@ print("imageUrl $imageUrl");
         builder: (_) => AlertDialog(
           title: const Text('Error'),
           content: Text('Could not open image: $e'),
-          actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'))
+          ],
         ),
       );
     }
   }
 
   Widget _buildFile(
-      BuildContext context,
-      String fileUrl,
-      String? fileName,
-      String? fileType,
-      String content, {
-        required bool isSentByMe,
-      }) {
+    BuildContext context,
+    String fileUrl,
+    String? fileName,
+    String? fileType,
+    String content, {
+    required bool isSentByMe,
+  }) {
     if (content == "Message Deleted") return const SizedBox();
 
     final String name = fileName ?? 'Unknown file';
@@ -609,14 +623,12 @@ print("imageUrl $imageUrl");
     final String mime = (fileType ?? '').toLowerCase();
 
     // Detect by MIME first, fallback to extension
-    final bool isImage =
-        mime.startsWith('image/') ||
-            ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic', 'heif']
-                .contains(extFromName);
+    final bool isImage = mime.startsWith('image/') ||
+        ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic', 'heif']
+            .contains(extFromName);
 
-    final bool isVideo =
-        mime.startsWith('video/') ||
-            ['mp4', 'mov', 'avi', 'mkv', 'webm'].contains(extFromName);
+    final bool isVideo = mime.startsWith('video/') ||
+        ['mp4', 'mov', 'avi', 'mkv', 'webm'].contains(extFromName);
 
     // 🔹 If it's an image, we already show it via imageUrl -> _buildImage, so hide here
     if (isImage) {
@@ -708,7 +720,6 @@ print("imageUrl $imageUrl");
       ),
     );
   }
-
 
   Widget _buildTextMessage(String content, String messageStatus) {
     final bool useIntrinsic = content.trim().length < 25;
@@ -817,8 +828,9 @@ print("imageUrl $imageUrl");
                               );
                             }
                           }),
-                           WidgetSpan(
-                            child: SizedBox(width: isSentByMe ? 75 : 60 , height: 20),
+                          WidgetSpan(
+                            child: SizedBox(
+                                width: isSentByMe ? 75 : 60, height: 20),
                           ),
                         ],
                       ),
@@ -944,10 +956,12 @@ print("imageUrl $imageUrl");
       },
     );
   }
-    bool _isTextLong(String text) {
+
+  bool _isTextLong(String text) {
     const maxCharsPerLine = 40;
     return (text.length / maxCharsPerLine).ceil() > 9;
   }
+
   Route _bottomToTopRoute(Widget page) {
     return PageRouteBuilder(
       transitionDuration: const Duration(milliseconds: 350),
@@ -961,7 +975,7 @@ print("imageUrl $imageUrl");
 
         final offsetAnimation = Tween<Offset>(
           begin: const Offset(0, 1), // bottom
-          end: Offset.zero,          // final position
+          end: Offset.zero, // final position
         ).animate(curved);
 
         return SlideTransition(
@@ -995,12 +1009,13 @@ print("imageUrl $imageUrl");
       return null;
     }
   }
+
   Widget _buildVideoPreviewTile(
-      BuildContext context,
-      String videoUrl,
-      String fileName,
-      bool isSentByMe,
-      ) {
+    BuildContext context,
+    String videoUrl,
+    String fileName,
+    bool isSentByMe,
+  ) {
     final isNetwork =
         videoUrl.startsWith('http://') || videoUrl.startsWith('https://');
 
@@ -1024,9 +1039,7 @@ print("imageUrl $imageUrl");
         child: Stack(
           children: [
             FutureBuilder<File?>(
-              future: isNetwork
-                  ? _generateVideoThumbnail(videoUrl)
-                  : null,
+              future: isNetwork ? _generateVideoThumbnail(videoUrl) : null,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return _videoShimmerPlaceholder();
@@ -1066,8 +1079,7 @@ print("imageUrl $imageUrl");
               bottom: 8,
               left: 8,
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 6, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                 decoration: BoxDecoration(
                   color: Colors.black.withOpacity(0.55),
                   borderRadius: BorderRadius.circular(6),
@@ -1118,14 +1130,15 @@ print("imageUrl $imageUrl");
                     if (isSentByMe) ...[
                       const SizedBox(width: 4),
                       buildStatusIcon?.call(
-                        message['messageStatus']?.toString() ?? 'sent',
-                      ) ??
+                            message['messageStatus']?.toString() ?? 'sent',
+                          ) ??
                           const Icon(Icons.done, size: 12, color: Colors.white),
                     ],
                   ],
                 ),
               ),
-            ),          ],
+            ),
+          ],
         ),
       ),
     );
@@ -1171,7 +1184,6 @@ print("imageUrl $imageUrl");
     );
   }
 
-
   Future<String> _getVideoDuration(String path, bool isNetwork) async {
     final controller = VideoPlayerController.networkUrl(Uri.parse(path));
 
@@ -1179,8 +1191,10 @@ print("imageUrl $imageUrl");
       await controller.initialize();
       final duration = controller.value.duration;
 
-      final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
-      final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+      final minutes =
+          duration.inMinutes.remainder(60).toString().padLeft(2, '0');
+      final seconds =
+          duration.inSeconds.remainder(60).toString().padLeft(2, '0');
 
       return '$minutes:$seconds';
     } catch (e) {
@@ -1223,12 +1237,16 @@ print("imageUrl $imageUrl");
     if (ft.contains('word') || ft.contains('doc')) return Icons.description;
 
     // Excel / Sheets
-    if (ft.contains('sheet') || ft.contains('excel') || ft.contains('spreadsheet')) {
+    if (ft.contains('sheet') ||
+        ft.contains('excel') ||
+        ft.contains('spreadsheet')) {
       return Icons.table_chart;
     }
 
     // PPT
-    if (ft.contains('powerpoint') || ft.contains('presentation') || ft.contains('ppt')) {
+    if (ft.contains('powerpoint') ||
+        ft.contains('presentation') ||
+        ft.contains('ppt')) {
       return Icons.slideshow;
     }
 
@@ -1268,9 +1286,8 @@ class CustomPhoneNumberLinkifier extends Linkifier {
     }
     return result;
   }
-
-
 }
+
 class ShimmerImagePlaceholder extends StatelessWidget {
   final double width;
   final double height;

@@ -2,7 +2,8 @@ import 'package:emoji_picker_flutter/emoji_picker_flutter.dart' as ep;
 import 'package:nde_email/data/respiratory.dart';
 import 'package:nde_email/main.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
-import 'package:nde_email/utils/reusbale/common_import.dart' hide Category, Emoji;
+import 'package:nde_email/utils/reusbale/common_import.dart'
+    hide Category, Emoji;
 import 'package:flutter/foundation.dart' as foundation;
 
 import '../../../chat/chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
@@ -21,7 +22,6 @@ class MessageInputField extends StatefulWidget {
   final bool thereORleft;
   final String reciverID;
 
-
   const MessageInputField(
       {super.key,
       required this.messageController,
@@ -38,7 +38,7 @@ class MessageInputField extends StatefulWidget {
       this.thereORleft = false,
       this.onDraftChanged});
 
- final ValueChanged<String>? onDraftChanged;
+  final ValueChanged<String>? onDraftChanged;
   @override
   _MessageInputFieldState createState() => _MessageInputFieldState();
 }
@@ -146,6 +146,7 @@ class _MessageInputFieldState extends State<MessageInputField> {
       ),
     );
   }
+
   @override
   void initState() {
     super.initState();
@@ -157,6 +158,7 @@ class _MessageInputFieldState extends State<MessageInputField> {
       }
     });
   }
+
   @override
   Widget build(BuildContext context) {
     final text = widget.messageController.text.trim();
@@ -165,139 +167,139 @@ class _MessageInputFieldState extends State<MessageInputField> {
     return widget.thereORleft
         ? voidBox
         : Padding(
-      padding: EdgeInsets.symmetric(
-        vertical: mq.size.height * .01,
-        horizontal: mq.size.width * .025,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // ---------- optional link preview (like you already have) ----------
-          if (detectedUrl != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8.0),
-              child: AnyLinkPreview(
-                link: detectedUrl!,
-                displayDirection: UIDirection.uiDirectionHorizontal,
-                showMultimedia: true,
-                bodyMaxLines: 3,
-                bodyTextOverflow: TextOverflow.ellipsis,
-                titleStyle: const TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 14),
-                bodyStyle: const TextStyle(color: Colors.black),
-              ),
+            padding: EdgeInsets.symmetric(
+              vertical: mq.size.height * .01,
+              horizontal: mq.size.width * .025,
             ),
-
-          // -------- MAIN ROW: input bubble + mic/send button ----------
-          Row(
-            children: [
-              // ========== LEFT: the bubble (reply + textfield) ==========
-              Expanded(
-                child: Card(
-                  color: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(25),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // ---------- optional link preview (like you already have) ----------
+                if (detectedUrl != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: AnyLinkPreview(
+                      link: detectedUrl!,
+                      displayDirection: UIDirection.uiDirectionHorizontal,
+                      showMultimedia: true,
+                      bodyMaxLines: 3,
+                      bodyTextOverflow: TextOverflow.ellipsis,
+                      titleStyle: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 14),
+                      bodyStyle: const TextStyle(color: Colors.black),
+                    ),
                   ),
-                  margin: EdgeInsets.zero,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (widget.replyText != null)
-                        _buildReplyPreviewInline(), // <= NEW (see below)
 
-                      Row(
-                        children: [
-                          IconButton(
-                            onPressed: _toggleEmojiKeyboard,
-                            icon: const Icon(
-                              Icons.emoji_emotions_outlined,
-                              color: Colors.grey,
-                              size: 24,
+                Row(
+                  children: [
+                    Expanded(
+                      child: Card(
+                        color: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                        margin: EdgeInsets.zero,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (widget.replyText != null)
+                              _buildReplyPreviewInline(),
+                            Row(
+                              children: [
+                                IconButton(
+                                  onPressed: _toggleEmojiKeyboard,
+                                  icon: const Icon(
+                                    Icons.emoji_emotions_outlined,
+                                    color: Colors.grey,
+                                    size: 24,
+                                  ),
+                                ),
+                                Expanded(
+                                  child: TextField(
+                                    controller: widget.messageController,
+                                    focusNode: widget.focusNode,
+                                    decoration: const InputDecoration(
+                                      hintText: 'Message',
+                                      hintStyle: TextStyle(color: Colors.black),
+                                      border: InputBorder.none,
+                                    ),
+                                    style: const TextStyle(color: Colors.black),
+                                    minLines: 1,
+                                    maxLines: 5,
+                                    onChanged: _onTextChanged,
+                                  ),
+                                ),
+                                IconButton(
+                                  onPressed: widget.onAttachmentPressed,
+                                  icon: const Icon(Icons.attach_file,
+                                      color: Colors.grey, size: 24),
+                                ),
+                                widget.messageController.text.isEmpty
+                                    ? IconButton(
+                                        onPressed: widget.onCameraPressed,
+                                        icon: const Icon(
+                                            Icons.camera_alt_rounded,
+                                            color: Colors.grey,
+                                            size: 24),
+                                      )
+                                    : SizedBox(),
+                                const SizedBox(width: 4),
+                              ],
                             ),
-                          ),
-                          Expanded(
-                            child: TextField(
-                              controller: widget.messageController,
-                              focusNode: widget.focusNode,
-                              decoration: const InputDecoration(
-                                hintText: 'Message',
-                                hintStyle:
-                                TextStyle(color: Colors.black),
-                                border: InputBorder.none,
-                              ),
-                              style: const TextStyle(color: Colors.black),
-                              minLines: 1,
-                              maxLines: 5,
-                              onChanged: _onTextChanged,
-                            ),
-                          ),
-                          IconButton(
-                            onPressed: widget.onAttachmentPressed,
-                            icon: const Icon(Icons.attach_file,
-                                color: Colors.grey, size: 24),
-                          ),
-                          widget.messageController.text.isEmpty? IconButton(
-                            onPressed: widget.onCameraPressed,
-                            icon: const Icon(Icons.camera_alt_rounded,
-                                color: Colors.grey, size: 24),
-                          ):SizedBox(),
-                          const SizedBox(width: 4),
-                        ],
+                          ],
+                        ),
                       ),
-                    ],
-                  ),
-                ),
-              ),
+                    ),
 
-              // ========== RIGHT: mic / send button ==========
-              const SizedBox(width: 6),
-              MaterialButton(
-                onPressed: widget.messageController.text.trim().isEmpty
-                    ? widget.onRecordPressed
-                    : widget.onSendPressed,
-                minWidth: 0,
-                padding: const EdgeInsets.all(10),
-                shape: const CircleBorder(),
-                color: widget.messageController.text.trim().isEmpty
-                    ? (widget.isRecording ? Colors.red : chatColor)
-                    : chatColor,
-                child: Icon(
-                  widget.messageController.text.trim().isEmpty
-                      ? (widget.isRecording ? Icons.stop : Icons.mic)
-                      : Icons.send,
-                  color: Colors.white,
-                  size: 26,
+                    // ========== RIGHT: mic / send button ==========
+                    const SizedBox(width: 6),
+                    MaterialButton(
+                      onPressed: widget.messageController.text.trim().isEmpty
+                          ? widget.onRecordPressed
+                          : widget.onSendPressed,
+                      minWidth: 0,
+                      padding: const EdgeInsets.all(10),
+                      shape: const CircleBorder(),
+                      color: widget.messageController.text.trim().isEmpty
+                          ? (widget.isRecording ? Colors.red : chatColor)
+                          : chatColor,
+                      child: Icon(
+                        widget.messageController.text.trim().isEmpty
+                            ? (widget.isRecording ? Icons.stop : Icons.mic)
+                            : Icons.send,
+                        color: Colors.white,
+                        size: 26,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
 
-          // ========== Emoji panel below input ==========
-          if (_showEmoji)
-            SizedBox(
-              height: 280,
-              child: ep.EmojiPicker(
-                onEmojiSelected: (ep.Category? category, ep.Emoji emoji) {
-                  _insertEmoji(emoji.emoji);
-                },
-                onBackspacePressed: _handleEmojiBackspace,
-                config: ep.Config(
-                  height: 256,
-                  checkPlatformCompatibility: true,
-                  viewOrderConfig: const ep.ViewOrderConfig(),
-                  emojiViewConfig: ep.EmojiViewConfig(
-                    emojiSizeMax: 28 *
-                        (foundation.defaultTargetPlatform ==
-                            TargetPlatform.iOS
-                            ? 1.2
-                            : 1.0),
+                // ========== Emoji panel below input ==========
+                if (_showEmoji)
+                  SizedBox(
+                    height: 280,
+                    child: ep.EmojiPicker(
+                      onEmojiSelected: (ep.Category? category, ep.Emoji emoji) {
+                        _insertEmoji(emoji.emoji);
+                      },
+                      onBackspacePressed: _handleEmojiBackspace,
+                      config: ep.Config(
+                        height: 256,
+                        checkPlatformCompatibility: true,
+                        viewOrderConfig: const ep.ViewOrderConfig(),
+                        emojiViewConfig: ep.EmojiViewConfig(
+                          emojiSizeMax: 28 *
+                              (foundation.defaultTargetPlatform ==
+                                      TargetPlatform.iOS
+                                  ? 1.2
+                                  : 1.0),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
+              ],
             ),
-        ],
-      ),
-    );
+          );
   }
 
   Widget _buildReplyPreviewInline() {
@@ -317,7 +319,7 @@ class _MessageInputFieldState extends State<MessageInputField> {
     // Decide if this reply is a video
     final bool isVideoReply =
         ((fileType ?? '').toLowerCase().startsWith('video/') ||
-            widget.replyText?['isVideo'] == true) &&
+                widget.replyText?['isVideo'] == true) &&
             (originalUrl != null && originalUrl.isNotEmpty);
 
     if (isVideoReply) {
@@ -327,7 +329,6 @@ class _MessageInputFieldState extends State<MessageInputField> {
     } else if (fileName != null && fileName.isNotEmpty) {
       typeLabel = 'Document';
     }
-
 
     // ---------- build trailing thumbnail (image / video) ----------
     Widget? trailingThumb;
@@ -344,7 +345,7 @@ class _MessageInputFieldState extends State<MessageInputField> {
           future: VideoThumbUtil.generateFromUrl(originalUrl!),
           builder: (context, snapshot) {
             final thumbFile = snapshot.data;
-            if (thumbFile==null) {
+            if (thumbFile == null) {
               return ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: Container(
@@ -355,7 +356,6 @@ class _MessageInputFieldState extends State<MessageInputField> {
                 ),
               );
             }
-
 
             if (thumbFile != null && thumbFile.existsSync()) {
               return Stack(
@@ -403,7 +403,6 @@ class _MessageInputFieldState extends State<MessageInputField> {
       );
     }
 
-
     return Container(
       decoration: BoxDecoration(
         color: Colors.grey.shade200,
@@ -450,8 +449,8 @@ class _MessageInputFieldState extends State<MessageInputField> {
                         typeLabel == 'Photo'
                             ? Icons.photo
                             : typeLabel == 'Video'
-                            ? Icons.video_camera_back_rounded
-                            : Icons.note_outlined,
+                                ? Icons.video_camera_back_rounded
+                                : Icons.note_outlined,
                         color: Colors.grey,
                         size: 16,
                       ),
@@ -474,8 +473,8 @@ class _MessageInputFieldState extends State<MessageInputField> {
                           content,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style:
-                          const TextStyle(color: Colors.black, fontSize: 12),
+                          style: const TextStyle(
+                              color: Colors.black, fontSize: 12),
                         ),
                         InkWell(
                           onTap: widget.onCancelReply,
@@ -542,6 +541,11 @@ class _MessageInputFieldState extends State<MessageInputField> {
         TextSelection.fromPosition(TextPosition(offset: cursor + emoji.length));
   }
 
+  String capitalizeFirstLetter(String text) {
+    if (text.isEmpty) return text;
+    return text[0].toUpperCase() + text.substring(1);
+  }
+
   void _handleEmojiBackspace() {
     final text = widget.messageController.text;
     final sel = widget.messageController.selection;
@@ -555,23 +559,35 @@ class _MessageInputFieldState extends State<MessageInputField> {
   }
 
   void _onTextChanged(String value) async {
-    setState(() {}); // update send/mic icon
+    final capitalized = capitalizeFirstLetter(value);
 
-    if (value.trim().isNotEmpty) {
+    // ✅ Prevent infinite loop
+    if (capitalized != widget.messageController.text) {
+      final cursorPosition = widget.messageController.selection.baseOffset;
+
+      widget.messageController.value = TextEditingValue(
+        text: capitalized,
+        selection: TextSelection.collapsed(
+          offset: cursorPosition.clamp(0, capitalized.length),
+        ),
+      );
+    }
+
+    setState(() {});
+
+    // ---- existing typing indicator logic ----
+    if (capitalized.trim().isNotEmpty) {
       final userId = await UserPreferences.getUserId() ?? "Unknown";
       final roomId = socketService.generateRoomId(userId, widget.reciverID);
-      final userFullName =
-          await UserPreferences.getUsername() ?? "Unknown";
+      final userFullName = await UserPreferences.getUsername() ?? "Unknown";
       socketService.sendTyping(roomId: roomId, userName: userFullName);
     }
 
-    if (_draftDebounceTimer?.isActive ?? false) {
-      _draftDebounceTimer!.cancel();
-    }
-    _draftDebounceTimer =
-        Timer(const Duration(milliseconds: 500), () {
-          widget.onDraftChanged?.call(value.trim());
-        });
+    // ---- draft debounce ----
+    _draftDebounceTimer?.cancel();
+    _draftDebounceTimer = Timer(const Duration(milliseconds: 500), () {
+      widget.onDraftChanged?.call(capitalized.trim());
+    });
   }
 
   @override
@@ -579,5 +595,4 @@ class _MessageInputFieldState extends State<MessageInputField> {
     _draftDebounceTimer?.cancel();
     super.dispose();
   }
-
 }
