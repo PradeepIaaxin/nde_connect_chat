@@ -188,17 +188,20 @@ Future<void> initializeStorage() async {
 
 
 //correction 
-//1. IN chatlisrt - > header
+//1. IN chatlisrt - > header. - done 
 //2. in chat ui fornt , time , secnorio and image , ui 
-// 3. in chat list > font bold ness and time formate and colour 
+// 3. in chat list > font bold ness and time formate and colour  - done 
 //4. bottom icon 
-//5,app logout transion 
+//5,app logout transion  
 //6 , nnetowrk secnior 
-//7, in grop chat name displaying different colours 
-//8, search bar implemenation in header 
-//9, header icons follow same formate 
-// while texting new message automaticallyb we need to disokay upper case 
+//7, in grop chat name displaying different colours  
+//8, search bar implemenation in header  - done 
+//9, header icons follow same formate   
+// while texting new message automaticallyb we need to disokay upper case  - done 
 // 10 . in card all cards ui abd and card ui // 
 //11 ,typing suguesstion 
 //12 , in side chat screen we need to remove shadow and border from appbar
 //13,  
+
+// retry onoine and update connection ..
+//
