@@ -16,10 +16,12 @@ import 'package:nde_email/presantation/chat/widget/profile_avatar.dart'
     show ProfileAvatar;
 import 'package:nde_email/presantation/chat/widget/profile_dialog.dart';
 import 'package:nde_email/presantation/drive/common/search_bar_chat.dart';
+import 'package:nde_email/presantation/network/connectivity_servicer.dart';
 import 'package:nde_email/utils/reusbale/colour_utlis.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
 import 'package:nde_email/utils/reusbale/reusable_popup_menu.dart';
 import 'package:nde_email/utils/reusbale/whatsapp_banner.dart';
+import 'package:nde_email/utils/reusbale/whatsapp_offline_banner.dart';
 import 'package:nde_email/utils/simmer_effect.dart/chat_list_item.dart';
 import '../chat_group_Screen/GroupChatScreen.dart';
 import '../chat_private_screen/Private_Chat_Screen.dart';
@@ -45,6 +47,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
   bool _isSearching = false;
   bool _showSearchBar = false;
   bool _showFilterChips = false;
+
+  NetworkStatus _networkStatus = NetworkStatus.connected;
 
   final ScrollController _scrollController = ScrollController();
   double _lastScrollOffset = 0.0;
@@ -81,6 +85,32 @@ class _ChatListScreenState extends State<ChatListScreen> {
     super.initState();
     _loadUserData();
     _scrollController.addListener(_scrollListener);
+    _internetSub =
+        InternetService.connectionStreams.listen((hasInternet) async {
+      if (!mounted) return;
+
+      setState(() {
+        _hasInternet = hasInternet; // ✅ ADD THIS
+      });
+
+      if (!hasInternet) {
+        setState(() {
+          _networkStatus = NetworkStatus.disconnected;
+        });
+      } else {
+        setState(() {
+          _networkStatus = NetworkStatus.reconnecting;
+        });
+
+        await Future.delayed(const Duration(seconds: 1));
+
+        if (mounted) {
+          setState(() {
+            _networkStatus = NetworkStatus.connected;
+          });
+        }
+      }
+    });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -145,48 +175,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
     _lastScrollOffset = offset;
   }
 
-  // void _scrollListener() {
-  //   if (!_scrollController.hasClients) return;
-
-  //   final offset = _scrollController.offset;
-
-  //   // Check if at top
-  //   _isAtTop = offset <= 0;
-
-  //   // Determine scroll direction
-  //   final isScrollingDown = offset > _lastScrollOffset;
-  //   _isScrollingDown = isScrollingDown;
-
-  //   // Show search bar only when scrolling UP (not down) and past a threshold
-  //   if (!isScrollingDown && offset > 100 && !_isAtTop) {
-  //     if (!_showSearchBar) {
-  //       setState(() => _showSearchBar = true);
-  //     }
-  //   }
-  //   // Hide search bar when scrolling DOWN or at top
-  //   else if (isScrollingDown || _isAtTop) {
-  //     if (_showSearchBar) {
-  //       setState(() => _showSearchBar = false);
-  //     }
-  //   }
-
-  //   // Show filter chips only when at top AND scrolling up (not initially)
-  //   // This prevents chips from showing when scrolling down from top
-  //   if (_isAtTop && !isScrollingDown && offset <= 0) {
-  //     if (!_showFilterChips) {
-  //       setState(() => _showFilterChips = true);
-  //     }
-  //   } else {
-  //     if (_showFilterChips) {
-  //       setState(() => _showFilterChips = false);
-  //     }
-  //   }
-
-  //   _lastScrollOffset = offset;
-  // }
-
   @override
   void dispose() {
+    _internetSub?.cancel();
     _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
@@ -355,6 +346,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
     return filtered;
   }
+
+  bool _hasInternet = true;
+  StreamSubscription<bool>? _internetSub;
 
   final normalMenuItems = [
     PopupMenuItemModel(value: 'new_group', label: 'New group'),
@@ -529,10 +523,13 @@ class _ChatListScreenState extends State<ChatListScreen> {
               ),
           ],
           bottom: PreferredSize(
-            preferredSize:
-                _showAdBanner ? Size.fromHeight(126) : Size.fromHeight(56),
+            preferredSize: Size.fromHeight(
+              (_showAdBanner ? 70 : 0) + (!_hasInternet ? 60 : 0) + 56,
+            ),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
+                /// 🔍 SEARCH BAR (Always visible)
                 MySearchBar(
                   controller: _searchController,
                   hintText: 'Chats',
@@ -540,19 +537,45 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     setState(() {});
                   },
                 ),
-                _showAdBanner
-                    ? WhatsAppAdBanner(
-                        key: const ValueKey('whatsapp_banner'),
-                        onClose: () {
-                          setState(() {
-                            _showAdBanner = false;
-                          });
-                        },
-                        onGetStarted: () {
-                          debugPrint('Get Started clicked');
-                        },
-                      )
-                    : const SizedBox.shrink(),
+
+                /// 🔴 OFFLINE BANNER (WhatsApp style)
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  child: !_hasInternet
+                      ? WhatsAppOfflineBanner(
+                          status: _networkStatus,
+                          onRetry: () async {
+                            setState(() {
+                              _networkStatus = NetworkStatus.reconnecting;
+                            });
+
+                            final ok = await InternetService.hasInternet();
+
+                            if (mounted) {
+                              setState(() {
+                                _networkStatus = ok
+                                    ? NetworkStatus.connected
+                                    : NetworkStatus.disconnected;
+                              });
+                            }
+                          },
+                        )
+                      : const SizedBox.shrink(),
+                ),
+
+                /// 🟡 AD BANNER
+                if (_showAdBanner)
+                  WhatsAppAdBanner(
+                    key: const ValueKey('whatsapp_banner'),
+                    onClose: () {
+                      setState(() {
+                        _showAdBanner = false;
+                      });
+                    },
+                    onGetStarted: () {
+                      debugPrint('Get Started clicked');
+                    },
+                  ),
               ],
             ),
           ),
