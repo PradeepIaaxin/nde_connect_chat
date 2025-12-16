@@ -597,8 +597,9 @@ class SocketService {
 
     // Incoming message events: listen to many possible names for compatibility with your backend
     final messageEventNames = [
-      'receiveMessage',
-      'new_message',
+      'receive_message'
+          //'receiveMessage',
+          'new_message',
       'message',
       'newMessage',
       'message_created',

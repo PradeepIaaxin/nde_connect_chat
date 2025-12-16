@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:nde_email/presantation/login/login_screen.dart';
+import 'package:nde_email/presantation/network/connectivity_servicer.dart';
 import 'package:nde_email/presantation/update_screen/update_bloc/update_bloc.dart';
 import 'package:nde_email/presantation/update_screen/update_repo/update_repo.dart';
 import 'package:nde_email/rust/api.dart/frb_generated.dart';
@@ -12,7 +13,7 @@ late final WebSocketService webSocketService;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
+  await InternetService.initialize();
   SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
   ));
