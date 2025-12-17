@@ -21,6 +21,7 @@ class MessageInputField extends StatefulWidget {
   final VoidCallback? onCancelReply;
   final bool thereORleft;
   final String reciverID;
+  final bool? isSender;
 
   const MessageInputField(
       {super.key,
@@ -36,7 +37,7 @@ class MessageInputField extends StatefulWidget {
       this.replyText,
       this.onCancelReply,
       this.thereORleft = false,
-      this.onDraftChanged});
+      this.onDraftChanged, this.isSender=false});
 
   final ValueChanged<String>? onDraftChanged;
   @override
@@ -312,6 +313,10 @@ class _MessageInputFieldState extends State<MessageInputField> {
     final String userName = widget.replyText?['userName'] ?? '';
     final String? originalUrl = widget.replyText?['originalUrl'];
 
+    final String firstName = widget.replyText?['receiver']['first_name'];
+    final String lastName = widget.replyText?['receiver']['last_name'];
+    final bool isSendMe = widget.replyText?['isSendMe'];
+print("hhhhhhhhhhhhhhhhhhhhh $isSendMe");
     // Type label like WhatsApp
     // Type label like WhatsApp
     String typeLabel = '';
@@ -327,7 +332,7 @@ class _MessageInputFieldState extends State<MessageInputField> {
     } else if (imageUrl != null && imageUrl.isNotEmpty) {
       typeLabel = 'Photo';
     } else if (fileName != null && fileName.isNotEmpty) {
-      typeLabel = 'Document';
+      typeLabel = '';
     }
 
     // ---------- build trailing thumbnail (image / video) ----------
@@ -407,18 +412,19 @@ class _MessageInputFieldState extends State<MessageInputField> {
       decoration: BoxDecoration(
         color: Colors.grey.shade200,
         borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(25),
-          topRight: Radius.circular(25),
+          topLeft: Radius.circular(15),
+          topRight: Radius.circular(15),
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
           // vertical strip
           Container(
             width: 3,
-            height: 40,
+            height: 50,
             decoration: BoxDecoration(
               color: AppColors.primaryButton,
               borderRadius: BorderRadius.circular(3),
@@ -432,6 +438,14 @@ class _MessageInputFieldState extends State<MessageInputField> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
+                Text(
+                  !isSendMe?"${firstName} ${lastName}":"You",
+                  style:  TextStyle(
+                      color: AppColors.primaryButton,
+                      fontSize: 14,fontWeight: FontWeight.w600
+                  ),
+                ),
+                SizedBox(height: 5,),
                 if (userName.isNotEmpty)
                   Text(
                     userName,
@@ -450,16 +464,18 @@ class _MessageInputFieldState extends State<MessageInputField> {
                             ? Icons.photo
                             : typeLabel == 'Video'
                                 ? Icons.video_camera_back_rounded
-                                : Icons.note_outlined,
+                                : null,
                         color: Colors.grey,
-                        size: 16,
+                        size: typeLabel == 'Photo' ||  typeLabel == 'Video'
+                            ?16:0,
                       ),
-                      const SizedBox(width: 6),
+                       SizedBox(width: typeLabel == 'Photo' ||  typeLabel == 'Video'
+                           ? 6:0),
                       Text(
                         typeLabel,
-                        style: const TextStyle(
+                        style:  TextStyle(
                           color: Colors.black,
-                          fontSize: 12,
+                          fontSize: 12,fontWeight: FontWeight.w400
                         ),
                       ),
                     ],
