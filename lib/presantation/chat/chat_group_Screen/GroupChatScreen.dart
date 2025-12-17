@@ -44,7 +44,6 @@ import '../../../utils/simmer_effect.dart/chat_simmerefect.dart';
 import '../../widgets/chat_widgets/messager_Wifgets/ForwardMessageScreen_widget.dart';
 import '../../widgets/chat_widgets/messager_Wifgets/buildMessageInputField_widgets.dart';
 import '../Socket/Socket_Service.dart';
-import 'group_media_widget.dart';
 import 'group_media_viewer.dart';
 import '../chat_private_screen/messager_Bloc/widget/VideoPlayerScreen.dart';
 import '../chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
@@ -1152,8 +1151,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       log("currentUserId  ..$currentUserId");
       log("datumId  ..${widget.datumId}");
 
-      SocketService().connectPrivateRoom(
-          currentUserId, widget.datumId, onMessageReceived, true);
+      // SocketService().connectPrivateRoom(
+      //     currentUserId, widget.datumId, onMessageReceived, true);
 
       _setupReactionListener();
       _setupStatusListener();

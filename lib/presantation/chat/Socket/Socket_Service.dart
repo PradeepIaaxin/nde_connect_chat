@@ -17,6 +17,8 @@ class SocketService {
   String? currentWorkspaceId;
   String? _currentUserId;
   final List<String> onlineUsers = [];
+  int _socketCreationCount = 0;
+  String? _lastSocketId;
 
   // Stream controllers (kept same)
   final StreamController<String> _typingController =
@@ -63,9 +65,6 @@ class SocketService {
 // 🔥 NEW — Fast UI notifier for online/offline
   final ValueNotifier<Map<String, dynamic>> userStatusNotifier =
       ValueNotifier({});
-
-// Keep track of registered listeners so they do not duplicate
-  bool _statusListenersAdded = false;
 
   bool get isConnected => socket?.connected ?? false;
   static final Set<String> processedMessageIds = <String>{};
@@ -161,9 +160,10 @@ class SocketService {
     int maxRetries = 30,
     int reconnectDelayMs = 400,
   }) async {
-    const String socketUrl =
-        //"https://e26a1b10a954.ngrok-free.app/wschat";
-        'https://api.nowdigitaleasy.com/wschat';
+    _socketCreationCount++;
+    _slog('🔄 Socket creation attempt #$_socketCreationCount');
+    _slog('📊 Previous socket ID: $_lastSocketId');
+    const String socketUrl = 'https://api.nowdigitaleasy.com/wschat';
 
     // clean old socket
     try {
@@ -196,8 +196,14 @@ class SocketService {
     // setup handlers once
     _registerHandlers(senderId, receiverId, onMessageReceived, isGroupchat);
 
+    // socket!.onConnect((_) {
+    //   _slog('Socket connected successfully id=${socket!.id}');
+    //   _joinWorkspace(workspaceId, clientId);
+    // });
     socket!.onConnect((_) {
-      _slog('Socket connected successfully id=${socket!.id}');
+      _lastSocketId = socket!.id;
+      _slog('✅ Socket connected successfully id=${socket!.id}');
+      _slog('📊 Total sockets created: $_socketCreationCount');
       _joinWorkspace(workspaceId, clientId);
     });
 
@@ -1165,8 +1171,6 @@ class SocketService {
         },
     };
 
-
-log(messagePayload.toString());
     socket!.emitWithAck('send_message', messagePayload, ack: (data) {
       try {
         if (ackCallback != null && data is Map<String, dynamic>) {
