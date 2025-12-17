@@ -159,7 +159,9 @@ class MessageBubble extends StatelessWidget {
                     if (hasReply)
                       RepliedMessagePreview(
                         key: ValueKey(message['isReplyMessage']?.hashCode ?? message['reply']),
-                        replied: message['reply'] ?? message['reply'] ?? {}, receiver: message['receiver'], isSender: isSentByMe,
+                        replied: message['reply'] ??  {}, receiver: message['receiver'] is Map
+    ? Map<String, dynamic>.from(message['receiver'])
+    : {}, isSender: isSentByMe,
                         onTap:onReplyTap,
                       ),
 
@@ -413,7 +415,7 @@ class MessageBubble extends StatelessWidget {
           return CachedNetworkImage(
             imageUrl: imageUrl,
             width: 260,
-            height: imageExtensions.contains(extension) ? 350 : 200,
+            height: imageExtensions.contains(extension) ? 300 : 200,
             fit: BoxFit.cover,
             placeholder: (context, url) => const ShimmerImagePlaceholder(
               width: 260,
@@ -446,7 +448,7 @@ class MessageBubble extends StatelessWidget {
             return Image.file(
               f,
               width: 260,
-              height: 200,
+          height: imageExtensions.contains(extension) ? 300 : 200,
               fit: BoxFit.cover,
             );
           } else {
@@ -498,13 +500,7 @@ class MessageBubble extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  blurRadius: 2,
-                  offset: const Offset(0, 1),
-                ),
-              ],
+            
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
