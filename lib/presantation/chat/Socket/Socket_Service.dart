@@ -17,6 +17,8 @@ class SocketService {
   String? currentWorkspaceId;
   String? _currentUserId;
   final List<String> onlineUsers = [];
+  int _socketCreationCount = 0;
+  String? _lastSocketId;
 
   // Stream controllers (kept same)
   final StreamController<String> _typingController =
@@ -63,9 +65,6 @@ class SocketService {
 // 🔥 NEW — Fast UI notifier for online/offline
   final ValueNotifier<Map<String, dynamic>> userStatusNotifier =
       ValueNotifier({});
-
-// Keep track of registered listeners so they do not duplicate
-  bool _statusListenersAdded = false;
 
   bool get isConnected => socket?.connected ?? false;
   static final Set<String> processedMessageIds = <String>{};
@@ -161,9 +160,10 @@ class SocketService {
     int maxRetries = 30,
     int reconnectDelayMs = 400,
   }) async {
-    const String socketUrl =
-        //"https://e26a1b10a954.ngrok-free.app/wschat";
-        'https://api.nowdigitaleasy.com/wschat';
+    _socketCreationCount++;
+    _slog('🔄 Socket creation attempt #$_socketCreationCount');
+    _slog('📊 Previous socket ID: $_lastSocketId');
+    const String socketUrl = 'https://api.nowdigitaleasy.com/wschat';
 
     // clean old socket
     try {
@@ -196,8 +196,14 @@ class SocketService {
     // setup handlers once
     _registerHandlers(senderId, receiverId, onMessageReceived, isGroupchat);
 
+    // socket!.onConnect((_) {
+    //   _slog('Socket connected successfully id=${socket!.id}');
+    //   _joinWorkspace(workspaceId, clientId);
+    // });
     socket!.onConnect((_) {
-      _slog('Socket connected successfully id=${socket!.id}');
+      _lastSocketId = socket!.id;
+      _slog('✅ Socket connected successfully id=${socket!.id}');
+      _slog('📊 Total sockets created: $_socketCreationCount');
       _joinWorkspace(workspaceId, clientId);
     });
 
@@ -313,13 +319,25 @@ class SocketService {
             }));
 
     // typing (single unified)
-    reg(
+  reg(
         'get_typing',
         (response) => scheduleMicrotask(() {
-              _slog('get_typing -> $response');
+              _slog('🔥 RAW get_typing received: $response');
+
+              // Filter out self-typing
+              if (response is List && response.isNotEmpty) {
+                final first = response.first;
+                if (first is Map && first['userId'] == _currentUserId) return;
+              } else if (response is Map &&
+                  response['userId'] == _currentUserId) {
+                return;
+              }
+
               final msg = _extractTypingMessage(response);
+              _slog('🔥 Extracted typing msg: $msg');
+
               if (msg != null && msg.trim().isNotEmpty) {
-                _typingController.add('typing...');
+                _typingController.add(msg);
                 _typingTimeout?.cancel();
                 _typingTimeout = Timer(const Duration(seconds: 2), () {
                   _typingController.add('');
@@ -639,16 +657,26 @@ class SocketService {
     return null;
   }
 
-  String? _extractTypingMessage(dynamic payload) {
+String? _extractTypingMessage(dynamic payload) {
     if (payload == null) return null;
     if (payload is List && payload.isNotEmpty) {
       final first = payload.first;
-      if (first is Map && first.containsKey('message')) {
-        return first['message']?.toString();
+      if (first is Map) {
+        if (first.containsKey('userName')) {
+          return "${first['userName']} is typing...";
+        }
+        if (first.containsKey('message')) {
+          return first['message']?.toString();
+        }
       }
       if (first is String) return first;
-    } else if (payload is Map && payload.containsKey('message')) {
-      return payload['message']?.toString();
+    } else if (payload is Map) {
+      if (payload.containsKey('userName')) {
+        return "${payload['userName']} is typing...";
+      }
+      if (payload.containsKey('message')) {
+        return payload['message']?.toString();
+      }
     } else if (payload is String) {
       return payload;
     }
@@ -689,7 +717,7 @@ class SocketService {
     return null;
   }
 
-  void _handleUserPresence(dynamic data, {required bool online}) {
+void _handleUserPresence(dynamic data, {required bool online}) {
     try {
       // Extract raw userId from multiple possible message formats
       final rawId = (data is List && data.isNotEmpty) ? data[0] : data;
@@ -708,10 +736,12 @@ class SocketService {
       }
 
       // 🚀 Instantly notify UI
-      userStatusNotifier.value = {
+      final statusMap = {
         "userId": userId,
         "status": online ? "online" : "offline",
       };
+      userStatusNotifier.value = statusMap;
+      _userStatusController.add(statusMap);
 
       _slog("Presence update: $userId → ${online ? 'online' : 'offline'}");
     } catch (e) {
@@ -778,6 +808,7 @@ class SocketService {
       return;
     }
     final typingData = {"roomId": roomId, "userName": userName};
+    _slog('🚀 Sending typing event: $typingData');
     socket!.emit('typing', typingData);
   }
 
@@ -1165,8 +1196,6 @@ class SocketService {
         },
     };
 
-
-log(messagePayload.toString());
     socket!.emitWithAck('send_message', messagePayload, ack: (data) {
       try {
         if (ackCallback != null && data is Map<String, dynamic>) {

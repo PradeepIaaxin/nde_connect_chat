@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 enum NetworkStatus {
@@ -6,7 +7,7 @@ enum NetworkStatus {
   reconnecting,
 }
 
-class WhatsAppOfflineBanner extends StatelessWidget {
+class WhatsAppOfflineBanner extends StatefulWidget {
   final NetworkStatus status;
   final VoidCallback onRetry;
 
@@ -17,8 +18,50 @@ class WhatsAppOfflineBanner extends StatelessWidget {
   });
 
   @override
+  State<WhatsAppOfflineBanner> createState() =>
+      _WhatsAppOfflineBannerState();
+}
+
+class _WhatsAppOfflineBannerState extends State<WhatsAppOfflineBanner> {
+  Timer? _waitTimer;
+  bool _isWaiting = false;
+
+  void _handleRetry() {
+    if (_isWaiting) return;
+
+    widget.onRetry(); // trigger reconnect
+
+    setState(() => _isWaiting = true);
+
+    _waitTimer?.cancel();
+    _waitTimer = Timer(const Duration(seconds: 5), () {
+      if (widget.status != NetworkStatus.connected) {
+        setState(() => _isWaiting = false);
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant WhatsAppOfflineBanner oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // If connected before 5 sec → stop waiting
+    if (widget.status == NetworkStatus.connected && _isWaiting) {
+      _waitTimer?.cancel();
+      setState(() => _isWaiting = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _waitTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final bool isReconnecting = status == NetworkStatus.reconnecting;
+    final bool isReconnecting =
+        widget.status == NetworkStatus.reconnecting || _isWaiting;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -48,9 +91,9 @@ class WhatsAppOfflineBanner extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                if (!isReconnecting)
+                if (!_isWaiting)
                   GestureDetector(
-                    onTap: onRetry,
+                    onTap: _handleRetry,
                     child: const Text(
                       "Retry now ›",
                       style: TextStyle(

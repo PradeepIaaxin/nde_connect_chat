@@ -490,8 +490,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     _messageHandler =
         MessageHandler(currentUserId: currentUserId, convoId: widget.convoId);
 
-    await socketService.connectPrivateRoom(
-        currentUserId, widget.datumId!, onMessageReceived, false);
+    // await socketService.connectPrivateRoom(
+    //     currentUserId, widget.datumId!, onMessageReceived, false);
 
     _setupMessageListener();
     _setupReactionListener();
@@ -3209,7 +3209,7 @@ print("hiiilocalId ${localId}");
           final isAtBottom = (_scrollController.offset - maxScroll).abs() < 1.0;
           if (isAtBottom) return;
 
-          // Try animate first -- smoother
+          // Try animate first -,@message_ui.dart- smoother
           await _scrollController.animateTo(
             maxScroll,
             duration: const Duration(milliseconds: 200),
@@ -4227,7 +4227,7 @@ print("imageOrVideoUrl $imageOrVideoUrl");
           _clearDraft();
         }
       },
-      isSender: isSentByMe,
+
     );
   }
 

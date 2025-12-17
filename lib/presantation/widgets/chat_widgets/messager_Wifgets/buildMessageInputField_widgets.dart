@@ -20,8 +20,8 @@ class MessageInputField extends StatefulWidget {
   final Map<String, dynamic>? replyText;
   final VoidCallback? onCancelReply;
   final bool thereORleft;
+  final bool isGroupChat;
   final String reciverID;
-  final bool? isSender;
 
   const MessageInputField(
       {super.key,
@@ -37,7 +37,8 @@ class MessageInputField extends StatefulWidget {
       this.replyText,
       this.onCancelReply,
       this.thereORleft = false,
-      this.onDraftChanged, this.isSender=false});
+      this.isGroupChat = false,
+      this.onDraftChanged});
 
   final ValueChanged<String>? onDraftChanged;
   @override
@@ -78,75 +79,6 @@ class _MessageInputFieldState extends State<MessageInputField> {
     return match?.group(0);
   }
 
-  Widget _buildReplyPreview() {
-    if (widget.replyText == null) return const SizedBox();
-
-    final String content = widget.replyText?['content']?.toString() ?? '';
-    final String? imageUrl = widget.replyText?['imageUrl'];
-    final String? fileName = widget.replyText?['fileName'];
-    final String? fileType = widget.replyText?['fileType'];
-    final String userName = widget.replyText?['userName'] ?? '';
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade200,
-        border: Border(
-          left: BorderSide(color: Colors.blue.shade300, width: 4),
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (userName.isNotEmpty)
-                  Text(
-                    'Replying to $userName',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                const SizedBox(height: 4),
-                if (imageUrl != null && imageUrl.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4.0),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: Image.network(
-                        imageUrl,
-                        height: 80,
-                        width: 80,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) =>
-                            const Icon(Icons.broken_image),
-                      ),
-                    ),
-                  ),
-                if (fileName != null &&
-                    fileName.trim().isNotEmpty &&
-                    fileName.trim().toLowerCase() != 'file')
-                  Text(
-                    '📄 $fileName (${fileType ?? 'file'})',
-                    style: const TextStyle(fontStyle: FontStyle.italic),
-                  ),
-                if (content.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4.0),
-                    child: Text(content),
-                  ),
-              ],
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: widget.onCancelReply,
-          ),
-        ],
-      ),
-    );
-  }
 
   @override
   void initState() {
@@ -333,7 +265,7 @@ print("hhhhhhhhhhhhhhhhhhhhh $isSendMe");
     } else if (imageUrl != null && imageUrl.isNotEmpty) {
       typeLabel = 'Photo';
     } else if (fileName != null && fileName.isNotEmpty) {
-      typeLabel = '';
+      typeLabel = 'Document';
     }
 
     // ---------- build trailing thumbnail (image / video) ----------
@@ -413,19 +345,18 @@ print("hhhhhhhhhhhhhhhhhhhhh $isSendMe");
       decoration: BoxDecoration(
         color: Colors.grey.shade200,
         borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(15),
-          topRight: Radius.circular(15),
+          topLeft: Radius.circular(25),
+          topRight: Radius.circular(25),
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
-        mainAxisAlignment: MainAxisAlignment.start,
         children: [
           // vertical strip
           Container(
             width: 3,
-            height: 50,
+            height: 40,
             decoration: BoxDecoration(
               color: AppColors.primaryButton,
               borderRadius: BorderRadius.circular(3),
@@ -439,14 +370,6 @@ print("hhhhhhhhhhhhhhhhhhhhh $isSendMe");
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  !isSendMe?"${firstName} ${lastName}":"You",
-                  style:  TextStyle(
-                      color: AppColors.primaryButton,
-                      fontSize: 14,fontWeight: FontWeight.w600
-                  ),
-                ),
-                SizedBox(height: 5,),
                 if (userName.isNotEmpty)
                   Text(
                     userName,
@@ -465,18 +388,16 @@ print("hhhhhhhhhhhhhhhhhhhhh $isSendMe");
                             ? Icons.photo
                             : typeLabel == 'Video'
                                 ? Icons.video_camera_back_rounded
-                                : null,
+                                : Icons.note_outlined,
                         color: Colors.grey,
-                        size: typeLabel == 'Photo' ||  typeLabel == 'Video'
-                            ?16:0,
+                        size: 16,
                       ),
-                       SizedBox(width: typeLabel == 'Photo' ||  typeLabel == 'Video'
-                           ? 6:0),
+                      const SizedBox(width: 6),
                       Text(
                         typeLabel,
-                        style:  TextStyle(
+                        style: const TextStyle(
                           color: Colors.black,
-                          fontSize: 12,fontWeight: FontWeight.w400
+                          fontSize: 12,
                         ),
                       ),
                     ],
@@ -595,7 +516,9 @@ print("hhhhhhhhhhhhhhhhhhhhh $isSendMe");
     // ---- existing typing indicator logic ----
     if (capitalized.trim().isNotEmpty) {
       final userId = await UserPreferences.getUserId() ?? "Unknown";
-      final roomId = socketService.generateRoomId(userId, widget.reciverID);
+      final roomId = widget.isGroupChat
+          ? widget.reciverID
+          : socketService.generateRoomId(userId, widget.reciverID);
       final userFullName = await UserPreferences.getUsername() ?? "Unknown";
       socketService.sendTyping(roomId: roomId, userName: userFullName);
     }
