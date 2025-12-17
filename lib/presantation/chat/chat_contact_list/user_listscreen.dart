@@ -27,7 +27,6 @@ class _UserListScreenState extends State<UserListScreen> {
   List<ChatUserlist> filteredUsers = [];
   late UserListBloc userListBloc;
 
-
   @override
   void initState() {
     super.initState();
@@ -94,7 +93,7 @@ class _UserListScreenState extends State<UserListScreen> {
         backgroundColor: Colors.white,
         appBar: AppBar(
           backgroundColor: Colors.white,
-          shadowColor: Colors.grey.shade200,
+          surfaceTintColor: Colors.white,
           elevation: 1,
           title: _isSearching
               ? TextField(

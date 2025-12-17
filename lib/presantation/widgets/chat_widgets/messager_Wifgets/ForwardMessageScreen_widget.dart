@@ -186,7 +186,7 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
         body: BlocBuilder<ChatListBloc, ChatListState>(
           builder: (context, chatState) {
             if (chatState is ChatListLoaded) {
-              ChatSessionStorage.saveChatList(chatState.chats);
+           //   ChatSessionStorage.saveChatList(chatState.chats);
               frequentlyContactedChats = ChatSessionStorage.getChatList();
             }
 
