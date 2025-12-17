@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 
 class MessageStatusIcon extends StatelessWidget {
   final String status;
+ final  bool? isStatus;
 
   const MessageStatusIcon({
     super.key,
-    required this.status,
+    required this.status, this.isStatus=false,
   });
 
   @override
@@ -37,7 +38,7 @@ class MessageStatusIcon extends StatelessWidget {
           Icons.done_all,
           key: const ValueKey('read'),
           size: 16,
-          color: Colors.blue,
+          color: isStatus!?Colors.white:Colors.blue,
         );
       case 'failed':
         return Icon(Icons.error, size: 14, color: Colors.red);

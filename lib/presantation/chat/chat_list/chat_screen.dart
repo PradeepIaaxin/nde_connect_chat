@@ -888,8 +888,8 @@ void _updateLocalArchive(String convoId, bool newStatus) {
                                                       chat.name ?? 'Group Chat',
                                                   groupAvatarUrl:
                                                       profileAvatarUrl,
-                                                  onlineParticipants: chat
-                                                          .onlineParticipants
+                                                  groupMembers: chat
+                                                          .participants
                                                           ?.cast<String>() ??
                                                       [],
                                                   currentUserId: '',
