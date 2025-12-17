@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:nde_email/data/respiratory.dart';
@@ -8,16 +7,14 @@ import 'package:nde_email/presantation/chat/chat_contact_list/user_listscreen.da
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_event.dart';
 import 'package:nde_email/presantation/chat/chat_list/archive/archive_screen.dart';
+import 'package:nde_email/presantation/chat/chat_list/chat_list_tile.dart';
 import 'package:nde_email/presantation/chat/chat_list/chat_response_model.dart';
 import 'package:nde_email/presantation/chat/chat_list/chat_session_storage/chat_session.dart';
+import 'package:nde_email/presantation/chat/chat_list/new_list_bottom_sheet.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/MessagerBloc.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/MessagerEvent.dart';
-import 'package:nde_email/presantation/chat/widget/profile_avatar.dart'
-    show ProfileAvatar;
-import 'package:nde_email/presantation/chat/widget/profile_dialog.dart';
 import 'package:nde_email/presantation/drive/common/search_bar_chat.dart';
 import 'package:nde_email/presantation/network/connectivity_servicer.dart';
-import 'package:nde_email/utils/reusbale/colour_utlis.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
 import 'package:nde_email/utils/reusbale/reusable_popup_menu.dart';
 import 'package:nde_email/utils/reusbale/whatsapp_banner.dart';
@@ -44,30 +41,28 @@ class _ChatListScreenState extends State<ChatListScreen> {
   String archivedCount = '';
   String? accessToken;
   String? defaultWorkspace;
-  bool _isSearching = false;
+  final bool _isSearching = false;
   bool _showSearchBar = false;
+  List<Datu> _visibleChats = [];
   bool _showFilterChips = false;
 
   NetworkStatus _networkStatus = NetworkStatus.connected;
 
   final ScrollController _scrollController = ScrollController();
   double _lastScrollOffset = 0.0;
-  bool _isScrollingDown = false;
-  bool _isAtTop = true;
 
   final baseURL = "https://api.nowdigitaleasy.com/wschat/v1";
 
-  int _currentPage = 1;
+  final int _currentPage = 1;
   final int _itemsPerPage = 30;
 
-  bool _isLoadingMore = false;
-  bool _hasMoreItems = true;
-
-  bool _initialFetchDone = false;
   String? gmail;
   String? profilePicUrl;
   String? userName;
   bool _showAdBanner = true;
+
+  // Track the original full list for "Select All"
+  List<Datu> _allChats = [];
 
   Future<void> _loadUserData() async {
     final name = await UserPreferences.getUsername();
@@ -85,12 +80,15 @@ class _ChatListScreenState extends State<ChatListScreen> {
     super.initState();
     _loadUserData();
     _scrollController.addListener(_scrollListener);
+    final initialChats = ChatSessionStorage.getChatList();
+    _allChats = List.from(initialChats);
+    _showFilterChips = initialChats.length < 12;
     _internetSub =
         InternetService.connectionStreams.listen((hasInternet) async {
       if (!mounted) return;
 
       setState(() {
-        _hasInternet = hasInternet; // ✅ ADD THIS
+        _hasInternet = hasInternet;
       });
 
       if (!hasInternet) {
@@ -116,6 +114,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
       if (mounted) {
         final cached = ChatSessionStorage.getChatList();
         if (cached.isNotEmpty) {
+          _allChats = List.from(cached);
           context.read<ChatListBloc>().add(SetLocalChatList(chats: cached));
           context.read<ChatListBloc>().add(FetchChatList(page: 1, limit: 20));
         } else {
@@ -125,38 +124,67 @@ class _ChatListScreenState extends State<ChatListScreen> {
     });
   }
 
-  void _updateLocalPin(String convoId, bool newStatus) {
-    final list = ChatSessionStorage.getChatList().map((chat) {
-      if (chat.id == convoId) chat.isPinned = newStatus;
-      return chat;
-    }).toList();
 
-    ChatSessionStorage.saveChatList(list);
-    context.read<ChatListBloc>().add(UpdateLocalChatList());
-  }
+void _updateLocalPin(String convoId, bool newStatus) {
+  final chat = ChatSessionStorage.getChatList()
+      .firstWhere((c) => c.id == convoId || c.conversationId == convoId);
 
-  void _updateLocalArchive(String convoId, bool newStatus) {
-    final list = ChatSessionStorage.getChatList().map((chat) {
-      if (chat.id == convoId) chat.isArchived = newStatus;
-      return chat;
-    }).toList();
+  chat.isPinned = newStatus;
 
-    ChatSessionStorage.saveChatList(list);
-    context.read<ChatListBloc>().add(UpdateLocalChatList());
-  }
+  context.read<ChatListBloc>().add(UpdateLocalChatList());
+}
+
+  // void _updateLocalPin(String convoId, bool newStatus) {
+  //   final list = ChatSessionStorage.getChatList().map((chat) {
+  //     if (chat.id == convoId) chat.isPinned = newStatus;
+  //     return chat;
+  //   }).toList();
+
+  //   // ChatSessionStorage.saveChatList(list);
+  //   context.read<ChatListBloc>().add(UpdateLocalChatList());
+  // }
+
+
+void _updateLocalArchive(String convoId, bool newStatus) {
+  final chat = ChatSessionStorage.getChatList()
+      .firstWhere((c) => c.id == convoId || c.conversationId == convoId);
+
+  chat.isArchived = newStatus;
+
+  context.read<ChatListBloc>().add(UpdateLocalChatList());
+}
+
+  // void _updateLocalArchive(String convoId, bool newStatus) {
+  //   final list = ChatSessionStorage.getChatList().map((chat) {
+  //     if (chat.id == convoId) chat.isArchived = newStatus;
+  //     return chat;
+  //   }).toList();
+
+  //   // ChatSessionStorage.saveChatList(list);
+  //   context.read<ChatListBloc>().add(UpdateLocalChatList());
+  // }
 
   void _scrollListener() {
     if (!_scrollController.hasClients) return;
 
     final offset = _scrollController.offset;
-
     final bool atTop = offset <= 0;
 
-    /// ✅ FILTER CHIPS (WhatsApp behavior)
-    if (atTop && !_showFilterChips) {
-      setState(() => _showFilterChips = true);
-    } else if (!atTop && _showFilterChips) {
-      setState(() => _showFilterChips = false);
+    // Get total chat count from storage
+    final totalChats = ChatSessionStorage.getChatList().length;
+
+    if (totalChats < 12) {
+      // Always show chips when less than 12 chats
+      if (!_showFilterChips) {
+        setState(() => _showFilterChips = true);
+      }
+    } else {
+      // WhatsApp behavior for 12+ chats
+      if (atTop && !_showFilterChips) {
+        setState(() => _showFilterChips = true);
+      } else if (!atTop && _showFilterChips) {
+        setState(() => _showFilterChips = false);
+      }
     }
 
     /// ✅ SEARCH BAR (optional – keep your logic)
@@ -192,17 +220,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
       return false;
     }
     return true;
-  }
-
-  void _toggleSelection(Datu chat) {
-    setState(() {
-      if (selectedUsers.contains(chat)) {
-        selectedUsers.remove(chat);
-        if (selectedUsers.isEmpty) longPressed = false;
-      } else {
-        selectedUsers.add(chat);
-      }
-    });
   }
 
   void _clearSelection() {
@@ -292,12 +309,12 @@ class _ChatListScreenState extends State<ChatListScreen> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(40),
           color: isSelected
-              ? const Color(0xFF0011FF).withOpacity(0.1) // selected bg
-              : Colors.white, // unselected bg
+              ? const Color(0xFF0011FF).withOpacity(0.1)
+              : Colors.white,
           border: Border.all(
             color: isSelected
-                ? const Color(0xFF0011FF).withOpacity(0.1) // selected border
-                : Colors.grey.shade300, // unselected border
+                ? const Color(0xFF0011FF).withOpacity(0.1)
+                : Colors.grey.shade300,
           ),
         ),
         child: Text(
@@ -312,13 +329,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
     );
   }
 
-  void _loadChats() {
-    context
-        .read<ChatListBloc>()
-        .add(FetchChatList(page: _currentPage, limit: _itemsPerPage));
-  }
-
   List<Datu> _applySearchAndFilters(List<Datu> input) {
+    // Store the full list for "Select All" functionality
+    _allChats = List.from(input);
+
     var filtered = input.where((chat) => chat.isArchived != true).toList();
     if (selectedFilter != "Favourite") {
       filtered = filtered.where(chatFilters[selectedFilter]!).toList();
@@ -344,6 +358,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
       return bTime.compareTo(aTime);
     });
 
+    _visibleChats = filtered;
     return filtered;
   }
 
@@ -382,18 +397,119 @@ class _ChatListScreenState extends State<ChatListScreen> {
       case 'payments':
         debugPrint('Payments clicked');
         break;
+
       case 'settings':
         break;
     }
   }
 
+  Widget _buildNewListChip(BuildContext context) {
+    return GestureDetector(
+      onTap: () async {
+        final result = await showModalBottomSheet<String>(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.white,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          builder: (_) => const NewListBottomSheet(),
+        );
+
+        if (result != null && result.isNotEmpty) {
+          debugPrint('New list created: $result');
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(40),
+          color: Colors.white,
+          border: Border.all(
+            color: Colors.grey.shade300,
+          ),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.add, size: 16, color: Color(0xFF0011FF)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Check if a specific chat is selected
+  bool _isSelected(Datu chat) {
+    return selectedUsers.any((c) => c.id == chat.id);
+  }
+
+  // Toggle selection for a single chat
+  void _toggleSelection(Datu chat) {
+    setState(() {
+      final exists = selectedUsers.indexWhere((c) => c.id == chat.id);
+
+      if (exists != -1) {
+        selectedUsers.removeAt(exists);
+        if (selectedUsers.isEmpty) longPressed = false;
+      } else {
+        selectedUsers.add(chat);
+        longPressed = true;
+      }
+    });
+  }
+
+  // Select all visible chats (WhatsApp-like behavior)
+  void _selectAllVisible() {
+    setState(() {
+      // Check if all visible chats are already selected
+      final allVisibleSelected = _visibleChats.every(_isSelected);
+
+      if (allVisibleSelected) {
+        // Deselect all visible
+        selectedUsers.removeWhere((selectedChat) => _visibleChats
+            .any((visibleChat) => visibleChat.id == selectedChat.id));
+      } else {
+        // Select all visible
+        for (var chat in _visibleChats) {
+          if (!_isSelected(chat)) {
+            selectedUsers.add(chat);
+          }
+        }
+      }
+
+      longPressed = selectedUsers.isNotEmpty;
+    });
+  }
+
+  // Select all from the full list (including archived)
+  void _selectAllFromFullList() {
+    setState(() {
+      // Check if all chats are already selected
+      final allSelected =
+          _allChats.every((chat) => selectedUsers.any((c) => c.id == chat.id));
+
+      if (allSelected) {
+        // Clear selection
+        selectedUsers.clear();
+        longPressed = false;
+      } else {
+        // Select all from full list
+        selectedUsers = List<Datu>.from(_allChats);
+        longPressed = true;
+      }
+    });
+  }
+
   void _handleSelectionMenu(String value) {
     switch (value) {
       case 'select_all':
-        setState(() {
-          selectedUsers = List.from(ChatSessionStorage.getChatList());
-          longPressed = true;
-        });
+        // WhatsApp-like: Select all visible chats when in search/filter mode
+        if (_searchController.text.isNotEmpty || selectedFilter != "All") {
+          _selectAllVisible();
+        } else {
+          _selectAllFromFullList();
+        }
         break;
 
       case 'lock_chats':
@@ -401,7 +517,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
         break;
 
       case 'add_favourite':
-        debugPrint('Add to favourites');
+        _addToFavourites();
         break;
 
       case 'add_to_list':
@@ -409,9 +525,39 @@ class _ChatListScreenState extends State<ChatListScreen> {
         break;
 
       case 'mark_unread':
-        debugPrint('Mark as unread');
+        _markAsUnread();
         break;
     }
+  }
+
+  void _addToFavourites() {
+    for (var chat in selectedUsers) {
+      // Update locally
+      chat.isFavorites = true;
+    }
+
+    // Clear selection after action
+    _clearSelection();
+    // Refresh the list
+    context.read<ChatListBloc>().add(UpdateLocalChatList());
+  }
+
+  void _markAsUnread() {
+    for (var chat in selectedUsers) {
+      // Update locally
+      chat.unreadCount = (chat.unreadCount ?? 0) + 1;
+    }
+
+    // Clear selection after action
+    _clearSelection();
+    // Refresh the list
+    context.read<ChatListBloc>().add(UpdateLocalChatList());
+  }
+
+  // Check if all visible chats are selected (for UI feedback)
+  bool get _allVisibleSelected {
+    if (_visibleChats.isEmpty) return false;
+    return _visibleChats.every(_isSelected);
   }
 
   @override
@@ -446,7 +592,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
               IconButton(
                 icon: Icon(
                   selectedUsers.every((chat) => chat.isPinned ?? false)
-                      ? Icons.push_pin_outlined
+                      ? Icons.push_pin
                       : Icons.push_pin_outlined,
                   color: Colors.black,
                 ),
@@ -469,7 +615,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
               IconButton(
                 icon: const Icon(Icons.delete_outline, color: Colors.black),
                 onPressed: () {
-                  _loadChats();
+                  // TODO: Implement delete functionality
+                  _clearSelection();
                 },
               ),
             if (selectedUsers.isNotEmpty)
@@ -507,7 +654,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                /// 🔍 SEARCH BAR (Always visible)
                 MySearchBar(
                   controller: _searchController,
                   hintText: 'Chats',
@@ -515,8 +661,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     setState(() {});
                   },
                 ),
-
-                /// 🔴 OFFLINE BANNER (WhatsApp style)
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 300),
                   child: !_hasInternet
@@ -540,8 +684,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
                         )
                       : const SizedBox.shrink(),
                 ),
-
-                /// 🟡 AD BANNER
                 if (_showAdBanner)
                   WhatsAppAdBanner(
                     key: const ValueKey('whatsapp_banner'),
@@ -583,7 +725,13 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 .length
                 .toString();
 
-
+            final totalChats = sourceChats.length;
+            if (totalChats < 12 && !_showFilterChips) {
+              // Update after build completes
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) setState(() => _showFilterChips = true);
+              });
+            }
 
             return Container(
               color: Colors.white,
@@ -647,6 +795,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                       ),
                                     ),
                                   ),
+                                  const SizedBox(width: 10),
+                                  _buildNewListChip(context),
                                   const SizedBox(width: 16),
                                 ],
                               ),
@@ -677,8 +827,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                         delegate: SliverChildBuilderDelegate(
                           (context, index) {
                             final chat = searchedChats[index];
-
-                            final isSelected = selectedUsers.contains(chat);
+                            final isSelected = _isSelected(chat);
 
                             final profileAvatarUrl =
                                 chat.profilePic?.isNotEmpty == true
@@ -698,6 +847,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                         ? chat.name!
                                         : "Unknown");
 
+                            final String itemKey = chat.isGroupChat == true
+                                ? 'group_${chat.conversationId ?? chat.id ?? index}'
+                                : 'private_${chat.id ?? chat.conversationId ?? index}';
+
                             return ValueListenableBuilder(
                                 valueListenable:
                                     SocketService().userStatusNotifier,
@@ -705,7 +858,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                   final isOnline = SocketService()
                                       .onlineUsers
                                       .contains(chat.datumId);
-                                  print(isOnline);
                                   return GestureDetector(
                                     onTap: () {
                                       if (longPressed) {
@@ -788,120 +940,16 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                         _toggleSelection(chat);
                                       }
                                     },
-                                    child: Container(
-                                      color: isSelected
-                                          ? chatColor.withOpacity(0.3)
-                                          : Colors.white,
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 8),
-                                      child: ListTile(
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                                horizontal: 4),
-                                        leading: Stack(
-                                          clipBehavior: Clip.none,
-                                          children: [
-                                            GestureDetector(
-                                              onTap: () {
-                                                showDialog(
-                                                  context: context,
-                                                  builder: (_) => ProfileDialog(
-                                                    tag:
-                                                        'p00rofile_hero_profiledialog_${chat.id}',
-                                                    imageUrl: profileAvatarUrl,
-                                                    fallbackText: profileAvatar,
-                                                    actions: [
-                                                      ProfileAction(
-                                                          icon: Icons.chat,
-                                                          label: 'Chat',
-                                                          onTap: () {}),
-                                                      ProfileAction(
-                                                          icon: Icons.call,
-                                                          label: 'Call',
-                                                          onTap: () {}),
-                                                      ProfileAction(
-                                                          icon: Icons.videocam,
-                                                          label: 'Video',
-                                                          onTap: () {}),
-                                                      ProfileAction(
-                                                          icon: Icons.info,
-                                                          label: 'Info',
-                                                          onTap: () {}),
-                                                    ],
-                                                    userName:
-                                                        chat.firstName ?? "",
-                                                    groupName: chat.name ?? "",
-                                                  ),
-                                                );
-                                              },
-                                              child: Hero(
-                                                transitionOnUserGestures: true,
-                                                tag:
-                                                    'prouuufile_hero_archive1_${chat.id ?? ""}_${chat.lastMessageId ?? ""}_${index}',
-                                                child: CircleAvatar(
-                                                    radius: 24,
-                                                    backgroundColor: profileAvatarUrl
-                                                            .isEmpty
-                                                        ? ColorUtil
-                                                            .getColorFromAlphabet(
-                                                                profileAvatar)
-                                                        : Colors.transparent,
-                                                    child: ProfileAvatar(
-                                                      imageUrl:
-                                                          profileAvatarUrl,
-                                                      name: chat.name,
-                                                      size: 48,
-                                                    )),
-                                              ),
-                                            ),
-                                            if (isOnline)
-                                              Positioned(
-                                                right: 0,
-                                                bottom: 0,
-                                                child: Container(
-                                                  width: 14,
-                                                  height: 14,
-                                                  decoration: BoxDecoration(
-                                                    color: Colors.green,
-                                                    shape: BoxShape.circle,
-                                                    border: Border.all(
-                                                        color: const Color(
-                                                            0xFFF7F7F7),
-                                                        width: 2),
-                                                  ),
-                                                ),
-                                              ),
-                                            if (isSelected)
-                                              Positioned(
-                                                right: -4,
-                                                top: 30,
-                                                child: Container(
-                                                  padding:
-                                                      const EdgeInsets.all(2),
-                                                  decoration: BoxDecoration(
-                                                    color: chatColor,
-                                                    shape: BoxShape.circle,
-                                                  ),
-                                                  child: const Icon(
-                                                    Icons.check,
-                                                    color: Colors.white,
-                                                    size: 14,
-                                                  ),
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                        title: Text(
-                                          capitalizeWords(displayName),
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                              fontSize: 15,
-                                              fontWeight: FontWeight.w400,
-                                              color: Colors.black),
-                                        ),
-                                        subtitle: _buildSubtitle(chat),
-                                        trailing: _buildTrailing(chat),
-                                      ),
+                                    child: ChatListTile(
+                                      key: ValueKey(itemKey),
+                                      chat: chat,
+                                      index: index,
+                                      isSelected: isSelected,
+                                      isOnline: isOnline,
+                                      chatColor: chatColor,
+                                      profileAvatarUrl: profileAvatarUrl,
+                                      profileAvatar: profileAvatar,
+                                      displayName: displayName,
                                     ),
                                   );
                                 });
@@ -939,116 +987,4 @@ class _ChatListScreenState extends State<ChatListScreen> {
       ),
     );
   }
-}
-
-const blackColor = Colors.black45;
-
-// -------------------- Helper widgets --------------------
-Widget _buildSubtitle(Datu chat) {
-  if (chat.draftMessage != null && chat.draftMessage!.isNotEmpty) {
-    return RichText(
-      overflow: TextOverflow.ellipsis,
-      text: TextSpan(
-        children: [
-          const TextSpan(
-            text: 'Draft: ',
-            style: TextStyle(
-                fontSize: 14, color: Colors.green, fontWeight: FontWeight.w600),
-          ),
-          TextSpan(
-            text: chat.draftMessage,
-            style: TextStyle(fontSize: 14, color: blackColor),
-          ),
-        ],
-      ),
-    );
-  }
-  if (chat.contentType == "image") {
-    return Row(children: [
-      Icon(Icons.image, size: 16, color: blackColor),
-      SizedBox(width: 4),
-      Text("Image", style: TextStyle(fontSize: 14, color: blackColor)),
-    ]);
-  }
-  if (chat.contentType == "file" || (chat.mimeType?.contains("pdf") ?? false)) {
-    return Row(children: [
-      Icon(Icons.insert_drive_file, size: 16, color: blackColor),
-      const SizedBox(width: 4),
-      Expanded(
-        child: Text(
-          chat.fileName?.isNotEmpty == true ? chat.fileName! : "Document",
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(fontSize: 14, color: blackColor),
-        ),
-      ),
-    ]);
-  }
-  if (chat.contentType == "audio") {
-    return const Row(children: [
-      Icon(Icons.mic, size: 16, color: blackColor),
-      SizedBox(width: 4),
-      Text("Audio", style: TextStyle(fontSize: 14, color: blackColor)),
-    ]);
-  }
-  if (chat.contentType == "video") {
-    return const Row(children: [
-      Icon(Icons.videocam, size: 16, color: blackColor),
-      SizedBox(width: 4),
-      Text("Video", style: TextStyle(fontSize: 14, color: blackColor)),
-    ]);
-  }
-  return Text(
-    chat.lastMessage?.isNotEmpty == true ? chat.lastMessage! : "No message",
-    overflow: TextOverflow.ellipsis,
-    style: const TextStyle(color: blackColor, fontSize: 14),
-  );
-}
-
-String capitalizeWords(String text) {
-  return text.split(' ').map((word) {
-    if (word.isEmpty) return word;
-    return word[0].toUpperCase() + word.substring(1).toLowerCase();
-  }).join(' ');
-}
-
-Widget _buildTrailing(Datu chat) {
-  return Column(
-    mainAxisAlignment: MainAxisAlignment.center,
-    crossAxisAlignment: CrossAxisAlignment.end,
-    children: [
-      Text(
-        chat.lastMessageTime != null
-            ? DateTimeUtils.formatMessageTime(chat.lastMessageTime!)
-            : "",
-        style: TextStyle(
-            fontSize: 12,
-            color: chat.unreadCount != null && chat.unreadCount! > 0
-                ? Color(0xFF25D366)
-                : Colors.grey),
-      ),
-      const SizedBox(height: 6),
-      Row(mainAxisSize: MainAxisSize.min, children: [
-        if (chat.isPinned == true)
-          const Icon(Icons.push_pin, color: Colors.grey, size: 16),
-        if (chat.isArchived == true)
-          const Icon(Icons.archive, color: Colors.grey, size: 16),
-        if (chat.unreadCount != null && chat.unreadCount! > 0)
-          Container(
-            padding: const EdgeInsets.all(4),
-            constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
-            decoration: const BoxDecoration(
-                color: Color(0xFF25D366), shape: BoxShape.circle),
-            child: Center(
-              child: Text(
-                chat.unreadCount! > 99 ? '99+' : chat.unreadCount.toString(),
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold),
-              ),
-            ),
-          ),
-      ])
-    ],
-  );
 }

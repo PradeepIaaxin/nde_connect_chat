@@ -44,7 +44,6 @@ import '../../../utils/simmer_effect.dart/chat_simmerefect.dart';
 import '../../widgets/chat_widgets/messager_Wifgets/ForwardMessageScreen_widget.dart';
 import '../../widgets/chat_widgets/messager_Wifgets/buildMessageInputField_widgets.dart';
 import '../Socket/Socket_Service.dart';
-import 'group_media_widget.dart';
 import 'group_media_viewer.dart';
 import '../chat_private_screen/messager_Bloc/widget/VideoPlayerScreen.dart';
 import '../chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
@@ -1161,15 +1160,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
 
     if (currentUserId.isNotEmpty && widget.datumId.isNotEmpty) {
-      log("Initializing socket for group: ${widget.datumId}");
-      await socketService.connectPrivateRoom(
-        currentUserId,
-        widget.datumId,
-        (data) {
-          log("📩 Message received via callback: $data");
-        },
-        true, // isGroupchat
-      );
+
       _setupReactionListener();
       _setupStatusListener();
     }

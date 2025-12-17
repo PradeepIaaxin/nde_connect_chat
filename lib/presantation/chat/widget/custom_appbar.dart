@@ -113,6 +113,7 @@ class CommonAppBarBuilder {
 
     return AppBar(
       backgroundColor: Colors.white,
+      surfaceTintColor: Colors.white,
       leadingWidth: 90,
       leading: Row(
         children: [
