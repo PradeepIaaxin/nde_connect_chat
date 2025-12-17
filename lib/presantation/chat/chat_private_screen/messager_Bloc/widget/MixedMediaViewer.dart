@@ -69,7 +69,9 @@ class _MixedMediaViewerState extends State<MixedMediaViewer> {
                   isNetwork: item.mediaUrl.startsWith('http'),
                   isVideo: true,
                 ),
+                
               ),
+               disableGestures: true, // 🚨 REQUIRED
             );
           }
 

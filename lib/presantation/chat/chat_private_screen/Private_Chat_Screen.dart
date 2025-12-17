@@ -1295,7 +1295,7 @@ print("hiiilocalId ${localId}");
 
         Scrollable.ensureVisible(
           ctx,
-          duration: const Duration(milliseconds: 450),
+          duration: const Duration(milliseconds: 150),
           curve: Curves.easeInOut,
           alignment: 0.5, // center
         );

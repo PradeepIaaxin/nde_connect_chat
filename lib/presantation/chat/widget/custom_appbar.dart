@@ -113,6 +113,9 @@ class CommonAppBarBuilder {
 
     return AppBar(
       backgroundColor: Colors.white,
+      surfaceTintColor: Colors.white,
+      shadowColor: Colors.white,
+      scrolledUnderElevation: 0.0,
       leadingWidth: 90,
       leading: Row(
         children: [
@@ -280,7 +283,11 @@ class CommonAppBarBuilder {
       actions: [
         IconButton(
           onPressed: () => MyRouter.pop(context),
-          icon: const Icon(Icons.call),
+          icon: Icon(Icons.videocam_outlined,size: 28,),
+        ),
+        IconButton(
+          onPressed: () => MyRouter.pop(context),
+          icon: Icon(Icons.call_outlined),
         ),
         IconButton(
           icon: const Icon(Icons.more_vert),
