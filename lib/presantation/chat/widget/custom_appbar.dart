@@ -224,25 +224,49 @@ class CommonAppBarBuilder {
 
                 return StreamBuilder<String>(
                   stream: SocketService().typingStream,
-                  builder:
-                      (context, typingSnapshot) {
-                    final isTyping =
-                        typingSnapshot.data !=
-                            null &&
-                            typingSnapshot
-                                .data!
-                                .isNotEmpty;
+                  builder: (context, typingSnapshot) {
+                    final isTyping = typingSnapshot.data != null &&
+                        typingSnapshot.data!.isNotEmpty;
 
                     if (isTyping) {
-                      return const Text(
-                        "typing...",
-                        style: TextStyle(
+                      return Text(
+                        typingSnapshot.data!,
+                        style: const TextStyle(
                           fontSize: 12,
                           color: chatColor,
                           fontWeight: FontWeight.w500,
                         ),
                       );
-                    } else if (isUserOnline) {
+                    }
+
+                    // Group Chat Online Status
+                    if (grpChat) {
+                      final onlineCount = groupMembers
+                          .where(
+                              (id) => SocketService().onlineUsers.contains(id))
+                          .length;
+                      if (onlineCount > 0) {
+                        return Text(
+                          "$onlineCount online",
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        );
+                      } else {
+                        return const Text(
+                          "Tap here for group info",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        );
+                      }
+                    }
+
+                    // Private Chat Online Status
+                    if (isUserOnline) {
                       return const Text(
                         "Online",
                         style: TextStyle(
@@ -272,7 +296,7 @@ class CommonAppBarBuilder {
                     }
                   },
                 );
-              },
+              }
             ),
           ],
         ),

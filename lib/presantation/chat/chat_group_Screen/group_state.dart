@@ -120,3 +120,9 @@ class GroupChatLoadedWithError extends GroupChatState {
   @override
   List<Object> get props => [response, errorMessage];
 }
+class GroupDetailsLoaded extends GroupChatState {
+  final Map<String, dynamic> groupDetails;
+  const GroupDetailsLoaded(this.groupDetails);
+  @override
+  List<Object> get props => [groupDetails];
+}
