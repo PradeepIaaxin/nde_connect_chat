@@ -282,7 +282,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             grpChat: true,
             currentUserId: firstMember?.lastName ?? '',
             groupAvatarUrl: group.groupAvatar,
-            onlineParticipants: [],
+            groupMembers: [],
           ),
         );
       },

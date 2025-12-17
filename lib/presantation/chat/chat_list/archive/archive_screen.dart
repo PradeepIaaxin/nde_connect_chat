@@ -333,7 +333,8 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
                                     ? GroupChatScreen(
                                         groupName: chat.name ?? 'Group Chat',
                                         groupAvatarUrl: profileAvatarUrl,
-                                        onlineParticipants: [],
+                                        groupMembers: chat.participants?.cast<String>() ??
+                                                [],
                                         currentUserId: '',
                                         conversationId: chat.id ?? "",
                                         datumId: chat.datumId ?? "",
