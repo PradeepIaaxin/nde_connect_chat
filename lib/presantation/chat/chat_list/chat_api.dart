@@ -9,10 +9,7 @@ import 'package:nde_email/utils/router/router.dart';
 import 'chat_response_model.dart';
 
 class ChatListApiService {
-  final String baseUrl =
-      //"https://86b66c8cd7bd.ngrok-free.app/v1/chats";
-      //"https://c5d839ecde0e.ngrok-free.app/v1/chats";
-      'https://api.nowdigitaleasy.com/wschat/v1/chats';
+  final String baseUrl = 'https://api.nowdigitaleasy.com/wschat/v1/chats';
   List<Datu> _lastData = [];
   final StreamController<List<Datu>> _chatStreamController =
       StreamController<List<Datu>>.broadcast();
@@ -165,7 +162,7 @@ class ChatListApiService {
 
     if (response.statusCode == 200) {
       final jsonData = jsonDecode(response.body);
-     
+
       // NEW: Check for Loro snapshot
       if (jsonData["snapshot"] != null) {
         final snapshotBase64 = jsonData["snapshot"];

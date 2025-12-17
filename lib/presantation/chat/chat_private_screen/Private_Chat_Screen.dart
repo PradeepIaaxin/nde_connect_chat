@@ -490,8 +490,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     _messageHandler =
         MessageHandler(currentUserId: currentUserId, convoId: widget.convoId);
 
-    await socketService.connectPrivateRoom(
-        currentUserId, widget.datumId!, onMessageReceived, false);
+    // await socketService.connectPrivateRoom(
+    //     currentUserId, widget.datumId!, onMessageReceived, false);
 
     _setupMessageListener();
     _setupReactionListener();
