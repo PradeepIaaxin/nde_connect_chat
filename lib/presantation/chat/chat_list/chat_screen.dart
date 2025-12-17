@@ -442,27 +442,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 ),
           iconTheme: const IconThemeData(color: Colors.black),
           actions: [
-            // if (selectedUsers.isEmpty && !_isSearching)
-            //   IconButton(
-            //     icon: const Icon(Icons.search, color: Colors.black),
-            //     onPressed: () {
-            //       setState(() {
-            //         _isSearching = true;
-            //       });
-            //     },
-            //   ),
-
-            // if (selectedUsers.isEmpty && !_isSearching)
-            //   IconButton(
-            //     autofocus: false,
-            //     icon: const Icon(Icons.more_vert_rounded, color: Colors.black),
-            //     onPressed: () {
-            //       // setState(() {
-            //       //   _isSearching = true;
-            //       // });
-            //     },
-            //   ),
-
             if (selectedUsers.isNotEmpty)
               IconButton(
                 icon: Icon(
@@ -507,7 +486,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   });
                 },
               ),
-
             if (!_isSearching)
               ReusablePopupMenu(
                 items: selectedUsers.isNotEmpty
@@ -605,13 +583,14 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 .length
                 .toString();
 
+
+
             return Container(
               color: Colors.white,
               child: CustomScrollView(
                 controller: _scrollController,
                 physics: const AlwaysScrollableScrollPhysics(),
                 slivers: [
-                  // Filter chips section (ONLY shows when at top AND scrolling up 0r down i ned )
                   SliverToBoxAdapter(
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 300),
