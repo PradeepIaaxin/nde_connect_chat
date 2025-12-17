@@ -736,8 +736,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                                       chat.name ?? 'Group Chat',
                                                   groupAvatarUrl:
                                                       profileAvatarUrl,
-                                                  onlineParticipants: chat
-                                                          .onlineParticipants
+                                                  groupMembers: chat
+                                                          .participants
                                                           ?.cast<String>() ??
                                                       [],
                                                   currentUserId: '',

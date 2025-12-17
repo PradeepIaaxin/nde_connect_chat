@@ -221,4 +221,13 @@ class GroupRemoveReaction extends GroupChatEvent {
     this.firstName,
     this.lastName,
   });
+  
+}
+class FetchGroupDetails extends GroupChatEvent {
+  final String groupId;
+
+  const FetchGroupDetails({required this.groupId});
+
+  @override
+  List<Object> get props => [groupId];
 }

@@ -61,12 +61,12 @@ class GroupChatScreen extends StatefulWidget {
     super.key,
     required this.groupName,
     required this.groupAvatarUrl,
-    required this.onlineParticipants,
     required this.currentUserId,
     required this.conversationId,
     required this.datumId,
     required this.grpChat,
     required this.favorite,
+    required this.groupMembers,
   });
 
   final String conversationId;
@@ -74,7 +74,7 @@ class GroupChatScreen extends StatefulWidget {
   final String datumId;
   final String groupAvatarUrl;
   final String groupName;
-  final List<String>? onlineParticipants;
+  final List<String>? groupMembers;
   final bool grpChat;
   final bool favorite;
 
@@ -144,6 +144,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Timer? _timer;
   Duration _totalDuration = Duration.zero;
   bool _permissionChecked = false;
+
+  // Pagination / Windowing
+  List<Map<String, dynamic>> _allMessages = [];
+  int _visibleCount = 0;
+  final int _pageStep = 20;
+  final int _initialVisible = 20;
+  double _prevScrollExtentBeforeLoad = 0.0;
+  final ValueNotifier<List<Map<String, dynamic>>> _messagesNotifier =
+      ValueNotifier([]);
 
   // 👇 NEW: reaction stream + seen ids (for dedupe)
   StreamSubscription<MessageReaction>? _reactionSubscription;
@@ -260,9 +269,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     // Load draft after initialization
     _loadDraft();
-    groupMembers = widget.onlineParticipants ?? [];
+    groupMembers = widget.groupMembers ?? [];
     print("Group Members: $groupMembers");
-
+// Fetch fresh group details to ensure we have all members
+    _groupBloc.add(FetchGroupDetails(groupId: widget.datumId));
     _loadCurrentUserName();
 
     // Listen to BLoC states for instant status updates
@@ -475,6 +485,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
       final combined = [...dbMessages, ...messages, ...socketMessages];
       GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
+      _updateNotifier();
     });
   }
 
@@ -593,6 +604,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         debugPrint(
             '⏳ Buffered status update for missing ID: $messageId -> $status');
       }
+      _updateNotifier();
     });
   }
 
@@ -645,6 +657,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       log('🔄 Reaction update successful. Triggering rebuild.');
       setState(() {
         // _reactionRebuildCounter++; // Force rebuild - Removed
+        _updateNotifier();
       });
       final combined = _getCombinedMessages();
       GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
@@ -784,6 +797,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         debugPrint(
             "⚠️ [GroupChat] Reaction target $targetMessageId (API: $apiTargetId) not found locally.");
       }
+      _updateNotifier();
     });
   }
 
@@ -1100,6 +1114,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         if (id != null && id.isNotEmpty) _seenMessageIds.add(id);
       }
     });
+    _updateNotifier();
   }
 
 // ------------------ Draft Methods ------------------
@@ -1142,23 +1157,33 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final String? token = await UserPreferences.getAccessToken();
     if (token == null) {
       log("Access token is null. Socket connection not initialized.");
+      return;
+    }
+
+    if (currentUserId.isNotEmpty && widget.datumId.isNotEmpty) {
+      log("Initializing socket for group: ${widget.datumId}");
+      await socketService.connectPrivateRoom(
+        currentUserId,
+        widget.datumId,
+        (data) {
+          log("📩 Message received via callback: $data");
+        },
+        true, // isGroupchat
+      );
+      _setupReactionListener();
+      _setupStatusListener();
     }
   }
 
   Future<void> _loadCurrentUserId() async {
-    currentUserId = await UserPreferences.getUserId() ?? '';
-
-    if (currentUserId.isNotEmpty && widget.datumId.isNotEmpty) {
-      log("currentUserId  ..$currentUserId");
-      log("datumId  ..${widget.datumId}");
-
-      SocketService().connectPrivateRoom(
-          currentUserId, widget.datumId, onMessageReceived, true);
-
-      _setupReactionListener();
-      _setupStatusListener();
+    final userId = await UserPreferences.getUserId();
+    if (userId != null && userId.isNotEmpty) {
+      if (mounted) {
+        setState(() {
+          currentUserId = userId;
+        });
+      }
     }
-    setState(() {});
   }
 
   void _fetchMessages2() {
@@ -1312,6 +1337,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
       final combined = [...dbMessages, ...messages, ...socketMessages];
       GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
+      _updateNotifier();
     });
 
     final String textToSend = _messageController.text.trim();
@@ -1404,6 +1430,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
       final combined = [...dbMessages, ...messages, ...socketMessages];
       GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
+      _updateNotifier();
     });
     setState(() {
       _messageController.clear();
@@ -1448,6 +1475,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       // 1. Optimistic Update
       setState(() {
         socketMessages.add(message);
+        _updateNotifier();
       });
 
       // 2. Send Event via BLoC
@@ -1488,26 +1516,52 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   void _scrollListener() {
     if (!_scrollController.hasClients) return;
 
+    // 1. Check if scrolled near the TOP (maxScrollExtent in reverse list)
+    //    We use a threshold (e.g. 50-100 pixels) to trigger loading
     if (_scrollController.position.pixels >=
-            _scrollController.position.maxScrollExtent - 120 &&
-        _hasNextPage &&
-        !_isLoadingMore) {
-      _loadMoreMessages();
+        _scrollController.position.maxScrollExtent - 150) {
+      final total = _allMessages.length;
+
+      // Case A: We have more local messages hidden (client-side windowing)
+      if (_visibleCount < total && !_isLoadingMore) {
+        setState(() => _isLoadingMore = true);
+
+        // Add small delay to simulate load (and allow UI to show spinner if desired)
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (!mounted) return;
+          setState(() {
+            _visibleCount = (_visibleCount + _pageStep).clamp(0, total);
+            _isLoadingMore = false;
+          });
+          _updateNotifierFromAll();
+        });
+      }
+      // Case B: We showed all local messages, check if server has more
+      else if (_hasNextPage && !_isLoadingMore) {
+        _loadMoreMessages();
+      }
     }
   }
 
   void _loadMoreMessages() {
-    if (_hasNextPage && !_isLoadingMore) {
-      setState(() => _isLoadingMore = true);
+    if (!_hasNextPage || _isLoadingMore) return;
 
-      _currentPage++;
-      _fetchMessages();
-    }
+    // Remember scroll position relative to bottom (which is 0 in reverse)
+    // Actually, in reverse list, maxScrollExtent IS the top content.
+    // When we add more items, maxScrollExtent increases.
+    // We want to keep the user's view stable.
+    _prevScrollExtentBeforeLoad = _scrollController.position.maxScrollExtent;
+
+    setState(() => _isLoadingMore = true);
+
+    _currentPage++;
+    _fetchMessages();
   }
 
   void _appendMessage(Map<String, dynamic> message) {
     setState(() {
       messages.add(message);
+      _updateNotifier();
     });
   }
 
@@ -1559,6 +1613,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
       final combined = [...dbMessages, ...messages, ...socketMessages];
       GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
+      _updateNotifier();
     });
   }
 
@@ -1935,6 +1990,58 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     return _inferGrouping(combined);
   }
 
+  // ------------------ Pagination Helpers ------------------
+
+  /// Rebuilds the master list `_allMessages` from sources, then updates view
+  /// Rebuilds the master list `_allMessages` from sources, then updates view
+  void _updateNotifier() {
+    final full = _getCombinedMessages();
+    // _getCombinedMessages sorts by time (Old -> New)
+    // So `full` is [Oldest, ..., Newest]
+
+    _allMessages
+      ..clear()
+      ..addAll(full);
+
+    // If first load (or reset), determine initial visible count
+    if (_visibleCount == 0) {
+      final total = _allMessages.length;
+      _visibleCount =
+          total >= _initialVisible ? _initialVisible : total; // Show last N
+    }
+    debugPrint(
+        '🔄 _updateNotifier: total=${_allMessages.length}, visible=$_visibleCount');
+
+    _updateNotifierFromAll();
+  }
+
+  /// Updates `_messagesNotifier` with the currently visible slice of `_allMessages`
+  void _updateNotifierFromAll() {
+    final total = _allMessages.length;
+    final count = _visibleCount.clamp(0, total);
+
+    // _allMessages is Old -> New.
+    // We want the *last* `count` messages (the newest ones).
+    // Start index = total - count.
+    final startIndex = total - count;
+    debugPrint(
+        '📊 _updateNotifierFromAll: total=$total, count=$count, startIndex=$startIndex');
+
+    final visibleSlice = (count == 0)
+        ? <Map<String, dynamic>>[]
+        : _allMessages.sublist(startIndex, total);
+
+    debugPrint('   - visibleSlice length: ${visibleSlice.length}');
+
+    // List passed to ListView (reverse: true).
+    // The list itself is [OldestSlice, ..., NewestSlice].
+    // ListView index 0 (bottom) will be the last item of this list.
+    // This matches PrivateChatScreen logic.
+
+    _messagesNotifier.value =
+        List<Map<String, dynamic>>.unmodifiable(visibleSlice);
+  }
+
   /// Load older pages until message with [messageId] exists or no more pages
   Future<bool> _fetchUntilMessageFound(String messageId) async {
     if (messageId.isEmpty) return false;
@@ -1993,12 +2100,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     int index = combined.indexWhere((m) {
       final mid = (m['message_id'] ?? m['id'])?.toString() ?? '';
-      // log("Comparing $mid with $messageId"); // Too verbose, maybe just log match
       return mid == messageId;
     });
-
-    debugPrint(
-        "🔍 _scrollToMessageById: Looking for $messageId, found at index $index (List size: ${combined.length})");
 
     if (index == -1 && fetchIfMissing) {
       final found = await _fetchUntilMessageFound(messageId);
@@ -2013,16 +2116,32 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       if (index == -1) return false;
     }
 
+    // Ensure the message is within the visible window
+    final int neededVisible = combined.length - index;
+    if (_visibleCount < neededVisible) {
+      setState(() {
+        _visibleCount = neededVisible + 5; // Add a small buffer
+        // Clamp to max length to be safe, though neededVisible <= combined.length should hold
+        if (_visibleCount > combined.length) _visibleCount = combined.length;
+      });
+      _updateNotifier();
+      // Allow UI to rebuild with new items
+      await Future.delayed(const Duration(milliseconds: 150));
+    }
+
     if (!_scrollController.hasClients) return false;
 
-    await Future.delayed(const Duration(milliseconds: 50));
-
     // ✨ CRITICAL: ListView is REVERSED (newest at bottom, oldest at top)
-    // So we need to calculate from the END of the list, not the start
+    // So we need to calculate from the END of the list (which is 0 in UI)
     const double itemHeightEstimate = 80.0;
 
-    // Reverse the index since ListView.builder uses reverse: true
+    // The logic: proper offset = (visual_index) * height.
+    // Visual index 0 is bottom (newest).
+    // Message index (in combined) is 0 (oldest) ... N (newest).
+    // Visual Index = (Total - 1 - index).
+    // Note: Use combined.length as the total reference since we ensured visibility.
     final reversedIndex = combined.length - 1 - index;
+
     final double offset = (reversedIndex * itemHeightEstimate)
         .clamp(0.0, _scrollController.position.maxScrollExtent);
 
@@ -2341,11 +2460,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           _handlePermissionResponse(state.response);
         }
         if (state is GrpMessageSentSuccessfully) {
-          // Handled by _sendMessage completer to avoid race conditions & ID updates
+          // Handled by _sendMessage completer
         } else if (state is GroupChatError) {
-          setState(() => _isDeletingMessages = false);
+          setState(() {
+            _isDeletingMessages = false;
+            _isLoadingMore = false;
+          });
         } else if (state is GroupChatLoaded) {
-          // Only update dbMessages if the data from the BLoC has actually changed
           if (_lastLoadedData != state.response.data) {
             _lastLoadedData = state.response.data;
             final loadedMessages = flattenGroupedMessages(state.response.data);
@@ -2358,12 +2479,19 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 .where((m) => m.isNotEmpty)
                 .toList();
 
+            debugPrint('🔍 PAGINATION DEBUG:');
+            debugPrint('   - Current page: $_currentPage');
+            debugPrint(
+                '   - Loaded messages from API: ${loadedMessages.length}');
+            debugPrint('   - Normalized messages: ${newDbMessages.length}');
+            debugPrint('   - Current dbMessages count: ${dbMessages.length}');
+
             setState(() {
+              // CRITICAL FIX: BLoC merges pages and returns ALL messages,
+              // not just the new page. So we always REPLACE, never addAll.
               dbMessages = newDbMessages;
-              // Only scroll to bottom on initial load (page 1), not pagination
-              if (state.response.page == 1 && !_isSelectionMode) {
-                _scrollToBottom();
-              }
+              debugPrint(
+                  '   - Replaced dbMessages with ${dbMessages.length} messages');
             });
 
             GrpLocalChatStorage.saveMessages(widget.conversationId, dbMessages);
@@ -2372,31 +2500,40 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               final id = (m['message_id'] ?? m['id'])?.toString();
               if (id != null && id.isNotEmpty) _seenMessageIds.add(id);
             }
+
+            // CRITICAL FIX: For page > 1, we need to update _visibleCount
+            // _updateNotifier() will rebuild _allMessages from all sources
+            // We want to show ALL messages now loaded (old + new)
+            if (_currentPage > 1) {
+              // We'll set this after _updateNotifier()
+              // Because _allMessages length will change
+            }
+
+            // Sync notifier and visible count
+            _updateNotifier();
+
+            // After _updateNotifier(), if this is pagination (page > 1),
+            // ensure _visibleCount shows all messages
+            if (_currentPage > 1) {
+              _visibleCount = _allMessages.length;
+              _updateNotifierFromAll();
+              debugPrint(
+                  '   - Page $_currentPage: Set _visibleCount to ${_visibleCount} to show all messages');
+            }
+
+            debugPrint(
+                '✅ GroupChatLoaded: dbMessages=${dbMessages.length}, _allMessages=${_allMessages.length}, visible=$_visibleCount');
           }
+        } else if (state is GroupDetailsLoaded) {
+          debugPrint(
+              'ℹ️ GroupDetailsLoaded emitted. Ignoring for message list.');
         }
       },
-      child: BlocBuilder<GroupChatBloc, GroupChatState>(
-        buildWhen: (previous, current) =>
-            true, // Always rebuild, including on setState
-        builder: (context, state) {
-          // Logic moved to BlocListener to avoid side effects during build
-
-          if (state is GroupChatLoading &&
-              _currentPage == 1 &&
-              messages.isEmpty &&
-              socketMessages.isEmpty) {
-            return ListView.builder(
-              itemCount: 10,
-              itemBuilder: (context, index) {
-                final isSentByMe = index % 3 == 0;
-                return ShimmerMessageBubble(
-                  isSentByMe: isSentByMe,
-                );
-              },
-            );
-          }
-
-          final combinedMessages = _getCombinedMessages();
+      child: ValueListenableBuilder<List<Map<String, dynamic>>>(
+        valueListenable: _messagesNotifier,
+        builder: (context, combinedMessages, child) {
+          debugPrint(
+              '🎨 Rebuild UI with ${combinedMessages.length} messages. State: ${_groupBloc.state.runtimeType}');
 
           if (combinedMessages.isNotEmpty) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -2404,245 +2541,341 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             });
           }
 
-          GrpLocalChatStorage.saveMessages(
-              widget.conversationId, combinedMessages);
+          return BlocBuilder<GroupChatBloc, GroupChatState>(
+            builder: (context, state) {
+              debugPrint('🏗️ BlocBuilder state: ${state.runtimeType}');
+              final bool showShimmer = state is GroupChatLoading &&
+                  _currentPage == 1 &&
+                  combinedMessages
+                      .isEmpty; // Check combinedMessages instead of _allMessages directly for safety
 
-          return ListView.builder(
-            // key: const PageStorageKey('group_chat_list'), // Removed to force scroll to bottom
-            controller: _scrollController,
-            reverse: true, // Start from bottom
-            itemCount: combinedMessages.length + (_hasNextPage ? 1 : 0),
-            itemBuilder: (context, index) {
-              // Loader at the "top" of scroll (which is end of list in reverse)
-              if (_hasNextPage && index == combinedMessages.length) {
-                if (_isLoadingMore) {
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8.0),
-                    child: Center(
-                      child: SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    ),
-                  );
-                } else {
-                  return const SizedBox(height: 8);
-                }
+              if (showShimmer) {
+                return ListView.builder(
+                  itemCount: 10,
+                  itemBuilder: (context, index) {
+                    return ShimmerMessageBubble(
+                      isSentByMe: index % 3 == 0,
+                    );
+                  },
+                );
               }
 
-              // Calculate real index (Newest is at visual bottom/index 0)
-              // combinedMessages is Sorted Old -> New.
-              // So combinedMessages.last is Newest.
-              final int realIndex = combinedMessages.length - 1 - index;
-
-              if (realIndex < 0 || realIndex >= combinedMessages.length) {
-                return const SizedBox.shrink();
-              }
-
-              final message = combinedMessages[realIndex];
-              final senderMap = (message['sender'] is Map)
-                  ? Map<String, dynamic>.from(message['sender'])
-                  : <String, dynamic>{};
-
-              final isSentByMe = senderMap['_id'] == currentUserId;
-              final isSystem = message['ContentType'] == "system";
-              final content = message['content']?.toString() ?? '';
-
-              final currentTime = _parseTime(message['time']);
-              // Previous time (visually above, so older) is at realIndex - 1
-              final prevTime = realIndex > 0
-                  ? _parseTime(combinedMessages[realIndex - 1]['time'])
-                  : null;
-
-              // Grouping Logic
-              final isGroupMessage = message['is_group_message'] == true;
-              final groupMessageId = message['group_message_id']?.toString();
-
-              if (isGroupMessage &&
-                  groupMessageId != null &&
-                  groupMessageId.isNotEmpty) {
-                // Check if this is the first message in the group
-                final isFirstInGroup = realIndex == 0 ||
-                    combinedMessages[realIndex - 1]['group_message_id']
-                            ?.toString() !=
-                        groupMessageId;
-
-                // Skip if not the first in group
-                if (!isFirstInGroup) {
-                  return const SizedBox.shrink();
-                }
-
-                List<String> groupImages = [];
-                for (int i = realIndex; i < combinedMessages.length; i++) {
-                  final nextMsg = combinedMessages[i];
-                  final nextGrpId = nextMsg['group_message_id']?.toString();
-                  if (nextGrpId == groupMessageId) {
-                    // Collect both images and videos
-                    final mediaUrl = nextMsg['originalUrl']?.toString() ??
-                        nextMsg['fileUrl']?.toString() ??
-                        nextMsg['thumbnailUrl']?.toString() ??
-                        nextMsg['imageUrl']?.toString() ??
-                        nextMsg['localImagePath']?.toString() ??
-                        '';
-                    if (mediaUrl.isNotEmpty) {
-                      groupImages.add(mediaUrl);
-                    }
-                  } else {
-                    break;
-                  }
-                }
-
-                if (groupImages.isNotEmpty) {
-                  log('🖼️ Rendering grouped images: ${groupImages.length} images with group_id: $groupMessageId');
-                  return _hasLeftGroup
-                      ? SizedBox()
-                      : Column(
-                          crossAxisAlignment: isSentByMe
-                              ? CrossAxisAlignment.end
-                              : CrossAxisAlignment.start,
-                          children: [
-                            if (realIndex == 0 ||
-                                !isSameDay(currentTime, prevTime))
-                              _buildDateSeparator(currentTime),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8.0, vertical: 4.0),
-                              child: Align(
-                                alignment: isSentByMe
-                                    ? Alignment.centerRight
-                                    : Alignment.centerLeft,
-                                child: ConstrainedBox(
-                                  constraints: BoxConstraints(
-                                    maxWidth:
-                                        MediaQuery.of(context).size.width *
-                                            0.75,
+              return Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Column(
+                  children: [
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      child: _isLoadingMore
+                          ? Padding(
+                              key: const ValueKey('top_loader'),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 8.0),
+                              child: Center(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(20),
+                                    boxShadow: [
+                                      BoxShadow(
+                                          color: Colors.black.withOpacity(0.06),
+                                          blurRadius: 6)
+                                    ],
                                   ),
-                                  child: Stack(
-                                    children: [
-                                      GroupedMediaWidget(
-                                        mediaUrls: groupImages,
-                                        onMediaTap: (index) {
-                                          log('📱 Tapped media $index from grouped widget');
-
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (_) =>
-                                                  GroupedMediaViewer(
-                                                mediaUrls: groupImages,
-                                                initialIndex: index,
-                                              ),
-                                            ),
-                                          );
-                                        },
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: const [
+                                      SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2),
                                       ),
-                                      Positioned(
-                                        bottom: 5,
-                                        right: 5,
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color:
-                                                Colors.black.withOpacity(0.45),
-                                            borderRadius:
-                                                BorderRadius.circular(8),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Text(
-                                                TimeUtils.formatUtcToIst(
-                                                    message['time']),
-                                                style: const TextStyle(
-                                                    fontSize: 10,
-                                                    color: Colors.white),
-                                              ),
-                                              if (isSentByMe) ...[
-                                                const SizedBox(width: 4),
-                                                Builder(builder: (context) {
-                                                  final status =
-                                                      message['messageStatus']
-                                                              ?.toString() ??
-                                                          'sent';
-                                                  switch (status) {
-                                                    case 'sent':
-                                                      return const Icon(
-                                                          Icons.check,
-                                                          size: 12,
-                                                          color: Colors.white);
-                                                    case 'delivered':
-                                                      return const Icon(
-                                                          Icons
-                                                              .done_all_rounded,
-                                                          size: 12,
-                                                          color: Colors.white);
-                                                    case 'read':
-                                                      return const Icon(
-                                                          Icons.done_all,
-                                                          size: 12,
-                                                          color: Colors
-                                                              .blueAccent);
-                                                    default:
-                                                      return const Icon(
-                                                          Icons.access_time,
-                                                          size: 12,
-                                                          color: Colors.white);
-                                                  }
-                                                }),
-                                              ],
-                                            ],
-                                          ),
-                                        ),
-                                      ),
+                                      SizedBox(width: 10),
+                                      Text('Loading older messages...',
+                                          style: TextStyle(fontSize: 13)),
                                     ],
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
-                        );
-                }
-              }
+                            )
+                          : (!_hasNextPage &&
+                                  _allMessages.isNotEmpty &&
+                                  _visibleCount >= _allMessages.length)
+                              ? Padding(
+                                  key: const ValueKey('all_loaded'),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 8.0),
+                                  child: Center(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey.shade100,
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(
+                                            color: Colors.grey.shade300),
+                                      ),
+                                      child: const Text('All messages loaded',
+                                          style: TextStyle(fontSize: 13)),
+                                    ),
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
+                    ),
+                    Expanded(
+                      child: ListView.builder(
+                        controller: _scrollController,
+                        itemCount: combinedMessages.length,
+                        reverse: true, // Start from bottom
+                        itemBuilder: (context, index) {
+                          // Calculate real index for [Oldest ... Newest] list
+                          // combinedMessages is [Oldest ... Newest]
+                          // ListView index 0 is at Bottom (Newest)
+                          final int realIndex =
+                              combinedMessages.length - 1 - index;
 
-              List<Widget> children = [];
+                          if (realIndex < 0 ||
+                              realIndex >= combinedMessages.length) {
+                            return const SizedBox.shrink();
+                          }
 
-              if (isSystem &&
-                  (content.contains('Group created by') ||
-                      content.contains('added') ||
-                      content.contains('left'))) {
-                children.add(_buildtextSeparator(content));
-              }
+                          final message = combinedMessages[realIndex];
+                          final senderMap = (message['sender'] is Map)
+                              ? Map<String, dynamic>.from(message['sender'])
+                              : <String, dynamic>{};
 
-              if (realIndex == 0 || !isSameDay(currentTime, prevTime)) {
-                children.add(_buildDateSeparator(currentTime));
-              }
+                          final isSentByMe = senderMap['_id'] == currentUserId;
+                          final isSystem = message['ContentType'] == "system";
+                          final content = message['content']?.toString() ?? '';
 
-              children.add(_buildMessageBubble(message, isSentByMe));
+                          final currentTime = _parseTime(message['time']);
+                          final prevTime = realIndex > 0
+                              ? _parseTime(
+                                  combinedMessages[realIndex - 1]['time'])
+                              : null;
 
-              final messageId = (message['message_id'] ??
-                      message['messageId'] ??
-                      message['id'])
-                  ?.toString();
-              final isHighlighted = _highlightedMessageId == messageId;
+                          // Grouping Logic
+                          final isGroupMessage =
+                              message['is_group_message'] == true;
+                          final groupMessageId =
+                              message['group_message_id']?.toString();
 
-              return _hasLeftGroup
-                  ? SizedBox()
-                  : AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeOut,
-                      margin: const EdgeInsets.symmetric(vertical: 2),
-                      color: isHighlighted
-                          ? Colors.yellow.withOpacity(0.25)
-                          : Colors.transparent,
-                      child: Column(
-                        crossAxisAlignment: isSentByMe
-                            ? CrossAxisAlignment.end
-                            : CrossAxisAlignment.start,
-                        children: children,
+                          if (isGroupMessage &&
+                              groupMessageId != null &&
+                              groupMessageId.isNotEmpty) {
+                            // First in group?
+                            final isFirstInGroup = realIndex == 0 ||
+                                combinedMessages[realIndex - 1]
+                                            ['group_message_id']
+                                        ?.toString() !=
+                                    groupMessageId;
+
+                            if (!isFirstInGroup) {
+                              return const SizedBox.shrink();
+                            }
+
+                            List<String> groupImages = [];
+                            for (int i = realIndex;
+                                i < combinedMessages.length;
+                                i++) {
+                              final nextMsg = combinedMessages[i];
+                              final nextGrpId =
+                                  nextMsg['group_message_id']?.toString();
+                              if (nextGrpId == groupMessageId) {
+                                final mediaUrl =
+                                    nextMsg['originalUrl']?.toString() ??
+                                        nextMsg['fileUrl']?.toString() ??
+                                        nextMsg['thumbnailUrl']?.toString() ??
+                                        nextMsg['imageUrl']?.toString() ??
+                                        nextMsg['localImagePath']?.toString() ??
+                                        '';
+                                if (mediaUrl.isNotEmpty) {
+                                  groupImages.add(mediaUrl);
+                                }
+                              } else {
+                                break;
+                              }
+                            }
+
+                            if (groupImages.isNotEmpty) {
+                              return _hasLeftGroup
+                                  ? SizedBox()
+                                  : Column(
+                                      crossAxisAlignment: isSentByMe
+                                          ? CrossAxisAlignment.end
+                                          : CrossAxisAlignment.start,
+                                      children: [
+                                        if (realIndex == 0 ||
+                                            !isSameDay(currentTime, prevTime))
+                                          _buildDateSeparator(currentTime),
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8.0, vertical: 4.0),
+                                          child: Align(
+                                            alignment: isSentByMe
+                                                ? Alignment.centerRight
+                                                : Alignment.centerLeft,
+                                            child: ConstrainedBox(
+                                              constraints: BoxConstraints(
+                                                maxWidth: MediaQuery.of(context)
+                                                        .size
+                                                        .width *
+                                                    0.75,
+                                              ),
+                                              child: Stack(
+                                                children: [
+                                                  GroupedMediaWidget(
+                                                    mediaUrls: groupImages,
+                                                    onMediaTap: (index) {
+                                                      Navigator.push(
+                                                        context,
+                                                        MaterialPageRoute(
+                                                          builder: (_) =>
+                                                              GroupedMediaViewer(
+                                                            mediaUrls:
+                                                                groupImages,
+                                                            initialIndex: index,
+                                                          ),
+                                                        ),
+                                                      );
+                                                    },
+                                                  ),
+                                                  Positioned(
+                                                    bottom: 5,
+                                                    right: 5,
+                                                    child: Container(
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                          horizontal: 6,
+                                                          vertical: 2),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.black
+                                                            .withOpacity(0.45),
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(8),
+                                                      ),
+                                                      child: Row(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          Text(
+                                                            TimeUtils
+                                                                .formatUtcToIst(
+                                                                    message[
+                                                                        'time']),
+                                                            style:
+                                                                const TextStyle(
+                                                                    fontSize:
+                                                                        10,
+                                                                    color: Colors
+                                                                        .white),
+                                                          ),
+                                                          if (isSentByMe) ...[
+                                                            const SizedBox(
+                                                                width: 4),
+                                                            Builder(builder:
+                                                                (context) {
+                                                              final status =
+                                                                  message['messageStatus']
+                                                                          ?.toString() ??
+                                                                      'sent';
+                                                              switch (status) {
+                                                                case 'sent':
+                                                                  return const Icon(
+                                                                      Icons
+                                                                          .check,
+                                                                      size: 12,
+                                                                      color: Colors
+                                                                          .white);
+                                                                case 'delivered':
+                                                                  return const Icon(
+                                                                      Icons
+                                                                          .done_all_rounded,
+                                                                      size: 12,
+                                                                      color: Colors
+                                                                          .white);
+                                                                case 'read':
+                                                                  return const Icon(
+                                                                      Icons
+                                                                          .done_all,
+                                                                      size: 12,
+                                                                      color: Colors
+                                                                          .blueAccent);
+                                                                default:
+                                                                  return const Icon(
+                                                                      Icons
+                                                                          .access_time,
+                                                                      size: 12,
+                                                                      color: Colors
+                                                                          .white);
+                                                              }
+                                                            }),
+                                                          ],
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                            }
+                          }
+
+                          List<Widget> children = [];
+
+                          if (isSystem &&
+                              (content.contains('Group created by') ||
+                                  content.contains('added') ||
+                                  content.contains('left'))) {
+                            children.add(_buildtextSeparator(content));
+                          }
+
+                          if (realIndex == 0 ||
+                              !isSameDay(currentTime, prevTime)) {
+                            children.add(_buildDateSeparator(currentTime));
+                          }
+
+                          children
+                              .add(_buildMessageBubble(message, isSentByMe));
+
+                          final messageId = (message['message_id'] ??
+                                  message['messageId'] ??
+                                  message['id'])
+                              ?.toString();
+                          final isHighlighted =
+                              _highlightedMessageId == messageId;
+
+                          return _hasLeftGroup
+                              ? SizedBox()
+                              : AnimatedContainer(
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeOut,
+                                  margin:
+                                      const EdgeInsets.symmetric(vertical: 2),
+                                  color: isHighlighted
+                                      ? Colors.yellow.withOpacity(0.25)
+                                      : Colors.transparent,
+                                  child: Column(
+                                    crossAxisAlignment: isSentByMe
+                                        ? CrossAxisAlignment.end
+                                        : CrossAxisAlignment.start,
+                                    children: children,
+                                  ),
+                                );
+                        },
                       ),
-                    );
+                    ),
+                  ],
+                ),
+              );
             },
           );
         },
@@ -2926,9 +3159,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                           const EdgeInsets.only(bottom: 4.0),
                                       child: Text(
                                         userName,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontWeight: FontWeight.bold,
-                                          color: Colors.black87,
+                                          color: ColorUtil.getColorFromAlphabet(
+                                              userName),
                                           fontSize: 14,
                                         ),
                                       ),
@@ -3781,6 +4015,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       replyText: _replyPreview,
       onCancelReply: _cancelReply,
       thereORleft: thereORleft,
+      isGroupChat: true,
     );
   }
 
@@ -3904,20 +4139,40 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       voiceRecordingUI: _buildVoiceRecordingUI(),
       messageInputBuilder: (context) {
         return BlocListener<GroupChatBloc, GroupChatState>(
+          bloc: _groupBloc,
           listenWhen: (previous, current) =>
-              current is GroupLeftState || current is GroupChatError,
+              current is GroupLeftState ||
+              current is GroupChatError ||
+              current is GroupDetailsLoaded,
           listener: (context, state) {
             if (state is GroupLeftState) {
               setState(() {
                 _hasLeftGroup = true;
               });
             }
-
+            if (state is GroupDetailsLoaded) {
+              if (mounted) {
+                setState(() {
+                  final members = state.groupDetails['groupMembers'];
+                  if (members is List) {
+                    groupMembers = members.map((m) {
+                      if (m is Map) {
+                        return (m['member_id'] ?? m['id'] ?? m['_id'] ?? "")
+                            .toString();
+                      }
+                      return m.toString();
+                    }).toList();
+                    print("✅ Updated Group Members from API: $groupMembers");
+                  }
+                });
+              }
+            }
             if (state is GroupChatError) {
               log("GroupChatError: ${state.message}");
             }
           },
           child: BlocBuilder<GroupChatBloc, GroupChatState>(
+            bloc: _groupBloc,
             buildWhen: (previous, current) =>
                 current is! GroupLeftState, // Avoid conflict with listener
             builder: (context, state) {

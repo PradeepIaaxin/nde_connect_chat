@@ -26,6 +26,7 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
     on<GroupRemoveReaction>(_onGroupRemoveReaction);
     on<ForwardMessageEvent>(_forwardMessage);
     on<PermissionCheck>(_chatPermission);
+    on<FetchGroupDetails>(_onFetchGroupDetails);
     // on<ReactionReceived>(_onReactionReceived);
 
 // Listen to reaction stream from SocketService
@@ -447,89 +448,16 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
     }
 
     emit(GroupChatError("Invalid permission response"));
+  }
 
-    // Future<void> _onReactionReceived(
-    //     ReactionReceived event, Emitter<GroupChatState> emit) async {
-    //   if (state is GroupChatLoaded) {
-    //     final currentState = state as GroupChatLoaded;
-    //     final currentGroups = currentState.response.data;
-
-    //     final List<GroupMessageGroup> newGroups = currentGroups.map((group) {
-    //       final newMessages = group.messages.map((msg) {
-    //         if (msg.id == event.messageId || msg.messageId == event.messageId) {
-    //           final List<dynamic> currentReactions =
-    //               List.from(msg.reactions ?? []);
-
-    //           final existingIndex = currentReactions.indexWhere((r) =>
-    //               r['userId'] == event.userId || r['user_id'] == event.userId);
-
-    //           if (existingIndex != -1) {
-    //             if (currentReactions[existingIndex]['emoji'] == event.emoji) {
-    //               currentReactions.removeAt(existingIndex);
-    //             } else {
-    //               currentReactions[existingIndex] = {
-    //                 'emoji': event.emoji,
-    //                 'userId': event.userId,
-    //                 'user_id': event.userId,
-    //                 'firstName': event.firstName,
-    //                 'lastName': event.lastName,
-    //               };
-    //             }
-    //           } else {
-    //             currentReactions.add({
-    //               'emoji': event.emoji,
-    //               'userId': event.userId,
-    //               'user_id': event.userId,
-    //               'firstName': event.firstName,
-    //               'lastName': event.lastName,
-    //             });
-    //           }
-
-    //           return GroupMessageModel(
-    //             id: msg.id,
-    //             sender: msg.sender,
-    //             receiver: msg.receiver,
-    //             conversationId: msg.conversationId,
-    //             isDeleted: msg.isDeleted,
-    //             properties: msg.properties,
-    //             messageType: msg.messageType,
-    //             messageStatus: msg.messageStatus,
-    //             reply: msg.reply,
-    //             messageId: msg.messageId,
-    //             fileWithText: msg.fileWithText,
-    //             content: msg.content,
-    //             thumbnailKey: msg.thumbnailKey,
-    //             contentType: msg.contentType,
-    //             originalKey: msg.originalKey,
-    //             originalUrl: msg.originalUrl,
-    //             thumbnailUrl: msg.thumbnailUrl,
-    //             mimeType: msg.mimeType,
-    //             isForwarded: msg.isForwarded,
-    //             userName: msg.userName,
-    //             fileName: msg.fileName,
-    //             isPinned: msg.isPinned,
-    //             time: msg.time,
-    //             isReplyMessage: msg.isReplyMessage,
-    //             isStarred: msg.isStarred,
-    //             reactions: currentReactions,
-    //           );
-    //         }
-    //         return msg;
-    //       }).toList();
-
-    //       return GroupMessageGroup(label: group.label, messages: newMessages);
-    //     }).toList();
-
-    //     emit(GroupChatLoaded(
-    //       GroupMessageResponse(
-    //         data: newGroups,
-    //         total: currentState.response.total,
-    //         page: currentState.response.page,
-    //         limit: currentState.response.limit,
-    //         hasPreviousPage: currentState.response.hasPreviousPage,
-    //         hasNextPage: currentState.response.hasNextPage,
-    //       ),
-    //     ));
-    //   }
+  Future<void> _onFetchGroupDetails(
+      FetchGroupDetails event, Emitter<GroupChatState> emit) async {
+    try {
+      final details = await api.fetchGroupDetails(event.groupId);
+      emit(GroupDetailsLoaded(details));
+    } catch (e) {
+      log("❌ FetchGroupDetails Error: $e");
+      // Don't emit error state to avoid disrupting chat UI, just log it
+    }
   }
 }
