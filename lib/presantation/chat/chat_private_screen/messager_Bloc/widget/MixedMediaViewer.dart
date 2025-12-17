@@ -1,10 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
+import 'package:photo_view/photo_view_gallery.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
-import '../../../../../utils/reusbale/common_import.dart';
 import '../../../../widgets/chat_widgets/Common/grouped_media_viewer.dart';
 import 'VideoPlayerScreen.dart';
-
 
 class MixedMediaViewer extends StatefulWidget {
   final List<GroupMediaItem> items;
@@ -21,14 +23,20 @@ class MixedMediaViewer extends StatefulWidget {
 }
 
 class _MixedMediaViewerState extends State<MixedMediaViewer> {
-  late PageController _controller;
-  late int _index;
+  late final PageController _controller;
+  late int _currentIndex;
 
   @override
   void initState() {
     super.initState();
-    _index = widget.initialIndex;
-    _controller = PageController(initialPage: _index);
+    _currentIndex = widget.initialIndex;
+    _controller = PageController(initialPage: _currentIndex);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
@@ -37,36 +45,45 @@ class _MixedMediaViewerState extends State<MixedMediaViewer> {
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
+        elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         title: Text(
-          "${_index + 1} / ${widget.items.length}",
+          '${_currentIndex + 1} / ${widget.items.length}',
           style: const TextStyle(color: Colors.white),
         ),
       ),
-      body: PageView.builder(
-        controller: _controller,
+      body: PhotoViewGallery.builder(
+        pageController: _controller,
         itemCount: widget.items.length,
-        onPageChanged: (i) => setState(() => _index = i),
-        itemBuilder: (context, i) {
-          final item = widget.items[i];
+        onPageChanged: (i) => setState(() => _currentIndex = i),
+        backgroundDecoration: const BoxDecoration(color: Colors.black),
+        builder: (context, index) {
+          final item = widget.items[index];
+
+          // 🎥 VIDEO
           if (item.isVideo) {
-            final isNetwork = item.mediaUrl.startsWith('http');
-            // Simple full-screen player; you can customise this
-            return Center(
-              child: VideoPlayerScreen(
-                path: item.mediaUrl,
-                isNetwork: isNetwork,
-                isVideo: true,
+            return PhotoViewGalleryPageOptions.customChild(
+              child: Center(
+                child: VideoPlayerScreen(
+                  path: item.mediaUrl,
+                  isNetwork: item.mediaUrl.startsWith('http'),
+                  isVideo: true,
+                ),
               ),
             );
-          } else {
-            return PhotoView(
-              backgroundDecoration: const BoxDecoration(color: Colors.black),
-              imageProvider: item.mediaUrl.startsWith('http')
-                  ? CachedNetworkImageProvider(item.mediaUrl)
-                  : FileImage(File(item.mediaUrl)) as ImageProvider,
-            );
           }
+
+          // 🖼 IMAGE (ZOOM ENABLED)
+          return PhotoViewGalleryPageOptions(
+            heroAttributes: PhotoViewHeroAttributes(
+              tag: item.mediaUrl, // must match grid hero
+            ),
+            imageProvider: item.mediaUrl.startsWith('http')
+                ? CachedNetworkImageProvider(item.mediaUrl)
+                : FileImage(File(item.mediaUrl)) as ImageProvider,
+            minScale: PhotoViewComputedScale.contained,
+            maxScale: PhotoViewComputedScale.covered * 3,
+          );
         },
       ),
     );

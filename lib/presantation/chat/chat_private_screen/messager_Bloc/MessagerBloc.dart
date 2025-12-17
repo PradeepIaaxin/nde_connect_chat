@@ -21,6 +21,7 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
   MessagerBloc({required this.apiService, required this.socketService})
       : super(MessagerInitial()) {
     on<FetchMessagesEvent>(_onFetchMessages);
+    on<ListenToMessages>(_onListenToMessages);
     on<NewMessageReceived>(_onNewMessageReceived);
     on<UploadFileEvent>(_onUploadFile);
     on<DeleteMessagesEvent>(_onDeleteMessage);
@@ -455,7 +456,18 @@ print("iiiiiiiiiiiiiiii${data["ContentType"]}");
   }
 
   // =====================================================
-  
+  // LISTEN SOCKET
+  // =====================================================
+  Future<void> _onListenToMessages(
+    ListenToMessages event,
+    Emitter<MessagerState> emit,
+  ) async {
+    // socketService.listenToMessages(
+    //   event.senderId,
+    //   event.receiverId,
+    //   (data) => add(NewMessageReceived(data)),
+    // );
+  }
 
   void _onNewMessageReceived(
     NewMessageReceived event,
