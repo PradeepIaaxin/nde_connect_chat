@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mime/mime.dart';
 import 'package:objectid/objectid.dart';
+import 'package:photo_view/photo_view.dart';
+import 'package:photo_view/photo_view_gallery.dart';
 
 import '../../../../widgets/chat_widgets/messager_Wifgets/show_Bottom_Sheet.dart';
 import 'VideoPreviewScreen.dart';
@@ -13,6 +15,7 @@ class MediaPreviewScreen extends StatefulWidget {
   final String senderId;
   final String receiverId;
   final bool isGroupChat;
+  final bool? isDocument;
 
   const MediaPreviewScreen({
     super.key,
@@ -21,6 +24,7 @@ class MediaPreviewScreen extends StatefulWidget {
     required this.senderId,
     required this.receiverId,
     required this.isGroupChat,
+    this.isDocument = false,
   });
 
   @override
@@ -36,6 +40,7 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
+
       appBar: AppBar(
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -44,58 +49,83 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
           style: const TextStyle(color: Colors.white),
         ),
       ),
-      body: PageView.builder(
-        controller: _pageController,
+
+      body: PhotoViewGallery.builder(
+        pageController: _pageController,
         itemCount: widget.files.length,
         onPageChanged: (i) => setState(() => _currentIndex = i),
-        itemBuilder: (context, index) {
-          final f = widget.files[index];
-          return _buildPreviewFor(f);
+        backgroundDecoration: const BoxDecoration(color: Colors.black),
+
+        builder: (context, index) {
+          final file = widget.files[index];
+          final mime = lookupMimeType(file.path) ?? '';
+          final isImage = mime.startsWith('image/');
+          final isVideo = mime.startsWith('video/');
+
+          /// 📄 DOCUMENT PREVIEW
+          if (widget.isDocument == true) {
+            return PhotoViewGalleryPageOptions.customChild(
+              child: _documentPreview(file),
+            );
+          }
+
+          /// 🖼 IMAGE PREVIEW (ZOOM + HERO)
+          if (isImage) {
+            return PhotoViewGalleryPageOptions(
+              heroAttributes: PhotoViewHeroAttributes(
+                tag: 'preview_${file.path}',
+              ),
+              imageProvider: FileImage(File(file.path)),
+              minScale: PhotoViewComputedScale.contained,
+              maxScale: PhotoViewComputedScale.covered * 3,
+            );
+          }
+
+          /// 🎬 VIDEO PREVIEW (UNCHANGED)
+          if (isVideo) {
+            return PhotoViewGalleryPageOptions.customChild(
+              child: Hero(
+                tag: 'preview_${file.path}',
+                child: VideoPreviewScreen(file: File(file.path)),
+              ),
+            );
+          }
+
+          /// FALLBACK
+          return PhotoViewGalleryPageOptions.customChild(
+            child: _documentPreview(file),
+          );
         },
       ),
 
-      // 👇 WhatsApp-like Send FAB at bottom
+      /// 🟢 SEND BUTTON
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _sending ? null : _sendAll,
         icon: _sending
-            ?  SizedBox(
+            ? const SizedBox(
           width: 18,
           height: 18,
-          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: Colors.white,
+          ),
         )
             : const Icon(Icons.send),
         label: Text(_sending ? "Sending..." : "Send"),
         backgroundColor: Colors.green,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(50))),
+        shape: const StadiumBorder(),
       ),
     );
   }
 
-  Widget _buildPreviewFor(XFile file) {
-    final mime = lookupMimeType(file.path) ?? '';
-    final isImage = mime.startsWith('image/');
-    final isVideo = mime.startsWith('video/');
-
-    if (isImage) {
-      return Center(
-        child: Image.file(
-          File(file.path),
-          fit: BoxFit.contain,
-        ),
-      );
-    }
-
-    if (isVideo) {
-      // reuse your existing full-screen video player
-      return VideoPreviewScreen(file: File(file.path));
-    }
-
-    // document / audio etc.
+  /// 📄 DOCUMENT UI
+  Widget _documentPreview(XFile file) {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.insert_drive_file, size: 64, color: Colors.white),
+          const Icon(Icons.insert_drive_file,
+              size: 64, color: Colors.white),
           const SizedBox(height: 8),
           Text(
             file.name,
@@ -107,32 +137,7 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
     );
   }
 
-  // Future<void> _sendAll() async {
-  //   setState(() => _sending = true);
-  //
-  //   final localMessages = <Map<String, dynamic>>[];
-  //   final groupMessageId =
-  //   widget.files.length > 1 ? ObjectId().toString() : null;
-  //
-  //   for (final f in widget.files) {
-  //     final msg = await ShowAltDialog.sendFile(
-  //       context: context,
-  //       file: f,
-  //       conversationId: widget.conversationId,
-  //       senderId: widget.senderId,
-  //       receiverId: widget.receiverId,
-  //       isGroupChat: widget.isGroupChat,
-  //       isGroupMessage: widget.files.length > 1,
-  //       groupMessageId: groupMessageId,
-  //     );
-  //     if (msg != null) localMessages.add(msg);
-  //   }
-  //
-  //   setState(() => _sending = false);
-  //
-  //   // Pop back to chat, delivering the messages we created
-  //   Navigator.of(context).pop(localMessages);
-  // }
+  /// 🚀 SEND LOGIC (UNCHANGED)
   Future<void> _sendAll() async {
     setState(() => _sending = true);
 
@@ -148,18 +153,14 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
         senderId: widget.senderId,
         receiverId: widget.receiverId,
         isGroupChat: widget.isGroupChat,
-        // ✅ group any media when more than one selected
         isGroupMessage: widget.files.length > 1,
         groupMessageId: groupMessageId,
       );
 
-      if (msg != null) {
-        localMessages.add(msg);
-      }
+      if (msg != null) localMessages.add(msg);
     }
 
     setState(() => _sending = false);
     Navigator.of(context).pop(localMessages);
   }
-
 }
