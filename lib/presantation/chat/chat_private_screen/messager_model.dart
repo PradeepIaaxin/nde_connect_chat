@@ -81,6 +81,7 @@ class Message {
   final String? fileUrl;
   final String? fileType;
 
+
   final bool? isTemporary;
   final File? localImagePath;
   final bool? isGroupMessage;
@@ -202,9 +203,10 @@ class Datum {
       this.time,
       this.messageStatus,
       this.isReplyMessage,
-      this.reactions,
+      this.reactions, 
       this.isGroupMessage,
-      this.groupMessageId});
+      this.groupMessageId
+      });
 
   Datum copyWith({
     String? id,
@@ -233,39 +235,39 @@ class Datum {
     String? messageStatus,
     bool? isReplyMessage,
     List<Reaction>? reactions,
-    bool? isGroupMessage,
+    bool? isGroupMessage, 
     String? groupMessageId,
   }) =>
       Datum(
-        id: id ?? this.id,
-        sender: sender ?? this.sender,
-        receiver: receiver ?? this.receiver,
-        conversationId: conversationId ?? this.conversationId,
-        isDeleted: isDeleted ?? this.isDeleted,
-        properties: properties ?? this.properties,
-        messageType: messageType ?? this.messageType,
-        isStarred: isStarred ?? this.isStarred,
-        reply: reply ?? this.reply,
-        messageId: messageId ?? this.messageId,
-        fileWithText: fileWithText ?? this.fileWithText,
-        content: content ?? this.content,
-        thumbNailKey: thumbNailKey ?? this.thumbNailKey,
-        ContentType: ContentType ?? this.ContentType,
-        originalKey: originalKey ?? this.originalKey,
-        originalUrl: originalUrl ?? this.originalUrl,
-        thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
-        mimeType: mimeType ?? this.mimeType,
-        isForwarded: isForwarded ?? this.isForwarded,
-        userName: userName ?? this.userName,
-        fileName: fileName ?? this.fileName,
-        isPinned: isPinned ?? this.isPinned,
-        time: time ?? this.time,
-        messageStatus: messageStatus ?? this.messageStatus,
-        isReplyMessage: isReplyMessage ?? this.isReplyMessage,
-        reactions: reactions ?? this.reactions,
-        isGroupMessage: isGroupMessage ?? this.isGroupMessage,
-        groupMessageId: groupMessageId ?? this.groupMessageId,
-      );
+          id: id ?? this.id,
+          sender: sender ?? this.sender,
+          receiver: receiver ?? this.receiver,
+          conversationId: conversationId ?? this.conversationId,
+          isDeleted: isDeleted ?? this.isDeleted,
+          properties: properties ?? this.properties,
+          messageType: messageType ?? this.messageType,
+          isStarred: isStarred ?? this.isStarred,
+          reply: reply ?? this.reply,
+          messageId: messageId ?? this.messageId,
+          fileWithText: fileWithText ?? this.fileWithText,
+          content: content ?? this.content,
+          thumbNailKey: thumbNailKey ?? this.thumbNailKey,
+          ContentType: ContentType ?? this.ContentType,
+          originalKey: originalKey ?? this.originalKey,
+          originalUrl: originalUrl ?? this.originalUrl,
+          thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
+          mimeType: mimeType ?? this.mimeType,
+          isForwarded: isForwarded ?? this.isForwarded,
+          userName: userName ?? this.userName,
+          fileName: fileName ?? this.fileName,
+          isPinned: isPinned ?? this.isPinned,
+          time: time ?? this.time,
+          messageStatus: messageStatus ?? this.messageStatus,
+          isReplyMessage: isReplyMessage ?? this.isReplyMessage,
+          reactions: reactions ?? this.reactions, 
+          isGroupMessage: isGroupMessage ?? this.isGroupMessage,
+          groupMessageId: groupMessageId ?? this.groupMessageId,
+          );
 
   factory Datum.fromRawJson(String str) => Datum.fromJson(json.decode(str));
 
@@ -309,7 +311,7 @@ class Datum {
       userName: json["userName"],
       fileName: json["fileName"],
       isPinned: json["isPinned"],
-      isGroupMessage: json['is_group_message'] ?? json['isGroupMessage'],
+  isGroupMessage: json['is_group_message'] ?? json['isGroupMessage'],
       groupMessageId: json['group_message_id']?.toString() ??
           json['groupMessageId']?.toString(),
       time: json["time"] != null ? DateTime.parse(json["time"]) : null,
@@ -891,32 +893,48 @@ class Receiver {
 }
 
 class Reply {
-  final String? replyContent;
-  final String? replyToUser;
+  final String replyToMessageId;
+  final String? content;
+  final String? fileUrl;
+  final String? fileName;
+  final String contentType;
+  final String? userName;
 
-  Reply({
-    this.replyContent,
-    this.replyToUser,
+  const Reply({
+    required this.replyToMessageId,
+    this.content,
+    this.fileUrl,
+    this.fileName,
+    required this.contentType,
+    this.userName,
   });
 
-  Reply copyWith({
-    String? replyContent,
-    String? replyToUser,
-  }) =>
-      Reply(
-        replyContent: replyContent ?? this.replyContent,
-        replyToUser: replyToUser ?? this.replyToUser,
-      );
+  factory Reply.fromJson(Map<String, dynamic> json) {
+    return Reply(
+      replyToMessageId:
+      json['reply_message_id'] ??
+          json['messageId'] ??
+          json['id'] ??
+          '',
+      content: json['replyContent'] ?? json['content'],
+      fileUrl: json['replyUrl'] ?? json['originalUrl'],
+      fileName: json['fileName'],
+      contentType: json['ContentType'] ?? 'text',
+      userName: json['first_name'],
+    );
+  }
 
-  factory Reply.fromJson(Map<String, dynamic> json) => Reply(
-        replyContent: json["replyContent"],
-        replyToUser: json["replyToUser"],
-      );
-
-  Map<String, dynamic> toJson() => {
-        "replyContent": replyContent,
-        "replyToUser": replyToUser,
-      };
+  /// ✅ ADD THIS
+  Map<String, dynamic> toJson() {
+    return {
+      "reply_message_id": replyToMessageId,
+      "replyContent": content ?? "",
+      "fileName": fileName,
+      "replyUrl": fileUrl,
+      "ContentType": contentType,
+      "first_name": userName,
+    };
+  }
 }
 
 class MessageListResponse {
@@ -963,6 +981,7 @@ class MessageListResponse {
       };
 }
 
+
 class MessageGroup {
   final String label;
   final List<Datum> messages;
@@ -985,6 +1004,7 @@ class MessageGroup {
         "messages": List<dynamic>.from(messages.map((x) => x.toJson())),
       };
 }
+
 
 class Sender {
   final String? id;

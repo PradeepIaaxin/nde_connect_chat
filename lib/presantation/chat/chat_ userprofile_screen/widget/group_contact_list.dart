@@ -1,3 +1,4 @@
+import 'package:nde_email/presantation/chat/Socket/Socket_Service.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/bloc/profile_screen_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/bloc/profile_screen_event.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/bloc/profile_screen_state.dart';
@@ -160,25 +161,58 @@ class _GroupContactListState extends State<GroupContactList> {
                                     },
                               child: ListTile(
                                 contentPadding: EdgeInsets.zero,
-                                leading: CircleAvatar(
-                                  radius: 22,
-                                  backgroundColor: profileAvatarUrl.isEmpty
-                                      ? ColorUtil.getColorFromAlphabet(
-                                          profileAvatar)
-                                      : Colors.transparent,
-                                  backgroundImage: profileAvatarUrl.isNotEmpty
-                                      ? NetworkImage(profileAvatarUrl)
-                                      : null,
-                                  child: profileAvatarUrl.isEmpty
-                                      ? Text(
-                                          profileAvatar,
-                                          style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white,
+                                leading: Stack(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 22,
+                                      backgroundColor: profileAvatarUrl.isEmpty
+                                          ? ColorUtil.getColorFromAlphabet(
+                                              profileAvatar)
+                                          : Colors.transparent,
+                                      backgroundImage:
+                                          profileAvatarUrl.isNotEmpty
+                                              ? NetworkImage(profileAvatarUrl)
+                                              : null,
+                                      child: profileAvatarUrl.isEmpty
+                                          ? Text(
+                                              profileAvatar,
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                            )
+                                          : null,
+                                    ),
+                                    ValueListenableBuilder(
+                                      valueListenable:
+                                          SocketService().userStatusNotifier,
+                                      builder: (context, val, _) {
+                                        final isOnline = SocketService()
+                                            .onlineUsers
+                                            .contains(member.memberId);
+                                        if (!isOnline) {
+                                          return const SizedBox.shrink();
+                                        }
+                                        return Positioned(
+                                          right: 0,
+                                          bottom: 0,
+                                          child: Container(
+                                            width: 12,
+                                            height: 12,
+                                            decoration: BoxDecoration(
+                                              color: Colors.green,
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                color: Colors.white,
+                                                width: 2,
+                                              ),
+                                            ),
                                           ),
-                                        )
-                                      : null,
+                                        );
+                                      },
+                                    ),
+                                  ],
                                 ),
                                 title: Text(
                                   i == 0 ? 'You' : nameText,

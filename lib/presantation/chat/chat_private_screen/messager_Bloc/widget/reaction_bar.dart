@@ -3,10 +3,8 @@ import 'package:flutter/material.dart';
 class ReactionBar extends StatelessWidget {
   final Map<String, dynamic> message;
   final String currentUserId;
-  final void Function(Map<String, dynamic> message, String emoji)?
-      onReactionTap;
-  final void Function(Map<String, dynamic> message, String emoji)?
-      onOpenReactors;
+  final void Function(Map<String, dynamic> message, String emoji)? onReactionTap;
+  final void Function(Map<String, dynamic> message, String emoji)? onOpenReactors;
 
   const ReactionBar({
     Key? key,
@@ -41,14 +39,7 @@ class ReactionBar extends StatelessWidget {
   }
 
   // simple built-in emoji set — adjust to match your UI
-  static const List<String> defaultEmojis = [
-    '👍',
-    '❤️',
-    '😂',
-    '😮',
-    '😢',
-    '👏'
-  ];
+  static const List<String> defaultEmojis = ['👍','❤️','😂','😮','😢','👏'];
 
   void _openEmojiPicker(BuildContext context) {
     showModalBottomSheet(
@@ -159,22 +150,26 @@ class ReactionBar extends StatelessWidget {
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 2),
           padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
-          child: Text('$emoji${count > 1 ? ' $count' : ''}',
-              style: const TextStyle(fontSize: 14)),
+
+          child: Text('$emoji${count > 1 ? ' $count' : ''}', style: const TextStyle(fontSize: 14)),
         ),
       );
     }).toList());
 
     return Container(
-      decoration: BoxDecoration(
-          color: Colors.blue[50],
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.grey.shade300, spreadRadius: 0.5, blurRadius: 0.3)
-          ]),
+      decoration: BoxDecoration(color:  Colors.blue[50],
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.shade300,
+            spreadRadius: 0.5,blurRadius: 0.3
+          )
+        ]
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       child: Wrap(spacing: 0, children: chips),
     );
   }
+
+
 }

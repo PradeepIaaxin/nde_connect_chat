@@ -20,6 +20,7 @@ class MessageInputField extends StatefulWidget {
   final Map<String, dynamic>? replyText;
   final VoidCallback? onCancelReply;
   final bool thereORleft;
+  final bool isGroupChat;
   final String reciverID;
 
   const MessageInputField(
@@ -36,6 +37,7 @@ class MessageInputField extends StatefulWidget {
       this.replyText,
       this.onCancelReply,
       this.thereORleft = false,
+      this.isGroupChat = false,
       this.onDraftChanged});
 
   final ValueChanged<String>? onDraftChanged;
@@ -509,7 +511,9 @@ class _MessageInputFieldState extends State<MessageInputField> {
     // ---- existing typing indicator logic ----
     if (capitalized.trim().isNotEmpty) {
       final userId = await UserPreferences.getUserId() ?? "Unknown";
-      final roomId = socketService.generateRoomId(userId, widget.reciverID);
+      final roomId = widget.isGroupChat
+          ? widget.reciverID
+          : socketService.generateRoomId(userId, widget.reciverID);
       final userFullName = await UserPreferences.getUsername() ?? "Unknown";
       socketService.sendTyping(roomId: roomId, userName: userFullName);
     }

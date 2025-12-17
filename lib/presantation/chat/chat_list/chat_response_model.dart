@@ -188,15 +188,24 @@ class Datu {
         groupName: json["groupName"] ?? "",
         draftMessage: json["draftMessage"],
 
-        /// ⭐ PARTICIPANTS LIST
+      /// ⭐ PARTICIPANTS LIST
         participants: json["participants"] != null
-            ? List<String>.from(json["participants"].map((x) => x.toString()))
+            ? List<String>.from(json["participants"].map((x) {
+                if (x is Map) {
+                  return (x["_id"] ?? x["id"] ?? x["userId"] ?? "").toString();
+                }
+                return x.toString();
+              }))
             : [],
 
         /// ⭐ ONLINE PARTICIPANTS LIST
         onlineParticipants: json["onlineParticipants"] != null
-            ? List<String>.from(
-                json["onlineParticipants"].map((x) => x.toString()))
+            ? List<String>.from(json["onlineParticipants"].map((x) {
+                if (x is Map) {
+                  return (x["_id"] ?? x["id"] ?? x["userId"] ?? "").toString();
+                }
+                return x.toString();
+              }))
             : [],
       );
 

@@ -53,22 +53,22 @@ class MoreOptionsButton extends StatefulWidget {
   }) {
     // Create menu items based on whether user has left the group
     final List<PopupMenuItem<int>> menuItems = [
-      const PopupMenuItem<int>(value: 0, child: Text('View Contact')),
-      const PopupMenuItem<int>(value: 1, child: Text('Search')),
+      const PopupMenuItem<int>(value: 0, child: Text('View Contact',style: TextStyle(fontWeight: FontWeight.w400))),
+      const PopupMenuItem<int>(value: 1, child: Text('Search',style: TextStyle(fontWeight: FontWeight.w400))),
     ];
 
     // Only show these options if user hasn't left the group
     if (!hasLeftGroup) {
       menuItems.addAll([
-        const PopupMenuItem<int>(value: 2, child: Text('Add to list')),
-        const PopupMenuItem<int>(value: 3, child: Text('Media, Link & Docs')),
-        const PopupMenuItem<int>(value: 4, child: Text('Mute notifications')),
+        const PopupMenuItem<int>(value: 2, child: Text('Add to list',style: TextStyle(fontWeight: FontWeight.w400))),
+        const PopupMenuItem<int>(value: 3, child: Text('Media, Link & Docs',style: TextStyle(fontWeight: FontWeight.w400))),
+        const PopupMenuItem<int>(value: 4, child: Text('Mute notifications',style: TextStyle(fontWeight: FontWeight.w400))),
         const PopupMenuItem<int>(
-            value: 5, child: Text('Disappearing messages')),
+            value: 5, child: Text('Disappearing messages',style: TextStyle(fontWeight: FontWeight.w400))),
       ]);
     }
 
-    menuItems.add(const PopupMenuItem<int>(value: 6, child: Text('Chat theme')));
+    menuItems.add(const PopupMenuItem<int>(value: 6, child: Text('Chat theme',style: TextStyle(fontWeight: FontWeight.w400))));
 
     if (!hasLeftGroup) {
       menuItems.add(PopupMenuItem<int>(
@@ -81,7 +81,7 @@ class MoreOptionsButton extends StatefulWidget {
           child: const Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('More'),
+              Text('More',style: TextStyle(fontWeight: FontWeight.w400),),
               Icon(Icons.arrow_right),
             ],
           ),
@@ -95,6 +95,9 @@ class MoreOptionsButton extends StatefulWidget {
     showMenu(
       context: context,
       position: const RelativeRect.fromLTRB(100, 80, 0, 0),
+      shadowColor: Colors.white,
+      color: Colors.white,
+      elevation: 2,
       items: menuItems,
     ).then((value) {
       if (value != null) {
@@ -123,29 +126,32 @@ class MoreOptionsButton extends StatefulWidget {
 
   static void showMoreOptions(BuildContext context, {bool hasLeftGroup = false}) {
     final List<PopupMenuItem<int>> moreItems = [
-      const PopupMenuItem<int>(value: 8, child: Text('Report')),
+      const PopupMenuItem<int>(value: 8, child: Text('Report',style: TextStyle(fontWeight: FontWeight.w400))),
     ];
 
     // Only show these options if user hasn't left the group
     if (!hasLeftGroup) {
       moreItems.addAll([
-        const PopupMenuItem<int>(value: 9, child: Text('Block')),
+        const PopupMenuItem<int>(value: 9, child: Text('Block',style: TextStyle(fontWeight: FontWeight.w400))),
         PopupMenuItem<int>(
           value: 13,
-          child: Text('Leave Group', style: TextStyle(color: Colors.red)),
+          child: Text('Leave Group', style: TextStyle(color: Colors.red,fontWeight: FontWeight.w400)),
         ),
       ]);
     }
 
     moreItems.addAll([
-      const PopupMenuItem<int>(value: 10, child: Text('Clear chat')),
-      const PopupMenuItem<int>(value: 11, child: Text('Export chat')),
-      const PopupMenuItem<int>(value: 12, child: Text('Add shortcut')),
+      const PopupMenuItem<int>(value: 10, child: Text('Clear chat',style: TextStyle(fontWeight: FontWeight.w400))),
+      const PopupMenuItem<int>(value: 11, child: Text('Export chat',style: TextStyle(fontWeight: FontWeight.w400))),
+      const PopupMenuItem<int>(value: 12, child: Text('Add shortcut',style: TextStyle(fontWeight: FontWeight.w400))),
     ]);
 
     showMenu(
       context: context,
-      position: const RelativeRect.fromLTRB(100, 180, 0, 0),
+      position: const RelativeRect.fromLTRB(100, 80, 0, 0),
+      shadowColor: Colors.white,
+      surfaceTintColor: Colors.white,
+      elevation: 2,
       items: moreItems,
     ).then((value) {
       if (value != null) {
