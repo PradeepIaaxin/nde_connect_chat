@@ -313,13 +313,25 @@ class SocketService {
             }));
 
     // typing (single unified)
-    reg(
+  reg(
         'get_typing',
         (response) => scheduleMicrotask(() {
-              _slog('get_typing -> $response');
+              _slog('🔥 RAW get_typing received: $response');
+
+              // Filter out self-typing
+              if (response is List && response.isNotEmpty) {
+                final first = response.first;
+                if (first is Map && first['userId'] == _currentUserId) return;
+              } else if (response is Map &&
+                  response['userId'] == _currentUserId) {
+                return;
+              }
+
               final msg = _extractTypingMessage(response);
+              _slog('🔥 Extracted typing msg: $msg');
+
               if (msg != null && msg.trim().isNotEmpty) {
-                _typingController.add('typing...');
+                _typingController.add(msg);
                 _typingTimeout?.cancel();
                 _typingTimeout = Timer(const Duration(seconds: 2), () {
                   _typingController.add('');
@@ -639,16 +651,26 @@ class SocketService {
     return null;
   }
 
-  String? _extractTypingMessage(dynamic payload) {
+String? _extractTypingMessage(dynamic payload) {
     if (payload == null) return null;
     if (payload is List && payload.isNotEmpty) {
       final first = payload.first;
-      if (first is Map && first.containsKey('message')) {
-        return first['message']?.toString();
+      if (first is Map) {
+        if (first.containsKey('userName')) {
+          return "${first['userName']} is typing...";
+        }
+        if (first.containsKey('message')) {
+          return first['message']?.toString();
+        }
       }
       if (first is String) return first;
-    } else if (payload is Map && payload.containsKey('message')) {
-      return payload['message']?.toString();
+    } else if (payload is Map) {
+      if (payload.containsKey('userName')) {
+        return "${payload['userName']} is typing...";
+      }
+      if (payload.containsKey('message')) {
+        return payload['message']?.toString();
+      }
     } else if (payload is String) {
       return payload;
     }
@@ -689,7 +711,7 @@ class SocketService {
     return null;
   }
 
-  void _handleUserPresence(dynamic data, {required bool online}) {
+void _handleUserPresence(dynamic data, {required bool online}) {
     try {
       // Extract raw userId from multiple possible message formats
       final rawId = (data is List && data.isNotEmpty) ? data[0] : data;
@@ -708,10 +730,12 @@ class SocketService {
       }
 
       // 🚀 Instantly notify UI
-      userStatusNotifier.value = {
+      final statusMap = {
         "userId": userId,
         "status": online ? "online" : "offline",
       };
+      userStatusNotifier.value = statusMap;
+      _userStatusController.add(statusMap);
 
       _slog("Presence update: $userId → ${online ? 'online' : 'offline'}");
     } catch (e) {
@@ -778,6 +802,7 @@ class SocketService {
       return;
     }
     final typingData = {"roomId": roomId, "userName": userName};
+    _slog('🚀 Sending typing event: $typingData');
     socket!.emit('typing', typingData);
   }
 
