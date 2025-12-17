@@ -1,102 +1,167 @@
-import 'package:flutter/material.dart';
+import 'dart:developer';
+import 'dart:io';
 
-class RepliedMessagePreview extends StatelessWidget {
-  final Map<String, dynamic> message;
-  final bool isSentByMe;
+import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+
+import '../../../../../utils/reusbale/common_import.dart';
+import 'VideoCacheService.dart';
+
+class RepliedMessagePreview extends StatefulWidget {
+  final Map<String, dynamic> replied;
+  final VoidCallback? onTap;
+  final Map<String, dynamic> receiver;
+  final bool isSender;
 
   const RepliedMessagePreview({
     super.key,
-    required this.message,
-    required this.isSentByMe,
+    required this.replied,
+    this.onTap,
+    required this.receiver,
+    required this.isSender,
   });
 
   @override
+  State<RepliedMessagePreview> createState() => _RepliedMessagePreviewState();
+}
+
+class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
+  late Map<String, dynamic> _replied;
+
+  @override
+  void initState() {
+    super.initState();
+    _replied = Map<String, dynamic>.from(widget.replied);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final replied = message['repliedMessage'] ?? {};
-    final firstName = (replied['first_name'] ?? '').toString();
-    final lastName = (replied['last_name'] ?? '').toString();
-    final replyContent = (replied['replyContent'] ?? '').toString();
-    final mimeType = (replied['mimeType'] ?? '').toString().toLowerCase();
-    final fileName = (replied['fileName'] ?? '').toString();
+    final replyContent =
+    (_replied['replyContent'] ?? _replied['content'] ?? '').toString();
 
-    Widget _buildFileRow(IconData icon, Color color, String label) {
-      return Row(
-        children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: 4),
-          Text(label, style: const TextStyle(fontSize: 12)),
-        ],
-      );
+    final fileName = (_replied['fileName'] ?? '').toString().toLowerCase();
+
+    final mediaUrl =
+    (_replied['replyUrl'] ??
+        _replied['thumbnailUrl'] ??
+        _replied['fileUrl'] ??
+        '')
+        .toString();
+
+    final bool isVideo =
+        fileName.endsWith('.mp4') ||
+            mediaUrl.toLowerCase().contains('.mp4');
+
+    final bool isImage =
+        fileName.endsWith('.jpg') ||
+            fileName.endsWith('.jpeg') ||
+            fileName.endsWith('.png') ||
+            mediaUrl.toLowerCase().contains('.jpg') ||
+            mediaUrl.toLowerCase().contains('.png');
+
+    if (replyContent.isEmpty && mediaUrl.isEmpty) {
+      return const SizedBox.shrink();
     }
 
-    Widget previewWidget;
-    if (replyContent.isNotEmpty) {
-      previewWidget = Text(
-        replyContent,
-        style: const TextStyle(fontSize: 12, color: Colors.black87),
-        overflow: TextOverflow.ellipsis,
-        maxLines: 2,
-      );
-    } else if (mimeType.contains('image')) {
-      previewWidget = _buildFileRow(Icons.image, Colors.grey, "Image");
-    } else if (mimeType.contains('pdf')) {
-      previewWidget =
-          _buildFileRow(Icons.picture_as_pdf, Colors.red, "PDF File");
-    } else if (mimeType.contains('video')) {
-      previewWidget = _buildFileRow(Icons.videocam, Colors.purple, "Video");
-    } else if (mimeType.contains('audio')) {
-      previewWidget = _buildFileRow(Icons.audiotrack, Colors.green, "Audio");
-    } else if (mimeType.contains('application')) {
-      previewWidget =
-          _buildFileRow(Icons.insert_drive_file, Colors.blueGrey, "Document");
-    } else if (fileName.isNotEmpty) {
-      previewWidget = Row(
-        children: [
-          const Icon(Icons.attach_file, size: 16, color: Colors.grey),
-          const SizedBox(width: 4),
-          Expanded(
-            child: Text(
-              fileName,
-              style: const TextStyle(fontSize: 12),
-              overflow: TextOverflow.ellipsis,
+    Widget buildThumb() {
+      /// ✅ IMAGE
+      if (isImage) {
+        return CachedNetworkImage(
+          imageUrl: mediaUrl,
+          fit: BoxFit.cover,
+          placeholder: (_, __) =>
+              Container(color: Colors.grey.shade300),
+          errorWidget: (_, __, ___) =>
+              Container(color: Colors.grey.shade400),
+        );
+      }
+
+      /// ✅ VIDEO (SAFE PLACEHOLDER)
+      if (isVideo) {
+        return Container(
+          color: Colors.black26,
+          child: const Center(
+            child: Icon(
+              Icons.play_circle_fill,
+              color: Colors.white,
+              size: 28,
             ),
           ),
-        ],
-      );
-    } else {
-      previewWidget = const Text(
-        "Unsupported message",
-        style: TextStyle(fontSize: 12),
-      );
+        );
+      }
+
+      return const SizedBox.shrink();
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey.shade200,
-        borderRadius: BorderRadius.circular(8),
-        border: Border(
-          left: BorderSide(
-            color: isSentByMe ? Colors.blue : Colors.green,
-            width: 4,
-          ),
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(10),
         ),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      margin: const EdgeInsets.only(bottom: 6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "$firstName $lastName".trim(),
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[800],
+        child: Row(
+          children: [
+            Container(
+              width: 3,
+              height: 42,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade600,
+                borderRadius: BorderRadius.circular(4),
+              ),
             ),
-          ),
-          const SizedBox(height: 2),
-          previewWidget,
-        ],
+            const SizedBox(width: 8),
+
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.isSender
+                        ? 'You'
+                        : '${widget.receiver['first_name'] ?? ''} ${widget.receiver['last_name'] ?? ''}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+
+                  if (isVideo)
+                    const Text(
+                      'Video',
+                      style: TextStyle(fontSize: 12),
+                    )
+                  else if (isImage)
+                    const Text(
+                      'Photo',
+                      style: TextStyle(fontSize: 12),
+                    )
+                  else
+                    Text(
+                      replyContent,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                ],
+              ),
+            ),
+
+            if ((isImage || isVideo) && mediaUrl.isNotEmpty)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: SizedBox(
+                  width: 42,
+                  height: 42,
+                  child: buildThumb(),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
