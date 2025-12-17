@@ -58,6 +58,33 @@ class GrpMessagerApiService {
     }
   }
 
+  Future<Map<String, dynamic>> fetchGroupDetails(String groupId) async {
+    final token = await UserPreferences.getAccessToken();
+    final defaultWorkspace = await UserPreferences.getDefaultWorkspace();
+
+    if (token == null || token.isEmpty) {
+      throw Exception('Authentication token not found.');
+    }
+
+    final uri =
+        Uri.parse('https://api.nowdigitaleasy.com/wschat/v1/group/$groupId');
+
+    final response = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'x-workspace': defaultWorkspace ?? '',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } else {
+      throw Exception('Failed to load group details: ${response.statusCode}');
+    }
+  }
+
   Future<void> uploadFile({
     required File file,
     required void Function(int progress) onProgress,
