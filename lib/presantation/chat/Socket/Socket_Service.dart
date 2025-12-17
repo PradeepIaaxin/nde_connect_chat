@@ -1124,6 +1124,7 @@ class SocketService {
       _slog('sendMessage aborted: socket not connected');
       return;
     }
+
     final messagePayload = {
       "messageId": messageId,
       "conversationId": conversationId,
@@ -1164,10 +1165,13 @@ class SocketService {
         },
     };
 
+
+log(messagePayload.toString());
     socket!.emitWithAck('send_message', messagePayload, ack: (data) {
       try {
         if (ackCallback != null && data is Map<String, dynamic>) {
           ackCallback(data);
+          log(data.toString());
         }
       } catch (e) {
         _slog('sendMessage ack parse error: $e');
