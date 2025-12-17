@@ -18,173 +18,171 @@ class GroupedMediaWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     if (mediaUrls.isEmpty) return const SizedBox.shrink();
 
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 260),
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    // WhatsApp-like bubble width
+    final double bubbleWidth =
+        screenWidth < 600 ? screenWidth * 0.72 : screenWidth * 0.5;
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: bubbleWidth),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: _buildLayout(context),
+        child: SizedBox(),
       ),
     );
   }
 
-  bool _isVideo(String url) {
-    final lower = url.toLowerCase();
-    return lower.contains('.mp4') ||
-        lower.contains('.mov') ||
-        lower.contains('.mkv') ||
-        lower.contains('.avi') ||
-        lower.contains('.webm') ||
-        lower.contains('video');
-  }
+  // --------------------------------------------------
 
   Widget _buildLayout(BuildContext context) {
-    int count = mediaUrls.length;
+    final count = mediaUrls.length;
 
     if (count == 1) {
-      return _buildSingleMedia(context, 0);
-    } else if (count == 2) {
-      return Container(
-        decoration: BoxDecoration(
-          border: Border.all(width: 3, color: senderColor),
-        ),
+      return AspectRatio(
+        aspectRatio: 1,
+        child: _mediaTile(context, 0),
+      );
+    }
+
+    if (count == 2) {
+      return AspectRatio(
+        aspectRatio: 2 / 1,
         child: Row(
           children: [
-            Expanded(child: _buildSingleMedia(context, 0, height: 150)),
-            const SizedBox(width: 0),
-            Expanded(child: _buildSingleMedia(context, 1, height: 150)),
+            Expanded(child: _mediaTile(context, 0)),
+            const SizedBox(width: 2),
+            Expanded(child: _mediaTile(context, 1)),
           ],
         ),
       );
-    } else if (count == 3) {
-      return Container(
-        child: Column(
+    }
+
+    if (count == 3) {
+      return AspectRatio(
+        aspectRatio: 3 / 2,
+        child: Row(
           children: [
-            _buildSingleMedia(context, 0, height: 120, width: double.infinity),
-            const SizedBox(height: 0),
-            Row(
-              children: [
-                Expanded(child: _buildSingleMedia(context, 1, height: 100)),
-                const SizedBox(width: 0),
-                Expanded(child: _buildSingleMedia(context, 2, height: 100)),
-              ],
-            ),
-          ],
-        ),
-      );
-    } else {
-      // 4 or more media - 2x2 grid with overflow count
-      return Container(
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Expanded(child: _buildSingleMedia(context, 0, height: 140)),
-                const SizedBox(width: 0),
-                Expanded(child: _buildSingleMedia(context, 1, height: 140)),
-              ],
-            ),
-            const SizedBox(height: 0),
-            Row(
-              children: [
-                Expanded(child: _buildSingleMedia(context, 2, height: 140)),
-                const SizedBox(width: 0),
-                Expanded(
-                  child: count > 4
-                      ? Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            _buildSingleMedia(context, 3, height: 140),
-                            Positioned.fill(
-                              child: Container(
-                                color: Colors.black54,
-                                child: Center(
-                                  child: Text(
-                                    "+${count - 4}",
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        )
-                      : _buildSingleMedia(context, 3, height: 140),
-                ),
-              ],
+            Expanded(child: _mediaTile(context, 0)),
+            const SizedBox(width: 2),
+            Expanded(
+              child: Column(
+                children: [
+                  Expanded(child: _mediaTile(context, 1)),
+                  const SizedBox(height: 2),
+                  Expanded(child: _mediaTile(context, 2)),
+                ],
+              ),
             ),
           ],
         ),
       );
     }
+
+    // 4 or more
+    return AspectRatio(
+      aspectRatio: 1,
+      child: Column(
+        children: [
+          Expanded(
+            child: Row(
+              children: [
+                Expanded(child: _mediaTile(context, 0)),
+                const SizedBox(width: 2),
+                Expanded(child: _mediaTile(context, 1)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 2),
+          Expanded(
+            child: Row(
+              children: [
+                Expanded(child: _mediaTile(context, 2)),
+                const SizedBox(width: 2),
+                Expanded(
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      _mediaTile(context, 3),
+                      if (mediaUrls.length > 4)
+                        Container(
+                          color: Colors.black54,
+                          alignment: Alignment.center,
+                          child: Text(
+                            '+${mediaUrls.length - 4}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
-  Widget _buildSingleMedia(BuildContext context, int index,
-      {double? height, double? width}) {
-    final mediaPath = mediaUrls[index];
-    final isLocal =
-        mediaPath.startsWith('/') || mediaPath.startsWith('file://');
-    final isVideo = _isVideo(mediaPath);
+  // --------------------------------------------------
+
+  Widget _mediaTile(BuildContext context, int index) {
+    final path = mediaUrls[index];
+    final isVideo = _isVideo(path);
+    final isLocal = path.startsWith('/') || path.startsWith('file://');
 
     return GestureDetector(
       onTap: () => onMediaTap?.call(index),
       child: Container(
         decoration: BoxDecoration(
-          border: Border.all(width: 5, color: senderColor),
+          border: Border.all(width: 2, color: senderColor),
         ),
-        height: height,
-        width: width,
-        child: isVideo
-            ? _buildVideoThumbnail(mediaPath, isLocal)
-            : _buildImage(mediaPath, isLocal),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            isVideo
+                ? _buildVideoThumbnail(path)
+                : _buildImage(path, isLocal),
+            if (isVideo)
+              const Center(
+                child: Icon(
+                  Icons.play_circle_fill,
+                  color: Colors.white,
+                  size: 36,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildVideoThumbnail(String videoPath, bool isLocal) {
+  // --------------------------------------------------
+
+  bool _isVideo(String url) {
+    final lower = url.toLowerCase();
+    return lower.endsWith('.mp4') ||
+        lower.endsWith('.mov') ||
+        lower.endsWith('.mkv') ||
+        lower.endsWith('.avi') ||
+        lower.contains('video');
+  }
+
+  Widget _buildVideoThumbnail(String videoPath) {
     return FutureBuilder<File?>(
       future: VideoThumbUtil.generateFromUrl(videoPath),
       builder: (context, snapshot) {
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            // Video thumbnail or placeholder
-            if (snapshot.connectionState == ConnectionState.done &&
-                snapshot.data != null)
-              Image.file(
-                snapshot.data!,
-                fit: BoxFit.cover,
-              )
-            else if (snapshot.connectionState == ConnectionState.waiting)
-              Container(
-                color: Colors.grey[200],
-                child: const Center(
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              )
-            else
-              Container(
-                color: Colors.grey[300],
-                child: const Icon(Icons.videocam, color: Colors.grey, size: 40),
-              ),
-            // Play icon overlay
-            Center(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.black45,
-                  shape: BoxShape.circle,
-                ),
-                padding: const EdgeInsets.all(12),
-                child: const Icon(
-                  Icons.play_arrow,
-                  color: Colors.white,
-                  size: 30,
-                ),
-              ),
-            ),
-          ],
+        if (snapshot.hasData) {
+          return Image.file(snapshot.data!, fit: BoxFit.cover);
+        }
+        return Container(
+          color: Colors.black26,
+          alignment: Alignment.center,
+          child: const CircularProgressIndicator(strokeWidth: 2),
         );
       },
     );
@@ -195,24 +193,14 @@ class GroupedMediaWidget extends StatelessWidget {
         ? Image.file(
             File(imagePath.replaceFirst('file://', '')),
             fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => Container(
-              color: Colors.grey[300],
-              child: const Icon(Icons.broken_image, color: Colors.grey),
-            ),
           )
         : CachedNetworkImage(
             imageUrl: imagePath,
             fit: BoxFit.cover,
-            placeholder: (context, url) => Container(
-              color: Colors.grey[200],
-              child: const Center(
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
-            errorWidget: (context, url, error) => Container(
-              color: Colors.grey[300],
-              child: const Icon(Icons.broken_image, color: Colors.grey),
-            ),
+            placeholder: (_, __) =>
+                Container(color: Colors.grey.shade200),
+            errorWidget: (_, __, ___) =>
+                const Icon(Icons.broken_image),
           );
   }
 }

@@ -457,7 +457,7 @@ class ShowAltDialog {
         'message_id': 'temp_${DateTime.now().millisecondsSinceEpoch}',
         'sender': {'_id': senderId},
         'receiver': {'_id': receiverId},
-        'messageStatus': 'pending',
+        'messageStatus': 'sent',
         'time': DateTime.now().toIso8601String(),
 
         // image / video flags

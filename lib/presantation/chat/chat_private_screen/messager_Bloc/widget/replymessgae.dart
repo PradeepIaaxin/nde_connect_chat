@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
 
 import '../../../../../utils/reusbale/common_import.dart';
 import 'VideoCacheService.dart';
@@ -33,9 +34,11 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
     super.initState();
     _replied = Map<String, dynamic>.from(widget.replied);
   }
-
+   Widget? trailingThumb;
   @override
   Widget build(BuildContext context) {
+  
+    const double thumbSize = 70;
     final replyContent =
     (_replied['replyContent'] ?? _replied['content'] ?? '').toString();
 
@@ -62,8 +65,9 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
     if (replyContent.isEmpty && mediaUrl.isEmpty) {
       return const SizedBox.shrink();
     }
-
-    Widget buildThumb() {
+   
+print("urrrrrrrrrrrrrr $mediaUrl");
+    Widget? buildThumb() {
       /// ✅ IMAGE
       if (isImage) {
         return CachedNetworkImage(
@@ -76,21 +80,54 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
         );
       }
 
-      /// ✅ VIDEO (SAFE PLACEHOLDER)
-      if (isVideo) {
-        return Container(
-          color: Colors.black26,
-          child: const Center(
-            child: Icon(
-              Icons.play_circle_fill,
-              color: Colors.white,
-              size: 28,
-            ),
-          ),
-        );
-      }
+    if (isVideo) {
+      trailingThumb = SizedBox(
+        width: thumbSize,
+        height: thumbSize,
+        child: FutureBuilder<File?>(
+          future: VideoThumbUtil.generateFromUrl(mediaUrl),
+          builder: (context, snapshot) {
+            final thumbFile = snapshot.data;
+            if (thumbFile == null) {
+              return ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  color: Colors.black26,
+                  child:  Center(
+                    child: Container(color: Colors.grey,),
+                  ),
+                ),
+              );
+            }
+print("thummmm $trailingThumb");
+            if (thumbFile != null && thumbFile.existsSync()) {
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.file(
+                      thumbFile,
+                      width: thumbSize,
+                      height: thumbSize,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  const Icon(
+                    Icons.play_circle_fill,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                ],
+              );
+            }
 
-      return const SizedBox.shrink();
+            return Text("hiii");
+          },
+        ),
+      );
+    } 
+    return trailingThumb;
     }
 
     return GestureDetector(
