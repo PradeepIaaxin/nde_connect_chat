@@ -248,7 +248,7 @@ class _MessageInputFieldState extends State<MessageInputField> {
    final String firstName =
     widget.replyText?['receiver']?['first_name']?.toString() ?? "";
     final String lastName = widget.replyText?['receiver']?['last_name'].toString()??"";
-    final bool isSendMe = widget.replyText?['isSendMe'];
+    final bool isSendMe = widget.replyText?['isSendMe'] ?? false;
 print("hhhhhhhhhhhhhhhhhhhhh $isSendMe");
     // Type label like WhatsApp
     // Type label like WhatsApp
