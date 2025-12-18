@@ -2,6 +2,7 @@ import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:nde_email/data/respiratory.dart';
+import 'package:nde_email/presantation/chat/Socket/Socket_Service.dart';
 import 'package:nde_email/presantation/chat/chat_list/chat_session_storage/chat_session.dart';
 
 class ProfileDialog extends StatefulWidget {
@@ -43,6 +44,7 @@ class _ProfileDialogState extends State<ProfileDialog> {
   }
 
   Future<void> _logout(BuildContext context) async {
+     SocketService().disconnect();
     await UserPreferences.logout(context);
     ChatSessionStorage.clear();
   }

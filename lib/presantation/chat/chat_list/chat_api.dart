@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:developer';
 import 'package:http/http.dart' as http;
 import 'package:nde_email/data/respiratory.dart';
+import 'package:nde_email/presantation/chat/chat_list/chat_session_storage/chat_session.dart';
 import 'package:nde_email/presantation/login/login_screen.dart';
 import 'package:nde_email/rust/api.dart/api.dart';
 import 'package:nde_email/utils/router/router.dart';
@@ -169,14 +170,15 @@ class ChatListApiService {
         log("📥 Received Loro Snapshot. Decoding using Rust...");
 
         final chats = await decodeChatsFromLoro(snapshotBase64);
-        // log(chats.map((e) => e.toJson()).toList().toString());
+        ChatSessionStorage.clear();
+        ChatSessionStorage.saveChatList(chats);
+
         return chats;
       }
 
       // BACKUP: If normal JSON array is sent instead of snapshot
       final List<dynamic> chatJson = jsonData["data"] ?? [];
       final chats = chatJson.map((e) => Datu.fromJson(e)).toList();
-      log(chatJson.toString());
 
       return chats;
     } else if (response.statusCode == 401) {
