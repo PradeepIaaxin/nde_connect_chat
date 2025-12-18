@@ -115,7 +115,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
         final cached = ChatSessionStorage.getChatList();
         if (cached.isNotEmpty) {
           _allChats = List.from(cached);
-          context.read<ChatListBloc>().add(SetLocalChatList(chats: cached));
+          // context.read<ChatListBloc>().add(SetLocalChatList(chats: cached));
           context.read<ChatListBloc>().add(FetchChatList(page: 1, limit: 20));
         } else {
           context.read<ChatListBloc>().add(FetchChatList(page: 1, limit: 20));
@@ -124,15 +124,14 @@ class _ChatListScreenState extends State<ChatListScreen> {
     });
   }
 
+  void _updateLocalPin(String convoId, bool newStatus) {
+    final chat = ChatSessionStorage.getChatList()
+        .firstWhere((c) => c.id == convoId || c.conversationId == convoId);
 
-void _updateLocalPin(String convoId, bool newStatus) {
-  final chat = ChatSessionStorage.getChatList()
-      .firstWhere((c) => c.id == convoId || c.conversationId == convoId);
+    chat.isPinned = newStatus;
 
-  chat.isPinned = newStatus;
-
-  context.read<ChatListBloc>().add(UpdateLocalChatList());
-}
+    context.read<ChatListBloc>().add(UpdateLocalChatList());
+  }
 
   // void _updateLocalPin(String convoId, bool newStatus) {
   //   final list = ChatSessionStorage.getChatList().map((chat) {
@@ -144,15 +143,14 @@ void _updateLocalPin(String convoId, bool newStatus) {
   //   context.read<ChatListBloc>().add(UpdateLocalChatList());
   // }
 
+  void _updateLocalArchive(String convoId, bool newStatus) {
+    final chat = ChatSessionStorage.getChatList()
+        .firstWhere((c) => c.id == convoId || c.conversationId == convoId);
 
-void _updateLocalArchive(String convoId, bool newStatus) {
-  final chat = ChatSessionStorage.getChatList()
-      .firstWhere((c) => c.id == convoId || c.conversationId == convoId);
+    chat.isArchived = newStatus;
 
-  chat.isArchived = newStatus;
-
-  context.read<ChatListBloc>().add(UpdateLocalChatList());
-}
+    context.read<ChatListBloc>().add(UpdateLocalChatList());
+  }
 
   // void _updateLocalArchive(String convoId, bool newStatus) {
   //   final list = ChatSessionStorage.getChatList().map((chat) {
@@ -615,7 +613,6 @@ void _updateLocalArchive(String convoId, bool newStatus) {
               IconButton(
                 icon: const Icon(Icons.delete_outline, color: Colors.black),
                 onPressed: () {
-                  // TODO: Implement delete functionality
                   _clearSelection();
                 },
               ),
@@ -649,7 +646,7 @@ void _updateLocalArchive(String convoId, bool newStatus) {
           ],
           bottom: PreferredSize(
             preferredSize: Size.fromHeight(
-              (_showAdBanner ? 70 : 0) + (!_hasInternet ? 60 : 0) + 56,
+              (_showAdBanner ? 100 : 0) + (!_hasInternet ? 70 : 0) + 56,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
