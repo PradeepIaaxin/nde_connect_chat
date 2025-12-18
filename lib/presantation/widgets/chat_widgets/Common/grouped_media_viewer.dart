@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
+import 'package:nde_email/utils/const/consts.dart';
 import '../../../chat/chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
 
 class GroupedMediaWidget extends StatelessWidget {
@@ -48,13 +49,13 @@ class GroupedMediaWidget extends StatelessWidget {
         width: bubbleWidth,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(_radius),
-          border: Border.all(color: Colors.blue, width: 2),
-          color: Colors.grey.shade300,
+          border: Border.all(color: isSentByMe?senderColor:receiverColor, width: 2),
+          color:  isSentByMe?senderColor:receiverColor,
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: [
+          children: [ 
             // 🔹 MEDIA AREA
             AspectRatio(
               aspectRatio: _aspectRatio(visibleCount),
@@ -65,8 +66,8 @@ class GroupedMediaWidget extends StatelessWidget {
             Container(
               height: _statusBarHeight,
               padding: const EdgeInsets.symmetric(horizontal: 8),
-              decoration: const BoxDecoration(
-                color: Colors.blue,
+              decoration:  BoxDecoration(
+                color: isSentByMe?senderColor:receiverColor,
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -116,7 +117,7 @@ class GroupedMediaWidget extends StatelessWidget {
           Expanded(child: _tile(context, 0)),
            Container(
         width: 4,
-        color: Colors.blue, // divider line
+        color: isSentByMe?senderColor:receiverColor, // divider line
       ),
           Expanded(child: _tile(context, 1)),
         ],
@@ -221,33 +222,66 @@ class GroupedMediaWidget extends StatelessWidget {
             child: _thumb(item),
           ),
           if (item.isVideo)
-            const Center(
+             Center(
               child: Icon(Icons.play_circle_fill,
-                  size: 36, color: Colors.white),
+                  size: 36, color: Colors.grey.shade300),
             ),
         ],
       ),
     );
   }
+bool _isLocalPath(String url) {
+  return url.startsWith('/') || url.startsWith('file://');
+}
 
   Widget _thumb(GroupMediaItem item) {
-    if (!item.isVideo) {
-      return CachedNetworkImage(
-        imageUrl: item.previewUrl,
+  // ---------- IMAGE ----------
+  if (!item.isVideo) {
+    final String url = item.previewUrl;
+
+    // ✅ LOCAL IMAGE
+    if (_isLocalPath(url)) {
+      return Image.file(
+        File(url.replaceFirst('file://', '')),
         fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) =>
+            const Icon(Icons.broken_image),
       );
     }
 
-    return FutureBuilder<File?>(
-      future: VideoThumbUtil.generateFromUrl(item.mediaUrl),
-      builder: (_, snap) {
-        if (snap.hasData && snap.data!.existsSync()) {
-          return Image.file(snap.data!, fit: BoxFit.cover);
-        }
-        return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-      },
+    // ✅ NETWORK IMAGE
+    return CachedNetworkImage(
+      imageUrl: url,
+      fit: BoxFit.cover,
+      placeholder: (_, __) =>
+          Container(color: Colors.grey.shade300),
+      errorWidget: (_, __, ___) =>
+          const Icon(Icons.broken_image),
     );
   }
+
+  // ---------- VIDEO ----------
+  return FutureBuilder<File?>(
+    future: VideoThumbUtil.generateFromUrl(item.mediaUrl),
+    builder: (_, snap) {
+      if (snap.connectionState == ConnectionState.done &&
+          snap.hasData &&
+          snap.data!.existsSync()) {
+        return Image.file(
+          snap.data!,
+          fit: BoxFit.cover,
+        );
+      }
+
+      return Container(
+        color: Colors.black26,
+        alignment: Alignment.center,
+        child: const CircularProgressIndicator(strokeWidth: 2),
+      );
+    },
+  );
+}
+
 }
 
 class GroupMediaItem {
