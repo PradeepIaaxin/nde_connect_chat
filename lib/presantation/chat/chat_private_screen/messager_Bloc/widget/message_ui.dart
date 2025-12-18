@@ -142,14 +142,20 @@ class MessageBubble extends StatelessWidget {
                       : isSelected
                       ? selectedMessageColor
                       : (isSentByMe ? sentMessageColor : receivedMessageColor),
-                  borderRadius: isReply
-                      ? null
-                      : BorderRadius.only(
-                    topLeft: isSentByMe ? Radius.zero : const Radius.circular(18),
-                    topRight: isSentByMe ? const Radius.circular(18) : Radius.zero,
-                    bottomLeft: isSentByMe ? const Radius.circular(18) : Radius.zero,
-                    bottomRight: isSentByMe ? Radius.zero : const Radius.circular(16),
-                  ),
+                 borderRadius: BorderRadius.only(
+                                  topLeft: isSentByMe
+                                      ? const Radius.circular(18)
+                                      : const Radius.circular(18),
+                                  topRight: isSentByMe
+                                      ? const Radius.circular(18)
+                                      : const Radius.circular(18),
+                                  bottomLeft: isSentByMe
+                                      ? const Radius.circular(18)
+                                      : Radius.zero,
+                                  bottomRight: isSentByMe
+                                      ? Radius.zero
+                                      : const Radius.circular(16),
+                                ),
                   border: isSelected ? Border.all(color: borderColor, width: 2) : null,
 
                 ),
