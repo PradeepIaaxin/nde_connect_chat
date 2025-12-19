@@ -23,6 +23,7 @@ class GroupedMediaViewer extends StatefulWidget {
 class _GroupedMediaViewerState extends State<GroupedMediaViewer> {
   late PageController _pageController;
   late int _currentIndex;
+  bool _showUI = true;
 
   @override
   void initState() {
@@ -64,17 +65,26 @@ class _GroupedMediaViewerState extends State<GroupedMediaViewer> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: Text(
-          "${_currentIndex + 1} / ${widget.mediaUrls.length}",
-          style: const TextStyle(color: Colors.white),
-        ),
-      ),
-      body: Column(
+      extendBodyBehindAppBar: true,
+      appBar: _showUI
+          ? AppBar(
+              backgroundColor: Colors.black.withOpacity(0.5),
+              elevation: 0,
+              iconTheme: const IconThemeData(color: Colors.white),
+              title: Text(
+                "${_currentIndex + 1} / ${widget.mediaUrls.length}",
+                style: const TextStyle(color: Colors.white),
+              ),
+            )
+          : null,
+      body: Stack(
         children: [
-          Expanded(
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _showUI = !_showUI;
+              });
+            },
             child: PhotoViewGallery.builder(
               scrollPhysics: const BouncingScrollPhysics(),
               builder: (BuildContext context, int index) {
@@ -158,76 +168,86 @@ class _GroupedMediaViewerState extends State<GroupedMediaViewer> {
               },
             ),
           ),
-          SizedBox(
-            height: 80,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: widget.mediaUrls.length,
-              itemBuilder: (context, index) {
-                final mediaUrl = widget.mediaUrls[index];
-                final isVideo = _isVideo(mediaUrl);
+          if (_showUI)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                color: Colors.black.withOpacity(0.5),
+                padding: const EdgeInsets.only(bottom: 20, top: 10),
+                child: SizedBox(
+                  height: 80,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: widget.mediaUrls.length,
+                    itemBuilder: (context, index) {
+                      final mediaUrl = widget.mediaUrls[index];
+                      final isVideo = _isVideo(mediaUrl);
 
-                return GestureDetector(
-                  onTap: () {
-                    _pageController.jumpToPage(index);
-                  },
-                  child: Container(
-                    margin: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      border: _currentIndex == index
-                          ? Border.all(color: Colors.white, width: 2)
-                          : null,
-                    ),
-                    child: Stack(
-                      children: [
-                        // Thumbnail
-                        if (isVideo)
-                          FutureBuilder<File?>(
-                            future: VideoThumbUtil.generateFromUrl(mediaUrl),
-                            builder: (context, snapshot) {
-                              if (snapshot.data != null) {
-                                return Image.file(
-                                  snapshot.data!,
+                      return GestureDetector(
+                        onTap: () {
+                          _pageController.jumpToPage(index);
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            border: _currentIndex == index
+                                ? Border.all(color: Colors.white, width: 2)
+                                : null,
+                          ),
+                          child: Stack(
+                            children: [
+                              // Thumbnail
+                              if (isVideo)
+                                FutureBuilder<File?>(
+                                  future:
+                                      VideoThumbUtil.generateFromUrl(mediaUrl),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.data != null) {
+                                      return Image.file(
+                                        snapshot.data!,
+                                        width: 60,
+                                        height: 60,
+                                        fit: BoxFit.cover,
+                                      );
+                                    }
+                                    return Container(
+                                      width: 60,
+                                      height: 60,
+                                      color: Colors.grey[800],
+                                      child: const Icon(Icons.videocam,
+                                          color: Colors.grey),
+                                    );
+                                  },
+                                )
+                              else
+                                CachedNetworkImage(
+                                  imageUrl: mediaUrl,
                                   width: 60,
                                   height: 60,
                                   fit: BoxFit.cover,
-                                );
-                              }
-                              return Container(
-                                width: 60,
-                                height: 60,
-                                color: Colors.grey[800],
-                                child: const Icon(Icons.videocam,
-                                    color: Colors.grey),
-                              );
-                            },
-                          )
-                        else
-                          CachedNetworkImage(
-                            imageUrl: mediaUrl,
-                            width: 60,
-                            height: 60,
-                            fit: BoxFit.cover,
+                                ),
+                              // Play icon for videos
+                              if (isVideo)
+                                Positioned.fill(
+                                  child: Center(
+                                    child: Icon(
+                                      Icons.play_circle_outline,
+                                      color: Colors.white,
+                                      size: 24,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
-                        // Play icon for videos
-                        if (isVideo)
-                          Positioned.fill(
-                            child: Center(
-                              child: Icon(
-                                Icons.play_circle_outline,
-                                color: Colors.white,
-                                size: 24,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
+                ),
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
         ],
       ),
     );

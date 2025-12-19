@@ -1005,6 +1005,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     return {
       'message_id': messageId,
+      'messageId': messageId,
       'content': content,
       'userName': userName,
       'sender': message['sender'],
@@ -1014,12 +1015,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       'imageUrl': imageUrl,
       'fileName': fileName,
       'ContentType': contentType,
+      'contentType': contentType,
       'fileUrl': fileUrl,
       'fileType': fileType,
       'isForwarded': isForwarded,
       'isReplyMessage': isReplyMessage,
       'repliedMessage': normalizedReply,
-      'reactions': normalizedReactions, // ✅ Use normalized list
+      'reactions': normalizedReactions,
       'profile_pic_path': profilePic,
     };
   }
@@ -1030,40 +1032,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   void _showFullImage(BuildContext context, String imageUrl) {
     log(imageUrl);
-    showDialog(
-      context: context,
-      builder: (_) => Dialog(
-        backgroundColor: Colors.black,
-        insetPadding: const EdgeInsets.all(10),
-        child: GestureDetector(
-          onTap: () => Navigator.pop(context),
-          child: InteractiveViewer(
-            panEnabled: true,
-            minScale: 0.8,
-            maxScale: 4,
-            child: imageUrl.startsWith('https')
-                ? Image.network(
-                    imageUrl,
-                    fit: BoxFit.cover,
-                    filterQuality: FilterQuality.high,
-                    errorBuilder: (context, error, stackTrace) => const Center(
-                      child: Text("Failed to load image",
-                          style: TextStyle(color: Colors.white)),
-                    ),
-                  )
-                : Image.file(
-                    File(imageUrl),
-                    fit: BoxFit.cover,
-                    filterQuality: FilterQuality.high,
-                    errorBuilder: (context, error, stackTrace) => const Center(
-                      child: Text("Failed to load image",
-                          style: TextStyle(color: Colors.white)),
-                    ),
-                  ),
-          ),
-        ),
-      ),
-    );
+    ImageViewer.show(context, imageUrl);
   }
 
   IconData _getFileIcon(String? fileType) {
@@ -1657,7 +1626,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       screen: ForwardMessageScreen(
         messages: _selectedMessages.toList(),
         currentUserId: currentUserId,
-        conversionalid: "",
+        conversionalid: widget.conversationId,
         username: widget.groupName,
       ),
     );
@@ -2302,23 +2271,24 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.only(right: 20, top: 8, bottom: 8),
         decoration: BoxDecoration(
-          color: Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(10),
-        ),
+            color: const Color.fromARGB(255, 231, 235, 249),
+            borderRadius: BorderRadius.circular(10),
+            border:
+                Border(left: BorderSide(color: Colors.blueAccent, width: 5))),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             // left colored bar
-            Container(
-              width: 3,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade600,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
+            // Container(
+            //   width: 3,
+            //   height: 40,
+            //   decoration: BoxDecoration(
+            //     color: const Color.fromARGB(255, 51, 125, 253),
+            //     borderRadius: BorderRadius.circular(4),
+            //   ),
+            // ),
             const SizedBox(width: 8),
 
             // TEXT PART
@@ -2673,6 +2643,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                             }
 
                             List<String> groupImages = [];
+                            List<Map<String, dynamic>> groupMessagesList = [];
                             for (int i = realIndex;
                                 i < combinedMessages.length;
                                 i++) {
@@ -2680,6 +2651,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                               final nextGrpId =
                                   nextMsg['group_message_id']?.toString();
                               if (nextGrpId == groupMessageId) {
+                                final normalizedNext =
+                                    normalizeMessage(nextMsg);
+                                groupMessagesList.add(normalizedNext);
                                 final mediaUrl =
                                     nextMsg['originalUrl']?.toString() ??
                                         nextMsg['fileUrl']?.toString() ??
@@ -2696,6 +2670,16 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                             }
 
                             if (groupImages.isNotEmpty) {
+                              final String userName = message['userName'] ?? "";
+                              final senderData = message['sender'] is Map
+                                  ? message['sender']
+                                  : {};
+                              final String profileImageUrl =
+                                  senderData['profile_pic_path']?.toString() ??
+                                      senderData['profilePic']?.toString() ??
+                                      senderData['avatar']?.toString() ??
+                                      message['profile_pic_path']?.toString() ??
+                                      "";
                               return _hasLeftGroup
                                   ? SizedBox()
                                   : Column(
@@ -2713,109 +2697,248 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                             alignment: isSentByMe
                                                 ? Alignment.centerRight
                                                 : Alignment.centerLeft,
-                                            child: ConstrainedBox(
-                                              constraints: BoxConstraints(
-                                                maxWidth: MediaQuery.of(context)
-                                                        .size
-                                                        .width *
-                                                    0.75,
-                                              ),
-                                              child: Stack(
-                                                children: [
-                                                  GroupedMediaWidget(
-                                                    mediaUrls: groupImages,
-                                                    onMediaTap: (index) {
-                                                      Navigator.push(
-                                                        context,
-                                                        MaterialPageRoute(
-                                                          builder: (_) =>
-                                                              GroupedMediaViewer(
-                                                            mediaUrls:
-                                                                groupImages,
-                                                            initialIndex: index,
-                                                          ),
-                                                        ),
-                                                      );
-                                                    },
-                                                  ),
-                                                  Positioned(
-                                                    bottom: 5,
-                                                    right: 5,
-                                                    child: Container(
-                                                      padding: const EdgeInsets
-                                                          .symmetric(
-                                                          horizontal: 6,
-                                                          vertical: 2),
-                                                      decoration: BoxDecoration(
-                                                        color: Colors.black
-                                                            .withOpacity(0.45),
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(8),
+                                            child: Stack(
+                                              clipBehavior: Clip.none,
+                                              children: [
+                                                Padding(
+                                                  padding: EdgeInsets.only(
+                                                      left:
+                                                          isSentByMe ? 0 : 36),
+                                                  child: Container(
+                                                    padding:
+                                                        const EdgeInsets.all(7),
+                                                    constraints: BoxConstraints(
+                                                      maxWidth:
+                                                          MediaQuery.of(context)
+                                                                  .size
+                                                                  .width *
+                                                              0.75,
+                                                    ),
+                                                    decoration: BoxDecoration(
+                                                      color: isSentByMe
+                                                          ? senderColor
+                                                          : receiverColor,
+                                                      borderRadius:
+                                                          BorderRadius.only(
+                                                        topLeft: const Radius
+                                                            .circular(18),
+                                                        topRight: const Radius
+                                                            .circular(18),
+                                                        bottomLeft: isSentByMe
+                                                            ? const Radius
+                                                                .circular(18)
+                                                            : Radius.zero,
+                                                        bottomRight: isSentByMe
+                                                            ? Radius.zero
+                                                            : const Radius
+                                                                .circular(16),
                                                       ),
-                                                      child: Row(
-                                                        mainAxisSize:
-                                                            MainAxisSize.min,
-                                                        children: [
-                                                          Text(
-                                                            TimeUtils
-                                                                .formatUtcToIst(
-                                                                    message[
-                                                                        'time']),
-                                                            style:
-                                                                const TextStyle(
-                                                                    fontSize:
-                                                                        10,
-                                                                    color: Colors
-                                                                        .white),
+                                                      boxShadow: [
+                                                        BoxShadow(
+                                                          color: Colors.black
+                                                              .withOpacity(
+                                                                  0.05),
+                                                          blurRadius: 4,
+                                                          offset: const Offset(
+                                                              0, 2),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      children: [
+                                                        if (!isSentByMe &&
+                                                            userName.isNotEmpty)
+                                                          Padding(
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .only(
+                                                                    bottom:
+                                                                        4.0),
+                                                            child: Text(
+                                                              userName,
+                                                              style: TextStyle(
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                                color: ColorUtil
+                                                                    .getColorFromAlphabet(
+                                                                        userName),
+                                                                fontSize: 14,
+                                                              ),
+                                                            ),
                                                           ),
-                                                          if (isSentByMe) ...[
-                                                            const SizedBox(
-                                                                width: 4),
-                                                            Builder(builder:
-                                                                (context) {
-                                                              final status =
-                                                                  message['messageStatus']
-                                                                          ?.toString() ??
-                                                                      'sent';
-                                                              switch (status) {
-                                                                case 'sent':
-                                                                  return const Icon(
-                                                                      Icons
-                                                                          .check,
-                                                                      size: 12,
-                                                                      color: Colors
-                                                                          .white);
-                                                                case 'delivered':
-                                                                  return const Icon(
-                                                                      Icons
-                                                                          .done_all_rounded,
-                                                                      size: 12,
-                                                                      color: Colors
-                                                                          .white);
-                                                                case 'read':
-                                                                  return const Icon(
-                                                                      Icons
-                                                                          .done_all,
-                                                                      size: 12,
-                                                                      color: Colors
-                                                                          .blueAccent);
-                                                                default:
-                                                                  return const Icon(
-                                                                      Icons
-                                                                          .access_time,
-                                                                      size: 12,
-                                                                      color: Colors
-                                                                          .white);
-                                                              }
-                                                            }),
+                                                        Stack(
+                                                          children: [
+                                                            GroupedMediaWidget(
+                                                              mediaUrls:
+                                                                  groupImages,
+                                                              onMediaTap:
+                                                                  (index) {
+                                                                Navigator.push(
+                                                                  context,
+                                                                  MaterialPageRoute(
+                                                                    builder: (_) =>
+                                                                        GroupedMediaViewer(
+                                                                      mediaUrls:
+                                                                          groupImages,
+                                                                      initialIndex:
+                                                                          index,
+                                                                    ),
+                                                                  ),
+                                                                );
+                                                              },
+                                                            ),
+                                                            Positioned(
+                                                              bottom: 5,
+                                                              right: 5,
+                                                              child: Container(
+                                                                padding: const EdgeInsets
+                                                                    .symmetric(
+                                                                    horizontal:
+                                                                        6,
+                                                                    vertical:
+                                                                        2),
+                                                                decoration:
+                                                                    BoxDecoration(
+                                                                  color: Colors
+                                                                      .black
+                                                                      .withOpacity(
+                                                                          0.45),
+                                                                  borderRadius:
+                                                                      BorderRadius
+                                                                          .circular(
+                                                                              8),
+                                                                ),
+                                                                child: Row(
+                                                                  mainAxisSize:
+                                                                      MainAxisSize
+                                                                          .min,
+                                                                  children: [
+                                                                    Text(
+                                                                      TimeUtils.formatUtcToIst(
+                                                                          message[
+                                                                              'time']),
+                                                                      style: const TextStyle(
+                                                                          fontSize:
+                                                                              10,
+                                                                          color:
+                                                                              Colors.white),
+                                                                    ),
+                                                                    if (isSentByMe) ...[
+                                                                      const SizedBox(
+                                                                          width:
+                                                                              4),
+                                                                      Builder(builder:
+                                                                          (context) {
+                                                                        final status =
+                                                                            message['messageStatus']?.toString() ??
+                                                                                'sent';
+                                                                        switch (
+                                                                            status) {
+                                                                          case 'sent':
+                                                                            return const Icon(Icons.check,
+                                                                                size: 12,
+                                                                                color: Colors.white);
+                                                                          case 'delivered':
+                                                                            return const Icon(Icons.done_all_rounded,
+                                                                                size: 12,
+                                                                                color: Colors.white);
+                                                                          case 'read':
+                                                                            return const Icon(Icons.done_all,
+                                                                                size: 12,
+                                                                                color: Colors.blueAccent);
+                                                                          default:
+                                                                            return const Icon(Icons.access_time,
+                                                                                size: 12,
+                                                                                color: Colors.white);
+                                                                        }
+                                                                      }),
+                                                                    ],
+                                                                  ],
+                                                                ),
+                                                              ),
+                                                            ),
                                                           ],
-                                                        ],
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                                if (!isSentByMe)
+                                                  Positioned(
+                                                    left: 2,
+                                                    top: 10,
+                                                    child: CircleAvatar(
+                                                      radius: 16,
+                                                      backgroundColor:
+                                                          Colors.transparent,
+                                                      child: ClipOval(
+                                                        child: profileImageUrl
+                                                                .isNotEmpty
+                                                            ? CachedNetworkImage(
+                                                                imageUrl:
+                                                                    profileImageUrl,
+                                                                fit: BoxFit
+                                                                    .cover,
+                                                                width: 32,
+                                                                height: 32,
+                                                                errorWidget: (context,
+                                                                        url,
+                                                                        error) =>
+                                                                    _buildAvatarWithInitial(
+                                                                        userName),
+                                                              )
+                                                            : _buildAvatarWithInitial(
+                                                                userName),
                                                       ),
                                                     ),
                                                   ),
-                                                ],
-                                              ),
+                                                // Positioned(
+                                                //   top: 0,
+                                                //   bottom: 0,
+                                                //   left: isSentByMe ? -60 : null,
+                                                //   right:
+                                                //       isSentByMe ? null : -60,
+                                                //   child: Center(
+                                                //     child: Material(
+                                                //       color: Colors.transparent,
+                                                //       child: InkWell(
+                                                //         borderRadius:
+                                                //             BorderRadius
+                                                //                 .circular(20),
+                                                //         onTap: () {
+                                                //           MyRouter.pushReplace(
+                                                //             screen:
+                                                //                 ForwardMessageScreen(
+                                                //               messages:
+                                                //                   groupMessagesList,
+                                                //               currentUserId:
+                                                //                   currentUserId,
+                                                //               conversionalid: widget
+                                                //                   .conversationId,
+                                                //               username: widget
+                                                //                   .groupName,
+                                                //             ),
+                                                //           );
+                                                //         },
+                                                //         child: CircleAvatar(
+                                                //           maxRadius: 16,
+                                                //           backgroundColor:
+                                                //               Colors.white,
+                                                //           child: Image.asset(
+                                                //             "assets/images/forward.png",
+                                                //             height: 20,
+                                                //             width: 20,
+                                                //           ),
+                                                //         ),
+                                                //       ),
+                                                //     ),
+                                                //   ),
+                                                // ),
+                                              ],
                                             ),
                                           ),
                                         ),
@@ -2856,7 +2979,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                   margin:
                                       const EdgeInsets.symmetric(vertical: 2),
                                   color: isHighlighted
-                                      ? Colors.yellow.withOpacity(0.25)
+                                      ? Colors.blueAccent.withOpacity(0.1)
                                       : Colors.transparent,
                                   child: Column(
                                     crossAxisAlignment: isSentByMe
@@ -2889,6 +3012,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       width: 260,
       margin: const EdgeInsets.only(top: 8),
       child: Stack(
+        clipBehavior: Clip.none,
         children: [
           GestureDetector(
             onTap: () {
@@ -2940,6 +3064,39 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                             color: Colors.white, size: 50),
                       ),
                     ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 0,
+            bottom: 0,
+            left: isSentByMe ? -60 : null,
+            right: isSentByMe ? null : -60,
+            child: Center(
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  onTap: () {
+                    MyRouter.pushReplace(
+                      screen: ForwardMessageScreen(
+                        messages: [normalizeMessage(message)],
+                        currentUserId: currentUserId,
+                        conversionalid: widget.conversationId,
+                        username: widget.groupName,
+                      ),
+                    );
+                  },
+                  child: CircleAvatar(
+                    maxRadius: 16,
+                    backgroundColor: Colors.white,
+                    child: Image.asset(
+                      "assets/images/forward.png",
+                      height: 20,
+                      width: 20,
+                    ),
                   ),
                 ),
               ),
@@ -3104,13 +3261,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                               margin: EdgeInsets.only(
                                 left: 5,
                                 right: 5,
-                                top: 6,
+                                top: 0,
                                 bottom: (message['reactions'] != null &&
                                         message['reactions'].isNotEmpty)
                                     ? 20 // WHEN REACTION EXISTS
-                                    : 6,
+                                    : 0,
                               ),
-                              padding: const EdgeInsets.all(7),
+                              padding: const EdgeInsets.only(
+                                  top: 3, left: 7, right: 6, bottom: 5),
                               constraints: const BoxConstraints(maxWidth: 250),
                               decoration: BoxDecoration(
                                 color: isSelected
@@ -3243,13 +3401,17 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                           BorderRadius.circular(
                                                               20),
                                                       onTap: () {
-                                                        MyRouter.push(
+                                                        MyRouter.pushReplace(
                                                           screen:
                                                               ForwardMessageScreen(
-                                                            messages: [message],
+                                                            messages: [
+                                                              normalizeMessage(
+                                                                  message)
+                                                            ],
                                                             currentUserId:
                                                                 currentUserId,
-                                                            conversionalid: "",
+                                                            conversionalid: widget
+                                                                .conversationId,
                                                             username: widget
                                                                 .groupName,
                                                           ),
@@ -3447,13 +3609,17 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                 borderRadius:
                                                     BorderRadius.circular(20),
                                                 onTap: () {
-                                                  MyRouter.push(
+                                                  MyRouter.pushReplace(
                                                     screen:
                                                         ForwardMessageScreen(
-                                                      messages: [message],
+                                                      messages: [
+                                                        normalizeMessage(
+                                                            message)
+                                                      ],
                                                       currentUserId:
                                                           currentUserId,
-                                                      conversionalid: "",
+                                                      conversionalid:
+                                                          widget.conversationId,
                                                       username:
                                                           widget.groupName,
                                                     ),
@@ -3523,16 +3689,17 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                             BorderRadius
                                                                 .circular(20),
                                                         onTap: () {
-                                                          MyRouter.push(
+                                                          MyRouter.pushReplace(
                                                             screen:
                                                                 ForwardMessageScreen(
                                                               messages: [
-                                                                message
+                                                                normalizeMessage(
+                                                                    message)
                                                               ],
                                                               currentUserId:
                                                                   currentUserId,
-                                                              conversionalid:
-                                                                  "",
+                                                              conversionalid: widget
+                                                                  .conversationId,
                                                               username: widget
                                                                   .groupName,
                                                             ),
@@ -3676,13 +3843,17 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                           BorderRadius.circular(
                                                               20),
                                                       onTap: () {
-                                                        MyRouter.push(
+                                                        MyRouter.pushReplace(
                                                           screen:
                                                               ForwardMessageScreen(
-                                                            messages: [message],
+                                                            messages: [
+                                                              normalizeMessage(
+                                                                  message)
+                                                            ],
                                                             currentUserId:
                                                                 currentUserId,
-                                                            conversionalid: "",
+                                                            conversionalid: widget
+                                                                .conversationId,
                                                             username: widget
                                                                 .groupName,
                                                           ),
