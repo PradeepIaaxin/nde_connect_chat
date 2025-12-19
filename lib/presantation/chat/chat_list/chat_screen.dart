@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:nde_email/data/respiratory.dart';
+import 'dart:async';
+
 import 'package:nde_email/presantation/chat/Socket/Socket_Service.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_listscreen.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_bloc.dart';
@@ -60,6 +62,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
   String? profilePicUrl;
   String? userName;
   bool _showAdBanner = true;
+  Map<String, String> _typingByConvo = {};
+  StreamSubscription? _typingSub;
 
   // Track the original full list for "Select All"
   List<Datu> _allChats = [];
@@ -80,6 +84,26 @@ class _ChatListScreenState extends State<ChatListScreen> {
     super.initState();
     _loadUserData();
     _scrollController.addListener(_scrollListener);
+    _typingSub = SocketService().typingStream.listen((data) {
+      if (!mounted) return;
+
+      if (data.isEmpty) {
+        setState(() {
+          _typingByConvo.clear();
+        });
+        return;
+      }
+
+      final convoId = data['convoId'];
+      final message = data['message'];
+
+      if (convoId != null && message != null) {
+        setState(() {
+          _typingByConvo[convoId] = message;
+        });
+      }
+    });
+
     final initialChats = ChatSessionStorage.getChatList();
     _allChats = List.from(initialChats);
     _showFilterChips = initialChats.length < 12;
@@ -133,16 +157,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
     context.read<ChatListBloc>().add(UpdateLocalChatList());
   }
 
-  // void _updateLocalPin(String convoId, bool newStatus) {
-  //   final list = ChatSessionStorage.getChatList().map((chat) {
-  //     if (chat.id == convoId) chat.isPinned = newStatus;
-  //     return chat;
-  //   }).toList();
-
-  //   // ChatSessionStorage.saveChatList(list);
-  //   context.read<ChatListBloc>().add(UpdateLocalChatList());
-  // }
-
   void _updateLocalArchive(String convoId, bool newStatus) {
     final chat = ChatSessionStorage.getChatList()
         .firstWhere((c) => c.id == convoId || c.conversationId == convoId);
@@ -151,16 +165,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
     context.read<ChatListBloc>().add(UpdateLocalChatList());
   }
-
-  // void _updateLocalArchive(String convoId, bool newStatus) {
-  //   final list = ChatSessionStorage.getChatList().map((chat) {
-  //     if (chat.id == convoId) chat.isArchived = newStatus;
-  //     return chat;
-  //   }).toList();
-
-  //   // ChatSessionStorage.saveChatList(list);
-  //   context.read<ChatListBloc>().add(UpdateLocalChatList());
-  // }
 
   void _scrollListener() {
     if (!_scrollController.hasClients) return;
@@ -203,6 +207,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
   @override
   void dispose() {
+    _typingSub?.cancel();
     _internetSub?.cancel();
     _scrollController.dispose();
     _searchController.dispose();
@@ -848,6 +853,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                 ? 'group_${chat.conversationId ?? chat.id ?? index}'
                                 : 'private_${chat.id ?? chat.conversationId ?? index}';
 
+                            final typingText = _typingByConvo[chat.id];
+
                             return ValueListenableBuilder(
                                 valueListenable:
                                     SocketService().userStatusNotifier,
@@ -947,6 +954,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                       profileAvatarUrl: profileAvatarUrl,
                                       profileAvatar: profileAvatar,
                                       displayName: displayName,
+                                      typingText: typingText,
                                     ),
                                   );
                                 });

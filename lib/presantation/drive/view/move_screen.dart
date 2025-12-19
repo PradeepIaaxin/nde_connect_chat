@@ -81,6 +81,7 @@ class _MoveFileViewState extends State<MoveFileView> {
         child: Scaffold(
           backgroundColor: AppColors.bg,
           appBar: AppBar(
+              surfaceTintColor: Colors.white,
             automaticallyImplyLeading: false,
             backgroundColor: Colors.white,
             foregroundColor: Colors.black,
