@@ -159,6 +159,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
       child: Scaffold(
         backgroundColor: AppColors.bg,
         appBar: AppBar(
+            surfaceTintColor: Colors.white,
           title: const Text('Archived Chats'),
           backgroundColor: Colors.white,
           actions: [

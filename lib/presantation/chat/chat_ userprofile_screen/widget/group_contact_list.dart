@@ -1,3 +1,4 @@
+import 'package:nde_email/data/respiratory.dart';
 import 'package:nde_email/presantation/chat/Socket/Socket_Service.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/bloc/profile_screen_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/bloc/profile_screen_event.dart';
@@ -19,11 +20,27 @@ class GroupContactList extends StatefulWidget {
 }
 
 class _GroupContactListState extends State<GroupContactList> {
+  String _uid = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUid();
+  }
+
+  Future<void> _loadUid() async {
+    final uid = await UserPreferences.getUserId() ?? '';
+    if (!mounted) return;
+    setState(() {
+      _uid = uid;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<MediaBloc, MediaState>(
       builder: (context, state) {
-        if (state is MediaLoading) {
+        if (state is MediaLoading || _uid.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         } else if (state is ContactLoaded) {
           final contacts = state.contacts;
@@ -56,18 +73,33 @@ class _GroupContactListState extends State<GroupContactList> {
                             Text(
                               "$count Member${count == 1 ? '' : 's'}",
                               style: const TextStyle(
-                                  fontSize: 18, fontWeight: FontWeight.w500),
+                                fontSize: 18,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                             IconButton(
-                                onPressed: () {},
-                                icon: const Icon(Icons.search)),
+                              onPressed: () {},
+                              icon: const Icon(Icons.search),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 8),
                         ...members.asMap().entries.map((entry) {
                           final i = entry.key;
                           final member = entry.value;
-                          final isAdmin = member.isAdmin ?? false;
+
+                          final bool isAdmin = member.isAdmin ?? false;
+
+                          final bool isMe = member.memberId == _uid;
+                          final bool isTargetAdmin = member.isAdmin ?? false;
+
+                          final bool loggedUserIsAdmin =
+                              contact.groupMembers.any(
+                            (m) => m.memberId == _uid && (m.isAdmin ?? false),
+                          );
+
+                          final bool canManageMember =
+                              loggedUserIsAdmin && !isMe;
 
                           final profileAvatarUrl =
                               (member.profilePic?.isNotEmpty ?? false)
@@ -87,32 +119,31 @@ class _GroupContactListState extends State<GroupContactList> {
                           return Padding(
                             padding: const EdgeInsets.symmetric(vertical: 4),
                             child: GestureDetector(
-                              onTap: i == 0
+                              onTap: isMe
                                   ? () {}
                                   : () {
-                                      log(nameText);
-                                      log(member.firstName.toString());
                                       UserActionDialog.show(
                                         context,
-                                        name:
-                                            "${member.firstName ?? ''} ${member.lastName ?? ''}"
-                                                .trim(),
-                                        isAdmin: member.isAdmin ?? false,
+                                        name: nameText,
+                                        isAdmin: isTargetAdmin,
+
                                         onMessage: () {
                                           MyRouter.push(
-                                              screen: PrivateChatScreen(
-                                                  firstname: member.firstName,
-                                                  convoId: "",
-                                                  profileAvatarUrl:
-                                                      profileAvatarUrl,
-                                                  userName: nameText,
-                                                  lastSeen: "",
-                                                  datumId: member.memberId,
-                                                  grpChat: false,
-                                                  favourite: false));
+                                            screen: PrivateChatScreen(
+                                              firstname: member.firstName,
+                                              convoId: "",
+                                              profileAvatarUrl:
+                                                  profileAvatarUrl,
+                                              userName: nameText,
+                                              lastSeen: "",
+                                              datumId: member.memberId,
+                                              grpChat: false,
+                                              favourite: false,
+                                            ),
+                                          );
                                         },
+
                                         onView: () {
-                                          print(member.memberId);
                                           MyRouter.push(
                                             screen: UserProfileScreen(
                                               profileAvatarUrl:
@@ -130,33 +161,41 @@ class _GroupContactListState extends State<GroupContactList> {
                                             ),
                                           );
                                         },
-                                        onToggleAdmin: () {
-                                          final updatedIsAdmin =
-                                              !(member.isAdmin ?? false);
 
-                                          context.read<MediaBloc>().add(
-                                                MakeAdmin(
-                                                  groupId: widget.groupId,
-                                                  updates: [
-                                                    {
-                                                      "member_id":
-                                                          member.memberId ?? "",
-                                                      "isAdmin": updatedIsAdmin,
-                                                    }
-                                                  ],
-                                                ),
-                                              );
-                                        },
-                                        onRemove: () {
-                                          context.read<MediaBloc>().add(
-                                                RemoveUserFromGroupEvent(
-                                                  groupId: widget.groupId,
-                                                  userId: member.memberId ?? "",
-                                                ),
-                                              );
-                                        },
-                                        onVerify: () =>
-                                            debugPrint("Verify code"),
+                                        // ✅ SHOW ONLY IF LOGGED USER IS ADMIN & NOT SELF
+                                        onToggleAdmin: canManageMember
+                                            ? () {
+                                                context.read<MediaBloc>().add(
+                                                      MakeAdmin(
+                                                        groupId: widget.groupId,
+                                                        updates: [
+                                                          {
+                                                            "member_id": member
+                                                                    .memberId ??
+                                                                "",
+                                                            "isAdmin":
+                                                                !isTargetAdmin,
+                                                          }
+                                                        ],
+                                                      ),
+                                                    );
+                                              }
+                                            : null,
+
+                                        onRemove: canManageMember
+                                            ? () {
+                                                context.read<MediaBloc>().add(
+                                                      RemoveUserFromGroupEvent(
+                                                        groupId: widget.groupId,
+                                                        userId:
+                                                            member.memberId ??
+                                                                "",
+                                                      ),
+                                                    );
+                                              }
+                                            : null,
+
+                                        onVerify: () {},
                                       );
                                     },
                               child: ListTile(
@@ -164,7 +203,7 @@ class _GroupContactListState extends State<GroupContactList> {
                                 leading: Stack(
                                   children: [
                                     CircleAvatar(
-                                      radius: 22,
+                                      radius: 25,
                                       backgroundColor: profileAvatarUrl.isEmpty
                                           ? ColorUtil.getColorFromAlphabet(
                                               profileAvatar)
@@ -215,7 +254,7 @@ class _GroupContactListState extends State<GroupContactList> {
                                   ],
                                 ),
                                 title: Text(
-                                  i == 0 ? 'You' : nameText,
+                                  isMe ? 'You' : nameText, // ✅ FIX
                                   style: const TextStyle(
                                     color: Colors.black,
                                     fontSize: 16,
@@ -231,7 +270,9 @@ class _GroupContactListState extends State<GroupContactList> {
                                 trailing: isAdmin
                                     ? Container(
                                         padding: const EdgeInsets.symmetric(
-                                            horizontal: 8, vertical: 4),
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
                                         decoration: BoxDecoration(
                                           color: Colors.green[700],
                                           borderRadius:
@@ -259,24 +300,21 @@ class _GroupContactListState extends State<GroupContactList> {
               GroupActionSheet(
                 onAddToFavorites: () {
                   final updatedFavourite = !contacts.first.isFavourite;
-
                   context.read<MediaBloc>().add(
                         ToggleFavourite(
-                          targetId: widget.groupId ?? "",
+                          targetId: widget.groupId,
                           isFavourite: updatedFavourite,
                           grp: true,
                         ),
                       );
                 },
-                onAddToList: () => debugPrint('List pressed'),
+                onAddToList: () {},
                 onExitGroup: () {
-                  if (widget.groupId != null) {
-                    context.read<MediaBloc>().add(
-                          ExitGroup(grpId: widget.groupId),
-                        );
-                  }
+                  context.read<MediaBloc>().add(
+                        ExitGroup(grpId: widget.groupId),
+                      );
                 },
-                onReportGroup: () => debugPrint('Report pressed'),
+                onReportGroup: () {},
                 isGroupChat: true,
                 fullName: contacts.first.groupName,
                 isFavorite: contacts.first.isFavourite,

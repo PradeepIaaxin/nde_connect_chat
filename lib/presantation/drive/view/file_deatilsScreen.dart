@@ -53,6 +53,7 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
         return Scaffold(
           backgroundColor: Colors.white,
           appBar: AppBar(
+              surfaceTintColor: Colors.white,
             backgroundColor: Colors.white,
             iconTheme: const IconThemeData(color: Colors.black),
             title: Text(

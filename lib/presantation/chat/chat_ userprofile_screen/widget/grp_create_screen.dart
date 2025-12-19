@@ -115,6 +115,7 @@ class _GroupNameEditScreenState extends State<GroupNameEditScreen> {
         title: Text(isGroupName ? 'Edit Group Name' : 'Edit Description'),
         elevation: 1,
         backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
         foregroundColor: Colors.black,
       ),
       body: Padding(
