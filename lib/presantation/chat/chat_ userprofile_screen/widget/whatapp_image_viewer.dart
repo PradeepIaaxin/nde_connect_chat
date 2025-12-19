@@ -141,16 +141,16 @@ class _WhatsAppImageViewerState extends State<WhatsAppImageViewer> {
             });
 
             // Show % in snackbar
-            if (mounted) {
-              ScaffoldMessenger.of(context).hideCurrentSnackBar();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                      'Downloading: ${(progress * 100).toStringAsFixed(0)}%'),
-                  duration: const Duration(milliseconds: 800),
-                ),
-              );
-            }
+            // if (mounted) {
+            //   ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            //   ScaffoldMessenger.of(context).showSnackBar(
+            //     SnackBar(
+            //       content: Text(
+            //           'Downloading: ${(progress * 100).toStringAsFixed(0)}%'),
+            //       duration: const Duration(milliseconds: 800),
+            //     ),
+            //   );
+            // }
           }
         },
       );
