@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:gallery_saver_plus/files.dart';
 import 'package:video_player/video_player.dart';
 
 class VideoPlayerScreen extends StatefulWidget {
@@ -9,11 +8,11 @@ class VideoPlayerScreen extends StatefulWidget {
   final bool? isVideo;
 
   const VideoPlayerScreen({
-    Key? key,
+    super.key,
     required this.path,
     this.isNetwork = false,
     this.isVideo = false
-  }) : super(key: key);
+  });
 
   @override
   State<VideoPlayerScreen> createState() => _VideoPlayerScreenState();
