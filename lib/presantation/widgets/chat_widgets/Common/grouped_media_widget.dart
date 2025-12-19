@@ -28,7 +28,7 @@ class GroupedMediaWidget extends StatelessWidget {
       constraints: BoxConstraints(maxWidth: bubbleWidth),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: SizedBox(),
+        child: _buildLayout(context),
       ),
     );
   }
@@ -144,9 +144,7 @@ class GroupedMediaWidget extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            isVideo
-                ? _buildVideoThumbnail(path)
-                : _buildImage(path, isLocal),
+            isVideo ? _buildVideoThumbnail(path) : _buildImage(path, isLocal),
             if (isVideo)
               const Center(
                 child: Icon(
@@ -197,10 +195,8 @@ class GroupedMediaWidget extends StatelessWidget {
         : CachedNetworkImage(
             imageUrl: imagePath,
             fit: BoxFit.cover,
-            placeholder: (_, __) =>
-                Container(color: Colors.grey.shade200),
-            errorWidget: (_, __, ___) =>
-                const Icon(Icons.broken_image),
+            placeholder: (_, __) => Container(color: Colors.grey.shade200),
+            errorWidget: (_, __, ___) => const Icon(Icons.broken_image),
           );
   }
 }
