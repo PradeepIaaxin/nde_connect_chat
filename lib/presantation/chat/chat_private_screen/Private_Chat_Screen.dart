@@ -1,4 +1,3 @@
-
 import 'dart:convert';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -92,7 +91,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
   // Notifier for the UI list
   final ValueNotifier<List<Map<String, dynamic>>> _messagesNotifier =
-  ValueNotifier([]);
+      ValueNotifier([]);
   bool _isOnline = true;
   StreamSubscription<List<ConnectivityResult>>? _connSub;
   // State
@@ -103,7 +102,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   int _recordDuration = 0;
   Timer? _timer;
   String? _recordedFilePath;
-  bool isSentByMe =false;
+  bool isSentByMe = false;
   // Pagination / client-side windowing
   int _currentPage = 1;
   final int _initialLimit = 10;
@@ -122,8 +121,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   final Set<String> _unreadMessageIds = {};
   bool _hasSentInitialReadReceipts = false;
   final Set<String> _selectedMessageKeys = {};
-  Map<String, dynamic>? _replyMessage;   // full original message (for sending)
-  Map<String, dynamic>? _replyPreview;   // small map for input UI
+  Map<String, dynamic>? _replyMessage; // full original message (for sending)
+  Map<String, dynamic>? _replyPreview; // small map for input UI
 
   /// Full message history for this conversation (normalized)
   final List<Map<String, dynamic>> _allMessages = [];
@@ -158,18 +157,17 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     _initializeChat();
     _screenActive = true;
 
-
     // initial state
     Connectivity().checkConnectivity().then((results) {
-      final hasNet = results.isNotEmpty &&
-          results.first != ConnectivityResult.none;
+      final hasNet =
+          results.isNotEmpty && results.first != ConnectivityResult.none;
       setState(() => _isOnline = hasNet);
     });
 
     // listen for changes
     _connSub = Connectivity().onConnectivityChanged.listen((results) {
-      final hasNet = results.isNotEmpty &&
-          results.first != ConnectivityResult.none;
+      final hasNet =
+          results.isNotEmpty && results.first != ConnectivityResult.none;
 
       if (hasNet != _isOnline) {
         setState(() => _isOnline = hasNet);
@@ -184,7 +182,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   void dispose() {
     _reactionSubscription?.cancel();
     _scrollController.removeListener(_scrollListener);
-    _connSub?.cancel();      // 👈 don’t forget
+    _connSub?.cancel(); // 👈 don’t forget
 
     _saveDebounceTimer?.cancel();
     _saveAllMessages();
@@ -262,6 +260,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       _sendInitialReadReceiptsIfNeeded();
     });
   }
+
   Future<void> _flushOfflinePendingMessages() async {
     if (_offlineQueue.isEmpty) return;
 
@@ -356,6 +355,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       draftMessage: null,
     );
   }
+
   void _markVisibleMessagesAsRead(List<Map<String, dynamic>> combined) {
     if (!_screenActive) return;
 
@@ -395,13 +395,13 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         : _allMessages.sublist(startIndex, total);
 
     _messagesNotifier.value =
-    List<Map<String, dynamic>>.unmodifiable(visibleSlice);
+        List<Map<String, dynamic>>.unmodifiable(visibleSlice);
   }
 
   void _handleIncomingRawMessage(Map<String, dynamic> raw, {String? event}) {
     final rawConvoId =
-    (raw['conversation_id'] ?? raw['conversationId'] ?? raw['convoId'])
-        ?.toString();
+        (raw['conversation_id'] ?? raw['conversationId'] ?? raw['convoId'])
+            ?.toString();
 
     if (rawConvoId != null &&
         rawConvoId.isNotEmpty &&
@@ -432,9 +432,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
 
     final alreadyInList = [dbMessages, messages, socketMessages].any(
-          (list) => list.any(
-            (m) =>
-        (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '').toString() ==
+      (list) => list.any(
+        (m) =>
+            (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '').toString() ==
             msgId,
       ),
     );
@@ -506,7 +506,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     final replyRaw = message['reply'];
     Map<String, dynamic>? reply;
-    if (replyRaw is Map) reply = Map<String, dynamic>.from(replyRaw);
+    if (replyRaw is Map)
+      reply = Map<String, dynamic>.from(replyRaw);
     else if (replyRaw is String) {
       try {
         final decoded = jsonDecode(replyRaw);
@@ -516,34 +517,39 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     if (reply != null && reply.isNotEmpty) {
       final id = (reply['id'] ??
-          reply['message_id'] ??
-          reply['messageId'] ??
-          reply['reply_message_id'] ??
-          reply['_id'])
+              reply['message_id'] ??
+              reply['messageId'] ??
+              reply['reply_message_id'] ??
+              reply['_id'])
           ?.toString();
 
-      final replyContent = (reply['replyContent'] ?? reply['content'] ?? reply['message'] ?? '').toString();
+      final replyContent =
+          (reply['replyContent'] ?? reply['content'] ?? reply['message'] ?? '')
+              .toString();
 
       final hasMedia = (reply['originalUrl'] ??
-          reply['fileUrl'] ??
-          reply['imageUrl'] ??
-          reply['replyUrl'] ??
-          reply['reply_url'] ??
-          reply['thumbnailUrl'] ??
-          reply['thumbnail_url'])
-          ?.toString()
-          .isNotEmpty == true;
+                  reply['fileUrl'] ??
+                  reply['imageUrl'] ??
+                  reply['replyUrl'] ??
+                  reply['reply_url'] ??
+                  reply['thumbnailUrl'] ??
+                  reply['thumbnail_url'])
+              ?.toString()
+              .isNotEmpty ==
+          true;
 
-      if ((id != null && id.isNotEmpty) || replyContent.isNotEmpty || hasMedia) {
+      if ((id != null && id.isNotEmpty) ||
+          replyContent.isNotEmpty ||
+          hasMedia) {
         return true;
       }
     }
 
     final topReplyId = (message['reply_message_id'] ??
-        message['replyMessageId'] ??
-        message['reply_to'] ??
-        message['replyId'] ??
-        message['repliedMessageId'])
+            message['replyMessageId'] ??
+            message['reply_to'] ??
+            message['replyId'] ??
+            message['repliedMessageId'])
         ?.toString();
     if (topReplyId != null && topReplyId.isNotEmpty) return true;
 
@@ -551,10 +557,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   Map<String, dynamic> _mergeReplyInfoIfMissing(
-      Map<String, dynamic> fresh,
-      Map<String, dynamic> existing,
-      )
-  {
+    Map<String, dynamic> fresh,
+    Map<String, dynamic> existing,
+  ) {
     final merged = Map<String, dynamic>.from(fresh);
 
     final hadReplyBefore = _hasReplyForMessage(existing);
@@ -583,15 +588,22 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     return merged;
   }
+
   /// Collect reactions for a message id from all local lists and merge them
-  List<Map<String, dynamic>> _collectMergedReactionsForMessage(String messageId) {
+  List<Map<String, dynamic>> _collectMergedReactionsForMessage(
+      String messageId) {
     final Map<String, Map<String, dynamic>> byUser = {};
 
-    List<List<Map<String, dynamic>>> sources = [dbMessages, messages, socketMessages];
+    List<List<Map<String, dynamic>>> sources = [
+      dbMessages,
+      messages,
+      socketMessages
+    ];
 
     for (final list in sources) {
       for (final msg in list) {
-        final mid = (msg['message_id'] ?? msg['messageId'] ?? msg['id'] ?? '').toString();
+        final mid = (msg['message_id'] ?? msg['messageId'] ?? msg['id'] ?? '')
+            .toString();
         if (mid != messageId) continue;
 
         final raw = msg['reactions'];
@@ -614,7 +626,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             'emoji': emoji,
             'userId': userId,
             'user': user is Map ? Map<String, dynamic>.from(user) : null,
-            'reacted_at': (r['reacted_at'] ?? r['createdAt'] ?? DateTime.now().toIso8601String()).toString(),
+            'reacted_at': (r['reacted_at'] ??
+                    r['createdAt'] ??
+                    DateTime.now().toIso8601String())
+                .toString(),
           };
         }
       }
@@ -631,51 +646,56 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         ListenToMessages(senderId: currentUserId, receiverId: widget.datumId!));
     _statusSubscription ??=
         socketService.statusUpdateStream.listen((statusUpdate) {
-          if (!mounted) return;
+      if (!mounted) return;
 
-          final dynamic rawStatus = statusUpdate['messageStatus'] ?? statusUpdate['status'];
-          final status = (rawStatus ?? '').toString().trim();
-          if (status.isEmpty) return;
+      final dynamic rawStatus =
+          statusUpdate['messageStatus'] ?? statusUpdate['status'];
+      final status = (rawStatus ?? '').toString().trim();
+      if (status.isEmpty) return;
 
-          final ids = statusUpdate['messageIds'] ?? statusUpdate['singleMessageId'] ?? statusUpdate['messageId'];
+      final ids = statusUpdate['messageIds'] ??
+          statusUpdate['singleMessageId'] ??
+          statusUpdate['messageId'];
 
-          debugPrint('📥 Status update received: $statusUpdate');
+      debugPrint('📥 Status update received: $statusUpdate');
 
-          // normalize to List<String>
-          final List<String> idList = [];
-          if (ids is List) {
-            for (final id in ids) {
-              if (id != null) idList.add(id.toString());
-            }
-          } else if (ids != null) {
-            idList.add(ids.toString());
-          }
+      // normalize to List<String>
+      final List<String> idList = [];
+      if (ids is List) {
+        for (final id in ids) {
+          if (id != null) idList.add(id.toString());
+        }
+      } else if (ids != null) {
+        idList.add(ids.toString());
+      }
 
-          for (final id in idList) {
-            // find local message
-            final local = _getCombinedMessages().firstWhere(
-                  (m) {
-                    final mid = _normalizeMessageIdForApi((m['message_id'] ?? m['messageId'] ?? '').toString());
-                    final incomingIdNormalized = _normalizeMessageIdForApi(mid);
-                    return mid == incomingIdNormalized;
-              },
-              orElse: () => {},
-            );
+      for (final id in idList) {
+        // find local message
+        final local = _getCombinedMessages().firstWhere(
+          (m) {
+            final mid = _normalizeMessageIdForApi(
+                (m['message_id'] ?? m['messageId'] ?? '').toString());
+            final incomingIdNormalized = _normalizeMessageIdForApi(mid);
+            return mid == incomingIdNormalized;
+          },
+          orElse: () => {},
+        );
 
-            final senderId = (local != null && local.isNotEmpty)
-                ? (local['senderId'] ?? local['sender']?['_id'] ?? local['sender'])?.toString()
-                : null;
+        final senderId = (local != null && local.isNotEmpty)
+            ? (local['senderId'] ?? local['sender']?['_id'] ?? local['sender'])
+                ?.toString()
+            : null;
 
-            // If this status is about a message we sent, avoid treating it as a 'read' coming from remote.
-            if (senderId != null && senderId == currentUserId && status == 'read') {
-              log("⚠️ Ignoring server 'read' status for my own message id=$id");
-              continue;
-            }
+        // If this status is about a message we sent, avoid treating it as a 'read' coming from remote.
+        if (senderId != null && senderId == currentUserId && status == 'read') {
+          log("⚠️ Ignoring server 'read' status for my own message id=$id");
+          continue;
+        }
 
-            // apply update normally
-            _updateMessageStatus(id, status);
-          }
-        });
+        // apply update normally
+        _updateMessageStatus(id, status);
+      }
+    });
   }
 
   void _setupReactionListener() {
@@ -686,7 +706,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
   // ------------------ Message Handler helpers ------------------
   Map<String, dynamic> normalizeMessage(dynamic rawMsg) {
-
     if (rawMsg == null) return {};
 
     final m = <String, dynamic>{};
@@ -717,9 +736,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     m['time'] = rawMsg['time'] ?? rawMsg['createdAt'];
 
     m['messageStatus'] = (rawMsg['messageStatus'] ??
-        rawMsg['status'] ??
-        rawMsg['deliveryStatus'] ??
-        'sent')
+            rawMsg['status'] ??
+            rawMsg['deliveryStatus'] ??
+            'sent')
         .toString();
 
     if ((m['messageStatus'] as String).isEmpty) {
@@ -731,9 +750,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     String? senderId = rawMsg['senderId']?.toString();
 
     if (senderRaw is Map) {
-      senderId ??=
-          (senderRaw['_id'] ?? senderRaw['id'] ?? senderRaw['userId'])
-              ?.toString();
+      senderId ??= (senderRaw['_id'] ?? senderRaw['id'] ?? senderRaw['userId'])
+          ?.toString();
     } else if (senderRaw != null && senderId == null) {
       senderId = senderRaw.toString();
       senderRaw = {'_id': senderId};
@@ -781,20 +799,22 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
 // collect potential reply id candidates from many places
     String? replyId = (rawMsg['reply_message_id'] ??
-        rawMsg['replyMessageId'] ??
-        rawMsg['reply_to'] ??
-        rawMsg['replyId'] ??
-        rawMsg['repliedMessageId'] ??
-        rawMsg['parent_message_id'] ??
-        rawMsg['parentMessageId'])?.toString();
+            rawMsg['replyMessageId'] ??
+            rawMsg['reply_to'] ??
+            rawMsg['replyId'] ??
+            rawMsg['repliedMessageId'] ??
+            rawMsg['parent_message_id'] ??
+            rawMsg['parentMessageId'])
+        ?.toString();
 
 // if not found, look inside replyMap
     if ((replyId == null || replyId.isEmpty) && replyMap != null) {
       replyId = (replyMap['id'] ??
-          replyMap['_id'] ??
-          replyMap['message_id'] ??
-          replyMap['messageId'] ??
-          replyMap['reply_message_id'])?.toString();
+              replyMap['_id'] ??
+              replyMap['message_id'] ??
+              replyMap['messageId'] ??
+              replyMap['reply_message_id'])
+          ?.toString();
     }
 
 // if replyTo is just an id value (string/num)
@@ -806,14 +826,16 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
 // quoted reply text (variants)
     final replyContent = (rawMsg['replyContent'] ??
-        replyMap?['replyContent'] ??
-        replyMap?['content'] ??
-        replyMap?['message'] ??
-        '')?.toString();
+            replyMap?['replyContent'] ??
+            replyMap?['content'] ??
+            replyMap?['message'] ??
+            '')
+        ?.toString();
 
 // decide if we should treat as a reply
-    final bool hasAnyReplyData =
-        (replyId != null && replyId.isNotEmpty) || replyContent!.isNotEmpty || isReply;
+    final bool hasAnyReplyData = (replyId != null && replyId.isNotEmpty) ||
+        replyContent!.isNotEmpty ||
+        isReply;
 
     if (hasAnyReplyData) {
       isReply = true;
@@ -837,12 +859,18 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       if (rawMsg['reply'] is Map) {
         final rawReply = rawMsg['reply'] as Map;
         // canonical copies
-        if (rawReply['originalUrl'] != null) replyMap['originalUrl'] = rawReply['originalUrl'];
-        if (rawReply['thumbnailUrl'] != null) replyMap['thumbnailUrl'] = rawReply['thumbnailUrl'];
-        if (rawReply['imageUrl'] != null) replyMap['imageUrl'] = rawReply['imageUrl'];
-        if (rawReply['fileUrl'] != null) replyMap['fileUrl'] = rawReply['fileUrl'];
-        if (rawReply['fileName'] != null) replyMap['fileName'] = rawReply['fileName'];
-        if (rawReply['fileType'] != null) replyMap['fileType'] = rawReply['fileType'];
+        if (rawReply['originalUrl'] != null)
+          replyMap['originalUrl'] = rawReply['originalUrl'];
+        if (rawReply['thumbnailUrl'] != null)
+          replyMap['thumbnailUrl'] = rawReply['thumbnailUrl'];
+        if (rawReply['imageUrl'] != null)
+          replyMap['imageUrl'] = rawReply['imageUrl'];
+        if (rawReply['fileUrl'] != null)
+          replyMap['fileUrl'] = rawReply['fileUrl'];
+        if (rawReply['fileName'] != null)
+          replyMap['fileName'] = rawReply['fileName'];
+        if (rawReply['fileType'] != null)
+          replyMap['fileType'] = rawReply['fileType'];
 
         // server-specific variants
         if (rawReply['replyUrl'] != null) {
@@ -855,12 +883,17 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           replyMap['fileUrl'] ??= rawReply['reply_url'];
           replyMap['imageUrl'] ??= rawReply['reply_url'];
         }
-        if (rawReply['replyImageUrl'] != null) replyMap['imageUrl'] ??= rawReply['replyImageUrl'];
-        if (rawReply['reply_image_url'] != null) replyMap['imageUrl'] ??= rawReply['reply_image_url'];
-        if (rawReply['reply_image'] != null) replyMap['imageUrl'] ??= rawReply['reply_image'];
+        if (rawReply['replyImageUrl'] != null)
+          replyMap['imageUrl'] ??= rawReply['replyImageUrl'];
+        if (rawReply['reply_image_url'] != null)
+          replyMap['imageUrl'] ??= rawReply['reply_image_url'];
+        if (rawReply['reply_image'] != null)
+          replyMap['imageUrl'] ??= rawReply['reply_image'];
 
         // ContentType mapping (server can send ContentType: 'file'/'image'/'video')
-        if (rawReply['ContentType'] != null && (replyMap['fileType'] == null || replyMap['fileType'].toString().isEmpty)) {
+        if (rawReply['ContentType'] != null &&
+            (replyMap['fileType'] == null ||
+                replyMap['fileType'].toString().isEmpty)) {
           final ct = rawReply['ContentType'].toString();
           if (ct.contains('/')) {
             replyMap['fileType'] = ct.toLowerCase();
@@ -880,13 +913,26 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       // --- Copy media keys from top-level raw message if reply map was missing them ---
       // typical server variants we have seen:
       final candidates = <String>[
-        'replyImageUrl', 'reply_image_url', 'reply_original_url', 'replyFileUrl',
-        'reply_file_url', 'replyThumbnail', 'replyThumbnailUrl', 'reply_thumbnail_url',
-        'replyUrl', 'reply_url', 'thumbnailUrl', 'originalUrl', 'imageUrl', 'fileUrl', 'file_with_text'
+        'replyImageUrl',
+        'reply_image_url',
+        'reply_original_url',
+        'replyFileUrl',
+        'reply_file_url',
+        'replyThumbnail',
+        'replyThumbnailUrl',
+        'reply_thumbnail_url',
+        'replyUrl',
+        'reply_url',
+        'thumbnailUrl',
+        'originalUrl',
+        'imageUrl',
+        'fileUrl',
+        'file_with_text'
       ];
 
       for (final c in candidates) {
-        if ((replyMap['imageUrl'] == null || replyMap['imageUrl'].toString().isEmpty) &&
+        if ((replyMap['imageUrl'] == null ||
+                replyMap['imageUrl'].toString().isEmpty) &&
             rawMsg[c] != null &&
             rawMsg[c].toString().isNotEmpty) {
           replyMap['imageUrl'] = rawMsg[c].toString();
@@ -905,7 +951,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           rawMsg['originalUrl'] ??
           rawMsg['localFilePath'];
 
-      replyMap['originalUrl'] ??= rawMsg['originalUrl'] ?? rawMsg['fileUrl'] ?? replyMap['fileUrl'];
+      replyMap['originalUrl'] ??=
+          rawMsg['originalUrl'] ?? rawMsg['fileUrl'] ?? replyMap['fileUrl'];
 
       // normalize fileType from various places
       replyMap['fileType'] ??= rawMsg['replyFileType'] ??
@@ -915,7 +962,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           rawMsg['mimetype'];
 
       // if still missing, try ContentType top-level (server might send 'file'/'image'/'video')
-      if ((replyMap['fileType'] == null || replyMap['fileType'].toString().isEmpty) && rawMsg['ContentType'] != null) {
+      if ((replyMap['fileType'] == null ||
+              replyMap['fileType'].toString().isEmpty) &&
+          rawMsg['ContentType'] != null) {
         final ct = rawMsg['ContentType'].toString();
         if (ct.contains('/')) {
           replyMap['fileType'] = ct.toLowerCase();
@@ -932,7 +981,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       }
 
       // final normalization: lowercase fileType string
-      if (replyMap['fileType'] is String) replyMap['fileType'] = (replyMap['fileType'] as String).toLowerCase();
+      if (replyMap['fileType'] is String)
+        replyMap['fileType'] = (replyMap['fileType'] as String).toLowerCase();
 
       // ensure canonical keys exist for UI code (always present, even if empty)
       replyMap['originalUrl'] ??= '';
@@ -996,11 +1046,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
   bool isSameDay(DateTime? d1, DateTime? d2) {
     if (d1 == null || d2 == null) return false;
-    return d1.year == d2.year &&
-        d1.month == d2.month &&
-        d1.day == d2.day;
+    return d1.year == d2.year && d1.month == d2.month && d1.day == d2.day;
   }
-
 
   void _ensureMessageHandler() {
     _messageHandler ??=
@@ -1027,7 +1074,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     if (_visibleCount == 0) {
       final total = _allMessages.length;
       _visibleCount =
-      total >= _initialVisible ? _initialVisible : total; // last 10 or less
+          total >= _initialVisible ? _initialVisible : total; // last 10 or less
     }
 
     _updateNotifierFromAll();
@@ -1045,45 +1092,48 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     final visibleMessages = _messagesNotifier.value;
     print("visibleMessages ${visibleMessages}");
     final unreadIds = _getUnreadMessageIds(visibleMessages);
-    print("unreadIds $unreadIds");// uses _isUnreadMessage
+    print("unreadIds $unreadIds"); // uses _isUnreadMessage
     if (unreadIds.isNotEmpty) {
       _sendReadReceipts(unreadIds);
     }
     final String? replyMessageId = reply == null
         ? null
         : (reply['message_id'] ?? reply['messageId'] ?? reply['id'])
-        ?.toString();
+            ?.toString();
 
     final replyPayload = reply == null
         ? null
         : <String, dynamic>{
-      'id': replyMessageId,
-      'message_id': replyMessageId,
-      'reply_message_id': replyMessageId,
-      'replyContent': (reply['content'] ?? reply['message'] ?? '').toString(),
-      'content': (reply['content'] ?? reply['message'] ?? '').toString(),
+            'id': replyMessageId,
+            'message_id': replyMessageId,
+            'reply_message_id': replyMessageId,
+            'replyContent':
+                (reply['content'] ?? reply['message'] ?? '').toString(),
+            'content': (reply['content'] ?? reply['message'] ?? '').toString(),
 
-      // Normalized media fields (try many keys; prefer originalUrl if available)
-      'originalUrl': reply['originalUrl'] ??
-          reply['fileUrl'] ??
-          reply['imageUrl'] ??
-          reply['thumbnailUrl'] ??
-          reply['localImagePath'] ??
-          '',
+            // Normalized media fields (try many keys; prefer originalUrl if available)
+            'originalUrl': reply['originalUrl'] ??
+                reply['fileUrl'] ??
+                reply['imageUrl'] ??
+                reply['thumbnailUrl'] ??
+                reply['localImagePath'] ??
+                '',
 
-      'imageUrl': reply['imageUrl'] ??
-          reply['thumbnailUrl'] ??
-          reply['localImagePath'] ??
-          '',
+            'imageUrl': reply['imageUrl'] ??
+                reply['thumbnailUrl'] ??
+                reply['localImagePath'] ??
+                '',
 
-      'fileUrl': reply['fileUrl'] ?? reply['originalUrl'] ?? '',
+            'fileUrl': reply['fileUrl'] ?? reply['originalUrl'] ?? '',
 
-      'fileName': reply['fileName'] ?? '',
+            'fileName': reply['fileName'] ?? '',
 
-      'fileType': (reply['fileType'] ?? reply['mimeType'] ?? reply['mimetype'] ?? '').toString(),
-    };
-
-
+            'fileType': (reply['fileType'] ??
+                    reply['mimeType'] ??
+                    reply['mimetype'] ??
+                    '')
+                .toString(),
+          };
 
     log('SENDING replyPayload: $replyPayload');
 
@@ -1091,7 +1141,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     // ✅ consider both network AND socket connection
     final bool canSendNow = _isOnline && socketService.isConnected;
-print("hiiilocalId ${localId}");
+    print("hiiilocalId ${localId}");
     final localMessage = {
       'message_id': localId,
       'content': text,
@@ -1119,7 +1169,7 @@ print("hiiilocalId ${localId}");
         _seenMessageIds.add(localId);
       }
       _rebuildFromStore(resetVisibleIfEmpty: true);
-     // _scrollToBottom();
+      // _scrollToBottom();
     });
     _refreshMessages();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1162,7 +1212,6 @@ print("hiiilocalId ${localId}");
           receiverId: widget.datumId!,
           replyTo: reply,
           replyMessageId: replyMessageId,
-
         ),
       );
 
@@ -1174,18 +1223,17 @@ print("hiiilocalId ${localId}");
         realId: sent.messageId ?? '',
         status: sent.messageStatus ?? 'sent',
       );
-
     } catch (e, st) {
       log('❌ send message error: $e\n$st');
       _updateMessageStatus(localId, 'failed');
     }
   }
+
   void _refreshMessagesWithReplies() {
     final combined = _getCombinedMessages();
 
     for (final msg in combined) {
-      if (msg['isReplyMessage'] == true &&
-          msg['repliedMessage'] == null) {
+      if (msg['isReplyMessage'] == true && msg['repliedMessage'] == null) {
         final resolved = resolveRepliedMessage(
           message: msg,
           allMessages: combined,
@@ -1205,8 +1253,7 @@ print("hiiilocalId ${localId}");
     required String tempId,
     required String realId,
     required String status,
-  })
-  {
+  }) {
     bool changed = false;
 
     void updateList(List<Map<String, dynamic>> list) {
@@ -1220,7 +1267,8 @@ print("hiiilocalId ${localId}");
           if (copy['reply'] != null || copy['reply_message_id'] != null) {
             copy['_localHasReply'] = true;
             try {
-              copy['_localReply'] = Map<String, dynamic>.from(copy['reply'] ?? {});
+              copy['_localReply'] =
+                  Map<String, dynamic>.from(copy['reply'] ?? {});
             } catch (_) {
               copy['_localReply'] = copy['reply'];
             }
@@ -1247,6 +1295,7 @@ print("hiiilocalId ${localId}");
       _scheduleSaveMessages();
     }
   }
+
   void _refreshMessages() {
     _messagesNotifier.value = _getCombinedMessages();
   }
@@ -1278,11 +1327,10 @@ print("hiiilocalId ${localId}");
     });
   }
 
-
   Future<bool> _scrollToMessageById(
-      String messageId, {
-        bool fetchIfMissing = false,
-      }) async {
+    String messageId, {
+    bool fetchIfMissing = false,
+  }) async {
     final targetId = messageId.trim();
     if (targetId.isEmpty) return false;
 
@@ -1322,10 +1370,6 @@ print("hiiilocalId ${localId}");
     return false;
   }
 
-
-
-
-
   // ------------------ Send image (optimistic) ------------------
   void _sendMessageImage() async {
     await _loadSessionImagePath();
@@ -1333,7 +1377,7 @@ print("hiiilocalId ${localId}");
 
     final nowIso = DateTime.now().toIso8601String();
     final String? mimeType =
-    _fileUrl != null ? lookupMimeType(_fileUrl!.path) : null;
+        _fileUrl != null ? lookupMimeType(_fileUrl!.path) : null;
 
     final optimistic = {
       'message_id': 'temp_${DateTime.now().millisecondsSinceEpoch}',
@@ -1347,16 +1391,26 @@ print("hiiilocalId ${localId}");
       'imageUrl': _imageFile?.path,
       'fileUrl': _fileUrl?.path,
       // --- NEW: if replying include reply metadata ---
-      if (_replyMessage != null) 'reply': {
-        'id': _replyMessage!['message_id'] ?? _replyMessage!['messageId'] ?? _replyMessage!['id'],
-        'reply_message_id': _replyMessage!['message_id'] ?? _replyMessage!['messageId'] ?? _replyMessage!['id'],
-        'replyContent': (_replyMessage!['content'] ?? '')?.toString() ?? '',
-        if (_replyMessage!['originalUrl'] != null) 'originalUrl': _replyMessage!['originalUrl'],
-        if (_replyMessage!['imageUrl'] != null) 'imageUrl': _replyMessage!['imageUrl'],
-        if (_replyMessage!['fileUrl'] != null) 'fileUrl': _replyMessage!['fileUrl'],
-        if (_replyMessage!['fileName'] != null) 'fileName': _replyMessage!['fileName'],
-        if (_replyMessage!['fileType'] != null) 'fileType': _replyMessage!['fileType'],
-      },
+      if (_replyMessage != null)
+        'reply': {
+          'id': _replyMessage!['message_id'] ??
+              _replyMessage!['messageId'] ??
+              _replyMessage!['id'],
+          'reply_message_id': _replyMessage!['message_id'] ??
+              _replyMessage!['messageId'] ??
+              _replyMessage!['id'],
+          'replyContent': (_replyMessage!['content'] ?? '')?.toString() ?? '',
+          if (_replyMessage!['originalUrl'] != null)
+            'originalUrl': _replyMessage!['originalUrl'],
+          if (_replyMessage!['imageUrl'] != null)
+            'imageUrl': _replyMessage!['imageUrl'],
+          if (_replyMessage!['fileUrl'] != null)
+            'fileUrl': _replyMessage!['fileUrl'],
+          if (_replyMessage!['fileName'] != null)
+            'fileName': _replyMessage!['fileName'],
+          if (_replyMessage!['fileType'] != null)
+            'fileType': _replyMessage!['fileType'],
+        },
     };
 
     socketMessages.add(optimistic);
@@ -1368,14 +1422,14 @@ print("hiiilocalId ${localId}");
 
     if (_fileUrl != null) {
       context.read<MessagerBloc>().add(
-        UploadFileEvent(
-          File(_fileUrl!.path),
-          widget.convoId,
-          currentUserId,
-          widget.datumId ?? "",
-          "",
-        ),
-      );
+            UploadFileEvent(
+              File(_fileUrl!.path),
+              widget.convoId,
+              currentUserId,
+              widget.datumId ?? "",
+              "",
+            ),
+          );
     }
 
     _messageController.clear();
@@ -1387,7 +1441,7 @@ print("hiiilocalId ${localId}");
   Future<void> _openCamera() async {
     try {
       final XFile? file =
-      await ImagePicker().pickImage(source: ImageSource.camera);
+          await ImagePicker().pickImage(source: ImageSource.camera);
       if (file != null) {
         final localFile = File(file.path);
         if (!localFile.existsSync()) {
@@ -1407,27 +1461,27 @@ print("hiiilocalId ${localId}");
             receiverId: widget.datumId!,
             isGroupChat: false,
             onOptionSelected: (List<Map<String, dynamic>> localMessages) {
-              if (localMessages.isEmpty) return;
+          if (localMessages.isEmpty) return;
 
-              setState(() {
-                // Add all local messages (grouped or single) to the socket list
-                socketMessages.addAll(localMessages);
+          setState(() {
+            // Add all local messages (grouped or single) to the socket list
+            socketMessages.addAll(localMessages);
 
-                // Mark them as seen so we don't re-add them if they come back from server
-                for (var msg in localMessages) {
-                  final id = (msg['message_id'] ?? '').toString();
-                  if (id.isNotEmpty) _seenMessageIds.add(id);
-                }
-              });
+            // Mark them as seen so we don't re-add them if they come back from server
+            for (var msg in localMessages) {
+              final id = (msg['message_id'] ?? '').toString();
+              if (id.isNotEmpty) _seenMessageIds.add(id);
+            }
+          });
 
-              // Refresh UI immediately
-              _updateNotifier();
-              _scheduleSaveMessages();
+          // Refresh UI immediately
+          _updateNotifier();
+          _scheduleSaveMessages();
 
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                _scrollToBottom();
-              });
-            });
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _scrollToBottom();
+          });
+        });
 
         final message = {
           'message_id': 'temp_${DateTime.now().millisecondsSinceEpoch}',
@@ -1448,26 +1502,30 @@ print("hiiilocalId ${localId}");
         _updateNotifier();
 
         context.read<MessagerBloc>().add(
-          UploadFileEvent(
-            localFile,
-            widget.convoId,
-            currentUserId,
-            widget.datumId ?? "",
-            "",
-          ),
-        );
+              UploadFileEvent(
+                localFile,
+                widget.convoId,
+                currentUserId,
+                widget.datumId ?? "",
+                "",
+              ),
+            );
         Navigator.pop(context);
       }
     } catch (e) {
       Messenger.alert(msg: "Could not open camera.");
     }
   }
+
   // ------------------ Incoming messages ------------------
   void onMessageReceived(Map<String, dynamic> data) {
-    debugPrint('RECEIVED message (id=${data['message_id'] ?? data['id']}): reply=${data['reply']}');
-    debugPrint('INCOMING raw message: ${data}'); // rawMsg is what you received from server/socket
+    debugPrint(
+        'RECEIVED message (id=${data['message_id'] ?? data['id']}): reply=${data['reply']}');
+    debugPrint(
+        'INCOMING raw message: ${data}'); // rawMsg is what you received from server/socket
     debugPrint('INCOMING raw reply field: ${data['reply']}');
-    debugPrint('INCOMING reply_message_id: ${data['reply_message_id'] ?? data['replyMessageId'] ?? data['reply_to']}');
+    debugPrint(
+        'INCOMING reply_message_id: ${data['reply_message_id'] ?? data['replyMessageId'] ?? data['reply_to']}');
 
     final event = data['event'];
     log("statusssssssssssss ${data}");
@@ -1494,12 +1552,15 @@ print("hiiilocalId ${localId}");
       return;
     }
 // inside your NewMessageReceivedState or onMessageReceived handler:
-    debugPrint('INCOMING raw message: ${data}'); // rawMsg is what you received from server/socket
+    debugPrint(
+        'INCOMING raw message: ${data}'); // rawMsg is what you received from server/socket
     debugPrint('INCOMING raw reply field: ${data['reply']}');
-    debugPrint('INCOMING reply_message_id: ${data['reply_message_id'] ?? data['replyMessageId'] ?? data['reply_to']}');
+    debugPrint(
+        'INCOMING reply_message_id: ${data['reply_message_id'] ?? data['replyMessageId'] ?? data['reply_to']}');
 
     log("⚠️ Unknown socket event: $event");
   }
+
   void _applyReactionUpdateFromSocket({
     required String messageId,
     required String emoji,
@@ -1509,7 +1570,8 @@ print("hiiilocalId ${localId}");
     required bool isRemoval,
   }) {
     if (!mounted) return;
-    if (userId == currentUserId) return; // you already optimistically updated locally
+    if (userId == currentUserId)
+      return; // you already optimistically updated locally
 
     String normalizeId(dynamic id) => id?.toString().trim() ?? '';
 
@@ -1518,7 +1580,8 @@ print("hiiilocalId ${localId}");
     void updateList(List<Map<String, dynamic>> list) {
       for (var i = 0; i < list.length; i++) {
         final msg = list[i];
-        final msgId = normalizeId(msg['message_id'] ?? msg['messageId'] ?? msg['_id'] ?? '');
+        final msgId = normalizeId(
+            msg['message_id'] ?? msg['messageId'] ?? msg['_id'] ?? '');
         if (msgId != messageId) continue;
 
         final existing = _extractReactions(msg['reactions']);
@@ -1527,7 +1590,11 @@ print("hiiilocalId ${localId}");
           {
             'emoji': emoji,
             'userId': userId,
-            'user': {'_id': userId, 'first_name': firstName ?? '', 'last_name': lastName ?? ''},
+            'user': {
+              '_id': userId,
+              'first_name': firstName ?? '',
+              'last_name': lastName ?? ''
+            },
             'reacted_at': DateTime.now().toIso8601String(),
           }
         ];
@@ -1535,7 +1602,13 @@ print("hiiilocalId ${localId}");
         List<Map<String, dynamic>> merged;
         if (isRemoval) {
           // remove any reaction from this user
-          merged = existing.where((r) => (r['userId']?.toString() ?? r['user']?['_id']?.toString() ?? '') != userId).toList();
+          merged = existing
+              .where((r) =>
+                  (r['userId']?.toString() ??
+                      r['user']?['_id']?.toString() ??
+                      '') !=
+                  userId)
+              .toList();
         } else {
           // union by userId, prefer incoming for this user
           merged = _mergeReactions(local: existing, incoming: incoming);
@@ -1559,7 +1632,6 @@ print("hiiilocalId ${localId}");
     }
   }
 
-
   // ------------------ Reaction handling ------------------
   void _handleReactionUpdate(dynamic reactionData) {
     try {
@@ -1580,8 +1652,7 @@ print("hiiilocalId ${localId}");
               .toList();
         } else if (reactionData['reaction'] is Map) {
           rawList = [
-            Map<String, dynamic>.from(
-                reactionData['reaction'] as Map),
+            Map<String, dynamic>.from(reactionData['reaction'] as Map),
           ];
         } else {
           rawList = [reactionData];
@@ -1590,8 +1661,7 @@ print("hiiilocalId ${localId}");
 
       for (final r in rawList) {
         final emoji = r['emoji']?.toString();
-        final msgId =
-            r['messageId']?.toString() ?? r['message_id']?.toString();
+        final msgId = r['messageId']?.toString() ?? r['message_id']?.toString();
 
         if (emoji == null || emoji.isEmpty || msgId == null || msgId.isEmpty) {
           continue;
@@ -1614,8 +1684,9 @@ print("hiiilocalId ${localId}");
 
         if (userId == null || userId.isEmpty) continue;
 
-        final isRemoval =
-            r['isRemoval'] == true || r['removed'] == true || r['remove'] == true;
+        final isRemoval = r['isRemoval'] == true ||
+            r['removed'] == true ||
+            r['remove'] == true;
 
         _applyReactionUpdateFromSocket(
           messageId: msgId,
@@ -1632,13 +1703,12 @@ print("hiiilocalId ${localId}");
   }
 
   void _replaceLocalForwardIdWithRealId(
-      String realId, Map<String, dynamic> serverMsg)
-  {
+      String realId, Map<String, dynamic> serverMsg) {
     final serverOriginalId = (serverMsg['original_message_id'] ??
-        serverMsg['originalMessageId'] ??
-        serverMsg['parent_message_id'] ??
-        serverMsg['parentMessageId'] ??
-        '')
+            serverMsg['originalMessageId'] ??
+            serverMsg['parent_message_id'] ??
+            serverMsg['parentMessageId'] ??
+            '')
         .toString();
 
     final serverContent = (serverMsg['content'] ?? '').toString();
@@ -1657,10 +1727,10 @@ print("hiiilocalId ${localId}");
         if (!isSynthetic) continue;
 
         final localOriginalId = (m['original_message_id'] ??
-            m['originalMessageId'] ??
-            m['parent_message_id'] ??
-            m['parentMessageId'] ??
-            '')
+                m['originalMessageId'] ??
+                m['parent_message_id'] ??
+                m['parentMessageId'] ??
+                '')
             .toString();
 
         final localContent = (m['content'] ?? '').toString();
@@ -1805,7 +1875,8 @@ print("hiiilocalId ${localId}");
     return out;
   }
 
-  void _updateMessageStatus(String messageId, String status, {bool localMark = false}) {
+  void _updateMessageStatus(String messageId, String status,
+      {bool localMark = false}) {
     log("🔄 _updateMessageStatus called for $messageId → $status (localMark=$localMark)");
 
     bool updated = false;
@@ -1857,7 +1928,8 @@ print("hiiilocalId ${localId}");
       final combined = _getCombinedMessages();
       try {
         return combined.firstWhere((m) {
-          final mid = (m['message_id'] ?? m['messageId'] ?? m['id'])?.toString() ?? '';
+          final mid =
+              (m['message_id'] ?? m['messageId'] ?? m['id'])?.toString() ?? '';
           return mid == id;
         }, orElse: () => <String, dynamic>{});
       } catch (_) {
@@ -1877,7 +1949,8 @@ print("hiiilocalId ${localId}");
     for (final id in uniqueAll) {
       final msg = _findLocalMessageById(id);
       final senderId = (msg != null && msg.isNotEmpty)
-          ? (msg['senderId'] ?? msg['sender']?['_id'] ?? msg['sender'])?.toString()
+          ? (msg['senderId'] ?? msg['sender']?['_id'] ?? msg['sender'])
+              ?.toString()
           : null;
 
       // If we have a local message and senderId equals currentUserId then skip it.
@@ -1907,7 +1980,8 @@ print("hiiilocalId ${localId}");
     for (final id in unique) {
       final msg = _findLocalMessageById(id);
       final senderId = (msg != null && msg.isNotEmpty)
-          ? (msg['senderId'] ?? msg['sender']?['_id'] ?? msg['sender'])?.toString()
+          ? (msg['senderId'] ?? msg['sender']?['_id'] ?? msg['sender'])
+              ?.toString()
           : null;
 
       if (senderId != null && senderId != currentUserId) {
@@ -1918,13 +1992,15 @@ print("hiiilocalId ${localId}");
       }
     }
 
-    final computedRoomId = socketService.generateRoomId(currentUserId, widget.datumId ?? '');
+    final computedRoomId =
+        socketService.generateRoomId(currentUserId, widget.datumId ?? '');
     socketService.sendReadReceipts(
       messageIds: unique,
       conversationId: widget.convoId,
       roomId: computedRoomId,
     );
   }
+
   List<String> _collectUnreadIds() {
     final combined = _messagesNotifier.value;
 
@@ -1947,7 +2023,8 @@ print("hiiilocalId ${localId}");
     if (!_scrollController.hasClients) return;
 
     // if scrolled near the top, try to load older messages
-    if (_scrollController.position.pixels <= _scrollController.position.minScrollExtent + 50) {
+    if (_scrollController.position.pixels <=
+        _scrollController.position.minScrollExtent + 50) {
       final total = _allMessages.length;
       if (_visibleCount < total && !_isLoadingMore) {
         setState(() {
@@ -1974,7 +2051,7 @@ print("hiiilocalId ${localId}");
     }
   }
 
-   _loadMoreMessages() {
+  _loadMoreMessages() {
     if (!_hasNextPage || _isLoadingMore) return;
 
     setState(() => _isLoadingMore = true);
@@ -1989,11 +2066,12 @@ print("hiiilocalId ${localId}");
     });
   }
 
-
-  List<Map<String, dynamic>> _inferGrouping(List<Map<String, dynamic>> messages) {
+  List<Map<String, dynamic>> _inferGrouping(
+      List<Map<String, dynamic>> messages) {
     if (messages.isEmpty) return messages;
 
-    messages.sort((a, b) => _parseTime(a['time']).compareTo(_parseTime(b['time'])));
+    messages
+        .sort((a, b) => _parseTime(a['time']).compareTo(_parseTime(b['time'])));
 
     for (int i = 0; i < messages.length; i++) {
       final currentMsg = messages[i];
@@ -2005,26 +2083,22 @@ print("hiiilocalId ${localId}");
       }
 
       // 🔹 detect image
-      final hasImage =
-          (currentMsg['imageUrl'] != null &&
+      final hasImage = (currentMsg['imageUrl'] != null &&
               currentMsg['imageUrl'].toString().isNotEmpty) ||
-              (currentMsg['localImagePath'] != null &&
-                  currentMsg['localImagePath'].toString().isNotEmpty);
+          (currentMsg['localImagePath'] != null &&
+              currentMsg['localImagePath'].toString().isNotEmpty);
 
       // 🔹 detect video
-      final String fileType = (currentMsg['fileType'] ??
-          currentMsg['mimeType'] ??
-          '')
-          .toString()
-          .toLowerCase();
+      final String fileType =
+          (currentMsg['fileType'] ?? currentMsg['mimeType'] ?? '')
+              .toString()
+              .toLowerCase();
       final String fileUrl =
-      (currentMsg['fileUrl'] ?? currentMsg['originalUrl'] ?? '')
-          .toString();
+          (currentMsg['fileUrl'] ?? currentMsg['originalUrl'] ?? '').toString();
 
-      final bool hasVideo =
-          fileType.startsWith('video/') ||
-              ['.mp4', '.mov', '.mkv', '.avi', '.webm']
-                  .any((ext) => fileUrl.toLowerCase().endsWith(ext));
+      final bool hasVideo = fileType.startsWith('video/') ||
+          ['.mp4', '.mov', '.mkv', '.avi', '.webm']
+              .any((ext) => fileUrl.toLowerCase().endsWith(ext));
 
       final bool isMedia = hasImage || hasVideo;
       if (!isMedia) continue;
@@ -2044,24 +2118,20 @@ print("hiiilocalId ${localId}");
         final nextTime = _parseTime(nextMsg['time']);
 
         // detect media for next
-        final nextHasImage =
-            (nextMsg['imageUrl'] != null &&
+        final nextHasImage = (nextMsg['imageUrl'] != null &&
                 nextMsg['imageUrl'].toString().isNotEmpty) ||
-                (nextMsg['localImagePath'] != null &&
-                    nextMsg['localImagePath'].toString().isNotEmpty);
+            (nextMsg['localImagePath'] != null &&
+                nextMsg['localImagePath'].toString().isNotEmpty);
 
-        final String nextFileType = (nextMsg['fileType'] ??
-            nextMsg['mimeType'] ??
-            '')
-            .toString()
-            .toLowerCase();
+        final String nextFileType =
+            (nextMsg['fileType'] ?? nextMsg['mimeType'] ?? '')
+                .toString()
+                .toLowerCase();
         final String nextFileUrl =
-        (nextMsg['fileUrl'] ?? nextMsg['originalUrl'] ?? '')
-            .toString();
-        final bool nextHasVideo =
-            nextFileType.startsWith('video/') ||
-                ['.mp4', '.mov', '.mkv', '.avi', '.webm']
-                    .any((ext) => nextFileUrl.toLowerCase().endsWith(ext));
+            (nextMsg['fileUrl'] ?? nextMsg['originalUrl'] ?? '').toString();
+        final bool nextHasVideo = nextFileType.startsWith('video/') ||
+            ['.mp4', '.mov', '.mkv', '.avi', '.webm']
+                .any((ext) => nextFileUrl.toLowerCase().endsWith(ext));
 
         final bool nextIsMedia = nextHasImage || nextHasVideo;
 
@@ -2136,14 +2206,13 @@ print("hiiilocalId ${localId}");
       onReplyTap: () {
         print("hiiii");
         final replyId =
-            message['reply']?['id'] ??
-                message['reply']?['message_id'];
+            message['reply']?['id'] ?? message['reply']?['message_id'];
 
         if (replyId != null) {
           print("replyIddd $replyId");
 
-           _scrollToMessageById(
-             replyId,
+          _scrollToMessageById(
+            replyId,
             fetchIfMissing: false,
           );
         }
@@ -2152,8 +2221,12 @@ print("hiiilocalId ${localId}");
   }
 
   Widget _buildReactionsBar(Map<String, dynamic> message, bool sentByMe) {
-    final messageId = (message['message_id'] ?? message['messageId'] ?? message['id'] ?? '').toString();
-    final mergedReactions = messageId.isNotEmpty ? _collectMergedReactionsForMessage(messageId) : <Map<String,dynamic>>[];
+    final messageId =
+        (message['message_id'] ?? message['messageId'] ?? message['id'] ?? '')
+            .toString();
+    final mergedReactions = messageId.isNotEmpty
+        ? _collectMergedReactionsForMessage(messageId)
+        : <Map<String, dynamic>>[];
 
     final msgCopy = Map<String, dynamic>.from(message);
     msgCopy['reactions'] = mergedReactions;
@@ -2330,8 +2403,7 @@ print("hiiilocalId ${localId}");
   List<Map<String, dynamic>> _mergeReactions({
     List<Map<String, dynamic>>? local,
     List<Map<String, dynamic>>? incoming,
-  })
-  {
+  }) {
     final Map<String, Map<String, dynamic>> byUser = {};
 
     void addList(List<Map<String, dynamic>>? list) {
@@ -2345,7 +2417,9 @@ print("hiiilocalId ${localId}");
         byUser[uid] = {
           'emoji': emoji,
           'userId': uid,
-          'user': r['user'] is Map ? Map<String, dynamic>.from(r['user']) : r['user'],
+          'user': r['user'] is Map
+              ? Map<String, dynamic>.from(r['user'])
+              : r['user'],
           'reacted_at': (r['reacted_at'] ?? r['createdAt'] ?? '').toString(),
         };
       }
@@ -2358,7 +2432,8 @@ print("hiiilocalId ${localId}");
     return byUser.values.toList();
   }
 
-  Future<void> _showReactionsBottomSheet(Map<String, dynamic> message, String initialEmoji) async {
+  Future<void> _showReactionsBottomSheet(
+      Map<String, dynamic> message, String initialEmoji) async {
     // helper to build normalized reactions list for a message object
     List<Map<String, dynamic>> _normalizeFromMap(Map<String, dynamic> msg) {
       final List<Map<String, dynamic>> out = [];
@@ -2385,7 +2460,18 @@ print("hiiilocalId ${localId}");
     }
 
     // default emoji set (change if you want)
-    const List<String> pickerEmojis = ['👍', '❤️', '😂', '😮', '😢', '👏', '🔥', '🎉', '🤝', '💯'];
+    const List<String> pickerEmojis = [
+      '👍',
+      '❤️',
+      '😂',
+      '😮',
+      '😢',
+      '👏',
+      '🔥',
+      '🎉',
+      '🤝',
+      '💯'
+    ];
 
     // first build the initial normalized list
     List<Map<String, dynamic>> allReacts = _normalizeFromMap(message);
@@ -2395,7 +2481,8 @@ print("hiiilocalId ${localId}");
     }
 
     // group builder (returns grouped map)
-    Map<String, List<Map<String, dynamic>>> buildGroupedFromList(List<Map<String, dynamic>> list) {
+    Map<String, List<Map<String, dynamic>>> buildGroupedFromList(
+        List<Map<String, dynamic>> list) {
       final Map<String, List<Map<String, dynamic>>> grouped = {};
       for (final r in list) {
         final e = r['emoji'] as String;
@@ -2415,17 +2502,29 @@ print("hiiilocalId ${localId}");
       builder: (ctx) {
         // local UI state inside sheet
         bool showEmojiPicker = false;
-        Map<String, List<Map<String, dynamic>>> grouped = buildGroupedFromList(allReacts);
+        Map<String, List<Map<String, dynamic>>> grouped =
+            buildGroupedFromList(allReacts);
         final emojis = grouped.keys.toList();
-        String selectedEmoji = emojis.contains(initialEmoji) ? initialEmoji : (emojis.isNotEmpty ? emojis.first : (initialEmoji.isNotEmpty ? initialEmoji : pickerEmojis.first));
+        String selectedEmoji = emojis.contains(initialEmoji)
+            ? initialEmoji
+            : (emojis.isNotEmpty
+                ? emojis.first
+                : (initialEmoji.isNotEmpty
+                    ? initialEmoji
+                    : pickerEmojis.first));
 
         // function to attempt to refresh `message` from current combined store
         void refreshFromStore(StateSetter setStateSB) {
           try {
-            final id = (message['message_id'] ?? message['messageId'] ?? message['id'] ?? '').toString();
+            final id = (message['message_id'] ??
+                    message['messageId'] ??
+                    message['id'] ??
+                    '')
+                .toString();
             if (id.isNotEmpty) {
               final latest = _getCombinedMessages().firstWhere((m) {
-                final mid = (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '').toString();
+                final mid = (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '')
+                    .toString();
                 return mid == id;
               }, orElse: () => message);
               // rebuild normalized list and grouped
@@ -2452,7 +2551,9 @@ print("hiiilocalId ${localId}");
           return SafeArea(
             child: Container(
               constraints: BoxConstraints(
-                maxHeight: showEmojiPicker?MediaQuery.of(context).size.height * 0.45:MediaQuery.of(context).size.height * 0.30,
+                maxHeight: showEmojiPicker
+                    ? MediaQuery.of(context).size.height * 0.45
+                    : MediaQuery.of(context).size.height * 0.30,
               ),
               padding: const EdgeInsets.only(top: 8, bottom: 12),
               child: Column(
@@ -2463,26 +2564,33 @@ print("hiiilocalId ${localId}");
                     width: 40,
                     height: 4,
                     margin: const EdgeInsets.symmetric(vertical: 8),
-                    decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(4)),
+                    decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(4)),
                   ),
 
                   // TOP: emoji chips (Add first)
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 11),
                     child: Row(
                       children: [
                         // Add chip (always visible)
                         GestureDetector(
                           onTap: () {
                             setStateSB(() {
-                              showEmojiPicker = !showEmojiPicker; // toggle emoji picker inside sheet
+                              showEmojiPicker =
+                                  !showEmojiPicker; // toggle emoji picker inside sheet
                             });
                           },
                           child: Container(
                             margin: const EdgeInsets.symmetric(horizontal: 6),
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 8),
                             decoration: BoxDecoration(
-                              color: showEmojiPicker ? Colors.green.withOpacity(0.12) : Colors.grey.shade100,
+                              color: showEmojiPicker
+                                  ? Colors.green.withOpacity(0.12)
+                                  : Colors.grey.shade100,
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(color: Colors.grey.shade300),
                             ),
@@ -2490,7 +2598,9 @@ print("hiiilocalId ${localId}");
                               children: const [
                                 Icon(Icons.emoji_emotions_outlined, size: 18),
                                 SizedBox(width: 6),
-                                Text('Add', style: TextStyle(fontWeight: FontWeight.w600)),
+                                Text('Add',
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.w600)),
                               ],
                             ),
                           ),
@@ -2510,22 +2620,34 @@ print("hiiilocalId ${localId}");
                                   onTap: () {
                                     setStateSB(() {
                                       selectedEmoji = e;
-                                      showEmojiPicker = false; // hide picker if open
+                                      showEmojiPicker =
+                                          false; // hide picker if open
                                     });
                                   },
                                   child: Container(
-                                    margin: const EdgeInsets.symmetric(horizontal: 6),
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                    margin: const EdgeInsets.symmetric(
+                                        horizontal: 6),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 8),
                                     decoration: BoxDecoration(
-                                      color: isSelected ? Colors.greenAccent.withOpacity(0.3) : Colors.grey.shade100,
+                                      color: isSelected
+                                          ? Colors.greenAccent.withOpacity(0.3)
+                                          : Colors.grey.shade100,
                                       borderRadius: BorderRadius.circular(14),
-                                      border: Border.all(color: isSelected ? Colors.green : Colors.grey.shade300),
+                                      border: Border.all(
+                                          color: isSelected
+                                              ? Colors.green
+                                              : Colors.grey.shade300),
                                     ),
                                     child: Row(
                                       children: [
-                                        Text(e, style: const TextStyle(fontSize: 18)),
+                                        Text(e,
+                                            style:
+                                                const TextStyle(fontSize: 18)),
                                         const SizedBox(width: 6),
-                                        Text('$cnt', style: const TextStyle(fontWeight: FontWeight.w600)),
+                                        Text('$cnt',
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.w600)),
                                       ],
                                     ),
                                   ),
@@ -2540,9 +2662,13 @@ print("hiiilocalId ${localId}");
 
                   // optionally show emoji picker panel inside sheet
                   if (showEmojiPicker) ...[
-                     Divider(height: 1,color:Colors.grey.shade200 ,),
+                    Divider(
+                      height: 1,
+                      color: Colors.grey.shade200,
+                    ),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
                       child: Wrap(
                         spacing: 8,
                         runSpacing: 8,
@@ -2555,7 +2681,8 @@ print("hiiilocalId ${localId}");
                                 _handleReactionTap(message, emo);
                                 Navigator.pop(context);
                               } catch (e) {
-                                debugPrint('Error while handling reaction pick: $e');
+                                debugPrint(
+                                    'Error while handling reaction pick: $e');
                               }
 
                               // hide picker and refresh sheet lists
@@ -2564,7 +2691,8 @@ print("hiiilocalId ${localId}");
                               });
 
                               // give a tiny delay to allow local updates to settle, then refresh the grouped list
-                              await Future.delayed(const Duration(milliseconds: 120));
+                              await Future.delayed(
+                                  const Duration(milliseconds: 120));
                               refreshFromStore(setStateSB);
                             },
                             child: Container(
@@ -2573,7 +2701,8 @@ print("hiiilocalId ${localId}");
                                 borderRadius: BorderRadius.circular(10),
                                 color: Colors.grey.shade100,
                               ),
-                              child: Text(emo, style: const TextStyle(fontSize: 22)),
+                              child: Text(emo,
+                                  style: const TextStyle(fontSize: 22)),
                             ),
                           );
                         }).toList(),
@@ -2581,21 +2710,32 @@ print("hiiilocalId ${localId}");
                     ),
                   ],
 
-                  Divider(height: 1,color:Colors.grey.shade200 ,),
+                  Divider(
+                    height: 1,
+                    color: Colors.grey.shade200,
+                  ),
 
                   // header: "X reactions"
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: Row(
                       children: [
-                        Text('${grouped[selectedEmoji]?.length ?? 0} reactions', style: const TextStyle(fontWeight: FontWeight.w600)),
+                        Text('${grouped[selectedEmoji]?.length ?? 0} reactions',
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w600)),
                         const Spacer(),
-                        TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Close')),
+                        TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(),
+                            child: const Text('Close')),
                       ],
                     ),
                   ),
 
-                  Divider(height: 1,color:Colors.grey.shade200 ,),
+                  Divider(
+                    height: 1,
+                    color: Colors.grey.shade200,
+                  ),
 
                   // reactors list
                   Expanded(
@@ -2611,8 +2751,17 @@ print("hiiilocalId ${localId}");
                         String? avatarUrl;
 
                         if (user is Map) {
-                          userId = (user['_id'] ?? user['id'] ?? user['userId'] ?? '').toString();
-                          displayName = (user['first_name'] ?? user['name'] ?? user['firstName'] ?? user['email'] ?? '').toString();
+                          userId = (user['_id'] ??
+                                  user['id'] ??
+                                  user['userId'] ??
+                                  '')
+                              .toString();
+                          displayName = (user['first_name'] ??
+                                  user['name'] ??
+                                  user['firstName'] ??
+                                  user['email'] ??
+                                  '')
+                              .toString();
                           avatarUrl = user['avatar']?.toString();
                         } else {
                           userId = (r['userId'] ?? '').toString();
@@ -2623,35 +2772,55 @@ print("hiiilocalId ${localId}");
 
                         return ListTile(
                           leading: CircleAvatar(
-                            backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) as ImageProvider : null,
-                            child: (avatarUrl == null || avatarUrl.isEmpty) ? Text(displayName.isNotEmpty ? displayName[0].toUpperCase() : '?') : null,
+                            backgroundImage:
+                                avatarUrl != null && avatarUrl.isNotEmpty
+                                    ? NetworkImage(avatarUrl) as ImageProvider
+                                    : null,
+                            child: (avatarUrl == null || avatarUrl.isEmpty)
+                                ? Text(displayName.isNotEmpty
+                                    ? displayName[0].toUpperCase()
+                                    : '?')
+                                : null,
                           ),
-                          title: Text(isMe ? 'You' : (displayName.isNotEmpty ? displayName : userId)),
-                          subtitle: isMe ? const Text('Tap to remove', style: TextStyle(fontSize: 12)) : null,
+                          title: Text(isMe
+                              ? 'You'
+                              : (displayName.isNotEmpty
+                                  ? displayName
+                                  : userId)),
+                          subtitle: isMe
+                              ? const Text('Tap to remove',
+                                  style: TextStyle(fontSize: 12))
+                              : null,
                           trailing: isMe
                               ? TextButton(
-                            onPressed: () async {
-                              Navigator.of(ctx).pop(); // close sheet
-                              final msgId = (message['message_id'] ?? message['messageId'] ?? '').toString();
-                              if (msgId.isEmpty) return;
+                                  onPressed: () async {
+                                    Navigator.of(ctx).pop(); // close sheet
+                                    final msgId = (message['message_id'] ??
+                                            message['messageId'] ??
+                                            '')
+                                        .toString();
+                                    if (msgId.isEmpty) return;
 
-                              // optimistic local removal of current user's reaction
-                              _updateLocalReactions(msgId, null); // remove my reaction locally
-                              final apiMessageId = _normalizeMessageIdForApi(msgId);
+                                    // optimistic local removal of current user's reaction
+                                    _updateLocalReactions(msgId,
+                                        null); // remove my reaction locally
+                                    final apiMessageId =
+                                        _normalizeMessageIdForApi(msgId);
 
-                              // dispatch your RemoveReaction event
-                              _messagerBloc.add(RemoveReaction(
-                                messageId: apiMessageId,
-                                conversationId: widget.convoId,
-                                emoji: selectedEmoji,
-                                userId: currentUserId,
-                                receiverId: widget.datumId ?? "",
-                                firstName: widget.firstname ?? "",
-                                lastName: widget.lastname ?? "",
-                              ));
-                            },
-                            child: const Text('Remove', style: TextStyle(color: Colors.red)),
-                          )
+                                    // dispatch your RemoveReaction event
+                                    _messagerBloc.add(RemoveReaction(
+                                      messageId: apiMessageId,
+                                      conversationId: widget.convoId,
+                                      emoji: selectedEmoji,
+                                      userId: currentUserId,
+                                      receiverId: widget.datumId ?? "",
+                                      firstName: widget.firstname ?? "",
+                                      lastName: widget.lastname ?? "",
+                                    ));
+                                  },
+                                  child: const Text('Remove',
+                                      style: TextStyle(color: Colors.red)),
+                                )
                               : null,
                           onTap: () {
                             // optional: open user profile
@@ -2672,10 +2841,10 @@ print("hiiilocalId ${localId}");
   void _handleReactionTap(Map<String, dynamic> message, String emoji) {
     try {
       String rawId = (message['message_id'] ??
-          message['messageId'] ??
-          message['id'] ??
-          message['_id'] ??
-          '')
+              message['messageId'] ??
+              message['id'] ??
+              message['_id'] ??
+              '')
           .toString();
 
       if (rawId.isEmpty) {
@@ -2687,7 +2856,7 @@ print("hiiilocalId ${localId}");
 
       // normalize reactions for this message
       final List<Map<String, dynamic>> reactions =
-      _extractReactions(message['reactions']);
+          _extractReactions(message['reactions']);
 
       int myIndex = -1;
       String? oldEmoji;
@@ -2770,7 +2939,8 @@ print("hiiilocalId ${localId}");
   void _openFile(String urlOrPath, String? fileType) async {
     // ✅ 1. VIDEO: open in your own player
     if (fileType != null && fileType.startsWith('video/')) {
-      final isNetwork = urlOrPath.startsWith('http://') || urlOrPath.startsWith('https://');
+      final isNetwork =
+          urlOrPath.startsWith('http://') || urlOrPath.startsWith('https://');
 
       Navigator.push(
         context,
@@ -2948,7 +3118,7 @@ print("hiiilocalId ${localId}");
       senderId: currentUserId,
       receiverId: widget.datumId ?? "",
       message:
-      _selectedMessageKeys.isNotEmpty ? _selectedMessageKeys.first : "",
+          _selectedMessageKeys.isNotEmpty ? _selectedMessageKeys.first : "",
     ));
 
     setState(() {
@@ -2974,27 +3144,25 @@ print("hiiilocalId ${localId}");
     });
   }
 
-  void _replyToMessage(Map<String, dynamic> message,{bool isSendMe=false}) {
+  void _replyToMessage(Map<String, dynamic> message, {bool isSendMe = false}) {
     if (message.isEmpty) return;
-   log("messsssssssssssssssssssss $message");
+    log("messsssssssssssssssssssss $message");
     // 🔹 Raw data from original message
     final String content =
-    (message['content'] ?? message['message'] ?? '').toString();
+        (message['content'] ?? message['message'] ?? '').toString();
 
-    final String? imageUrl =
-        message['imageUrl'] ??
-            message['thumbnailUrl'] ??
-            message['localImagePath'];
+    final String? imageUrl = message['imageUrl'] ??
+        message['thumbnailUrl'] ??
+        message['localImagePath'];
 
-    final String? fileUrl     = message['fileUrl'];
-    final String? fileName    = message['fileName'];
-    final String? fileType    = message['fileType'];
+    final String? fileUrl = message['fileUrl'];
+    final String? fileName = message['fileName'];
+    final String? fileType = message['fileType'];
     final String? originalUrl = message['originalUrl'] ?? fileUrl;
 
-    final String userName =
-        message['senderName'] ??
-            message['userName'] ??
-            (message['sender']?['name'] ?? '');
+    final String userName = message['senderName'] ??
+        message['userName'] ??
+        (message['sender']?['name'] ?? '');
 
     final String ftLower = (fileType ?? '').toLowerCase();
     final bool isVideo = ftLower.startsWith('video/');
@@ -3005,10 +3173,9 @@ print("hiiilocalId ${localId}");
 
       // 2️⃣ Build a lightweight map only for the input field UI
       _replyPreview = {
-        'message_id': (message['message_id'] ??
-            message['messageId'] ??
-            message['id'])
-            ?.toString(),
+        'message_id':
+            (message['message_id'] ?? message['messageId'] ?? message['id'])
+                ?.toString(),
         'content': content,
         'imageUrl': imageUrl ?? '',
         'fileUrl': fileUrl ?? '',
@@ -3016,11 +3183,14 @@ print("hiiilocalId ${localId}");
         'fileType': fileType ?? '',
         'originalUrl': originalUrl ?? '',
         'userName': userName,
-        'isVideo': (message['fileType'] ?? '').toString().toLowerCase().startsWith('video/'),
-        'receiver':message["receiver"],
-        'sender':message["sender"],
-        "isSendMe":isSendMe,
-        "senderId":widget.datumId
+        'isVideo': (message['fileType'] ?? '')
+            .toString()
+            .toLowerCase()
+            .startsWith('video/'),
+        'receiver': message["receiver"],
+        'sender': message["sender"],
+        "isSendMe": isSendMe,
+        "senderId": widget.datumId
       };
 
       _focusNode.requestFocus();
@@ -3064,7 +3234,9 @@ print("hiiilocalId ${localId}");
       favouitre: widget.favourite,
       grpChat: widget.grpChat,
       onSearchTap: () => toggleSearchAppBar(),
-      onCloseSearch: () => toggleSearchAppBar(), hasLeftGroup: false, groupMembers: [],
+      onCloseSearch: () => toggleSearchAppBar(),
+      hasLeftGroup: false,
+      groupMembers: [],
     );
   }
 
@@ -3075,7 +3247,6 @@ print("hiiilocalId ${localId}");
     if (widget.convoId.isEmpty) return;
     final combined = [...dbMessages, ...messages, ...socketMessages];
     LocalChatStorage.saveMessages(widget.convoId, combined);
-
   }
 
   bool _shouldAddMessage(Map<String, dynamic> msg) {
@@ -3087,11 +3258,11 @@ print("hiiilocalId ${localId}");
   bool _isUnreadMessage(dynamic msg) {
     if (msg is Map<String, dynamic>) {
       final senderId =
-      (msg['senderId'] ?? msg['sender']?['_id'] ?? msg['sender']?['id'])
-          ?.toString();
+          (msg['senderId'] ?? msg['sender']?['_id'] ?? msg['sender']?['id'])
+              ?.toString();
 
       return msg['messageStatus'] != 'read' &&
-          senderId != currentUserId &&           // 👈 only msgs from others
+          senderId != currentUserId && // 👈 only msgs from others
           msg['message_id'] != null;
     }
     return false;
@@ -3134,6 +3305,7 @@ print("hiiilocalId ${localId}");
     await _clearSessionImagePath();
     await _clearSessionFilePath();
   }
+
   /// Call this after messages are loaded and socket is connected.
   Future<void> _sendInitialReadReceiptsIfNeeded() async {
     if (!mounted) return;
@@ -3178,7 +3350,8 @@ print("hiiilocalId ${localId}");
     _alreadyRead.addAll(unread);
 
     // compute consistent roomId
-    final computedRoomId = socketService.generateRoomId(currentUserId, widget.datumId ?? '');
+    final computedRoomId =
+        socketService.generateRoomId(currentUserId, widget.datumId ?? '');
     socketService.sendReadReceipts(
       messageIds: unread,
       conversationId: widget.convoId,
@@ -3218,8 +3391,12 @@ print("hiiilocalId ${localId}");
 
           // If after animate still not at bottom, try jumpTo as a fallback
           if (_scrollController.hasClients &&
-              (_scrollController.offset - _scrollController.position.maxScrollExtent).abs() > 1.0) {
-            _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+              (_scrollController.offset -
+                          _scrollController.position.maxScrollExtent)
+                      .abs() >
+                  1.0) {
+            _scrollController
+                .jumpTo(_scrollController.position.maxScrollExtent);
           }
 
           return;
@@ -3239,7 +3416,6 @@ print("hiiilocalId ${localId}");
       }
     });
   }
-
 
   // ------------------ Build ------------------
   @override
@@ -3261,11 +3437,9 @@ print("hiiilocalId ${localId}");
                 if (id.isNotEmpty) {
                   _updateMessageStatus(
                       id, state.sentMessage.messageStatus ?? 'pending');
-                //  _sendReadForNewOutgoing(id);  // only if your backend really expects this
-
+                  //  _sendReadForNewOutgoing(id);  // only if your backend really expects this
                 }
-              }
-              else if (state is MessagerLoaded) {
+              } else if (state is MessagerLoaded) {
                 _hasNextPage = state.response.hasNextPage;
                 _isLoadingMore = false;
 
@@ -3278,7 +3452,7 @@ print("hiiilocalId ${localId}");
                 var newDbMessages = allMessages
                     .map<Map<String, dynamic>>(
                       (datum) => normalizeMessage(datum.toJson()),
-                )
+                    )
                     .where((m) => m.isNotEmpty)
                     .toList();
                 newDbMessages = _inferGrouping(newDbMessages);
@@ -3288,13 +3462,17 @@ print("hiiilocalId ${localId}");
                 // build previousById as before
                 final Map<String, Map<String, dynamic>> previousById = {};
                 for (final old in dbMessages) {
-                  final id = (old['message_id'] ?? old['messageId'] ?? old['id'] ?? '').toString();
+                  final id =
+                      (old['message_id'] ?? old['messageId'] ?? old['id'] ?? '')
+                          .toString();
                   if (id.isEmpty) continue;
                   previousById[id] = old;
                 }
 
                 for (final m in newDbMessages) {
-                  final id = (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '').toString();
+                  final id =
+                      (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '')
+                          .toString();
                   if (id.isEmpty) continue;
                   final prev = previousById[id];
                   if (prev == null) continue;
@@ -3307,15 +3485,16 @@ print("hiiilocalId ${localId}");
                     if (!newHasReply) {
                       try {
                         if (prev['_localReply'] != null) {
-                          m['reply'] = Map<String, dynamic>.from(prev['_localReply']);
+                          m['reply'] =
+                              Map<String, dynamic>.from(prev['_localReply']);
                         } else if (prev['reply'] != null) {
                           m['reply'] = Map<String, dynamic>.from(prev['reply']);
                         }
                         m['reply_message_id'] ??= (m['reply'] != null)
                             ? (m['reply']['id'] ??
-                            m['reply']['message_id'] ??
-                            m['reply']['reply_message_id'])
-                            ?.toString()
+                                    m['reply']['message_id'] ??
+                                    m['reply']['reply_message_id'])
+                                ?.toString()
                             : m['reply_message_id'];
                         m['isReplyMessage'] = true;
                         // carry the local marker forward so future merges still know
@@ -3330,16 +3509,24 @@ print("hiiilocalId ${localId}");
                   final newReactions = _extractReactions(m['reactions']);
                   if (newReactions.isEmpty && prevReactions.isNotEmpty) {
                     m['reactions'] = prevReactions;
-                  } else if (newReactions.isNotEmpty && prevReactions.isNotEmpty) {
+                  } else if (newReactions.isNotEmpty &&
+                      prevReactions.isNotEmpty) {
                     // merge them (union by user)
-                    m['reactions'] = _mergeReactions(local: prevReactions, incoming: newReactions);
+                    m['reactions'] = _mergeReactions(
+                        local: prevReactions, incoming: newReactions);
                   }
 
 // preserve local 'read' only if we locally marked it
-                  final prevStatus = (prev['messageStatus'] ?? prev['status'] ?? '').toString();
-                  final newStatus = (m['messageStatus'] ?? m['status'] ?? '').toString();
-                  final bool prevLocallyMarkedRead = prev['_localMarkedRead'] == true;
-                  if (prevLocallyMarkedRead && prevStatus == 'read' && newStatus != 'read') {
+                  final prevStatus =
+                      (prev['messageStatus'] ?? prev['status'] ?? '')
+                          .toString();
+                  final newStatus =
+                      (m['messageStatus'] ?? m['status'] ?? '').toString();
+                  final bool prevLocallyMarkedRead =
+                      prev['_localMarkedRead'] == true;
+                  if (prevLocallyMarkedRead &&
+                      prevStatus == 'read' &&
+                      newStatus != 'read') {
                     m['messageStatus'] = 'read';
                     m['_localMarkedRead'] = true;
                   }
@@ -3352,48 +3539,64 @@ print("hiiilocalId ${localId}");
                   final Map<String, Map<String, dynamic>> byId = {};
 // overlay fresh messages from server
                   for (final fresh in newDbMessages) {
-                    final id = (fresh['message_id'] ?? fresh['messageId'] ?? fresh['id'])?.toString() ?? '';
+                    final id = (fresh['message_id'] ??
+                                fresh['messageId'] ??
+                                fresh['id'])
+                            ?.toString() ??
+                        '';
                     if (id.isEmpty) {
                       // server returned a message without id — keep it as-is (append)
                       // you may want to add it to dbMessages directly, but here we keep within byId
-                      final tempKey = '__noid_${DateTime.now().microsecondsSinceEpoch}';
+                      final tempKey =
+                          '__noid_${DateTime.now().microsecondsSinceEpoch}';
                       byId[tempKey] = fresh;
                       continue;
                     }
 
                     // if we already had a local version, merge some important local-only fields
-                    final prev = byId[id]; // this checks values already in byId (from cached dbMessages earlier)
+                    final prev = byId[
+                        id]; // this checks values already in byId (from cached dbMessages earlier)
                     // If `prev` is null, try to find a cached local message from your existing dbMessages:
-                    final localPrev = prev ?? dbMessages.firstWhere(
-                          (m) => (m['message_id'] ?? m['messageId'] ?? m['id'])?.toString() == id,
-                      orElse: () => {},
-                    );
+                    final localPrev = prev ??
+                        dbMessages.firstWhere(
+                          (m) =>
+                              (m['message_id'] ?? m['messageId'] ?? m['id'])
+                                  ?.toString() ==
+                              id,
+                          orElse: () => {},
+                        );
 
                     // Start with fresh copy we'll store
-                    final Map<String, dynamic> merged = Map<String, dynamic>.from(fresh);
+                    final Map<String, dynamic> merged =
+                        Map<String, dynamic>.from(fresh);
 
                     // ---- Preserve reply info if local had it but server omitted it ----
                     try {
-                      final bool prevHasLocalReply = (localPrev != null && localPrev.isNotEmpty) &&
-                          (localPrev['_localHasReply'] == true ||
-                              localPrev['reply'] != null ||
-                              localPrev['reply_message_id'] != null);
+                      final bool prevHasLocalReply =
+                          (localPrev != null && localPrev.isNotEmpty) &&
+                              (localPrev['_localHasReply'] == true ||
+                                  localPrev['reply'] != null ||
+                                  localPrev['reply_message_id'] != null);
 
                       final bool freshHasReply = _hasReplyForMessage(merged);
 
                       if (prevHasLocalReply && !freshHasReply) {
                         // Prefer a locally stored _localReply if present (set when you replaced temp->real)
                         if (localPrev['_localReply'] != null) {
-                          merged['reply'] = Map<String, dynamic>.from(localPrev['_localReply']);
+                          merged['reply'] = Map<String, dynamic>.from(
+                              localPrev['_localReply']);
                         } else if (localPrev['reply'] != null) {
-                          merged['reply'] = Map<String, dynamic>.from(localPrev['reply']);
+                          merged['reply'] =
+                              Map<String, dynamic>.from(localPrev['reply']);
                         }
 
                         // ensure top-level id fields exist
                         if (merged['reply'] != null) {
-                          merged['reply_message_id'] ??= (merged['reply']['id'] ??
-                              merged['reply']['message_id'] ??
-                              merged['reply']['reply_message_id'])?.toString();
+                          merged['reply_message_id'] ??= (merged['reply']
+                                      ['id'] ??
+                                  merged['reply']['message_id'] ??
+                                  merged['reply']['reply_message_id'])
+                              ?.toString();
                         }
 
                         merged['isReplyMessage'] = true;
@@ -3406,8 +3609,12 @@ print("hiiilocalId ${localId}");
 
                     // ---- Preserve local reactions if server omitted them (optional) ----
                     try {
-                      final prevReactions = (localPrev != null && localPrev.isNotEmpty) ? _extractReactions(localPrev['reactions']) : <Map<String,dynamic>>[];
-                      final newReactions = _extractReactions(merged['reactions']);
+                      final prevReactions =
+                          (localPrev != null && localPrev.isNotEmpty)
+                              ? _extractReactions(localPrev['reactions'])
+                              : <Map<String, dynamic>>[];
+                      final newReactions =
+                          _extractReactions(merged['reactions']);
                       if (newReactions.isEmpty && prevReactions.isNotEmpty) {
                         merged['reactions'] = prevReactions;
                       }
@@ -3415,8 +3622,12 @@ print("hiiilocalId ${localId}");
 
                     // ---- Preserve locally marked read state if we previously flagged it ----
                     try {
-                      final prevLocallyMarkedRead = (localPrev != null && localPrev.isNotEmpty) && localPrev['_localMarkedRead'] == true;
-                      final newStatus = (merged['messageStatus'] ?? merged['status'] ?? '').toString();
+                      final prevLocallyMarkedRead =
+                          (localPrev != null && localPrev.isNotEmpty) &&
+                              localPrev['_localMarkedRead'] == true;
+                      final newStatus =
+                          (merged['messageStatus'] ?? merged['status'] ?? '')
+                              .toString();
                       if (prevLocallyMarkedRead && newStatus != 'read') {
                         merged['messageStatus'] = 'read';
                         merged['_localMarkedRead'] = true;
@@ -3437,7 +3648,8 @@ print("hiiilocalId ${localId}");
                 // 5) Track seen IDs
                 for (var m in newDbMessages) {
                   final id =
-                  (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '').toString();
+                      (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '')
+                          .toString();
                   if (id.isNotEmpty) _seenMessageIds.add(id);
                 }
 
@@ -3452,10 +3664,11 @@ print("hiiilocalId ${localId}");
                     try {
                       if (_prevScrollExtentBeforeLoad > 0 &&
                           _scrollController.hasClients) {
-                        final newMax = _scrollController.position.maxScrollExtent;
+                        final newMax =
+                            _scrollController.position.maxScrollExtent;
                         final delta = newMax - _prevScrollExtentBeforeLoad;
                         final newOffset =
-                        (_scrollController.offset + delta).clamp(
+                            (_scrollController.offset + delta).clamp(
                           0.0,
                           _scrollController.position.maxScrollExtent,
                         );
@@ -3465,14 +3678,12 @@ print("hiiilocalId ${localId}");
                     _prevScrollExtentBeforeLoad = 0.0;
                   });
                 }
-              }
-              else if (state is NewMessageReceivedState) {
+              } else if (state is NewMessageReceivedState) {
                 onMessageReceived(state.message);
 
                 normalizeReplyMessages(socketMessages);
                 _updateNotifier();
               }
-
             },
             builder: (context, state) {
               final bool showShimmer = state is MessagerLoading &&
@@ -3500,114 +3711,141 @@ print("hiiilocalId ${localId}");
                       duration: const Duration(milliseconds: 220),
                       child: _isLoadingMore
                           ? Padding(
-                        key: const ValueKey('top_loader'),
-                        padding: const EdgeInsets.symmetric(vertical: 8.0),
-                        child: Center(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 6)],
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: const [
-                                SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                              key: const ValueKey('top_loader'),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 8.0),
+                              child: Center(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(20),
+                                    boxShadow: [
+                                      BoxShadow(
+                                          color: Colors.black.withOpacity(0.06),
+                                          blurRadius: 6)
+                                    ],
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: const [
+                                      SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2),
+                                      ),
+                                      SizedBox(width: 10),
+                                      Text('Loading older messages...',
+                                          style: TextStyle(fontSize: 13)),
+                                    ],
+                                  ),
                                 ),
-                                SizedBox(width: 10),
-                                Text('Loading older messages...', style: TextStyle(fontSize: 13)),
-                              ],
-                            ),
-                          ),
-                        ),
-                      )
+                              ),
+                            )
                           : (!_hasNextPage && _allMessages.isNotEmpty)
-                          ? Padding(
-                        key: const ValueKey('all_loaded'),
-                        padding: const EdgeInsets.symmetric(vertical: 8.0),
-                        child: Center(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade100,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: Colors.grey.shade300),
-                            ),
-                            child: const Text('All messages loaded', style: TextStyle(fontSize: 13)),
-                          ),
-                        ),
-                      )
-                          : const SizedBox.shrink(),
+                              ? Padding(
+                                  key: const ValueKey('all_loaded'),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 8.0),
+                                  child: Center(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey.shade100,
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(
+                                            color: Colors.grey.shade300),
+                                      ),
+                                      child: const Text('All messages loaded',
+                                          style: TextStyle(fontSize: 13)),
+                                    ),
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
                     ),
-
                     Expanded(
                       child: ListView.builder(
                         controller: _scrollController,
                         itemCount: combinedMessages.length,
                         itemBuilder: (context, index) {
                           final message = combinedMessages[index];
-                             log("messagessssssssss ${message}");
+                          log("messagessssssssss ${message}");
                           final senderMap = message['sender'] is Map
                               ? Map<String, dynamic>.from(message['sender'])
                               : <String, dynamic>{};
-                      
+
                           final senderId = (message['senderId'] ??
-                              senderMap['_id'] ??
-                              senderMap['id'] ??
-                              message['sender'])
-                              ?.toString() ??
+                                      senderMap['_id'] ??
+                                      senderMap['id'] ??
+                                      message['sender'])
+                                  ?.toString() ??
                               '';
-                      
-                           isSentByMe = senderId == currentUserId;
-                           print("isssssssssssssss R${isSentByMe.runtimeType}");
+
+                          isSentByMe = senderId == currentUserId;
+
                           final showDate = index == 0 ||
                               !isSameDay(
                                 _parseTime(message['time']),
                                 _parseTime(combinedMessages[index - 1]['time']),
                               );
-                          final isGroupMessage = message['is_group_message'] == true;
-                          final groupMessageId = message['group_message_id']?.toString();
-                      
+                          final isGroupMessage =
+                              message['is_group_message'] == true;
+                          final groupMessageId =
+                              message['group_message_id']?.toString();
+
                           if (isGroupMessage &&
                               groupMessageId != null &&
                               groupMessageId.isNotEmpty) {
-                      
                             // Is this the first message in the group?
                             final isFirstInGroup = index == 0 ||
-                                combinedMessages[index - 1]['group_message_id']?.toString() !=
+                                combinedMessages[index - 1]['group_message_id']
+                                        ?.toString() !=
                                     groupMessageId;
-                      
+
                             // Skip non-first items
                             if (!isFirstInGroup) {
                               return const SizedBox.shrink();
                             }
-                      
+
                             // 👇 collect ALL media (images + videos) in this group
                             final List<GroupMediaItem> groupMedia = [];
-                            final String messageStatus = message['messageStatus']?.toString() ?? 'sent';
-                      
-                            for (int i = index; i < combinedMessages.length; i++) {
+                            final String messageStatus =
+                                message['messageStatus']?.toString() ?? 'sent';
+
+                            for (int i = index;
+                                i < combinedMessages.length;
+                                i++) {
                               final nextMsg = combinedMessages[i];
-                              final nextGrpId = nextMsg['group_message_id']?.toString();
+                              final nextGrpId =
+                                  nextMsg['group_message_id']?.toString();
                               if (nextGrpId != groupMessageId) break;
-                      
-                              final String? thumb = nextMsg['originalUrl']?.toString()
-                                  ?? nextMsg['imageUrl']?.toString()
-                                  ?? nextMsg['localImagePath']?.toString();
-                      
-                              final String? fileUrl = nextMsg['fileUrl']?.toString();
-                              final String fileType =
-                              (nextMsg['fileType'] ?? nextMsg['mimeType'] ?? '').toString().toLowerCase();
-                      
-                              final bool isVideo = fileType.startsWith('video/') ||
-                                  (fileUrl != null &&
-                                      RegExp(r'\.(mp4|mov|mkv|avi|webm)$', caseSensitive: false).hasMatch(fileUrl));
-                      
-                              if (!isVideo && thumb != null && thumb.isNotEmpty) {
+
+                              final String? thumb =
+                                  nextMsg['originalUrl']?.toString() ??
+                                      nextMsg['imageUrl']?.toString() ??
+                                      nextMsg['localImagePath']?.toString();
+
+                              final String? fileUrl =
+                                  nextMsg['fileUrl']?.toString();
+                              final String fileType = (nextMsg['fileType'] ??
+                                      nextMsg['mimeType'] ??
+                                      '')
+                                  .toString()
+                                  .toLowerCase();
+
+                              final bool isVideo =
+                                  fileType.startsWith('video/') ||
+                                      (fileUrl != null &&
+                                          RegExp(r'\.(mp4|mov|mkv|avi|webm)$',
+                                                  caseSensitive: false)
+                                              .hasMatch(fileUrl));
+
+                              if (!isVideo &&
+                                  thumb != null &&
+                                  thumb.isNotEmpty) {
                                 groupMedia.add(GroupMediaItem(
                                   previewUrl: thumb,
                                   mediaUrl: thumb,
@@ -3625,137 +3863,149 @@ print("hiiilocalId ${localId}");
                                 }
                               }
                             }
-                      
-                      
+
                             // Render grouped media if we have any
                             if (groupMedia.isNotEmpty) {
                               return Column(
-                                crossAxisAlignment:
-                                isSentByMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                                crossAxisAlignment: isSentByMe
+                                    ? CrossAxisAlignment.end
+                                    : CrossAxisAlignment.start,
                                 children: [
                                   if (showDate)
-                                    DateSeparator(dateTime: _parseTime(message['time'])),
+                                    DateSeparator(
+                                        dateTime: _parseTime(message['time'])),
                                   Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8.0, vertical: 4.0),
                                     child: GroupedMediaWidget(
                                       media: groupMedia,
                                       isSentByMe: isSentByMe,
-                                      time: TimeUtils.formatUtcToIst(message['time']),
-                                      messageStatus: message['messageStatus']?.toString() ?? 'sent',
-                                      buildStatusIcon: (status) => MessageStatusIcon(status: status ?? 'sent',isStatus: true,),
-                                      onImageTap:  (tappedIndex) {
+                                      time: TimeUtils.formatUtcToIst(
+                                          message['time']),
+                                      messageStatus: message['messageStatus']
+                                              ?.toString() ??
+                                          'sent',
+                                      buildStatusIcon: (status) =>
+                                          MessageStatusIcon(
+                                        status: status ?? 'sent',
+                                        isStatus: true,
+                                      ),
+                                      onImageTap: (tappedIndex) {
                                         Navigator.push(
                                           context,
                                           PageRouteBuilder(
                                             opaque: false,
-                                            transitionDuration: const Duration(milliseconds: 300),
-                                            pageBuilder: (_, __, ___) => MixedMediaViewer(
+                                            transitionDuration: const Duration(
+                                                milliseconds: 300),
+                                            pageBuilder: (_, __, ___) =>
+                                                MixedMediaViewer(
                                               items: groupMedia,
-                                              initialIndex:tappedIndex,
+                                              initialIndex: tappedIndex,
                                             ),
                                           ),
                                         );
-
                                       },
-
                                     ),
                                   ),
                                 ],
                               );
                             }
-                      
                           }
-                      
-                      
+
                           final hasReply = _hasReplyForMessage(message);
-                      
+
                           print("hasReply $hasReply");
-                      
+
                           final messageId = (message['message_id'] ??
-                              message['messageId'] ??
-                              message['id'] ??
-                              '')
+                                  message['messageId'] ??
+                                  message['id'] ??
+                                  '')
                               .toString();
-                      
-                          final bool isHighlighted = _highlightedMessageId == messageId;
-                      
-                          return Builder(
-                            builder: (ctx) {
-                              final messageId = _anyId(message)?.toString();
-                              if (messageId != null && messageId.isNotEmpty) {
-                                _messageContexts[messageId] = ctx;
-                              }
-                              return SwipeTo(
-                                animationDuration: const Duration(milliseconds: 650),
-                                iconOnRightSwipe: Icons.reply,
-                                iconColor: Colors.grey.shade600,
-                                iconSize: 24.0,
-                                offsetDx: 0.3,
-                                swipeSensitivity: 5,
-                                onRightSwipe: (details) => _replyToMessage(message,isSendMe: isSentByMe),
-                                child: AnimatedContainer(
-                                  key: ValueKey(messageId),
-                                  duration: const Duration(milliseconds: 300),
-                                  curve: Curves.easeOut,
-                                  margin: const EdgeInsets.symmetric(vertical: 2),
-                                  color: isHighlighted
-                                      ? Colors.yellow.withOpacity(0.25)
-                                      : Colors.transparent,
-                                  child: !hasReply
-                                      ? _buildMessageBubble(message, isSentByMe, hasReply)
-                                      : Column(
-                                    crossAxisAlignment: isSentByMe
-                                        ? CrossAxisAlignment.end
-                                        : CrossAxisAlignment.start,
-                                    children: [
-                                      if (showDate)
-                                        DateSeparator(
-                                            dateTime: _parseTime(message['time'])),
-                                      Container(
-                                        margin: const EdgeInsets.symmetric(
-                                            horizontal: 5, vertical: 6),
-                                       // padding: const EdgeInsets.all(7),
-                                        constraints:
-                                        const BoxConstraints(maxWidth: 160),
-                                        decoration: BoxDecoration(
-                                          color: (isSentByMe
-                                              ? const Color(0xFFD8E1FE)
-                                              : Colors.white),
-                                          borderRadius: BorderRadius.only(
-                                            topLeft: isSentByMe
-                                                ? Radius.zero
-                                                : const Radius.circular(18),
-                                            topRight: isSentByMe
-                                                ? const Radius.circular(18)
-                                                : Radius.zero,
-                                            bottomLeft: isSentByMe
-                                                ? const Radius.circular(18)
-                                                : Radius.zero,
-                                            bottomRight: isSentByMe
-                                                ? Radius.zero
-                                                : const Radius.circular(16),
-                                          ),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Colors.black.withOpacity(0.05),
-                                              blurRadius: 4,
-                                              offset: const Offset(0, 2),
-                                            ),
-                                          ],
-                                        ),
-                                        child: Column(
-                                          children: [
-                                            _buildMessageBubble(
-                                                message, isSentByMe, hasReply),
-                                          ],
-                                        ),
-                                      )
-                                    ],
-                                  ),
-                                ),
-                              );
+
+                          final bool isHighlighted =
+                              _highlightedMessageId == messageId;
+
+                          return Builder(builder: (ctx) {
+                            final messageId = _anyId(message)?.toString();
+                            if (messageId != null && messageId.isNotEmpty) {
+                              _messageContexts[messageId] = ctx;
                             }
-                          );
+                            return SwipeTo(
+                              animationDuration:
+                                  const Duration(milliseconds: 650),
+                              iconOnRightSwipe: Icons.reply,
+                              iconColor: Colors.grey.shade600,
+                              iconSize: 24.0,
+                              offsetDx: 0.3,
+                              swipeSensitivity: 5,
+                              onRightSwipe: (details) => _replyToMessage(
+                                  message,
+                                  isSendMe: isSentByMe),
+                              child: AnimatedContainer(
+                                key: ValueKey(messageId),
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeOut,
+                                margin: const EdgeInsets.symmetric(vertical: 2),
+                                color: isHighlighted
+                                    ? Colors.yellow.withOpacity(0.25)
+                                    : Colors.transparent,
+                                child: !hasReply
+                                    ? _buildMessageBubble(
+                                        message, isSentByMe, hasReply)
+                                    : Column(
+                                        crossAxisAlignment: isSentByMe
+                                            ? CrossAxisAlignment.end
+                                            : CrossAxisAlignment.start,
+                                        children: [
+                                          if (showDate)
+                                            DateSeparator(
+                                                dateTime: _parseTime(
+                                                    message['time'])),
+                                          Container(
+                                            margin: const EdgeInsets.symmetric(
+                                                horizontal: 5, vertical: 6),
+                                            // padding: const EdgeInsets.all(7),
+                                            constraints: const BoxConstraints(
+                                                maxWidth: 160),
+                                            decoration: BoxDecoration(
+                                              color: (isSentByMe
+                                                  ? const Color(0xFFD8E1FE)
+                                                  : Colors.white),
+                                              borderRadius: BorderRadius.only(
+                                                topLeft: isSentByMe
+                                                    ? Radius.zero
+                                                    : const Radius.circular(18),
+                                                topRight: isSentByMe
+                                                    ? const Radius.circular(18)
+                                                    : Radius.zero,
+                                                bottomLeft: isSentByMe
+                                                    ? const Radius.circular(18)
+                                                    : Radius.zero,
+                                                bottomRight: isSentByMe
+                                                    ? Radius.zero
+                                                    : const Radius.circular(16),
+                                              ),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.black
+                                                      .withOpacity(0.05),
+                                                  blurRadius: 4,
+                                                  offset: const Offset(0, 2),
+                                                ),
+                                              ],
+                                            ),
+                                            child: Column(
+                                              children: [
+                                                _buildMessageBubble(message,
+                                                    isSentByMe, hasReply),
+                                              ],
+                                            ),
+                                          )
+                                        ],
+                                      ),
+                              ),
+                            );
+                          });
                         },
                       ),
                     ),
@@ -3768,7 +4018,7 @@ print("hiiilocalId ${localId}");
       ),
       voiceRecordingUI: _buildVoiceRecordingUI(),
       messageInputBuilder: (isKeyboardVisible) =>
-          _buildMessageInputField(isKeyboardVisible,isSentByMe),
+          _buildMessageInputField(isKeyboardVisible, isSentByMe),
       isRecording: _isRecording,
       bloc: _messagerBloc,
     );
@@ -3883,6 +4133,7 @@ print("hiiilocalId ${localId}");
     }
     return result;
   }
+
   void normalizeReplyMessages(List<Map<String, dynamic>> messages) {
     for (final msg in messages) {
       if (msg['isReplyMessage'] == true &&
@@ -3892,9 +4143,8 @@ print("hiiilocalId ${localId}");
 
         try {
           final original = messages.firstWhere(
-                (m) =>
-            (m['message_id'] ?? m['messageId'] ?? m['id'])
-                ?.toString() ==
+            (m) =>
+                (m['message_id'] ?? m['messageId'] ?? m['id'])?.toString() ==
                 replyId,
           );
 
@@ -3933,12 +4183,14 @@ print("hiiilocalId ${localId}");
       // If new messages were appended and we already are showing a window,
       // increase the visible window by 1 so newly appended messages show up.
       // This prevents the case where we're viewing only last N and new item gets hidden.
-      _visibleCount = (_visibleCount < total) ? (_visibleCount + 1) : _visibleCount;
+      _visibleCount =
+          (_visibleCount < total) ? (_visibleCount + 1) : _visibleCount;
     }
 
     _updateNotifierFromAll();
     _scheduleSaveMessages();
   }
+
   Map<String, dynamic>? resolveRepliedMessage({
     required Map<String, dynamic> message,
     required List<Map<String, dynamic>> allMessages,
@@ -3955,7 +4207,7 @@ print("hiiilocalId ${localId}");
 
     try {
       final original = allMessages.firstWhere(
-            (m) => m['message_id']?.toString() == replyId,
+        (m) => m['message_id']?.toString() == replyId,
       );
 
       return {
@@ -3991,66 +4243,82 @@ print("hiiilocalId ${localId}");
 
       // --- keys & initial values ---
       final replyId = (replyMap['id'] ??
-          replyMap['message_id'] ??
-          replyMap['messageId'] ??
-          replyMap['reply_message_id'] ??
-          message['reply_message_id'])
-          ?.toString() ??
+                  replyMap['message_id'] ??
+                  replyMap['messageId'] ??
+                  replyMap['reply_message_id'] ??
+                  message['reply_message_id'])
+              ?.toString() ??
           '';
 
       String replyContent = (replyMap['replyContent'] ??
-          replyMap['content'] ??
-          replyMap['message'] ??
-          '')
+              replyMap['content'] ??
+              replyMap['message'] ??
+              '')
           .toString();
 
       String fileType = (replyMap['fileType'] ??
-          replyMap['mimeType'] ??
-          replyMap['mimetype'] ??
-          '')
+              replyMap['mimeType'] ??
+              replyMap['mimetype'] ??
+              '')
           .toString()
           .toLowerCase();
 
       String imageOrVideoUrl = (replyMap['originalUrl'] ??
-          replyMap['replyUrl'] ??
-          replyMap['reply_url'] ??
-          replyMap['thumbnailUrl'] ??
-          replyMap['fileUrl'] ??
-          replyMap['imageUrl'] ??
-          '').toString();
+              replyMap['replyUrl'] ??
+              replyMap['reply_url'] ??
+              replyMap['thumbnailUrl'] ??
+              replyMap['fileUrl'] ??
+              replyMap['imageUrl'] ??
+              '')
+          .toString();
 
-print("imageOrVideoUrl $imageOrVideoUrl");
+      print("imageOrVideoUrl $imageOrVideoUrl");
       final senderName = (replyMap['senderName'] ??
-          replyMap['sender']?['name'] ??
-          replyMap['fromName'] ??
-          '')
+              replyMap['sender']?['name'] ??
+              replyMap['fromName'] ??
+              '')
           .toString();
 
       final dynamic durRaw = replyMap['videoDuration'] ?? replyMap['duration'];
-      int durationSec = durRaw is int ? durRaw : int.tryParse(durRaw?.toString() ?? '') ?? 0;
+      int durationSec =
+          durRaw is int ? durRaw : int.tryParse(durRaw?.toString() ?? '') ?? 0;
 
-      bool looksLikeNetwork(String s) => s.startsWith('http://') || s.startsWith('https://');
+      bool looksLikeNetwork(String s) =>
+          s.startsWith('http://') || s.startsWith('https://');
 
       // Fast path: try to resolve from combined messages if missing
       if (imageOrVideoUrl.isEmpty && replyId.isNotEmpty) {
         try {
           final all = _getCombinedMessages();
           final original = all.firstWhere(
-                (m) {
-              final mid = (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '').toString();
+            (m) {
+              final mid = (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '')
+                  .toString();
               return mid == replyId;
             },
             orElse: () => <String, dynamic>{},
           );
 
           if (original.isNotEmpty) {
-            imageOrVideoUrl = (original['originalUrl'] ?? original['thumbnailUrl'] ?? original['fileUrl'] ?? original['imageUrl'] ?? '').toString();
+            imageOrVideoUrl = (original['originalUrl'] ??
+                    original['thumbnailUrl'] ??
+                    original['fileUrl'] ??
+                    original['imageUrl'] ??
+                    '')
+                .toString();
             if (fileType.isEmpty) {
-              fileType = (original['fileType'] ?? original['mimeType'] ?? original['mimetype'] ?? '').toString().toLowerCase();
+              fileType = (original['fileType'] ??
+                      original['mimeType'] ??
+                      original['mimetype'] ??
+                      '')
+                  .toString()
+                  .toLowerCase();
             }
 
             // persist into message['reply'] so future builds will find it
-            message['reply'] = (message['reply'] is Map) ? Map<String, dynamic>.from(message['reply']) : <String, dynamic>{};
+            message['reply'] = (message['reply'] is Map)
+                ? Map<String, dynamic>.from(message['reply'])
+                : <String, dynamic>{};
             message['reply']['originalUrl'] = imageOrVideoUrl;
             message['reply']['fileType'] = fileType;
           }
@@ -4063,26 +4331,41 @@ print("imageOrVideoUrl $imageOrVideoUrl");
       if (imageOrVideoUrl.isEmpty && replyId.isNotEmpty) {
         Future.microtask(() async {
           try {
-            final fetched = await _scrollToMessageById(replyId, fetchIfMissing: true);
+            final fetched =
+                await _scrollToMessageById(replyId, fetchIfMissing: true);
             if (fetched) {
               final all2 = _getCombinedMessages();
               final original2 = all2.firstWhere(
-                    (m) {
-                  final mid = (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '').toString();
+                (m) {
+                  final mid =
+                      (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '')
+                          .toString();
                   return mid == replyId;
                 },
                 orElse: () => <String, dynamic>{},
               );
 
               if (original2.isNotEmpty) {
-                final foundUrl = (original2['originalUrl'] ?? original2['thumbnailUrl'] ?? original2['fileUrl'] ?? original2['imageUrl'] ?? '').toString();
-                final foundType = (original2['fileType'] ?? original2['mimeType'] ?? original2['mimetype'] ?? '').toString().toLowerCase();
+                final foundUrl = (original2['originalUrl'] ??
+                        original2['thumbnailUrl'] ??
+                        original2['fileUrl'] ??
+                        original2['imageUrl'] ??
+                        '')
+                    .toString();
+                final foundType = (original2['fileType'] ??
+                        original2['mimeType'] ??
+                        original2['mimetype'] ??
+                        '')
+                    .toString()
+                    .toLowerCase();
                 if (foundUrl.isNotEmpty) {
                   imageOrVideoUrl = foundUrl;
                   fileType = foundType;
 
                   // write back into message.reply
-                  message['reply'] = (message['reply'] is Map) ? Map<String, dynamic>.from(message['reply']) : <String, dynamic>{};
+                  message['reply'] = (message['reply'] is Map)
+                      ? Map<String, dynamic>.from(message['reply'])
+                      : <String, dynamic>{};
                   message['reply']['originalUrl'] = foundUrl;
                   message['reply']['fileType'] = foundType;
 
@@ -4097,9 +4380,11 @@ print("imageOrVideoUrl $imageOrVideoUrl");
       }
 
       final bool isVideo = fileType.startsWith('video/') ||
-          ['mp4', 'mov', 'mkv', 'avi', 'webm'].any((ext) => imageOrVideoUrl.toLowerCase().endsWith(ext));
+          ['mp4', 'mov', 'mkv', 'avi', 'webm']
+              .any((ext) => imageOrVideoUrl.toLowerCase().endsWith(ext));
       final bool isImage = fileType.startsWith('image/') ||
-          ['jpg', 'jpeg', 'png', 'gif', 'webp'].any((ext) => imageOrVideoUrl.toLowerCase().endsWith(ext));
+          ['jpg', 'jpeg', 'png', 'gif', 'webp']
+              .any((ext) => imageOrVideoUrl.toLowerCase().endsWith(ext));
 
       // if nothing at all, hide
       if (replyId.isEmpty && replyContent.isEmpty && imageOrVideoUrl.isEmpty) {
@@ -4119,14 +4404,22 @@ print("imageOrVideoUrl $imageOrVideoUrl");
           return FutureBuilder<File?>(
             future: VideoThumbUtil.generateFromUrl(url),
             builder: (context, snap) {
-              if (snap.connectionState == ConnectionState.waiting) return Container(color: Colors.grey.shade300);
-              if (!snap.hasData || snap.data == null) return Container(color: Colors.black, child: const Icon(Icons.videocam, color: Colors.white, size: 18));
+              if (snap.connectionState == ConnectionState.waiting)
+                return Container(color: Colors.grey.shade300);
+              if (!snap.hasData || snap.data == null)
+                return Container(
+                    color: Colors.black,
+                    child: const Icon(Icons.videocam,
+                        color: Colors.white, size: 18));
               return Image.file(snap.data!, fit: BoxFit.cover);
             },
           );
         } else {
           if (looksLikeNetwork(url)) {
-            return CachedNetworkImage(imageUrl: url, fit: BoxFit.cover, placeholder: (c, _) => Container(color: Colors.grey.shade300));
+            return CachedNetworkImage(
+                imageUrl: url,
+                fit: BoxFit.cover,
+                placeholder: (c, _) => Container(color: Colors.grey.shade300));
           } else {
             final f = File(url);
             if (f.existsSync()) return Image.file(f, fit: BoxFit.cover);
@@ -4139,39 +4432,85 @@ print("imageOrVideoUrl $imageOrVideoUrl");
         onTap: () async {
           if (isVideo && imageOrVideoUrl.isNotEmpty) {
             final isNet = looksLikeNetwork(imageOrVideoUrl);
-            Navigator.push(context, MaterialPageRoute(builder: (_) => VideoPlayerScreen(path: imageOrVideoUrl, isNetwork: isNet)));
+            Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => VideoPlayerScreen(
+                        path: imageOrVideoUrl, isNetwork: isNet)));
           } else if (isImage && imageOrVideoUrl.isNotEmpty) {
             ImageViewer.show(context, imageOrVideoUrl);
           } else if (replyContent.isNotEmpty) {
-            final found = await _scrollToMessageById(replyId, fetchIfMissing: true);
-            if (!found) Messenger.alert(msg: "Original message not loaded. Scroll up to load older messages.");
+            final found =
+                await _scrollToMessageById(replyId, fetchIfMissing: true);
+            if (!found)
+              Messenger.alert(
+                  msg:
+                      "Original message not loaded. Scroll up to load older messages.");
           }
         },
         child: Container(
           margin: const EdgeInsets.only(bottom: 6),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(10)),
+          decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(10)),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(width: 3, height: 40, decoration: BoxDecoration(color: Colors.grey.shade600, borderRadius: BorderRadius.circular(4))),
+              Container(
+                  width: 3,
+                  height: 40,
+                  decoration: BoxDecoration(
+                      color: Colors.grey.shade600,
+                      borderRadius: BorderRadius.circular(4))),
               const SizedBox(width: 8),
               Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  if (senderName.isNotEmpty) Text(senderName, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                  if (isVideo)
-                    Row(children: [const Icon(Icons.videocam, size: 14), const SizedBox(width: 4), Text('Video' + (durationSec > 0 ? ' (${formatDuration(durationSec)})' : ''), style: const TextStyle(fontSize: 12))])
-                  else if (isImage)
-                    Row(mainAxisSize: MainAxisSize.min, children: const [Icon(Icons.image, size: 14), SizedBox(width: 4), Text('Photo', style: TextStyle(fontSize: 12))])
-                  else if (replyContent.isNotEmpty)
-                      Text(replyContent, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: Colors.black87)),
-                  if (replyContent.isNotEmpty && (isVideo || isImage))
-                    Text(replyContent, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10, color: Colors.black54)),
-                ]),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (senderName.isNotEmpty)
+                        Text(senderName,
+                            style: const TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.w600)),
+                      if (isVideo)
+                        Row(children: [
+                          const Icon(Icons.videocam, size: 14),
+                          const SizedBox(width: 4),
+                          Text(
+                              'Video' +
+                                  (durationSec > 0
+                                      ? ' (${formatDuration(durationSec)})'
+                                      : ''),
+                              style: const TextStyle(fontSize: 12))
+                        ])
+                      else if (isImage)
+                        Row(mainAxisSize: MainAxisSize.min, children: const [
+                          Icon(Icons.image, size: 14),
+                          SizedBox(width: 4),
+                          Text('Photo', style: TextStyle(fontSize: 12))
+                        ])
+                      else if (replyContent.isNotEmpty)
+                        Text(replyContent,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontSize: 11, color: Colors.black87)),
+                      if (replyContent.isNotEmpty && (isVideo || isImage))
+                        Text(replyContent,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontSize: 10, color: Colors.black54)),
+                    ]),
               ),
               const SizedBox(width: 8),
               if ((isImage || isVideo) && imageOrVideoUrl.isNotEmpty)
-                ClipRRect(borderRadius: BorderRadius.circular(6), child: SizedBox(width: 42, height: 42, child: buildThumbNow(imageOrVideoUrl, isVideo))),
+                ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: SizedBox(
+                        width: 42,
+                        height: 42,
+                        child: buildThumbNow(imageOrVideoUrl, isVideo))),
             ],
           ),
         ),
@@ -4179,7 +4518,7 @@ print("imageOrVideoUrl $imageOrVideoUrl");
     });
   }
 
-  Widget _buildMessageInputField(bool isKeyboardVisible,bool isSentByMe) {
+  Widget _buildMessageInputField(bool isKeyboardVisible, bool isSentByMe) {
     return MessageInputField(
       messageController: _messageController,
       focusNode: _focusNode,
@@ -4193,21 +4532,22 @@ print("imageOrVideoUrl $imageOrVideoUrl");
           receiverId: widget.datumId!,
           isGroupChat: false,
           onOptionSelected: (List<Map<String, dynamic>> localMessages) {
-            if (localMessages.isEmpty) return;
+        if (localMessages.isEmpty) return;
 
-            setState(() {
-              socketMessages.addAll(localMessages);
-              for (var msg in localMessages) {
-                final id = (msg['message_id'] ?? '').toString();
-                if (id.isNotEmpty) _seenMessageIds.add(id);
-              }
-            });
-            _updateNotifier();
-            _scheduleSaveMessages();
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              _scrollToBottom();
-            });
-          }),      onCameraPressed: _openCamera,
+        setState(() {
+          socketMessages.addAll(localMessages);
+          for (var msg in localMessages) {
+            final id = (msg['message_id'] ?? '').toString();
+            if (id.isNotEmpty) _seenMessageIds.add(id);
+          }
+        });
+        _updateNotifier();
+        _scheduleSaveMessages();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToBottom();
+        });
+      }),
+      onCameraPressed: _openCamera,
       onRecordPressed: _isRecording
           ? recorderHelper.stopRecording
           : recorderHelper.startRecording,
@@ -4227,7 +4567,6 @@ print("imageOrVideoUrl $imageOrVideoUrl");
           _clearDraft();
         }
       },
-
     );
   }
 

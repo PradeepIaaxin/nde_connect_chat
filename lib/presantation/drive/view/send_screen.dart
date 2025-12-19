@@ -143,9 +143,9 @@ class _ShareScreenState extends State<ShareScreen> {
         child: Scaffold(
           backgroundColor: AppColors.bg,
           appBar: AppBar(
+            surfaceTintColor: Colors.white,
             backgroundColor: Colors.white,
             foregroundColor: Colors.black,
-            elevation: 0,
             leading: IconButton(
               icon: const Icon(Icons.close),
               onPressed: () => Navigator.pop(context),

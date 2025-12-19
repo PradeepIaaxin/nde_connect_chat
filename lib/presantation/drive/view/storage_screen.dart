@@ -32,6 +32,7 @@ class StorageScreen extends StatelessWidget {
       create: (_) => StorageBloc()..add(FetchStorageData()),
       child: Scaffold(
         backgroundColor: Colors.white,
+        
         appBar: AppBar(
           title: const Text('Storage', style: TextStyle(color: Colors.black)),
           backgroundColor: Colors.white,

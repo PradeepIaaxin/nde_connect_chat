@@ -452,6 +452,7 @@ class _TaskTabScreenState extends State<TaskTabScreen>
         profileUrl: profilePicUrl,
       ),
       appBar: AppBar(
+          surfaceTintColor: Colors.white,
         backgroundColor: Colors.white,
         title: const Text('Tasks'),
         bottom: PreferredSize(

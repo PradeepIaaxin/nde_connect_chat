@@ -16,9 +16,10 @@ class ChatListTile extends StatelessWidget {
   final String profileAvatarUrl;
   final String profileAvatar;
   final String displayName;
+  final String? typingText;
 
   const ChatListTile({
-    Key? key,
+    super.key,
     required this.chat,
     required this.index,
     required this.isSelected,
@@ -27,7 +28,8 @@ class ChatListTile extends StatelessWidget {
     required this.profileAvatarUrl,
     required this.profileAvatar,
     required this.displayName,
-  }) : super(key: key);
+    this.typingText,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -38,12 +40,26 @@ class ChatListTile extends StatelessWidget {
         contentPadding: const EdgeInsets.symmetric(horizontal: 4),
         leading: _buildLeading(context),
         title: _buildTitle(),
-        subtitle: ChatSubtitle(chat: chat),
+        subtitle: typingText != null
+            ? _buildTypingSubtitle()
+            : ChatSubtitle(chat: chat),
         trailing: ChatTrailing(chat: chat),
       ),
     );
   }
 
+  Widget _buildTypingSubtitle() {
+    return Text(
+      typingText!,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(
+        fontSize: 13,
+        color: Colors.green,
+        fontStyle: FontStyle.italic,
+      ),
+    );
+  }
   // ------------------ Leading (Avatar + Status) ------------------
 
   Widget _buildLeading(BuildContext context) {
