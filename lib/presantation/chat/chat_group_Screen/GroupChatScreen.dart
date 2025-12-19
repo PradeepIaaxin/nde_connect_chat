@@ -117,7 +117,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   bool _isSelectionMode = false;
 
   bool _isTyping = false;
-  int _limit = 10;
+  int _limit = 40;
 
   final TextEditingController _messageController = TextEditingController();
 
@@ -149,7 +149,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   int _visibleCount = 0;
   final int _pageStep = 20;
   final int _initialVisible = 20;
-  double _prevScrollExtentBeforeLoad = 0.0;
   final ValueNotifier<List<Map<String, dynamic>>> _messagesNotifier =
       ValueNotifier([]);
 
@@ -604,6 +603,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             '⏳ Buffered status update for missing ID: $messageId -> $status');
       }
       _updateNotifier();
+      _refreshMessages();
     });
   }
 
@@ -1181,7 +1181,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       FetchGroupMessages(
         convoId: widget.conversationId,
         page: _currentPage,
-        limit: 40,
+        limit: _limit,
       ),
     );
   }
@@ -1350,7 +1350,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       return;
     }
 
-    try {
+   try {
       final completer = Completer<GrpMessage>();
       final subscription = _groupBloc.stream.listen((state) {
         if (state is GrpMessageSentSuccessfully) {
@@ -1360,6 +1360,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           // For now, satisfy with the first success event.
           if (!completer.isCompleted) {
             completer.complete(state.sentMessage);
+          }
+        } else if (state is GroupChatError) {
+          if (!completer.isCompleted) {
+            completer.completeError(state.message);
           }
         }
       });
@@ -1384,8 +1388,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         status: 'sent',
       );
     } catch (e) {
-      log('❌ Send message error: $e');
-      _updateMessageStatus(tempId, 'failed');
+      log("❌ FetchGroupMessages Error: $e");
+      Messenger.alert(msg: "Failed to send message.");
     }
   }
 
@@ -1535,12 +1539,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   void _loadMoreMessages() {
     if (!_hasNextPage || _isLoadingMore) return;
-
-    // Remember scroll position relative to bottom (which is 0 in reverse)
-    // Actually, in reverse list, maxScrollExtent IS the top content.
-    // When we add more items, maxScrollExtent increases.
-    // We want to keep the user's view stable.
-    _prevScrollExtentBeforeLoad = _scrollController.position.maxScrollExtent;
 
     setState(() => _isLoadingMore = true);
 
@@ -1980,6 +1978,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     return _inferGrouping(combined);
   }
 
+  void _refreshMessages() {
+    _messagesNotifier.value =
+        List<Map<String, dynamic>>.from(_getCombinedMessages());
+  }
+
   // ------------------ Pagination Helpers ------------------
 
   /// Rebuilds the master list `_allMessages` from sources, then updates view
@@ -2028,8 +2031,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     // ListView index 0 (bottom) will be the last item of this list.
     // This matches PrivateChatScreen logic.
 
-    _messagesNotifier.value =
-        List<Map<String, dynamic>>.unmodifiable(visibleSlice);
+   _messagesNotifier.value = List<Map<String, dynamic>>.from(visibleSlice);
   }
 
   /// Load older pages until message with [messageId] exists or no more pages
@@ -2457,62 +2459,74 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             _isLoadingMore = false;
           });
         } else if (state is GroupChatLoaded) {
+          // ALWAYS update these flags when state arrives, even if data is same
+          _hasNextPage = state.response.hasNextPage;
+          if (_isLoadingMore) {
+            setState(() => _isLoadingMore = false);
+          }
+
           if (_lastLoadedData != state.response.data) {
             _lastLoadedData = state.response.data;
-            final loadedMessages = flattenGroupedMessages(state.response.data);
+            final incomingLoaded = flattenGroupedMessages(state.response.data);
 
-            _hasNextPage = state.response.hasNextPage;
-            _isLoadingMore = false;
-
-            final newDbMessages = loadedMessages
+            final incomingNormalized = incomingLoaded
                 .map<Map<String, dynamic>>((msg) => normalizeMessage(msg))
                 .where((m) => m.isNotEmpty)
                 .toList();
 
             debugPrint('🔍 PAGINATION DEBUG:');
             debugPrint('   - Current page: $_currentPage');
-            debugPrint(
-                '   - Loaded messages from API: ${loadedMessages.length}');
-            debugPrint('   - Normalized messages: ${newDbMessages.length}');
+            debugPrint('   - Incoming messages: ${incomingNormalized.length}');
             debugPrint('   - Current dbMessages count: ${dbMessages.length}');
 
             setState(() {
-              // CRITICAL FIX: BLoC merges pages and returns ALL messages,
-              // not just the new page. So we always REPLACE, never addAll.
-              dbMessages = newDbMessages;
+              // --- ROBUST MERGE STRATEGY ---
+              // Overlays incoming messages on top of existing ones by ID
+              // This preserves older history when Page 1 is refreshed
+              final Map<String, Map<String, dynamic>> messagesMap = {};
+
+              // 1. Put existing messages into map
+              for (var m in dbMessages) {
+                final id = (m['message_id'] ?? m['id'] ?? '').toString();
+                if (id.isNotEmpty) messagesMap[id] = m;
+              }
+
+              // 2. Overlay incoming messages (may override existing or add new)
+              for (var m in incomingNormalized) {
+                final id = (m['message_id'] ?? m['id'] ?? '').toString();
+                if (id.isNotEmpty) messagesMap[id] = m;
+              }
+
+              // 3. Rebuild dbMessages from merged map
+              dbMessages = messagesMap.values.toList();
               debugPrint(
-                  '   - Replaced dbMessages with ${dbMessages.length} messages');
+                  '   - After merge, dbMessages count: ${dbMessages.length}');
             });
 
+            // Save merged list to local storage
             GrpLocalChatStorage.saveMessages(widget.conversationId, dbMessages);
 
-            for (var m in newDbMessages) {
+            for (var m in incomingNormalized) {
               final id = (m['message_id'] ?? m['id'])?.toString();
               if (id != null && id.isNotEmpty) _seenMessageIds.add(id);
             }
 
-            // CRITICAL FIX: For page > 1, we need to update _visibleCount
-            // _updateNotifier() will rebuild _allMessages from all sources
-            // We want to show ALL messages now loaded (old + new)
-            if (_currentPage > 1) {
-              // We'll set this after _updateNotifier()
-              // Because _allMessages length will change
-            }
-
-            // Sync notifier and visible count
+            // Sync notifier
             _updateNotifier();
 
             // After _updateNotifier(), if this is pagination (page > 1),
-            // ensure _visibleCount shows all messages
+            // ensure _visibleCount shows all messages available so far
             if (_currentPage > 1) {
-              _visibleCount = _allMessages.length;
+              setState(() {
+                _visibleCount = _allMessages.length;
+              });
               _updateNotifierFromAll();
               debugPrint(
                   '   - Page $_currentPage: Set _visibleCount to ${_visibleCount} to show all messages');
             }
 
             debugPrint(
-                '✅ GroupChatLoaded: dbMessages=${dbMessages.length}, _allMessages=${_allMessages.length}, visible=$_visibleCount');
+                '✅ GroupChatLoaded processed: total=${_allMessages.length}, visible=$_visibleCount');
           }
         } else if (state is GroupDetailsLoaded) {
           debugPrint(
@@ -2562,32 +2576,16 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                               padding:
                                   const EdgeInsets.symmetric(vertical: 8.0),
                               child: Center(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(20),
-                                    boxShadow: [
-                                      BoxShadow(
-                                          color: Colors.black.withOpacity(0.06),
-                                          blurRadius: 6)
-                                    ],
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: const [
-                                      SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                            strokeWidth: 2),
-                                      ),
-                                      SizedBox(width: 10),
-                                      Text('Loading older messages...',
-                                          style: TextStyle(fontSize: 13)),
-                                    ],
-                                  ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: const [
+                                    SizedBox(
+                                      width: 15,
+                                      height: 15,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 1.5),
+                                    ),
+                                  ],
                                 ),
                               ),
                             )
@@ -3423,7 +3421,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                   const SizedBox(width: 4),
                                                   if (isSentByMe)
                                                     _buildStatusIcon(
-                                                        messageStatus),
+                                                        messageStatus,message),
                                                 ],
                                               ),
                                             ),
@@ -3722,7 +3720,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                           content !=
                                                               "Message Deleted")
                                                         _buildStatusIcon(
-                                                            messageStatus),
+                                                            messageStatus,message),
                                                     ],
                                                   ),
                                                 ),
@@ -3836,10 +3834,126 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     return DateTime.now();
   }
 
-  Widget _buildStatusIcon(String status) {
+Widget _buildStatusIcon(String status, Map<String, dynamic> message) {
+    // Add tap handler for all unsent/pending messages
+    // Allow resend/delete for: failed, pending_offline, pending, sending
+    if (status == 'failed' ||
+        status == 'pending_offline' ||
+        status == 'pending' ||
+        status == 'sending') {
+      return GestureDetector(
+        onTap: () => _showResendDialog(message),
+        child: MessageStatusIcon(status: status),
+      );
+    }
     return MessageStatusIcon(status: status);
   }
+  void _showResendDialog(Map<String, dynamic> message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Message not sent'),
+        content:
+            Text('This message couldn\'t be sent. Do you want to try again?'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteMessage(message);
+            },
+            child: Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _resendMessage(message);
+            },
+            child: Text('Resend'),
+          ),
+        ],
+      ),
+    );
+  }
+  void _resendMessage(Map<String, dynamic> failedMessage) async {
+    final oldMessageId = failedMessage['message_id']?.toString() ?? '';
+    final content = failedMessage['content']?.toString() ?? '';
 
+    if (content.isEmpty) return;
+
+    if (!(_isOnline && socketService.isConnected)) {
+      Messenger.alertError("Cannot resend: No internet or socket disconnected");
+      _updateMessageStatus(oldMessageId, 'failed');
+      return;
+    }
+
+    // Update status to sending for the existing message
+    _updateMessageStatus(oldMessageId, 'sending');
+
+    try {
+      // Create a completer to wait for the sent message
+      final completer = Completer<GrpMessage>();
+      final subscription = _groupBloc.stream.listen((state) {
+        if (state is GrpMessageSentSuccessfully) {
+          completer.complete(state.sentMessage);
+        } else if (state is GroupChatError) {
+          completer.completeError(state.message);
+        }
+      });
+
+      // Dispatch the send event (this creates a NEW message with NEW ID)
+      _groupBloc.add(
+        SendMessageEvent(
+          convoId: widget.conversationId,
+          message: content,
+          senderId: currentUserId,
+          receiverId: widget.datumId,
+          replyTo: failedMessage['reply'],
+        ),
+      );
+
+      // Wait for the server response
+      final sentMsg = await completer.future.timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw TimeoutException('Resend timed out');
+        },
+      );
+      await subscription.cancel();
+
+      // Replace the old failed message with the new successful one
+      _replaceTempMessageWithReal(
+        tempId: oldMessageId,
+        realId: sentMsg.messageId,
+        status: 'sent',
+      );
+    } catch (e) {
+      debugPrint('❌ Resend failed: $e');
+      _updateMessageStatus(oldMessageId, 'failed');
+      if (e is! TimeoutException) {
+        Messenger.alertError("Resend failed: $e");
+      }
+    }
+  }
+
+  /// Delete a failed message
+  void _deleteMessage(Map<String, dynamic> message) {
+    final messageId = message['message_id']?.toString() ?? '';
+
+    setState(() {
+      socketMessages
+          .removeWhere((m) => (m['message_id'] ?? '').toString() == messageId);
+      messages
+          .removeWhere((m) => (m['message_id'] ?? '').toString() == messageId);
+      dbMessages
+          .removeWhere((m) => (m['message_id'] ?? '').toString() == messageId);
+
+      _refreshMessages();
+    });
+
+    // Save to storage
+    final combined = _getCombinedMessages();
+    GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
+  }
   Widget _buildDateSeparator(DateTime? dateTime) {
     if (dateTime == null) return const SizedBox.shrink();
     return Center(
@@ -4766,6 +4880,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       final combined = _getCombinedMessages();
       GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
       setState(() {}); // Trigger rebuild
+      _refreshMessages();
     }
   }
 
@@ -4798,20 +4913,35 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     );
   }
 
-  Future<void> _flushOfflinePendingMessages() async {
+Future<void> _flushOfflinePendingMessages() async {
     if (_offlineQueue.isEmpty) return;
+    if (!(_isOnline && socketService.isConnected)) return;
 
     final pending = List<Map<String, dynamic>>.from(_offlineQueue);
     _offlineQueue.clear();
 
     for (final item in pending) {
-      final String? messageId = item['message_id'];
+      final String? tempId = item['message_id'];
       final String content = item['content'];
       final Map<String, dynamic>? replyTo = item['replyTo'];
 
-      if (messageId == null) continue;
+      if (tempId == null) continue;
+
+      // Update status to sending for the existing message
+      _updateMessageStatus(tempId, 'sending');
 
       try {
+        // Create a completer to wait for the sent message
+        final completer = Completer<GrpMessage>();
+        final subscription = _groupBloc.stream.listen((state) {
+          if (state is GrpMessageSentSuccessfully) {
+            completer.complete(state.sentMessage);
+          } else if (state is GroupChatError) {
+            completer.completeError(state.message);
+          }
+        });
+
+        // Dispatch the send event (this creates a NEW message with NEW ID)
         _groupBloc.add(
           SendMessageEvent(
             convoId: widget.conversationId,
@@ -4821,9 +4951,25 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             replyTo: replyTo,
           ),
         );
-        _updateMessageStatus(messageId, 'sending');
+
+        // Wait for the server response
+        final sentMsg = await completer.future.timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {
+            throw TimeoutException('Flush timed out');
+          },
+        );
+        await subscription.cancel();
+
+        // Replace the old failed message with the new successful one
+        _replaceTempMessageWithReal(
+          tempId: tempId,
+          realId: sentMsg.messageId,
+          status: 'sent',
+        );
       } catch (e) {
-        _updateMessageStatus(messageId, 'failed');
+        debugPrint('❌ Flush failed for $tempId: $e');
+        _updateMessageStatus(tempId, 'failed');
       }
     }
   }

@@ -50,7 +50,12 @@ class GrpMessagerApiService {
 
     if (response.statusCode == 200) {
       final responseData = jsonDecode(response.body) as Map<String, dynamic>;
-    // log('API Response: ${responseData.toString()}');
+      log("📦 API RAW RESPONSE KEYS: ${responseData.keys}");
+      log("📄 API page=${responseData['page']}");
+      log("📊 API total=${responseData['total']}");
+      log("📦 API data length=${(responseData['data'] as List).length}");
+
+      // log('API Response: ${responseData.toString()}');
       return GroupMessageResponse.fromJson(responseData);
     } else {
       throw Exception(
@@ -159,11 +164,13 @@ class GrpMessagerApiService {
       onError(e.toString()); // Pass exception to onError
     }
   }
+
   String generateRoomId(String senderId, String receiverId) {
     final ids = [senderId, receiverId];
     ids.sort();
     return ids.join('_');
   }
+
   String _normalizeMessageIdForApi(String messageId) {
     if (messageId.isEmpty) return messageId;
 
@@ -179,7 +186,6 @@ class GrpMessagerApiService {
     // otherwise just return original
     return messageId;
   }
-
 
   Future<Map<String, dynamic>?> checkPermission({required String grpId}) async {
     try {
@@ -226,14 +232,14 @@ class GrpMessagerApiService {
       return null;
     }
   }
+
   Future<void> reactionUpdated({
     required String messageId,
     required String emoji,
     required String receiverId,
     required String userId,
     required String conversationId,
-  })
-  async {
+  }) async {
     try {
       final token = await UserPreferences.getAccessToken();
       final defaultWorkspace = await UserPreferences.getDefaultWorkspace();
@@ -243,7 +249,8 @@ class GrpMessagerApiService {
       }
 
       if (defaultWorkspace == null || defaultWorkspace.isEmpty) {
-        throw Exception('No default workspace found. Please select a workspace.');
+        throw Exception(
+            'No default workspace found. Please select a workspace.');
       }
 
       final roomId = generateRoomId(userId, receiverId);
@@ -261,7 +268,6 @@ class GrpMessagerApiService {
         "emoji": emoji,
         "roomId": roomId,
       };
-
 
       print("📤 sending payload $body");
 
@@ -290,8 +296,7 @@ class GrpMessagerApiService {
     required String receiverId,
     required String userId,
     required String conversationId,
-  })
-  async {
+  }) async {
     try {
       final token = await UserPreferences.getAccessToken();
       final defaultWorkspace = await UserPreferences.getDefaultWorkspace();
