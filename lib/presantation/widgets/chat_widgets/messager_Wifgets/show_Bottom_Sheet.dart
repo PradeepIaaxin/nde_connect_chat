@@ -292,6 +292,9 @@ class ShowAltDialog {
                           backgroundColor: Colors.green,
                         ),
                         onPressed: () async {
+                          final String tempGroupId = 'temp_group_${ObjectId().toString()}';
+                          final List<Map<String, dynamic>> mediaList = [];
+
                           localMessages.clear();
                           if (selectedImages.isNotEmpty) {
                             final groupMessageId = ObjectId().toString();
@@ -451,24 +454,29 @@ class ShowAltDialog {
       }
 
       final message = {
-        'content': '',
-        'message_id': 'temp_${DateTime.now().millisecondsSinceEpoch}',
-        'sender': {'_id': senderId},
-        'receiver': {'_id': receiverId},
-        'messageStatus': 'sent',
-        'time': DateTime.now().toIso8601String(),
+  'content': '',
+  'message_id': 'temp_${ObjectId().toString()}', // 🔥 FIX collision
+  'sender': {'_id': senderId},
+  'receiver': {'_id': receiverId},
+  'messageStatus': 'sent',
+  'time': DateTime.now().toIso8601String(),
 
-        // image / video flags
-        'fileName': file.name,
-        'fileType': mimeType,
-        'imageUrl': isImage ? file.path : null,
-        'fileUrl': isVideo ? file.path : null,
-        'originalUrl': file.path,   // 🔥 REQUIRED for VideoThumbUtil
-        'isVideo': isVideo,         // 🔥 REQUIRED so your logic knows it's video
+  'fileName': file.name,
+  'fileType': mimeType,
 
-        'is_group_message': isGroupMessage,
-        'group_message_id': groupMessageId,
-      };
+  // 🔥 IMPORTANT
+  'imageUrl': isImage ? file.path : null,
+  'fileUrl': isVideo ? file.path : null,
+  'originalUrl': file.path,
+  'isVideo': isVideo,
+
+  // 🔥 NEW FLAG
+  'isLocal': true,
+
+  'is_group_message': isGroupMessage,
+  'group_message_id': groupMessageId,
+};
+
 
       log("🟢 Local message metadata: $message");
 

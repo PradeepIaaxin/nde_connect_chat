@@ -248,7 +248,7 @@ class _MessageInputFieldState extends State<MessageInputField> {
    final String firstName =
     widget.replyText?['receiver']?['first_name']?.toString() ?? "";
     final String lastName = widget.replyText?['receiver']?['last_name'].toString()??"";
-    final bool isSendMe = widget.replyText?['isSendMe'];
+    final bool isSendMe = widget.replyText?['isSendMe'] ?? false;
 print("hhhhhhhhhhhhhhhhhhhhh $isSendMe");
     // Type label like WhatsApp
     // Type label like WhatsApp
@@ -265,7 +265,7 @@ print("hhhhhhhhhhhhhhhhhhhhh $isSendMe");
     } else if (imageUrl != null && imageUrl.isNotEmpty) {
       typeLabel = 'Photo';
     } else if (fileName != null && fileName.isNotEmpty) {
-      typeLabel = 'Document';
+      typeLabel = '';
     }
 
     // ---------- build trailing thumbnail (image / video) ----------
@@ -332,12 +332,19 @@ print("hhhhhhhhhhhhhhhhhhhhh $isSendMe");
     } else if (imageUrl != null && imageUrl.isNotEmpty) {
       trailingThumb = ClipRRect(
         borderRadius: BorderRadius.circular(8),
-        child: Image.network(
-          imageUrl,
-          width: thumbSize,
-          height: thumbSize,
-          fit: BoxFit.cover,
-        ),
+        child: imageUrl.startsWith('/')
+  ? Image.file(
+      File(imageUrl),
+      width: thumbSize,
+      height: thumbSize,
+      fit: BoxFit.cover,
+    )
+  : Image.network(
+      imageUrl,
+      width: thumbSize,
+      height: thumbSize,
+      fit: BoxFit.cover,
+    )
       );
     }
 
@@ -370,15 +377,14 @@ print("hhhhhhhhhhhhhhhhhhhhh $isSendMe");
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (userName.isNotEmpty)
-                  Text(
-                    userName,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primaryButton,
-                      fontSize: 13,
-                    ),
-                  ),
+               Text(
+                        "You",
+                        style: const TextStyle(
+                          color: AppColors.primaryButton,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500
+                        ),
+                      ),
                 if (typeLabel.isNotEmpty)
                   Row(
                     mainAxisSize: MainAxisSize.min,
@@ -388,9 +394,9 @@ print("hhhhhhhhhhhhhhhhhhhhh $isSendMe");
                             ? Icons.photo
                             : typeLabel == 'Video'
                                 ? Icons.video_camera_back_rounded
-                                : Icons.note_outlined,
+                                : null,
                         color: Colors.grey,
-                        size: 16,
+                        size: typeLabel == 'Photo' ||  typeLabel == 'Video'?0:16,
                       ),
                       const SizedBox(width: 6),
                       Text(

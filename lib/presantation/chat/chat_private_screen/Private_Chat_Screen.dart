@@ -3921,14 +3921,84 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                   message['id'] ??
                                   '')
                               .toString();
-
-                          final bool isHighlighted =
-                              _highlightedMessageId == messageId;
-
-                          return Builder(builder: (ctx) {
-                            final messageId = _anyId(message)?.toString();
-                            if (messageId != null && messageId.isNotEmpty) {
-                              _messageContexts[messageId] = ctx;
+                      
+                          final bool isHighlighted = _highlightedMessageId == messageId;
+                      
+                          return Builder(
+                            builder: (ctx) {
+                              final messageId = _anyId(message)?.toString();
+                              if (messageId != null && messageId.isNotEmpty) {
+                                _messageContexts[messageId] = ctx;
+                              }
+                              return SwipeTo(
+                                animationDuration: const Duration(milliseconds: 650),
+                                iconOnRightSwipe: Icons.reply,
+                                iconColor: Colors.grey.shade600,
+                                iconSize: 24.0,
+                                offsetDx: 0.3,
+                                swipeSensitivity: 5,
+                                onRightSwipe: (details) => _replyToMessage(message,isSendMe: isSentByMe),
+                                child: AnimatedContainer(
+                                  key: ValueKey(messageId),
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeOut,
+                                  margin: const EdgeInsets.symmetric(vertical: 2),
+                                  color: isHighlighted
+                                      ? Colors.yellow.withOpacity(0.25)
+                                      : Colors.transparent,
+                                  child: !hasReply
+                                      ? _buildMessageBubble(message, isSentByMe, hasReply)
+                                      : Column(
+                                    crossAxisAlignment: isSentByMe
+                                        ? CrossAxisAlignment.end
+                                        : CrossAxisAlignment.start,
+                                    children: [
+                                      if (showDate)
+                                        DateSeparator(
+                                            dateTime: _parseTime(message['time'])),
+                                      Container(
+                                        margin: const EdgeInsets.symmetric(
+                                            horizontal: 5, vertical: 6),
+                                       // padding: const EdgeInsets.all(7),
+                                        constraints:
+                                        const BoxConstraints(maxWidth: 160),
+                                        decoration: BoxDecoration(
+                                          color: (isSentByMe
+                                              ? const Color(0xFFD8E1FE)
+                                              : Colors.white),
+                                         borderRadius: BorderRadius.only(
+                                  topLeft: isSentByMe
+                                      ? const Radius.circular(18)
+                                      : const Radius.circular(18),
+                                  topRight: isSentByMe
+                                      ? const Radius.circular(18)
+                                      : const Radius.circular(18),
+                                  bottomLeft: isSentByMe
+                                      ? const Radius.circular(18)
+                                      : Radius.zero,
+                                  bottomRight: isSentByMe
+                                      ? Radius.zero
+                                      : const Radius.circular(16),
+                                ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withOpacity(0.05),
+                                              blurRadius: 4,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Column(
+                                          children: [
+                                            _buildMessageBubble(
+                                                message, isSentByMe, hasReply),
+                                          ],
+                                        ),
+                                      )
+                                    ],
+                                  ),
+                                ),
+                              );
                             }
                             return SwipeTo(
                               animationDuration:
