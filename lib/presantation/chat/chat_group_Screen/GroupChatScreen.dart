@@ -1350,7 +1350,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       return;
     }
 
-   try {
+    try {
       final completer = Completer<GrpMessage>();
       final subscription = _groupBloc.stream.listen((state) {
         if (state is GrpMessageSentSuccessfully) {
@@ -1388,8 +1388,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         status: 'sent',
       );
     } catch (e) {
-      log("❌ FetchGroupMessages Error: $e");
-      Messenger.alert(msg: "Failed to send message.");
+      log('❌ Send message error: $e');
+      _updateMessageStatus(tempId, 'failed');
     }
   }
 
@@ -1684,6 +1684,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
 
     debugPrint('📩 tapped message id: ${message['message_id']}');
+
+    // 🔥 Fallback: If message failed, show resend dialog on tap
+    final status = message['messageStatus']?.toString() ?? '';
+    if (status == 'failed' || status == 'pending_offline') {
+      _showResendDialog(message);
+      return;
+    }
 
     String? extractReplyId(Map<String, dynamic> m) {
       final reply = m['reply'] ?? m['repliedMessage'];
@@ -2031,7 +2038,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     // ListView index 0 (bottom) will be the last item of this list.
     // This matches PrivateChatScreen logic.
 
-   _messagesNotifier.value = List<Map<String, dynamic>>.from(visibleSlice);
+    _messagesNotifier.value = List<Map<String, dynamic>>.from(visibleSlice);
   }
 
   /// Load older pages until message with [messageId] exists or no more pages
@@ -3421,7 +3428,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                   const SizedBox(width: 4),
                                                   if (isSentByMe)
                                                     _buildStatusIcon(
-                                                        messageStatus,message),
+                                                        messageStatus, message),
                                                 ],
                                               ),
                                             ),
@@ -3700,7 +3707,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                 bottom: 0,
                                                 right: 0,
                                                 child: IgnorePointer(
-                                                  ignoring: true,
+                                                  ignoring: false,
                                                   child: Row(
                                                     mainAxisSize:
                                                         MainAxisSize.min,
@@ -3720,7 +3727,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                           content !=
                                                               "Message Deleted")
                                                         _buildStatusIcon(
-                                                            messageStatus,message),
+                                                            messageStatus,
+                                                            message),
                                                     ],
                                                   ),
                                                 ),
@@ -3834,7 +3842,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     return DateTime.now();
   }
 
-Widget _buildStatusIcon(String status, Map<String, dynamic> message) {
+  Widget _buildStatusIcon(String status, Map<String, dynamic> message) {
     // Add tap handler for all unsent/pending messages
     // Allow resend/delete for: failed, pending_offline, pending, sending
     if (status == 'failed' ||
@@ -3848,6 +3856,7 @@ Widget _buildStatusIcon(String status, Map<String, dynamic> message) {
     }
     return MessageStatusIcon(status: status);
   }
+
   void _showResendDialog(Map<String, dynamic> message) {
     showDialog(
       context: context,
@@ -3874,6 +3883,7 @@ Widget _buildStatusIcon(String status, Map<String, dynamic> message) {
       ),
     );
   }
+
   void _resendMessage(Map<String, dynamic> failedMessage) async {
     final oldMessageId = failedMessage['message_id']?.toString() ?? '';
     final content = failedMessage['content']?.toString() ?? '';
@@ -3954,6 +3964,7 @@ Widget _buildStatusIcon(String status, Map<String, dynamic> message) {
     final combined = _getCombinedMessages();
     GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
   }
+
   Widget _buildDateSeparator(DateTime? dateTime) {
     if (dateTime == null) return const SizedBox.shrink();
     return Center(
@@ -4913,7 +4924,7 @@ Widget _buildStatusIcon(String status, Map<String, dynamic> message) {
     );
   }
 
-Future<void> _flushOfflinePendingMessages() async {
+  Future<void> _flushOfflinePendingMessages() async {
     if (_offlineQueue.isEmpty) return;
     if (!(_isOnline && socketService.isConnected)) return;
 
