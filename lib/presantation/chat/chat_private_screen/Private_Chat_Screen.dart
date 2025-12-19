@@ -3966,20 +3966,20 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                           color: (isSentByMe
                                               ? const Color(0xFFD8E1FE)
                                               : Colors.white),
-                                         borderRadius: BorderRadius.only(
-                                  topLeft: isSentByMe
-                                      ? const Radius.circular(18)
-                                      : const Radius.circular(18),
-                                  topRight: isSentByMe
-                                      ? const Radius.circular(18)
-                                      : const Radius.circular(18),
-                                  bottomLeft: isSentByMe
-                                      ? const Radius.circular(18)
-                                      : Radius.zero,
-                                  bottomRight: isSentByMe
-                                      ? Radius.zero
-                                      : const Radius.circular(16),
-                                ),
+                                          borderRadius: BorderRadius.only(
+                                            topLeft: isSentByMe
+                                                ? Radius.zero
+                                                : const Radius.circular(18),
+                                            topRight: isSentByMe
+                                                ? const Radius.circular(18)
+                                                : Radius.zero,
+                                            bottomLeft: isSentByMe
+                                                ? const Radius.circular(18)
+                                                : Radius.zero,
+                                            bottomRight: isSentByMe
+                                                ? Radius.zero
+                                                : const Radius.circular(16),
+                                          ),
                                           boxShadow: [
                                             BoxShadow(
                                               color: Colors.black.withOpacity(0.05),
