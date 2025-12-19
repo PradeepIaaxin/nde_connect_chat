@@ -1,4 +1,5 @@
 import 'dart:developer';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/bloc/profile_screen_bloc.dart';
@@ -6,7 +7,9 @@ import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/bloc/prof
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/bloc/profile_screen_state.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/data/view_deatilsrepo.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/model/doc_links_model.dart';
-import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/widget/whatapp_image_viewer.dart';
+import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/widget/unified_media_viewer.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
+import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/router/router.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -46,9 +49,10 @@ class _UsermediaScreenState extends State<UsermediaScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
-          surfaceTintColor: Colors.white,
+        surfaceTintColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
@@ -63,10 +67,14 @@ class _UsermediaScreenState extends State<UsermediaScreen>
         ),
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: Colors.black,
+          indicatorColor: AppColors.iconActive,
           labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+          dividerColor: Colors.transparent,
+          labelColor: AppColors.iconDefault,
           tabs: const [
-            Tab(text: "Media"),
+            Tab(
+              text: "Media",
+            ),
             Tab(text: "Docs"),
             Tab(text: "Links"),
           ],
@@ -78,7 +86,7 @@ class _UsermediaScreenState extends State<UsermediaScreen>
           BlocProvider(
             create: (_) => MediaBloc(mediaRepository)
               ..add(FetchMedia(userId: widget.userId, type: 'media')),
-            child: const MediaTab(),
+            child:  MediaTab(),
           ),
           BlocProvider(
             create: (_) => MediaBloc(mediaRepository)
@@ -96,33 +104,45 @@ class _UsermediaScreenState extends State<UsermediaScreen>
   }
 }
 
-// ------------------ MEDIA TAB ------------------
+
 
 class MediaTab extends StatelessWidget {
-  const MediaTab({super.key});
+  MediaTab({super.key});
+
+  /// 🔥 THUMBNAIL FUTURE CACHE (VERY IMPORTANT)
+  final Map<String, Future<File?>> _thumbFutureCache = {};
+
+  Future<File?> _getThumb(String url) {
+    return _thumbFutureCache.putIfAbsent(
+      url,
+      () => VideoThumbUtil.generateFromUrl(url),
+    );
+  }
 
   Widget _buildSkeletonGrid() {
     return GridView.builder(
       padding: const EdgeInsets.all(8),
+      itemCount: 6,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
         crossAxisSpacing: 8,
         mainAxisSpacing: 8,
       ),
-      itemCount: 6,
-      itemBuilder: (context, index) {
-        return Shimmer.fromColors(
-          baseColor: Colors.grey[300]!,
-          highlightColor: Colors.grey[100]!,
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-            ),
+      itemBuilder: (_, __) => Shimmer.fromColors(
+        baseColor: Colors.grey[300]!,
+        highlightColor: Colors.grey[100]!,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
           ),
-        );
-      },
+        ),
+      ),
     );
+  }
+
+  bool _isVideo(MediaItem item) {
+    return item.meta?.mimeType?.startsWith('video') == true;
   }
 
   @override
@@ -131,56 +151,100 @@ class MediaTab extends StatelessWidget {
       builder: (context, state) {
         if (state is MediaLoading) {
           return _buildSkeletonGrid();
-        } else if (state is MediaLoaded) {
-          if (state.items.isEmpty) {
+        }
+
+        if (state is MediaLoaded) {
+          final items = state.items;
+          if (items.isEmpty) {
             return const Center(child: Text("No media found"));
           }
+
           return GridView.builder(
             padding: const EdgeInsets.all(8),
+            itemCount: items.length,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 3,
               crossAxisSpacing: 8,
               mainAxisSpacing: 8,
             ),
-            itemCount: state.items.length,
             itemBuilder: (context, index) {
-              final item = state.items[index];
+              final item = items[index];
+              final isVideo = _isVideo(item);
+              final url = item.originalUrl ?? '';
+
               return GestureDetector(
                 onTap: () {
                   MyRouter.push(
-                    screen: WhatsAppImageViewer(
-                      imageUrls:
-                          state.items.map((e) => e.originalUrl ?? "").toList(),
-                      senderNames:
-                          state.items.map((e) => e.sender.firstName).toList(),
-                      sentTimes: state.items
-                          .map((e) => e.createdAt.toString())
-                          .toList(),
+                    screen: UnifiedMediaViewer(
+                      items: items,
                       initialIndex: index,
                     ),
                   );
                 },
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    item.originalUrl ?? item.thumbnailImageUrl ?? '',
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) =>
-                        const Icon(Icons.broken_image),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      /// 🖼 BASE IMAGE (ONLY ONCE)
+                      Image.network(
+                        url,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) =>
+                            const Icon(Icons.broken_image),
+                      ),
+
+                      /// 🎥 VIDEO OVERLAY
+                      if (isVideo)
+                        Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            /// 🎞 THUMB (CACHED)
+                            FutureBuilder<File?>(
+                              future: _getThumb(url),
+                              builder: (context, snapshot) {
+                                if (snapshot.hasData &&
+                                    snapshot.data != null) {
+                                  return Image.file(
+                                    snapshot.data!,
+                                    fit: BoxFit.cover,
+                                  );
+                                }
+                                return const SizedBox.shrink();
+                              },
+                            ),
+
+                            /// DARK OVERLAY
+                            Container(color: Colors.black26),
+
+                            /// ▶️ PLAY ICON
+                            const Center(
+                              child: Icon(
+                                Icons.play_circle_fill,
+                                color: Colors.white,
+                                size: 48,
+                              ),
+                            ),
+                          ],
+                        ),
+                    ],
                   ),
                 ),
               );
             },
           );
-        } else if (state is MediaError) {
-          return const Center(child: Text("Error loading media"));
-        } else {
-          return const Center(child: Text("No data found"));
         }
+
+        if (state is MediaError) {
+          return const Center(child: Text("Error loading media"));
+        }
+
+        return const SizedBox.shrink();
       },
     );
   }
 }
+
 
 // ------------------ DOCS TAB ------------------
 

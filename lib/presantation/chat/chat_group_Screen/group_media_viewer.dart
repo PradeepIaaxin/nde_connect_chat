@@ -11,10 +11,10 @@ class GroupedMediaViewer extends StatefulWidget {
   final int initialIndex;
 
   const GroupedMediaViewer({
-    Key? key,
+    super.key,
     required this.mediaUrls,
     this.initialIndex = 0,
-  }) : super(key: key);
+  });
 
   @override
   State<GroupedMediaViewer> createState() => _GroupedMediaViewerState();
