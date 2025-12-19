@@ -11,13 +11,8 @@ import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/For
 import 'package:nde_email/utils/datetime/date_time_utils.dart';
 import 'package:nde_email/utils/router/router.dart';
 import 'package:shimmer/shimmer.dart';
-import 'package:swipe_to/swipe_to.dart';
 import 'package:linkify/linkify.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:video_player/video_player.dart';
-import 'dart:io';
-import 'package:video_thumbnail/video_thumbnail.dart';
-import 'package:path_provider/path_provider.dart';
 import '../../../widget/image_viewer.dart';
 import 'VideoCacheService.dart';
 import 'VideoPlayerScreen.dart';
@@ -43,7 +38,7 @@ class MessageBubble extends StatelessWidget {
   final VoidCallback? emojpicker;
   final VoidCallback? onReplyTap;
   final bool isReply;
-   MessageBubble({
+  const MessageBubble({
     super.key,
     required this.message,
     required this.isSentByMe,
@@ -62,7 +57,8 @@ class MessageBubble extends StatelessWidget {
     required this.chatColor,
     this.onReact,
     this.emojpicker,
-    required this.isReply, this.onReplyTap,
+    required this.isReply,
+    this.onReplyTap,
   });
 
   @override
@@ -80,12 +76,17 @@ class MessageBubble extends StatelessWidget {
     final String fileType = fileTypeRaw?.toLowerCase() ?? '';
     final bool isVideo = fileType.startsWith('video/') ||
         (message['isVideo'] == true) ||
-        ((fileUrl ?? originalUrl ?? '').toString().toLowerCase().endsWith('.mp4') ||
-            (fileUrl ?? originalUrl ?? '').toString().toLowerCase().endsWith('.mov'));
-    bool hasReply =
-        message['reply'] != null ||
-            message['reply_message_id'] != null ||
-            message['replyContent'] != null;
+        ((fileUrl ?? originalUrl ?? '')
+                .toString()
+                .toLowerCase()
+                .endsWith('.mp4') ||
+            (fileUrl ?? originalUrl ?? '')
+                .toString()
+                .toLowerCase()
+                .endsWith('.mov'));
+    bool hasReply = message['reply'] != null ||
+        message['reply_message_id'] != null ||
+        message['replyContent'] != null;
 
     log("imagesUrllss $message");
 
@@ -119,8 +120,8 @@ class MessageBubble extends StatelessWidget {
           alignment: isReply
               ? Alignment.centerLeft
               : isSentByMe
-              ? Alignment.centerRight
-              : Alignment.centerLeft,
+                  ? Alignment.centerRight
+                  : Alignment.centerLeft,
           child: Stack(
             clipBehavior: Clip.none,
             children: [
@@ -128,51 +129,54 @@ class MessageBubble extends StatelessWidget {
                 margin: EdgeInsets.only(
                   left: 9,
                   right: 9,
-                  bottom: (message['reactions'] != null && (message['reactions'] as List).isNotEmpty)
+                  bottom: (message['reactions'] != null &&
+                          (message['reactions'] as List).isNotEmpty)
                       ? 20
                       : 8,
                 ),
                 padding: isReply
                     ? null
-                    : const EdgeInsets.only(left: 5, right: 5, top: 5, bottom: 10),
+                    : const EdgeInsets.only(
+                        left: 5, right: 5, top: 5, bottom: 10),
                 constraints: const BoxConstraints(maxWidth: 280),
                 decoration: BoxDecoration(
                   color: isReply
                       ? null
                       : isSelected
-                      ? selectedMessageColor
-                      : (isSentByMe ? sentMessageColor : receivedMessageColor),
-                 borderRadius: BorderRadius.only(
-                                  topLeft: isSentByMe
-                                      ? const Radius.circular(18)
-                                      : const Radius.circular(18),
-                                  topRight: isSentByMe
-                                      ? const Radius.circular(18)
-                                      : const Radius.circular(18),
-                                  bottomLeft: isSentByMe
-                                      ? const Radius.circular(18)
-                                      : Radius.zero,
-                                  bottomRight: isSentByMe
-                                      ? Radius.zero
-                                      : const Radius.circular(16),
-                                ),
-                  border: isSelected ? Border.all(color: borderColor, width: 2) : null,
-
+                          ? selectedMessageColor
+                          : (isSentByMe
+                              ? sentMessageColor
+                              : receivedMessageColor),
+                  borderRadius: BorderRadius.only(
+                    topLeft: isSentByMe
+                        ? const Radius.circular(18)
+                        : const Radius.circular(18),
+                    topRight: isSentByMe
+                        ? const Radius.circular(18)
+                        : const Radius.circular(18),
+                    bottomLeft:
+                        isSentByMe ? const Radius.circular(18) : Radius.zero,
+                    bottomRight:
+                        isSentByMe ? Radius.zero : const Radius.circular(16),
+                  ),
+                  border: isSelected
+                      ? Border.all(color: borderColor, width: 2)
+                      : null,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (hasReply)
                       RepliedMessagePreview(
-                        key: ValueKey(message['isReplyMessage']?.hashCode ?? message['reply']),
-                        replied: message['reply'] ??  {}, receiver: message['receiver'] is Map
-    ? Map<String, dynamic>.from(message['receiver'])
-    : {}, isSender: isSentByMe,
-                        onTap:onReplyTap,
+                        key: ValueKey(message['isReplyMessage']?.hashCode ??
+                            message['reply']),
+                        replied: message['reply'] ?? {},
+                        receiver: message['receiver'] is Map
+                            ? Map<String, dynamic>.from(message['receiver'])
+                            : {},
+                        isSender: isSentByMe,
+                        onTap: onReplyTap,
                       ),
-
-
-
 
                     if (!isSentByMe && isForwarded == false)
                       Row(
@@ -196,13 +200,17 @@ class MessageBubble extends StatelessWidget {
 
                     // Image preview (only if not video)
                     if (!isVideo && hasImage)
-                      _buildImage(context, content, imageUrl!, fileName, isSentByMe: isSentByMe),
+                      _buildImage(context, content, imageUrl, fileName,
+                          isSentByMe: isSentByMe),
 
                     // File preview (if file exists)
-                    if (hasFile) _buildFile(context, fileUrl!, fileName, fileType, content, isSentByMe: isSentByMe),
+                    if (hasFile)
+                      _buildFile(context, fileUrl, fileName, fileType, content,
+                          isSentByMe: isSentByMe),
 
                     // Text content
-                    if (content.isNotEmpty) _buildTextMessage(content, messageStatus),
+                    if (content.isNotEmpty)
+                      _buildTextMessage(content, messageStatus),
                   ],
                 ),
               ),
@@ -232,7 +240,6 @@ class MessageBubble extends StatelessWidget {
       ),
     );
   }
-
 
   void _showReactionPicker(BuildContext context) {
     if (onReact == null) return;
@@ -266,62 +273,19 @@ class MessageBubble extends StatelessWidget {
     );
   }
 
-  Widget _buildReactionsBarWidget(Map<String, dynamic> msg) {
-    final reactionsRaw = msg['reactions'] ?? [];
-
-    final reactions = (reactionsRaw as List?)
-            ?.where((r) => r is Map)
-            .map((r) => Map<String, dynamic>.from(r as Map))
-            .toList() ??
-        [];
-
-    if (reactions.isEmpty) return const SizedBox.shrink();
-
-    // Count occurrences of each emoji
-    final Map<String, int> reactionCounts = {};
-    for (final reaction in reactions) {
-      final emoji = reaction['emoji']?.toString();
-      if (emoji != null && emoji.isNotEmpty) {
-        reactionCounts[emoji] = (reactionCounts[emoji] ?? 0) + 1;
-      }
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: reactionCounts.entries.map((entry) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 2),
-            child: Text(
-              entry.value > 1 ? '${entry.key} ${entry.value}' : entry.key,
-              style: const TextStyle(fontSize: 14),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
   Widget _buildImage(
-      BuildContext context,
-      String content,
-      String imageUrl,
-      String? fileName, {
-        required bool isSentByMe,
-      }) {
+    BuildContext context,
+    String content,
+    String imageUrl,
+    String? fileName, {
+    required bool isSentByMe,
+  }) {
     if (content == "Message Deleted") return const SizedBox();
 
     final String name = fileName ?? 'Unknown file';
-    final String extension = name.split('.').isNotEmpty
-        ? name.split('.').last.toLowerCase()
-        : '';
-    final String? fileSize = message['fileSize']?.toString();
+    final String extension =
+        name.split('.').isNotEmpty ? name.split('.').last.toLowerCase() : '';
+    message['fileSize']?.toString();
     debugPrint("imageUrl $imageUrl");
 
     // List of image extensions
@@ -337,11 +301,12 @@ class MessageBubble extends StatelessWidget {
     };
 
     // Helper: heuristically decide if the URL/filename is an image
-    bool _looksLikeImage(String url, String fileName, String ext) {
+    bool looksLikeImage(String url, String fileName, String ext) {
       try {
-        final lowerUrl = (url ?? '').toLowerCase();
+        final lowerUrl = (url).toLowerCase();
         if (imageExtensions.contains(ext)) return true;
-        if (lowerUrl.contains(RegExp(r'\.(jpe?g|png|gif|webp|bmp|heic|heif)($|\?)'))) {
+        if (lowerUrl
+            .contains(RegExp(r'\.(jpe?g|png|gif|webp|bmp|heic|heif)($|\?)'))) {
           return true;
         }
         final uri = Uri.tryParse(lowerUrl);
@@ -353,10 +318,10 @@ class MessageBubble extends StatelessWidget {
       return false;
     }
 
-    final bool looksImage = _looksLikeImage(imageUrl, name, extension);
+    final bool looksImage = looksLikeImage(imageUrl, name, extension);
 
     // Choose fallback document tile (so PDFs/docs don't show the red '!') ----------------
-    Widget _documentFallbackTile() {
+    Widget documentFallbackTile() {
       IconData icon = Icons.insert_drive_file;
       switch (extension) {
         case 'pdf':
@@ -415,7 +380,7 @@ class MessageBubble extends StatelessWidget {
     }
 
     // Build the image preview -------------------------------------------------------------
-    Widget _imageWidget() {
+    Widget imageWidget() {
       try {
         if (imageUrl.startsWith('http')) {
           return CachedNetworkImage(
@@ -435,11 +400,13 @@ class MessageBubble extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.insert_drive_file, size: 36, color: Colors.grey.shade700),
+                    Icon(Icons.insert_drive_file,
+                        size: 36, color: Colors.grey.shade700),
                     const SizedBox(height: 6),
                     Text(
                       name,
-                      style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
+                      style:
+                          TextStyle(color: Colors.grey.shade700, fontSize: 12),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
@@ -454,16 +421,16 @@ class MessageBubble extends StatelessWidget {
             return Image.file(
               f,
               width: 260,
-          height: imageExtensions.contains(extension) ? 300 : 200,
+              height: imageExtensions.contains(extension) ? 300 : 200,
               fit: BoxFit.cover,
             );
           } else {
-            return _documentFallbackTile();
+            return documentFallbackTile();
           }
         }
       } catch (e) {
         debugPrint('Error in _imageWidget: $e');
-        return _documentFallbackTile();
+        return documentFallbackTile();
       }
     }
 
@@ -494,7 +461,7 @@ class MessageBubble extends StatelessWidget {
                   ),
                 ],
               ),
-              child: looksImage ? _imageWidget() : _documentFallbackTile(),
+              child: looksImage ? imageWidget() : documentFallbackTile(),
             ),
           ),
         ),
@@ -506,7 +473,6 @@ class MessageBubble extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
-            
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
@@ -518,7 +484,8 @@ class MessageBubble extends StatelessWidget {
                 ),
                 if (isSentByMe) ...[
                   const SizedBox(width: 4),
-                  buildStatusIcon?.call(message['messageStatus']?.toString() ?? 'sent') ??
+                  buildStatusIcon?.call(
+                          message['messageStatus']?.toString() ?? 'sent') ??
                       const Icon(Icons.done, size: 12, color: Colors.white),
                 ],
               ],
@@ -565,20 +532,23 @@ class MessageBubble extends StatelessWidget {
     );
   }
 
-
   bool _isPresignedUrlExpired(String url) {
     try {
       final u = Uri.parse(url);
-      final xDate = u.queryParameters['X-Amz-Date'] ?? u.queryParameters['x-amz-date'];
-      final expires = int.tryParse(u.queryParameters['X-Amz-Expires'] ?? u.queryParameters['x-amz-expires'] ?? '') ?? 0;
+      final xDate =
+          u.queryParameters['X-Amz-Date'] ?? u.queryParameters['x-amz-date'];
+      final expires = int.tryParse(u.queryParameters['X-Amz-Expires'] ??
+              u.queryParameters['x-amz-expires'] ??
+              '') ??
+          0;
       if (xDate == null || expires == 0) return false;
       // xDate like 20251204T052751Z
-      final year = int.parse(xDate.substring(0,4));
-      final month = int.parse(xDate.substring(4,6));
-      final day = int.parse(xDate.substring(6,8));
-      final hour = int.parse(xDate.substring(9,11));
-      final minute = int.parse(xDate.substring(11,13));
-      final second = int.parse(xDate.substring(13,15));
+      final year = int.parse(xDate.substring(0, 4));
+      final month = int.parse(xDate.substring(4, 6));
+      final day = int.parse(xDate.substring(6, 8));
+      final hour = int.parse(xDate.substring(9, 11));
+      final minute = int.parse(xDate.substring(11, 13));
+      final second = int.parse(xDate.substring(13, 15));
       final signedAt = DateTime.utc(year, month, day, hour, minute, second);
       final expiryAt = signedAt.add(Duration(seconds: expires));
       return DateTime.now().toUtc().isAfter(expiryAt);
@@ -588,7 +558,7 @@ class MessageBubble extends StatelessWidget {
     }
   }
 
- Future<String?> fetchFreshPresignedUrlFromServer(String imageKeyOrUrl) async {
+  Future<String?> fetchFreshPresignedUrlFromServer(String imageKeyOrUrl) async {
     // If you store objectKey in message, pass that. If you only have URL, you may need the server
     // to map from object key extracted from URL to a new presigned URL.
     // Example pseudo:
@@ -614,7 +584,8 @@ class MessageBubble extends StatelessWidget {
 
       // 2) If URL looks like an S3 presigned and expired, request a fresh URL
       if (_isPresignedUrlExpired(imageUrl)) {
-        debugPrint('openImageSmart: presigned URL appears expired, asking server for fresh URL.');
+        debugPrint(
+            'openImageSmart: presigned URL appears expired, asking server for fresh URL.');
         final fresh = await fetchFreshPresignedUrlFromServer(imageUrl);
         if (fresh != null && fresh.isNotEmpty) {
           debugPrint('openImageSmart: got fresh presigned url.');
@@ -623,7 +594,8 @@ class MessageBubble extends StatelessWidget {
           ImageViewer.show(context, fetched.path);
           return;
         } else {
-          debugPrint('openImageSmart: failed to obtain fresh presigned url from server.');
+          debugPrint(
+              'openImageSmart: failed to obtain fresh presigned url from server.');
           // fallthrough to attempt direct download (may fail)
         }
       }
@@ -638,13 +610,18 @@ class MessageBubble extends StatelessWidget {
       }
 
       // 4) final fallback -> show error dialog
-      debugPrint('openImageSmart: file not available after attempts for $imageUrl');
+      debugPrint(
+          'openImageSmart: file not available after attempts for $imageUrl');
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
           title: const Text('Unable to open image'),
           content: const Text('Image failed to load.'),
-          actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'))
+          ],
         ),
       );
     } catch (e, st) {
@@ -654,20 +631,24 @@ class MessageBubble extends StatelessWidget {
         builder: (_) => AlertDialog(
           title: const Text('Error'),
           content: Text('Could not open image: $e'),
-          actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'))
+          ],
         ),
       );
     }
   }
 
   Widget _buildFile(
-      BuildContext context,
-      String fileUrl,
-      String? fileName,
-      String? fileType,
-      String content, {
-        required bool isSentByMe,
-      }) {
+    BuildContext context,
+    String fileUrl,
+    String? fileName,
+    String? fileType,
+    String content, {
+    required bool isSentByMe,
+  }) {
     if (content == "Message Deleted") return const SizedBox();
 
     final String name = fileName ?? 'Unknown file';
@@ -676,14 +657,12 @@ class MessageBubble extends StatelessWidget {
     final String mime = (fileType ?? '').toLowerCase();
 
     // Detect by MIME first, fallback to extension
-    final bool isImage =
-        mime.startsWith('image/') ||
-            ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic', 'heif']
-                .contains(extFromName);
+    final bool isImage = mime.startsWith('image/') ||
+        ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic', 'heif']
+            .contains(extFromName);
 
-    final bool isVideo =
-        mime.startsWith('video/') ||
-            ['mp4', 'mov', 'avi', 'mkv', 'webm'].contains(extFromName);
+    final bool isVideo = mime.startsWith('video/') ||
+        ['mp4', 'mov', 'avi', 'mkv', 'webm'].contains(extFromName);
 
     // 🔹 If it's an image, we already show it via imageUrl -> _buildImage, so hide here
     if (isImage) {
@@ -792,7 +771,7 @@ class MessageBubble extends StatelessWidget {
 
     try {
       final original = allMessages.firstWhere(
-            (m) => m['message_id']?.toString() == replyId,
+        (m) => m['message_id']?.toString() == replyId,
       );
 
       return {
@@ -816,35 +795,6 @@ class MessageBubble extends StatelessWidget {
 
     return StatefulBuilder(
       builder: (context, setState) {
-        final Widget textWidget = Padding(
-          padding: const EdgeInsets.only(
-            left: 5,
-          ),
-          child: Linkify(
-            text: content,
-            maxLines: isExpanded ? null : 9,
-            overflow: isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
-            onOpen: (link) async {
-              final uri = Uri.parse(link.url);
-              if (await canLaunchUrl(uri)) {
-                await launchUrl(uri, mode: LaunchMode.externalApplication);
-              }
-            },
-            style: const TextStyle(fontSize: 15, color: Colors.black87),
-            linkStyle: const TextStyle(color: Colors.blue),
-            options: LinkifyOptions(
-              humanize: true,
-              looseUrl: true,
-              defaultToHttps: true,
-            ),
-            linkifiers: [
-              EmailLinkifier(),
-              UrlLinkifier(),
-              CustomPhoneNumberLinkifier(),
-            ],
-          ),
-        );
-
         final Widget messageContent = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -917,8 +867,9 @@ class MessageBubble extends StatelessWidget {
                               );
                             }
                           }),
-                           WidgetSpan(
-                            child: SizedBox(width: isSentByMe ? 75 : 60 , height: 20),
+                          WidgetSpan(
+                            child: SizedBox(
+                                width: isSentByMe ? 75 : 60, height: 20),
                           ),
                         ],
                       ),
@@ -1044,10 +995,12 @@ class MessageBubble extends StatelessWidget {
       },
     );
   }
-    bool _isTextLong(String text) {
+
+  bool _isTextLong(String text) {
     const maxCharsPerLine = 40;
     return (text.length / maxCharsPerLine).ceil() > 9;
   }
+
   Route _bottomToTopRoute(Widget page) {
     return PageRouteBuilder(
       transitionDuration: const Duration(milliseconds: 350),
@@ -1061,7 +1014,7 @@ class MessageBubble extends StatelessWidget {
 
         final offsetAnimation = Tween<Offset>(
           begin: const Offset(0, 1), // bottom
-          end: Offset.zero,          // final position
+          end: Offset.zero, // final position
         ).animate(curved);
 
         return SlideTransition(
@@ -1072,35 +1025,12 @@ class MessageBubble extends StatelessWidget {
     );
   }
 
-  Future<File?> _generateVideoThumbnail(String videoUrl) async {
-    try {
-      final tempDir = await getTemporaryDirectory();
-
-      // ✅ CREATE UNIQUE FILE NAME PER VIDEO (CRITICAL FIX)
-      final uniqueName = videoUrl.hashCode.toString();
-      final thumbPath = '${tempDir.path}/thumb_$uniqueName.png';
-
-      final generatedPath = await VideoThumbnail.thumbnailFile(
-        video: videoUrl,
-        thumbnailPath: thumbPath, // ✅ UNIQUE FILE
-        imageFormat: ImageFormat.PNG,
-        maxHeight: 300,
-        quality: 75,
-      );
-
-      if (generatedPath == null) return null;
-      return File(generatedPath);
-    } catch (e, st) {
-      debugPrint('❌ Thumbnail error for $videoUrl: $e\n$st');
-      return null;
-    }
-  }
   Widget _buildVideoPreviewTile(
-      BuildContext context,
-      String videoUrl,
-      String fileName,
-      bool isSentByMe,
-      ) {
+    BuildContext context,
+    String videoUrl,
+    String fileName,
+    bool isSentByMe,
+  ) {
     final isNetwork =
         videoUrl.startsWith('http://') || videoUrl.startsWith('https://');
 
@@ -1169,8 +1099,7 @@ class MessageBubble extends StatelessWidget {
               bottom: 8,
               left: 8,
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 6, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                 decoration: BoxDecoration(
                   color: Colors.black.withOpacity(0.55),
                   borderRadius: BorderRadius.circular(6),
@@ -1185,7 +1114,8 @@ class MessageBubble extends StatelessWidget {
                     ),
                     const SizedBox(width: 4),
                     FutureBuilder<String?>(
-                      future: VideoCacheService.instance.getDurationFuture(videoUrl, isNetwork: isNetwork),
+                      future: VideoCacheService.instance
+                          .getDurationFuture(videoUrl, isNetwork: isNetwork),
                       builder: (context, snap) {
                         final text = snap.data ?? '00:00';
                         return Text(
@@ -1221,14 +1151,15 @@ class MessageBubble extends StatelessWidget {
                     if (isSentByMe) ...[
                       const SizedBox(width: 4),
                       buildStatusIcon?.call(
-                        message['messageStatus']?.toString() ?? 'sent',
-                      ) ??
+                            message['messageStatus']?.toString() ?? 'sent',
+                          ) ??
                           const Icon(Icons.done, size: 12, color: Colors.white),
                     ],
                   ],
                 ),
               ),
-            ),          ],
+            ),
+          ],
         ),
       ),
     );
@@ -1274,44 +1205,6 @@ class MessageBubble extends StatelessWidget {
     );
   }
 
-
-  Future<String> _getVideoDuration(String path, bool isNetwork) async {
-    final controller = VideoPlayerController.networkUrl(Uri.parse(path));
-
-    try {
-      await controller.initialize();
-      final duration = controller.value.duration;
-
-      final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
-      final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
-
-      return '$minutes:$seconds';
-    } catch (e) {
-      return "00:00";
-    } finally {
-      await controller.dispose();
-    }
-  }
-
-  Widget _buildTimeRow(String messageStatus) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 6),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          Text(
-            TimeUtils.formatUtcToIst(message['time']),
-            style: const TextStyle(fontSize: 10, color: Colors.black54),
-          ),
-          const SizedBox(width: 4),
-          if (isSentByMe)
-            buildStatusIcon?.call(messageStatus) ?? const SizedBox(),
-        ],
-      ),
-    );
-  }
-
   IconData _getFileIcon(String? fileType) {
     final ft = (fileType ?? '').toLowerCase();
 
@@ -1326,12 +1219,16 @@ class MessageBubble extends StatelessWidget {
     if (ft.contains('word') || ft.contains('doc')) return Icons.description;
 
     // Excel / Sheets
-    if (ft.contains('sheet') || ft.contains('excel') || ft.contains('spreadsheet')) {
+    if (ft.contains('sheet') ||
+        ft.contains('excel') ||
+        ft.contains('spreadsheet')) {
       return Icons.table_chart;
     }
 
     // PPT
-    if (ft.contains('powerpoint') || ft.contains('presentation') || ft.contains('ppt')) {
+    if (ft.contains('powerpoint') ||
+        ft.contains('presentation') ||
+        ft.contains('ppt')) {
       return Icons.slideshow;
     }
 
@@ -1371,9 +1268,8 @@ class CustomPhoneNumberLinkifier extends Linkifier {
     }
     return result;
   }
-
-
 }
+
 class ShimmerImagePlaceholder extends StatelessWidget {
   final double width;
   final double height;

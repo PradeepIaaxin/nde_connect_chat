@@ -55,7 +55,9 @@ class _GroupContactListState extends State<GroupContactList> {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: contacts.length,
-                separatorBuilder: (_, __) => const Divider(),
+                separatorBuilder: (_, __) => const Divider(
+                  color: Colors.transparent,
+                ),
                 itemBuilder: (context, index) {
                   final contact = contacts[index];
                   final members = contact.groupMembers;
@@ -63,7 +65,7 @@ class _GroupContactListState extends State<GroupContactList> {
 
                   return Padding(
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -83,7 +85,7 @@ class _GroupContactListState extends State<GroupContactList> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
+                     
                         ...members.asMap().entries.map((entry) {
                           final i = entry.key;
                           final member = entry.value;
@@ -116,182 +118,173 @@ class _GroupContactListState extends State<GroupContactList> {
                                   ? nameText[0].toUpperCase()
                                   : 'U');
 
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: GestureDetector(
-                              onTap: isMe
-                                  ? () {}
-                                  : () {
-                                      UserActionDialog.show(
-                                        context,
-                                        name: nameText,
-                                        isAdmin: isTargetAdmin,
+                          return GestureDetector(
+                            onTap: isMe
+                                ? () {}
+                                : () {
+                                    UserActionDialog.show(
+                                      context,
+                                      name: nameText,
+                                      isAdmin: isTargetAdmin,
 
-                                        onMessage: () {
-                                          MyRouter.push(
-                                            screen: PrivateChatScreen(
-                                              firstname: member.firstName,
-                                              convoId: "",
-                                              profileAvatarUrl:
-                                                  profileAvatarUrl,
-                                              userName: nameText,
-                                              lastSeen: "",
-                                              datumId: member.memberId,
-                                              grpChat: false,
-                                              favourite: false,
-                                            ),
-                                          );
-                                        },
-
-                                        onView: () {
-                                          MyRouter.push(
-                                            screen: UserProfileScreen(
-                                              profileAvatarUrl:
-                                                  profileAvatarUrl,
-                                              userName: nameText,
-                                              mailName:
-                                                  member.memberEmail ?? "",
-                                              lastname: member.lastName,
-                                              conversionalId:
-                                                  member.memberId ?? "",
-                                              grpId: '',
-                                              isGrp: false,
-                                              reciverId: member.memberId ?? "",
-                                              favourite: false,
-                                            ),
-                                          );
-                                        },
-
-                                        // ✅ SHOW ONLY IF LOGGED USER IS ADMIN & NOT SELF
-                                        onToggleAdmin: canManageMember
-                                            ? () {
-                                                context.read<MediaBloc>().add(
-                                                      MakeAdmin(
-                                                        groupId: widget.groupId,
-                                                        updates: [
-                                                          {
-                                                            "member_id": member
-                                                                    .memberId ??
-                                                                "",
-                                                            "isAdmin":
-                                                                !isTargetAdmin,
-                                                          }
-                                                        ],
-                                                      ),
-                                                    );
-                                              }
-                                            : null,
-
-                                        onRemove: canManageMember
-                                            ? () {
-                                                context.read<MediaBloc>().add(
-                                                      RemoveUserFromGroupEvent(
-                                                        groupId: widget.groupId,
-                                                        userId:
-                                                            member.memberId ??
-                                                                "",
-                                                      ),
-                                                    );
-                                              }
-                                            : null,
-
-                                        onVerify: () {},
-                                      );
-                                    },
-                              child: ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: Stack(
-                                  children: [
-                                    CircleAvatar(
-                                      radius: 25,
-                                      backgroundColor: profileAvatarUrl.isEmpty
-                                          ? ColorUtil.getColorFromAlphabet(
-                                              profileAvatar)
-                                          : Colors.transparent,
-                                      backgroundImage:
-                                          profileAvatarUrl.isNotEmpty
-                                              ? NetworkImage(profileAvatarUrl)
-                                              : null,
-                                      child: profileAvatarUrl.isEmpty
-                                          ? Text(
-                                              profileAvatar,
-                                              style: const TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.white,
-                                              ),
-                                            )
-                                          : null,
-                                    ),
-                                    ValueListenableBuilder(
-                                      valueListenable:
-                                          SocketService().userStatusNotifier,
-                                      builder: (context, val, _) {
-                                        final isOnline = SocketService()
-                                            .onlineUsers
-                                            .contains(member.memberId);
-                                        if (!isOnline) {
-                                          return const SizedBox.shrink();
-                                        }
-                                        return Positioned(
-                                          right: 0,
-                                          bottom: 0,
-                                          child: Container(
-                                            width: 12,
-                                            height: 12,
-                                            decoration: BoxDecoration(
-                                              color: Colors.green,
-                                              shape: BoxShape.circle,
-                                              border: Border.all(
-                                                color: Colors.white,
-                                                width: 2,
-                                              ),
-                                            ),
+                                      onMessage: () {
+                                        MyRouter.push(
+                                          screen: PrivateChatScreen(
+                                            firstname: member.firstName,
+                                            convoId: "",
+                                            profileAvatarUrl: profileAvatarUrl,
+                                            userName: nameText,
+                                            lastSeen: "",
+                                            datumId: member.memberId,
+                                            grpChat: false,
+                                            favourite: false,
                                           ),
                                         );
                                       },
-                                    ),
-                                  ],
-                                ),
-                                title: Text(
-                                  isMe ? 'You' : nameText, // ✅ FIX
-                                  style: const TextStyle(
-                                    color: Colors.black,
-                                    fontSize: 16,
+
+                                      onView: () {
+                                        MyRouter.push(
+                                          screen: UserProfileScreen(
+                                            profileAvatarUrl: profileAvatarUrl,
+                                            userName: nameText,
+                                            mailName: member.memberEmail ?? "",
+                                            lastname: member.lastName,
+                                            conversionalId:
+                                                member.memberId ?? "",
+                                            grpId: '',
+                                            isGrp: false,
+                                            reciverId: member.memberId ?? "",
+                                            favourite: false,
+                                          ),
+                                        );
+                                      },
+
+                                      // ✅ SHOW ONLY IF LOGGED USER IS ADMIN & NOT SELF
+                                      onToggleAdmin: canManageMember
+                                          ? () {
+                                              context.read<MediaBloc>().add(
+                                                    MakeAdmin(
+                                                      groupId: widget.groupId,
+                                                      updates: [
+                                                        {
+                                                          "member_id":
+                                                              member.memberId ??
+                                                                  "",
+                                                          "isAdmin":
+                                                              !isTargetAdmin,
+                                                        }
+                                                      ],
+                                                    ),
+                                                  );
+                                            }
+                                          : null,
+
+                                      onRemove: canManageMember
+                                          ? () {
+                                              context.read<MediaBloc>().add(
+                                                    RemoveUserFromGroupEvent(
+                                                      groupId: widget.groupId,
+                                                      userId:
+                                                          member.memberId ?? "",
+                                                    ),
+                                                  );
+                                            }
+                                          : null,
+
+                                      onVerify: () {},
+                                    );
+                                  },
+                            child: ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: Stack(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 25,
+                                    backgroundColor: profileAvatarUrl.isEmpty
+                                        ? ColorUtil.getColorFromAlphabet(
+                                            profileAvatar)
+                                        : Colors.transparent,
+                                    backgroundImage: profileAvatarUrl.isNotEmpty
+                                        ? NetworkImage(profileAvatarUrl)
+                                        : null,
+                                    child: profileAvatarUrl.isEmpty
+                                        ? Text(
+                                            profileAvatar,
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                          )
+                                        : null,
                                   ),
-                                ),
-                                subtitle: Text(
-                                  member.role ?? '',
-                                  style: const TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                                trailing: isAdmin
-                                    ? Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.green[700],
-                                          borderRadius:
-                                              BorderRadius.circular(6),
-                                        ),
-                                        child: const Text(
-                                          'Group Admin',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w500,
+                                  ValueListenableBuilder(
+                                    valueListenable:
+                                        SocketService().userStatusNotifier,
+                                    builder: (context, val, _) {
+                                      final isOnline = SocketService()
+                                          .onlineUsers
+                                          .contains(member.memberId);
+                                      if (!isOnline) {
+                                        return const SizedBox.shrink();
+                                      }
+                                      return Positioned(
+                                        right: 0,
+                                        bottom: 0,
+                                        child: Container(
+                                          width: 12,
+                                          height: 12,
+                                          decoration: BoxDecoration(
+                                            color: Colors.green,
+                                            shape: BoxShape.circle,
+                                            border: Border.all(
+                                              color: Colors.white,
+                                              width: 2,
+                                            ),
                                           ),
                                         ),
-                                      )
-                                    : null,
+                                      );
+                                    },
+                                  ),
+                                ],
                               ),
+                              title: Text(
+                                isMe ? 'You' : nameText, // ✅ FIX
+                                style: const TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              subtitle: Text(
+                                member.role ?? '',
+                                style: const TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              trailing: isAdmin
+                                  ? Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green[700],
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Text(
+                                        'Group Admin',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    )
+                                  : null,
                             ),
                           );
-                        }).toList(),
+                        }),
                       ],
                     ),
                   );
@@ -322,7 +315,7 @@ class _GroupContactListState extends State<GroupContactList> {
             ],
           );
         } else {
-          return const SizedBox.shrink();
+          return SizedBox();
         }
       },
     );
