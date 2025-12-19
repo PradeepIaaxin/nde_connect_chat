@@ -28,7 +28,7 @@ class ReusableChatScaffold extends StatelessWidget {
     return BlocProvider.value(
       value:  bloc,
       child: Scaffold(
-        backgroundColor: bgColor,
+        backgroundColor: const Color.fromARGB(255, 248, 248, 250),
         resizeToAvoidBottomInset: true,
         appBar: appBar,
         body: Column(
