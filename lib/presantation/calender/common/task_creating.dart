@@ -198,6 +198,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       child: Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
+          surfaceTintColor: Colors.white,
           backgroundColor: Colors.white,
           elevation: 0,
           leading: IconButton(

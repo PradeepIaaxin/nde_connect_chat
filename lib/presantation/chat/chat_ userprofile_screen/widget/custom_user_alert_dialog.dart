@@ -7,8 +7,9 @@ class UserActionDialog {
     required bool isAdmin,
     required VoidCallback onMessage,
     required VoidCallback onView,
-    required VoidCallback onToggleAdmin,
-    required VoidCallback onRemove,
+    VoidCallback? onToggleAdmin,
+    VoidCallback? onRemove,
+
     required VoidCallback onVerify,
   }) {
     showDialog(
@@ -16,31 +17,60 @@ class UserActionDialog {
       builder: (_) => AlertDialog(
         backgroundColor: Colors.white,
         contentPadding: const EdgeInsets.symmetric(vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildActionItem(context, "Message $name", () {
-              Navigator.pop(context);
-              onMessage();
-            }),
-            _buildActionItem(context, "View $name", () {
-              Navigator.pop(context);
-              onView();
-            }),
             _buildActionItem(
-                context, isAdmin ? "Dismiss as admin" : "Add as admin", () {
-              Navigator.pop(context);
-              onToggleAdmin();
-            }),
-            _buildActionItem(context, "Remove $name", () {
-              Navigator.pop(context);
-              onRemove();
-            }),
-            _buildActionItem(context, "Verify security code", () {
-              Navigator.pop(context);
-              onVerify();
-            }),
+              context,
+              "Message $name",
+              () {
+                Navigator.pop(context);
+                onMessage();
+              },
+            ),
+
+            _buildActionItem(
+              context,
+              "View $name",
+              () {
+                Navigator.pop(context);
+                onView();
+              },
+            ),
+
+            // 👑 SHOW ONLY IF CALLBACK EXISTS
+            if (onToggleAdmin != null)
+              _buildActionItem(
+                context,
+                isAdmin ? "Dismiss as admin" : "Add as admin",
+                () {
+                  Navigator.pop(context);
+                  onToggleAdmin();
+                },
+              ),
+
+            // 🗑 SHOW ONLY IF CALLBACK EXISTS
+            if (onRemove != null)
+              _buildActionItem(
+                context,
+                "Remove $name",
+                () {
+                  Navigator.pop(context);
+                  onRemove();
+                },
+              ),
+
+            _buildActionItem(
+              context,
+              "Verify security code",
+              () {
+                Navigator.pop(context);
+                onVerify();
+              },
+            ),
           ],
         ),
       ),
@@ -48,7 +78,10 @@ class UserActionDialog {
   }
 
   static Widget _buildActionItem(
-      BuildContext context, String title, VoidCallback onTap) {
+    BuildContext context,
+    String title,
+    VoidCallback onTap,
+  ) {
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -59,7 +92,10 @@ class UserActionDialog {
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(color: Colors.black, fontSize: 16),
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontSize: 16,
+                ),
               ),
             ),
           ],

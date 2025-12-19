@@ -151,7 +151,6 @@ class ChatListApiService {
     }
 
     final uri = Uri.parse(baseUrl).replace(queryParameters: queryParams);
-    print("Fetching chats → $uri");
 
     final headers = {
       'Authorization': 'Bearer $accessToken',
@@ -172,6 +171,7 @@ class ChatListApiService {
         final chats = await decodeChatsFromLoro(snapshotBase64);
         ChatSessionStorage.clear();
         ChatSessionStorage.saveChatList(chats);
+        log("📦 Chat count after fetch: ${ChatSessionStorage.getChatList().length}");
 
         return chats;
       }

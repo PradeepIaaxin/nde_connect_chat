@@ -225,15 +225,15 @@ class CommonAppBarBuilder {
                 print("🔥Buildingpresencefor  $isUserOnline ");
 
 
-                return StreamBuilder<String>(
+                return StreamBuilder<Map<String, dynamic>>(
                   stream: SocketService().typingStream,
                   builder: (context, typingSnapshot) {
-                    final isTyping = typingSnapshot.data != null &&
-                        typingSnapshot.data!.isNotEmpty;
+                    final typingMessage = typingSnapshot.data?['message'] as String? ?? '';
+                    final isTyping = typingMessage.isNotEmpty;
 
                     if (isTyping) {
                       return Text(
-                        typingSnapshot.data!,
+                        typingMessage,
                         style: const TextStyle(
                           fontSize: 12,
                           color: chatColor,

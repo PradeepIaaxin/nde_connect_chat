@@ -1160,7 +1160,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
 
     if (currentUserId.isNotEmpty && widget.datumId.isNotEmpty) {
-
       _setupReactionListener();
       _setupStatusListener();
     }
