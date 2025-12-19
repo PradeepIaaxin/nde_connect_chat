@@ -34,100 +34,97 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
     super.initState();
     _replied = Map<String, dynamic>.from(widget.replied);
   }
-   Widget? trailingThumb;
+
+  Widget? trailingThumb;
   @override
   Widget build(BuildContext context) {
-  
     const double thumbSize = 70;
     final replyContent =
-    (_replied['replyContent'] ?? _replied['content'] ?? '').toString();
+        (_replied['replyContent'] ?? _replied['content'] ?? '').toString();
 
     final fileName = (_replied['fileName'] ?? '').toString().toLowerCase();
 
-    final mediaUrl =
-    (_replied['replyUrl'] ??
-        _replied['thumbnailUrl'] ??
-        _replied['fileUrl'] ??
-        '')
+    final mediaUrl = (_replied['replyUrl'] ??
+            _replied['thumbnailUrl'] ??
+            _replied['fileUrl'] ??
+            '')
         .toString();
 
     final bool isVideo =
-        fileName.endsWith('.mp4') ||
-            mediaUrl.toLowerCase().contains('.mp4');
+        fileName.endsWith('.mp4') || mediaUrl.toLowerCase().contains('.mp4');
 
-    final bool isImage =
-        fileName.endsWith('.jpg') ||
-            fileName.endsWith('.jpeg') ||
-            fileName.endsWith('.png') ||
-            mediaUrl.toLowerCase().contains('.jpg') ||
-            mediaUrl.toLowerCase().contains('.png');
+    final bool isImage = fileName.endsWith('.jpg') ||
+        fileName.endsWith('.jpeg') ||
+        fileName.endsWith('.png') ||
+        mediaUrl.toLowerCase().contains('.jpg') ||
+        mediaUrl.toLowerCase().contains('.png');
 
     if (replyContent.isEmpty && mediaUrl.isEmpty) {
       return const SizedBox.shrink();
     }
-   
-print("urrrrrrrrrrrrrr $mediaUrl");
+
+    print("urrrrrrrrrrrrrr $mediaUrl");
     Widget? buildThumb() {
       /// ✅ IMAGE
       if (isImage) {
         return CachedNetworkImage(
           imageUrl: mediaUrl,
           fit: BoxFit.cover,
-          placeholder: (_, __) =>
-              Container(color: Colors.grey.shade300),
-          errorWidget: (_, __, ___) =>
-              Container(color: Colors.grey.shade400),
+          placeholder: (_, __) => Container(color: Colors.grey.shade300),
+          errorWidget: (_, __, ___) => Container(color: Colors.grey.shade400),
         );
       }
 
-    if (isVideo) {
-      trailingThumb = SizedBox(
-        width: thumbSize,
-        height: thumbSize,
-        child: FutureBuilder<File?>(
-          future: VideoThumbUtil.generateFromUrl(mediaUrl),
-          builder: (context, snapshot) {
-            final thumbFile = snapshot.data;
-            if (thumbFile == null) {
-              return ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  color: Colors.black26,
-                  child:  Center(
-                    child: Container(color: Colors.grey,),
-                  ),
-                ),
-              );
-            }
-print("thummmm $trailingThumb");
-            if (thumbFile != null && thumbFile.existsSync()) {
-              return Stack(
-                alignment: Alignment.center,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.file(
-                      thumbFile,
-                      width: thumbSize,
-                      height: thumbSize,
-                      fit: BoxFit.cover,
+      if (isVideo) {
+        trailingThumb = SizedBox(
+          width: thumbSize,
+          height: thumbSize,
+          child: FutureBuilder<File?>(
+            future: VideoThumbUtil.generateFromUrl(mediaUrl),
+            builder: (context, snapshot) {
+              final thumbFile = snapshot.data;
+              if (thumbFile == null) {
+                return ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    color: Colors.black26,
+                    child: Center(
+                      child: Container(
+                        color: Colors.grey,
+                      ),
                     ),
                   ),
-                  const Icon(
-                    Icons.play_circle_fill,
-                    color: Colors.white,
-                    size: 28,
-                  ),
-                ],
-              );
-            }
+                );
+              }
+              print("thummmm $trailingThumb");
+              if (thumbFile != null && thumbFile.existsSync()) {
+                return Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.file(
+                        thumbFile,
+                        width: thumbSize,
+                        height: thumbSize,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    const Icon(
+                      Icons.play_circle_fill,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                  ],
+                );
+              }
 
-            return Text("hiii");
-          },
-        ),
-      );
-    } 
-    return trailingThumb;
+              return Text("hiii");
+            },
+          ),
+        );
+      }
+      return trailingThumb;
     }
 
     return GestureDetector(
@@ -145,12 +142,11 @@ print("thummmm $trailingThumb");
               width: 3,
               height: 42,
               decoration: BoxDecoration(
-                color: Colors.grey.shade600,
+                color: Colors.blueAccent,
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
             const SizedBox(width: 8),
-
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -166,7 +162,6 @@ print("thummmm $trailingThumb");
                     ),
                   ),
                   const SizedBox(height: 2),
-
                   if (isVideo)
                     const Text(
                       'Video',
@@ -187,7 +182,6 @@ print("thummmm $trailingThumb");
                 ],
               ),
             ),
-
             if ((isImage || isVideo) && mediaUrl.isNotEmpty)
               ClipRRect(
                 borderRadius: BorderRadius.circular(6),
