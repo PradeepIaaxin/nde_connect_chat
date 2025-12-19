@@ -2683,8 +2683,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                 final mediaUrl =
                                     nextMsg['originalUrl']?.toString() ??
                                         nextMsg['fileUrl']?.toString() ??
-                                        nextMsg['thumbnailUrl']?.toString() ??
                                         nextMsg['imageUrl']?.toString() ??
+                                        nextMsg['thumbnailUrl']?.toString() ??
                                         nextMsg['localImagePath']?.toString() ??
                                         '';
                                 if (mediaUrl.isNotEmpty) {
@@ -3189,7 +3189,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
                                   if (imageUrl != null &&
                                       imageUrl.isNotEmpty &&
-                                      (isImage || imageUrl != fileUrl))
+                                      isImage &&
+                                      !isVideo)
                                     content == "Message Deleted"
                                         ? const SizedBox.shrink()
                                         : Stack(
