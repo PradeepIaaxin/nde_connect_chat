@@ -243,14 +243,24 @@ class _MessageInputFieldState extends State<MessageInputField> {
     final String? fileType = widget.replyText?['fileType'];
     // final String userName = widget.replyText?['userName'] ?? '';
     final String? originalUrl = widget.replyText?['originalUrl'];
+     final bool isGroupedMedia = widget.replyText?["isGroupedMedia"]??false;
+      final String imageCount = widget.replyText?["imageCount"]?.toString()??"";
+            final String videoCount = widget.replyText?["videoCount"]?.toString()??"";
 
-    // final String firstName =
-    //     widget.replyText?['receiver']?['first_name']?.toString() ?? "";
-    // final String lastName =
-    //     widget.replyText?['receiver']?['last_name']?.toString() ?? "";
-    final bool isSendMe = widget.replyText?['isSendMe'] ?? false;
-    debugPrint("isSendMe: $isSendMe");
+   final String firstName =
+    widget.replyText?['receiver']?['first_name']?.toString() ?? "";
+    final String lastName = widget.replyText?['receiver']?['last_name'].toString()??"";
+   // final bool isSendMe = widget.replyText?['isSendMe'];
+        final String senderId = widget.replyText?['senderId']?.toString()??"";
+        final String userId = widget.replyText?['sender']?["_id"]?.toString()??"";
 
+       print("sssssssss ${senderId}");
+              print("userId ${userId}");
+
+    final bool isSendMe =senderId==userId;
+
+print("hhhhhhhhhhhhhhhhhhhhh $isSendMe");
+    // Type label like WhatsApp
     // Type label like WhatsApp
     String typeLabel = '';
 
@@ -373,13 +383,14 @@ class _MessageInputFieldState extends State<MessageInputField> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  "You",
-                  style: TextStyle(
-                      color: AppColors.primaryButton,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500),
-                ),
+               Text(
+                       isSendMe? "You":"${firstName} ${lastName}",
+                        style: const TextStyle(
+                          color: AppColors.primaryButton,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500
+                        ),
+                      ),
                 if (typeLabel.isNotEmpty)
                   Row(
                     mainAxisSize: MainAxisSize.min,
@@ -396,8 +407,22 @@ class _MessageInputFieldState extends State<MessageInputField> {
                             : 16,
                       ),
                       const SizedBox(width: 6),
-                      Text(
+                     isGroupedMedia?SizedBox() :Text(
                         typeLabel,
+                        style: const TextStyle(
+                          color: Colors.black,
+                          fontSize: 12,
+                        ),
+                      ),
+                     if(isGroupedMedia && imageCount.isNotEmpty) Text(
+                        imageCount,
+                        style: const TextStyle(
+                          color: Colors.black,
+                          fontSize: 12,
+                        ),
+                      ),
+                      if(isGroupedMedia && videoCount.isNotEmpty) Text(
+                        videoCount,
                         style: const TextStyle(
                           color: Colors.black,
                           fontSize: 12,
@@ -406,17 +431,20 @@ class _MessageInputFieldState extends State<MessageInputField> {
                     ],
                   ),
                 if (content.isNotEmpty)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          content,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.black,
-                            fontSize: 12,
+                  Flexible(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 8.0),
+                            child: Text(
+                              content,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  color: Colors.black, fontSize: 12),
+                            ),
                           ),
                         ),
                       ),

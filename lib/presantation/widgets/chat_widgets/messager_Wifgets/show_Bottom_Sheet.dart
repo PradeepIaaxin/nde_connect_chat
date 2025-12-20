@@ -452,10 +452,10 @@ class ShowAltDialog {
         await prefs.setString('chat_file_path', localFile.path);
         log(" File path saved: ${localFile.path}");
       }
-
-      final message = {
+final localMessageId = ObjectId().toString();
+final message = {
   'content': '',
-  'message_id': 'temp_${ObjectId().toString()}', // 🔥 FIX collision
+  'message_id': localMessageId,
   'sender': {'_id': senderId},
   'receiver': {'_id': receiverId},
   'messageStatus': 'sent',
@@ -464,18 +464,19 @@ class ShowAltDialog {
   'fileName': file.name,
   'fileType': mimeType,
 
-  // 🔥 IMPORTANT
   'imageUrl': isImage ? file.path : null,
   'fileUrl': isVideo ? file.path : null,
   'originalUrl': file.path,
   'isVideo': isVideo,
 
-  // 🔥 NEW FLAG
   'isLocal': true,
 
+  // 🔥🔥 ADD THESE TWO LINES 🔥🔥
   'is_group_message': isGroupMessage,
+  'is_grouped_message': isGroupMessage,
   'group_message_id': groupMessageId,
 };
+
 
 
       log("🟢 Local message metadata: $message");
@@ -503,6 +504,7 @@ class ShowAltDialog {
                 "",
                 isGroupMessage: isGroupMessage,
                 groupMesageId: groupMessageId,
+                messageId: localMessageId.toString()
               ),
             );
       }

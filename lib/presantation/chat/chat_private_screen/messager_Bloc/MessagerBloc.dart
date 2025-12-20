@@ -377,10 +377,13 @@ print("datasssss $data");
           final msgId = ObjectId().toString();
 print("iiiiiiiiiiiiiiii${event.contentType}");
 print("iiiiiiiiiiiiiiii${data["ContentType"]}");
+log("groupMesageIdss ${event.isGroupMessage}");
+log("isGroupMessage ${event.groupMesageId}");
+
           socketService.sendMessage(
             isGroupMessage: event.isGroupMessage,
             groupMessageId: event.groupMesageId,
-            messageId: msgId,
+            messageId: event.messageId.toString(),
             conversationId: event.convoId,
             senderId: event.senderId,
             receiverId: event.receiverId,
@@ -418,9 +421,10 @@ print("iiiiiiiiiiiiiiii${data["ContentType"]}");
       final roomId =
           socketService.generateRoomId(event.senderId, event.receiverId);
       final msgId = ObjectId().toString();
-
+log("isGroupMessage ${event.replyIsGroupMessage}");
+log("isGroupMessage ${event.replyGroupMessageId}");
       socketService.sendMessage(
-        isGroupMessage: false,
+        isGroupMessage: event.replyIsGroupMessage??false,
         messageId: msgId,
         conversationId: event.convoId,
         senderId: event.senderId,
@@ -431,6 +435,7 @@ print("iiiiiiiiiiiiiiii${data["ContentType"]}");
         isGroupChat: false,
         contentType: event.contentType ?? "text",
         reply: event.replyTo,
+        groupMessageId: event.replyGroupMessageId??null,
       );
 
       final localMessage = Message(
