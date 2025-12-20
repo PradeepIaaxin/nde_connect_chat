@@ -414,6 +414,7 @@ class FilePreviewScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+          surfaceTintColor: Colors.white,
         title: const Text("File Preview"),
         backgroundColor: Colors.white,
         actions: [

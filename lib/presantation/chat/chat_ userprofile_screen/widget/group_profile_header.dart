@@ -47,7 +47,7 @@ class GroupProfileHeader extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              _buildProfileAvatar(context, displayLetter),
+              _buildProfileAvatar(context, displayLetter,currentGroupName ),
               const SizedBox(height: 16),
               _buildProfileTextInfo(currentGroupName),
               const SizedBox(height: 8),
@@ -75,13 +75,13 @@ class GroupProfileHeader extends StatelessWidget {
     return group.totalMembers ?? group.groupMembers.length;
   }
 
-  Widget _buildProfileAvatar(BuildContext context, String displayLetter) {
+  Widget _buildProfileAvatar(BuildContext context, String displayLetter , String fullName) {
     return GestureDetector(
       onTap: () {
         MyRouter.push(
           screen: ViewImage(
             imageurl: profileAvatarUrl,
-            username: displayLetter,
+            username: fullName,
           ),
         );
       },
@@ -284,6 +284,7 @@ class GroupProfileHeader extends StatelessWidget {
                     initialValue: group.description ?? "",
                     keyToEdit: "description",
                     groupId: groupId,
+                    groupImage: group.groupAvatar,
                   ),
                 );
               },

@@ -78,7 +78,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
         title: const Text('Profile'),
         centerTitle: true,
         actions: [
@@ -90,6 +91,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     initialValue: widget.userName,
                     keyToEdit: "group_name",
                     groupId: widget.grpId ?? "",
+                    groupImage: widget.profileAvatarUrl,
                   ),
                 );
               } else if (value == 'share') {
@@ -133,7 +135,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   Widget _buildProfileContent() {
-    log("isFavorite - ${widget.favourite}");
     return SingleChildScrollView(
       child: Column(
         children: [
@@ -182,10 +183,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final isCurrentlyFavourite =
         groupModelList.isNotEmpty ? groupModelList.first.isFavourite : false;
     final updatedIsFavourite = !isCurrentlyFavourite;
-
-    print("Fetched users: ${allUsers.length}");
-    print("Is Favourite: $isCurrentlyFavourite");
-    print("Will Update To: $updatedIsFavourite");
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

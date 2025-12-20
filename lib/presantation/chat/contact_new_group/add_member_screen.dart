@@ -60,7 +60,7 @@ class _AddMembersScreenState extends State<AddMembersScreen> {
 
   Future<void> _addMembersToGroup() async {
     if (selectedUsers.isEmpty) {
-      Messenger.alertError( "Please select at least one member");
+      Messenger.alertError("Please select at least one member");
       return;
     }
 
@@ -124,8 +124,7 @@ class _AddMembersScreenState extends State<AddMembersScreen> {
         backgroundColor: Colors.white,
         appBar: AppBar(
           backgroundColor: Colors.white,
-          shadowColor: Colors.grey.shade200,
-          elevation: 0.2,
+          surfaceTintColor: Colors.white,
           title: _isSearching
               ? TextField(
                   controller: searchController,

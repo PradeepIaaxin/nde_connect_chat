@@ -61,6 +61,8 @@ class _ContactsScreenState extends State<ContactsScreen>
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
         title: const Text("Contacts"),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),

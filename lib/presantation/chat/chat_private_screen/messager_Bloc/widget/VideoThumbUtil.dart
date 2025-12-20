@@ -1,33 +1,72 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../../../utils/reusbale/common_import.dart';
 
 class VideoThumbUtil {
-  static Future<File?> generateFromUrl(String videoUrl) async {
+  /// ⚡ Memory cache
+  static final Map<String, File> _memoryCache = {};
+
+  /// 🔒 In-flight lock (MOST IMPORTANT)
+  static final Map<String, Future<File?>> _inFlight = {};
+
+  static Future<File?> generateFromUrl(String videoUrl) {
+    if (videoUrl.isEmpty) return Future.value(null);
+
+    final key = videoUrl.hashCode.toString();
+
+    /// 1️⃣ MEMORY CACHE
+    final cached = _memoryCache[key];
+    if (cached != null) {
+      return Future.value(cached);
+    }
+
+    /// 2️⃣ IN-FLIGHT (WAIT FOR SAME FUTURE)
+    if (_inFlight.containsKey(key)) {
+      return _inFlight[key]!;
+    }
+
+    /// 3️⃣ CREATE SINGLE FUTURE
+    final future = _generate(videoUrl, key);
+    _inFlight[key] = future;
+
+    return future;
+  }
+
+  static Future<File?> _generate(String videoUrl, String key) async {
     try {
       final tempDir = await getTemporaryDirectory();
+      final thumbPath = '${tempDir.path}/thumb_$key.jpg';
+      final file = File(thumbPath);
 
-      // ✅ UNIQUE FILE NAME BASED ON VIDEO URL HASH
-      final fileName =
-          'thumb_${videoUrl.hashCode}_${DateTime.now().millisecondsSinceEpoch}.png';
-      final uniqueName = videoUrl.hashCode.toString();
-      final thumbPath = '${tempDir.path}/thumb_$uniqueName.png';
+      /// 4️⃣ DISK CACHE
+      if (await file.exists()) {
+        _memoryCache[key] = file;
+        return file;
+      }
 
-      final generatedPath = await VideoThumbnail.thumbnailFile(
+      /// 5️⃣ GENERATE (ONLY ONCE)
+      final path = await VideoThumbnail.thumbnailFile(
         video: videoUrl,
-        thumbnailPath: thumbPath, // ✅ UNIQUE FILE
-        imageFormat: ImageFormat.PNG,
-        maxHeight: 300,
-        quality: 75,
+        thumbnailPath: thumbPath,
+        imageFormat: ImageFormat.JPEG,
+        maxHeight: 200, // FAST
+        quality: 90,    // FAST
       );
 
-      if (generatedPath == null) return null;
-      return File(generatedPath);
+      if (path == null) return null;
+
+      final generated = File(path);
+      _memoryCache[key] = generated;
+      return generated;
     } catch (e) {
-      debugPrint("❌ Reply thumbnail error: $e");
+      debugPrint("❌ Thumbnail error: $e");
       return null;
+    } finally {
+      /// 6️⃣ RELEASE LOCK
+      _inFlight.remove(key);
     }
   }
 }
