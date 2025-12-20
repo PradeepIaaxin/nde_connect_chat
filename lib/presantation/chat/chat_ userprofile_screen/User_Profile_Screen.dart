@@ -91,6 +91,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     initialValue: widget.userName,
                     keyToEdit: "group_name",
                     groupId: widget.grpId ?? "",
+                    groupImage: widget.profileAvatarUrl,
                   ),
                 );
               } else if (value == 'share') {
