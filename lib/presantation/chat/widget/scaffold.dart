@@ -43,7 +43,7 @@ class ReusableChatScaffold extends StatelessWidget {
           children: [
             Positioned.fill(
               child: Image.asset(
-                'assets/images/bgback.png',
+                'assets/images/bgback2.png',
                 fit: BoxFit.cover,
               ),
             ),
