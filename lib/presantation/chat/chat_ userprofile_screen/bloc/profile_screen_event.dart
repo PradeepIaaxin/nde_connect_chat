@@ -36,18 +36,22 @@ class FetchgrpOrNot extends MediaEvent {
 // Add this inside your existing events file
 class UpdateGroupLocally extends MediaEvent {
   final String groupId;
-  final String? newName;        // can be null
-  final String? newDescription; // can be null
+  final String? newName;
+  final String? newDescription;
+  final String? newAvatar; 
 
   const UpdateGroupLocally({
     required this.groupId,
     this.newName,
     this.newDescription,
+    this.newAvatar,
   });
 
   @override
-  List<Object?> get props => [groupId, newName, newDescription];
+  List<Object?> get props =>
+      [groupId, newName, newDescription, newAvatar];
 }
+
 
 class RemoveUserFromGroupEvent extends MediaEvent {
   final String groupId;

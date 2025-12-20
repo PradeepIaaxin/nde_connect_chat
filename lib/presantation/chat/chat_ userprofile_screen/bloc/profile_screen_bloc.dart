@@ -151,20 +151,21 @@ class MediaBloc extends Bloc<MediaEvent, MediaState> {
     Emitter<MediaState> emit,
   ) async {
     final groupId = event.groupId;
-    final newName = event.newName;
-    final newDescription = event.newDescription;
 
     if (state is ContactLoaded) {
       final currentList = (state as ContactLoaded).contacts;
+
       final updatedList = currentList.map((contact) {
         if (contact.id == groupId) {
           return contact.copyWith(
-            groupName: newName ?? contact.groupName,
-            description: newDescription ?? contact.description,
+            groupName: event.newName ?? contact.groupName,
+            description: event.newDescription ?? contact.description,
+            groupAvatar: event.newAvatar ?? contact.groupAvatar, 
           );
         }
         return contact;
       }).toList();
+
       emit(ContactLoaded(updatedList));
     }
 
