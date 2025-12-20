@@ -167,7 +167,10 @@ class GroupedMediaWidget extends StatelessWidget {
       future: VideoThumbUtil.generateFromUrl(videoPath),
       builder: (context, snapshot) {
         if (snapshot.hasData) {
-          return Image.file(snapshot.data!, fit: BoxFit.cover);
+          return Image.file(snapshot.data!,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity);
         }
         return Container(
           color: Colors.black26,
@@ -183,10 +186,14 @@ class GroupedMediaWidget extends StatelessWidget {
         ? Image.file(
             File(imagePath.replaceFirst('file://', '')),
             fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
           )
         : CachedNetworkImage(
             imageUrl: imagePath,
             fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
             placeholder: (_, __) => Container(color: Colors.grey.shade200),
             errorWidget: (_, __, ___) => const Icon(Icons.broken_image),
           );
