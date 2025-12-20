@@ -121,7 +121,7 @@ class Message {
       localImagePath: json['localImagePath'] != null
           ? File(json['localImagePath'] as String)
           : null, // Optional
-      isGroupMessage: json['is_group_message'] ?? json['isGroupMessage'],
+      isGroupMessage: json['is_grouped_message'] ?? json['isGroupMessage'],
       groupMessageId: json['group_message_id'] ?? json['groupMessageId'],
     );
   }
@@ -141,7 +141,7 @@ class Message {
       'fileType': fileType,
       'isTemporary': isTemporary,
       'localImagePath': localImagePath?.path,
-      'is_group_message': isGroupMessage,
+      '': isGroupMessage,
       'group_message_id': groupMessageId,
     };
   }
@@ -274,7 +274,7 @@ class Datum {
   String toRawJson() => json.encode(toJson());
 
   factory Datum.fromJson(Map<String, dynamic> json) {
-    if (json.containsKey('is_group_message') ||
+    if (json.containsKey('is_grouped_message') ||
         json.containsKey('isGroupMessage')) {
       //log('🔍 Datum keys: ${json.keys.toList()}');
       //log('🔍 isGroupMessage value: ${json['is_group_message']} / ${json['isGroupMessage']}');
@@ -311,7 +311,7 @@ class Datum {
       userName: json["userName"],
       fileName: json["fileName"],
       isPinned: json["isPinned"],
-  isGroupMessage: json['is_group_message'] ?? json['isGroupMessage'],
+  isGroupMessage: json['is_grouped_message'] ?? json['isGroupMessage'],
       groupMessageId: json['group_message_id']?.toString() ??
           json['groupMessageId']?.toString(),
       time: json["time"] != null ? DateTime.parse(json["time"]) : null,
@@ -352,7 +352,7 @@ class Datum {
         "userName": userName,
         "fileName": fileName,
         "isPinned": isPinned,
-        'is_group_message': isGroupMessage,
+        'is_grouped_message': isGroupMessage,
         'group_message_id': groupMessageId,
         "time": time?.toIso8601String(),
         "messageStatus": messageStatus,

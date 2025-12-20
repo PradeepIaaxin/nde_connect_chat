@@ -108,9 +108,9 @@ class MessageHandler {
       /// flags
       'isForwarded': isForwarded,
       'isReplyMessage': isReplyMessage,
-      'is_group_message': message['is_group_message'] == true ||
-          message['is_group_message'] == 'true' ||
-          message['is_group_message'] == 1,
+      'is_grouped_message': message['is_grouped_message'] == true ||
+          message['is_grouped_message'] == 'true' ||
+          message['is_grouped_message'] == 1,
       'group_message_id': message['group_message_id']?.toString(),
 
       /// reply (OLD UI COMPATIBLE)
