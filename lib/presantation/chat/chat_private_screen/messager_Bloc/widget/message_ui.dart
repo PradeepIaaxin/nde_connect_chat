@@ -9,6 +9,7 @@ import 'package:flutter_linkify/flutter_linkify.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/replymessgae.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/ForwardMessageScreen_widget.dart';
 import 'package:nde_email/utils/datetime/date_time_utils.dart';
+import 'package:nde_email/utils/reusbale/common_import.dart';
 import 'package:nde_email/utils/router/router.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:swipe_to/swipe_to.dart';
@@ -156,7 +157,7 @@ class MessageBubble extends StatelessWidget {
                                       ? Radius.zero
                                       : const Radius.circular(16),
                                 ),
-                  border: isSelected ? Border.all(color: borderColor, width: 2) : null,
+                  border: isSelected ? Border.all(color: borderColor, width: 2) : isVideo ||hasImage?Border(bottom:BorderSide(width: 11,color:isSentByMe?senderColor:receiverColor)):null,
 
                 ),
                 child: Column(
@@ -314,7 +315,8 @@ class MessageBubble extends StatelessWidget {
       String imageUrl,
       String? fileName, {
         required bool isSentByMe,
-      }) {
+      })
+       {
     if (content == "Message Deleted") return const SizedBox();
 
     final String name = fileName ?? 'Unknown file';
@@ -501,8 +503,8 @@ class MessageBubble extends StatelessWidget {
 
         // time + status badge
         Positioned(
-          bottom: 5,
-          right: 4,
+          bottom:-20,
+          right: -2,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
@@ -514,7 +516,7 @@ class MessageBubble extends StatelessWidget {
               children: [
                 Text(
                   TimeUtils.formatUtcToIst(message['time']),
-                  style: const TextStyle(fontSize: 10, color: Colors.white),
+                  style: const TextStyle(fontSize: 10, color: Colors.black),
                 ),
                 if (isSentByMe) ...[
                   const SizedBox(width: 4),
@@ -1122,6 +1124,7 @@ class MessageBubble extends StatelessWidget {
         height: 300,
         margin: const EdgeInsets.only(top: 8),
         child: Stack(
+          clipBehavior: Clip.none,
           children: [
             FutureBuilder<File?>(
               future: VideoCacheService.instance.getThumbnailFuture(videoUrl),
@@ -1203,12 +1206,12 @@ class MessageBubble extends StatelessWidget {
             ),
             // ✅ TIME + TICKS
             Positioned(
-              bottom: 6,
-              right: 6,
+              bottom: -19,
+              right: -3,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.45),
+                 // color: Colors.black.withOpacity(0.45),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -1216,14 +1219,14 @@ class MessageBubble extends StatelessWidget {
                   children: [
                     Text(
                       TimeUtils.formatUtcToIst(message['time']),
-                      style: const TextStyle(fontSize: 10, color: Colors.white),
+                      style: const TextStyle(fontSize: 10, color: Colors.black),
                     ),
                     if (isSentByMe) ...[
                       const SizedBox(width: 4),
                       buildStatusIcon?.call(
                         message['messageStatus']?.toString() ?? 'sent',
                       ) ??
-                          const Icon(Icons.done, size: 12, color: Colors.white),
+                          const Icon(Icons.done, size: 12, color: Colors.black),
                     ],
                   ],
                 ),

@@ -1807,7 +1807,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       final currentMsg = messages[i];
 
       // Skip if already grouped
-      if (currentMsg['is_group_message'] == true &&
+      if (currentMsg['is_grouped_message'] == true &&
           currentMsg['group_message_id'] != null) {
         continue;
       }
@@ -1872,7 +1872,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         }
 
         // Already grouped by server? Treat as boundary
-        if (nextMsg['is_group_message'] == true &&
+        if (nextMsg['is_grouped_message'] == true &&
             nextMsg['group_message_id'] != null) {
           break;
         }
@@ -1895,7 +1895,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               ?.toString();
 
           // Apply grouping to combined list
-          messageToGroup['is_group_message'] = true;
+          messageToGroup['is_grouped_message'] = true;
           messageToGroup['group_message_id'] = groupId;
 
           // Also persist to source arrays
@@ -1917,7 +1917,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         final mId =
             (msg['message_id'] ?? msg['messageId'] ?? msg['id'])?.toString();
         if (mId == messageId) {
-          msg['is_group_message'] = true;
+          msg['is_grouped_message'] = true;
           msg['group_message_id'] = groupId;
           break;
         }
@@ -2650,7 +2650,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
                           // Grouping Logic
                           final isGroupMessage =
-                              message['is_group_message'] == true;
+                              message['is_grouped_message'] == true;
                           final groupMessageId =
                               message['group_message_id']?.toString();
 

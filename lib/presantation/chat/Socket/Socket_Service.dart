@@ -1179,13 +1179,13 @@ void _handleUserPresence(dynamic data, {required bool online}) {
       "originalUrl": originalUrl,
       "timestamp": DateTime.now().toIso8601String(),
       "messageType": "sent",
-      "is_group_message": isGroupMessage,
+      "is_grouped_message": isGroupMessage,
       "group_message_id": groupMessageId,
       "isReplyMessage": reply == null ? isReplyMessage : true,
       if (reply != null)
         "reply": {
           "userId": reply["sender"]?["_id"],
-          "id": reply["message_id"],
+          "id":reply["message_id"],
           "mimeType": reply["mimeType"],
           "ContentType": reply["ContentType"],
           "replyContent": reply["content"],
@@ -1193,8 +1193,12 @@ void _handleUserPresence(dynamic data, {required bool online}) {
           "fileName": reply["fileName"] ?? "",
           "first_name": reply["sender"]?["first_name"],
           "last_name": reply["sender"]?["last_name"],
+          "isGroupedMessageId": reply["group_message_id"],
+          "isGroupedMessage": reply["is_grouped_message"] == true,
         },
     };
+    log("groupMessageId in socket $groupMessageId");
+        log("groupMessageId in socket $isGroupMessage");
 
     socket!.emitWithAck('send_message', messagePayload, ack: (data) {
       try {
@@ -1206,6 +1210,9 @@ void _handleUserPresence(dynamic data, {required bool online}) {
         _slog('sendMessage ack parse error: $e');
       }
     });
+      log("groupMessageId in socket $messagePayload");
+
+  
   }
 
   String generateRoomId(String a, String b) {

@@ -120,7 +120,11 @@ class CommonAppBarBuilder {
       leading: Row(
         children: [
           IconButton(
-            onPressed: () => MyRouter.pop(context),
+            onPressed: (){
+              if (Navigator.canPop(context)) {
+  Navigator.pop(context);
+}
+            },
             icon: const Icon(Icons.arrow_back),
           ),
           GestureDetector(

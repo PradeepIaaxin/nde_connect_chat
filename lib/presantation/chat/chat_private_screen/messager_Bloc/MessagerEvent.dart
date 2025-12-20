@@ -51,6 +51,8 @@ class UploadFileEvent extends MessagerEvent {
   final bool isGroupMessage;
   final String? groupMesageId;
   final String? contentType;
+    final String? messageId;
+
 
   const UploadFileEvent(
     this.file,
@@ -59,7 +61,7 @@ class UploadFileEvent extends MessagerEvent {
     this.receiverId,
     this.message, {
     this.isGroupMessage = false,
-    this.groupMesageId, this.contentType,
+    this.groupMesageId, this.contentType,this.messageId
   });
 
   @override
@@ -76,6 +78,8 @@ class SendMessageEvent extends MessagerEvent {
   final Map<String, dynamic>? replyTo;
   final String? clientTempId;
   final String? replyMessageId;
+  final String? replyGroupMessageId;
+  final bool? replyIsGroupMessage;
 
   const SendMessageEvent({
     required this.senderId,
@@ -85,7 +89,7 @@ class SendMessageEvent extends MessagerEvent {
     this.contentType = 'text',
     this.mediaUrl,         // 👈 NEW
 
-    this.replyTo, this.clientTempId, this.replyMessageId,
+    this.replyTo, this.clientTempId, this.replyMessageId,this.replyIsGroupMessage,this.replyGroupMessageId
   });
 
   @override
