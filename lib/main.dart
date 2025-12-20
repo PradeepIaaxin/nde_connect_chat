@@ -20,11 +20,14 @@ void main() async {
 
   await RustLib.init();
   // PARALLEL INIT — MAX SPEED
-  await Future.wait([
-    initializeStorage(),
-    NotificationService.init(),
-    Permission.storage.request(),
-  ]);
+  await initializeStorage();
+await NotificationService.init();
+
+// ✅ check first
+final status = await Permission.storage.status;
+if (!status.isGranted) {
+  await Permission.storage.request();
+}
 
   socketService = SocketService();
 
