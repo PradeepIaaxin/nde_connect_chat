@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
-import 'package:nde_email/utils/const/consts.dart';
 
 class ReusableChatScaffold extends StatelessWidget {
   final PreferredSizeWidget appBar;
@@ -26,38 +24,39 @@ class ReusableChatScaffold extends StatelessWidget {
     final isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
 
     return BlocProvider.value(
-      value:  bloc,
+      value: bloc,
       child: Scaffold(
         backgroundColor: const Color.fromARGB(255, 248, 248, 250),
         resizeToAvoidBottomInset: true,
         appBar: appBar,
-        body: Column(
+        body:
+            //  Column(
+            //   children: [
+            //     Expanded(child: chatBody),
+            //     isRecording
+            //         ? voiceRecordingUI
+            //         : messageInputBuilder(isKeyboardVisible),
+            //   ],
+            // ),
+
+            Stack(
           children: [
-            Expanded(child: chatBody),
-            isRecording
-                ? voiceRecordingUI
-                : messageInputBuilder(isKeyboardVisible),
+            Positioned.fill(
+              child: Image.asset(
+                'assets/images/bgback.png',
+                fit: BoxFit.cover,
+              ),
+            ),
+            Column(
+              children: [
+                Expanded(child: chatBody),
+                isRecording
+                    ? voiceRecordingUI
+                    : messageInputBuilder(isKeyboardVisible),
+              ],
+            ),
           ],
         ),
-
-        // Stack(
-        //   children: [
-        //     Positioned.fill(
-        //       child: Image.asset(
-        //         'assets/images/bgback.png',
-        //         fit: BoxFit.cover,
-        //       ),
-        //     ),
-        // Column(
-        //   children: [
-        //     Expanded(child: chatBody),
-        //     isRecording
-        //         ? voiceRecordingUI
-        //         : messageInputBuilder(isKeyboardVisible),
-        //   ],
-        // ),
-        //   ],
-        // ),
       ),
     );
   }
