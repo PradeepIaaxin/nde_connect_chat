@@ -21,8 +21,13 @@ class SocketService {
   String? _lastSocketId;
 
   // Stream controllers (kept same)
-  final StreamController<String> _typingController =
-      StreamController<String>.broadcast();
+  final StreamController<Map<String, dynamic>> _typingController =
+      StreamController<Map<String, dynamic>>.broadcast();
+
+  Stream<Map<String, dynamic>> get typingStream => _typingController.stream;
+
+  // final StreamController<String> _typingController =
+  //     StreamController<String>.broadcast();
   final StreamController<MessageReaction> _reactionController =
       StreamController<MessageReaction>.broadcast();
   final StreamController<bool> _onlineStatusController =
@@ -45,7 +50,7 @@ class SocketService {
       StreamController<Map<String, dynamic>>.broadcast();
 
   // Stream getters (kept same)
-  Stream<String> get typingStream => _typingController.stream;
+  // Stream<String> get typingStream => _typingController.stream;
   Stream<Map<String, dynamic>> get messageStream => _messageController.stream;
   Stream<MessageReaction> get reactionStream => _reactionController.stream;
   Stream<bool> get onlineStatusStream => _onlineStatusController.stream;
@@ -319,34 +324,62 @@ class SocketService {
             }));
 
     // typing (single unified)
-  reg(
-        'get_typing',
-        (response) => scheduleMicrotask(() {
-              _slog('🔥 RAW get_typing received: $response');
+    reg(
+      'get_typing',
+      (response) => scheduleMicrotask(() {
+        _slog('🔥 get_typing -> $response');
 
-              // Filter out self-typing
-              if (response is List && response.isNotEmpty) {
-                final first = response.first;
-                if (first is Map && first['userId'] == _currentUserId) return;
-              } else if (response is Map &&
-                  response['userId'] == _currentUserId) {
-                return;
-              }
+        final map = _firstMapFromPossibleList(response);
+        if (map == null) return;
 
-              final msg = _extractTypingMessage(response);
-              _slog('🔥 Extracted typing msg: $msg');
+        // Ignore self typing
+        if (map['userId'] == _currentUserId) return;
 
-              if (msg != null && msg.trim().isNotEmpty) {
-                _typingController.add(msg);
-                _typingTimeout?.cancel();
-                _typingTimeout = Timer(const Duration(seconds: 2), () {
-                  _typingController.add('');
-                });
-              } else {
-                _typingController.add('');
-                _typingTimeout?.cancel();
-              }
-            }));
+        final convoId = map['convoId'];
+        final message = map['message'];
+
+        if (convoId == null || message == null) return;
+
+        _typingController.add({
+          "convoId": convoId,
+          "message": message,
+        });
+
+        _typingTimeout?.cancel();
+        _typingTimeout = Timer(const Duration(seconds: 2), () {
+          _typingController.add({});
+        });
+      }),
+    );
+
+    // reg(
+    //       'get_typing',
+    //       (response) => scheduleMicrotask(() {
+    //             _slog('🔥 RAW get_typing received: $response');
+
+    //             // Filter out self-typing
+    //             if (response is List && response.isNotEmpty) {
+    //               final first = response.first;
+    //               if (first is Map && first['userId'] == _currentUserId) return;
+    //             } else if (response is Map &&
+    //                 response['userId'] == _currentUserId) {
+    //               return;
+    //             }
+
+    //             final msg = _extractTypingMessage(response);
+    //             _slog('🔥 Extracted typing msg: $msg');
+
+    //             if (msg != null && msg.trim().isNotEmpty) {
+    //               _typingController.add(msg.toString());
+    //               _typingTimeout?.cancel();
+    //               _typingTimeout = Timer(const Duration(seconds: 2), () {
+    //                 _typingController.add('');
+    //               });
+    //             } else {
+    //               _typingController.add('');
+    //               _typingTimeout?.cancel();
+    //             }
+    //           }));
 
     // messagesRead
     reg(
@@ -657,7 +690,7 @@ class SocketService {
     return null;
   }
 
-String? _extractTypingMessage(dynamic payload) {
+  String? _extractTypingMessage(dynamic payload) {
     if (payload == null) return null;
     if (payload is List && payload.isNotEmpty) {
       final first = payload.first;
@@ -717,7 +750,8 @@ String? _extractTypingMessage(dynamic payload) {
     return null;
   }
 
-void _handleUserPresence(dynamic data, {required bool online}) {
+//get_typing -> [{message: Praveen is typing..., userId: 690044bd475feb6296eb1b14, convoId: 6943c3f06fce033b7d4253c5}, 1766049231277-2]
+  void _handleUserPresence(dynamic data, {required bool online}) {
     try {
       // Extract raw userId from multiple possible message formats
       final rawId = (data is List && data.isNotEmpty) ? data[0] : data;
@@ -809,6 +843,7 @@ void _handleUserPresence(dynamic data, {required bool online}) {
     }
     final typingData = {"roomId": roomId, "userName": userName};
     _slog('🚀 Sending typing event: $typingData');
+    socket!.emit('get_typing', typingData);
     socket!.emit('typing', typingData);
   }
 

@@ -67,6 +67,7 @@ class _RecentScreenState extends State<RecentScreen> {
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(
+          surfaceTintColor: Colors.white,
         title: Text('Recent'),
         backgroundColor: Colors.transparent,
         actions: [IconButton(onPressed: () {}, icon: Icon(Icons.search))],

@@ -164,7 +164,8 @@ class _NewGroupChoosenState extends State<NewGroupChoosen> {
       appBar: AppBar(
         title: const Text("New group"),
         backgroundColor: Colors.white,
-        elevation: 0,
+        surfaceTintColor: Colors.white,
+    
         foregroundColor: Colors.black,
         actions: [
           IconButton(

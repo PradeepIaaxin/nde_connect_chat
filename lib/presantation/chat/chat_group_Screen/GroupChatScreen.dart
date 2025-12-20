@@ -37,7 +37,7 @@ import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:swipe_to/swipe_to.dart';
+import 'package:nde_email/presantation/widgets/chat_widgets/Common/whatsapp_swipe_to_reply.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../data/respiratory.dart';
 import '../../../utils/simmer_effect.dart/chat_simmerefect.dart';
@@ -117,7 +117,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   bool _isSelectionMode = false;
 
   bool _isTyping = false;
-  int _limit = 10;
+  int _limit = 40;
 
   final TextEditingController _messageController = TextEditingController();
 
@@ -149,7 +149,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   int _visibleCount = 0;
   final int _pageStep = 20;
   final int _initialVisible = 20;
-  double _prevScrollExtentBeforeLoad = 0.0;
   final ValueNotifier<List<Map<String, dynamic>>> _messagesNotifier =
       ValueNotifier([]);
 
@@ -604,6 +603,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             '⏳ Buffered status update for missing ID: $messageId -> $status');
       }
       _updateNotifier();
+      _refreshMessages();
     });
   }
 
@@ -1005,6 +1005,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     return {
       'message_id': messageId,
+      'messageId': messageId,
       'content': content,
       'userName': userName,
       'sender': message['sender'],
@@ -1014,12 +1015,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       'imageUrl': imageUrl,
       'fileName': fileName,
       'ContentType': contentType,
+      'contentType': contentType,
       'fileUrl': fileUrl,
       'fileType': fileType,
       'isForwarded': isForwarded,
       'isReplyMessage': isReplyMessage,
       'repliedMessage': normalizedReply,
-      'reactions': normalizedReactions, // ✅ Use normalized list
+      'reactions': normalizedReactions,
       'profile_pic_path': profilePic,
     };
   }
@@ -1030,40 +1032,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   void _showFullImage(BuildContext context, String imageUrl) {
     log(imageUrl);
-    showDialog(
-      context: context,
-      builder: (_) => Dialog(
-        backgroundColor: Colors.black,
-        insetPadding: const EdgeInsets.all(10),
-        child: GestureDetector(
-          onTap: () => Navigator.pop(context),
-          child: InteractiveViewer(
-            panEnabled: true,
-            minScale: 0.8,
-            maxScale: 4,
-            child: imageUrl.startsWith('https')
-                ? Image.network(
-                    imageUrl,
-                    fit: BoxFit.cover,
-                    filterQuality: FilterQuality.high,
-                    errorBuilder: (context, error, stackTrace) => const Center(
-                      child: Text("Failed to load image",
-                          style: TextStyle(color: Colors.white)),
-                    ),
-                  )
-                : Image.file(
-                    File(imageUrl),
-                    fit: BoxFit.cover,
-                    filterQuality: FilterQuality.high,
-                    errorBuilder: (context, error, stackTrace) => const Center(
-                      child: Text("Failed to load image",
-                          style: TextStyle(color: Colors.white)),
-                    ),
-                  ),
-          ),
-        ),
-      ),
-    );
+    ImageViewer.show(context, imageUrl);
   }
 
   IconData _getFileIcon(String? fileType) {
@@ -1160,7 +1129,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
 
     if (currentUserId.isNotEmpty && widget.datumId.isNotEmpty) {
-
       _setupReactionListener();
       _setupStatusListener();
     }
@@ -1182,7 +1150,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       FetchGroupMessages(
         convoId: widget.conversationId,
         page: _currentPage,
-        limit: 40,
+        limit: _limit,
       ),
     );
   }
@@ -1362,6 +1330,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           if (!completer.isCompleted) {
             completer.complete(state.sentMessage);
           }
+        } else if (state is GroupChatError) {
+          if (!completer.isCompleted) {
+            completer.completeError(state.message);
+          }
         }
       });
 
@@ -1537,12 +1509,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   void _loadMoreMessages() {
     if (!_hasNextPage || _isLoadingMore) return;
 
-    // Remember scroll position relative to bottom (which is 0 in reverse)
-    // Actually, in reverse list, maxScrollExtent IS the top content.
-    // When we add more items, maxScrollExtent increases.
-    // We want to keep the user's view stable.
-    _prevScrollExtentBeforeLoad = _scrollController.position.maxScrollExtent;
-
     setState(() => _isLoadingMore = true);
 
     _currentPage++;
@@ -1660,7 +1626,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       screen: ForwardMessageScreen(
         messages: _selectedMessages.toList(),
         currentUserId: currentUserId,
-        conversionalid: "",
+        conversionalid: widget.conversationId,
         username: widget.groupName,
       ),
     );
@@ -1687,6 +1653,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
 
     debugPrint('📩 tapped message id: ${message['message_id']}');
+
+    // 🔥 Fallback: If message failed, show resend dialog on tap
+    final status = message['messageStatus']?.toString() ?? '';
+    if (status == 'failed' || status == 'pending_offline') {
+      _showResendDialog(message);
+      return;
+    }
 
     String? extractReplyId(Map<String, dynamic> m) {
       final reply = m['reply'] ?? m['repliedMessage'];
@@ -1981,6 +1954,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     return _inferGrouping(combined);
   }
 
+  void _refreshMessages() {
+    _messagesNotifier.value =
+        List<Map<String, dynamic>>.from(_getCombinedMessages());
+  }
+
   // ------------------ Pagination Helpers ------------------
 
   /// Rebuilds the master list `_allMessages` from sources, then updates view
@@ -2029,8 +2007,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     // ListView index 0 (bottom) will be the last item of this list.
     // This matches PrivateChatScreen logic.
 
-    _messagesNotifier.value =
-        List<Map<String, dynamic>>.unmodifiable(visibleSlice);
+    _messagesNotifier.value = List<Map<String, dynamic>>.from(visibleSlice);
   }
 
   /// Load older pages until message with [messageId] exists or no more pages
@@ -2294,23 +2271,24 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.only(right: 20, top: 8, bottom: 8),
         decoration: BoxDecoration(
-          color: Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(10),
-        ),
+            color: const Color.fromARGB(255, 231, 235, 249),
+            borderRadius: BorderRadius.circular(10),
+            border:
+                Border(left: BorderSide(color: Colors.blueAccent, width: 5))),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             // left colored bar
-            Container(
-              width: 3,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade600,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
+            // Container(
+            //   width: 3,
+            //   height: 40,
+            //   decoration: BoxDecoration(
+            //     color: const Color.fromARGB(255, 51, 125, 253),
+            //     borderRadius: BorderRadius.circular(4),
+            //   ),
+            // ),
             const SizedBox(width: 8),
 
             // TEXT PART
@@ -2375,7 +2353,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               ),
             ),
 
-            const SizedBox(width: 8),
+            const SizedBox(width: 105),
 
             // THUMBNAIL ON THE RIGHT
             if (imageOrVideoUrl.isNotEmpty)
@@ -2458,62 +2436,74 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             _isLoadingMore = false;
           });
         } else if (state is GroupChatLoaded) {
+          // ALWAYS update these flags when state arrives, even if data is same
+          _hasNextPage = state.response.hasNextPage;
+          if (_isLoadingMore) {
+            setState(() => _isLoadingMore = false);
+          }
+
           if (_lastLoadedData != state.response.data) {
             _lastLoadedData = state.response.data;
-            final loadedMessages = flattenGroupedMessages(state.response.data);
+            final incomingLoaded = flattenGroupedMessages(state.response.data);
 
-            _hasNextPage = state.response.hasNextPage;
-            _isLoadingMore = false;
-
-            final newDbMessages = loadedMessages
+            final incomingNormalized = incomingLoaded
                 .map<Map<String, dynamic>>((msg) => normalizeMessage(msg))
                 .where((m) => m.isNotEmpty)
                 .toList();
 
             debugPrint('🔍 PAGINATION DEBUG:');
             debugPrint('   - Current page: $_currentPage');
-            debugPrint(
-                '   - Loaded messages from API: ${loadedMessages.length}');
-            debugPrint('   - Normalized messages: ${newDbMessages.length}');
+            debugPrint('   - Incoming messages: ${incomingNormalized.length}');
             debugPrint('   - Current dbMessages count: ${dbMessages.length}');
 
             setState(() {
-              // CRITICAL FIX: BLoC merges pages and returns ALL messages,
-              // not just the new page. So we always REPLACE, never addAll.
-              dbMessages = newDbMessages;
+              // --- ROBUST MERGE STRATEGY ---
+              // Overlays incoming messages on top of existing ones by ID
+              // This preserves older history when Page 1 is refreshed
+              final Map<String, Map<String, dynamic>> messagesMap = {};
+
+              // 1. Put existing messages into map
+              for (var m in dbMessages) {
+                final id = (m['message_id'] ?? m['id'] ?? '').toString();
+                if (id.isNotEmpty) messagesMap[id] = m;
+              }
+
+              // 2. Overlay incoming messages (may override existing or add new)
+              for (var m in incomingNormalized) {
+                final id = (m['message_id'] ?? m['id'] ?? '').toString();
+                if (id.isNotEmpty) messagesMap[id] = m;
+              }
+
+              // 3. Rebuild dbMessages from merged map
+              dbMessages = messagesMap.values.toList();
               debugPrint(
-                  '   - Replaced dbMessages with ${dbMessages.length} messages');
+                  '   - After merge, dbMessages count: ${dbMessages.length}');
             });
 
+            // Save merged list to local storage
             GrpLocalChatStorage.saveMessages(widget.conversationId, dbMessages);
 
-            for (var m in newDbMessages) {
+            for (var m in incomingNormalized) {
               final id = (m['message_id'] ?? m['id'])?.toString();
               if (id != null && id.isNotEmpty) _seenMessageIds.add(id);
             }
 
-            // CRITICAL FIX: For page > 1, we need to update _visibleCount
-            // _updateNotifier() will rebuild _allMessages from all sources
-            // We want to show ALL messages now loaded (old + new)
-            if (_currentPage > 1) {
-              // We'll set this after _updateNotifier()
-              // Because _allMessages length will change
-            }
-
-            // Sync notifier and visible count
+            // Sync notifier
             _updateNotifier();
 
             // After _updateNotifier(), if this is pagination (page > 1),
-            // ensure _visibleCount shows all messages
+            // ensure _visibleCount shows all messages available so far
             if (_currentPage > 1) {
-              _visibleCount = _allMessages.length;
+              setState(() {
+                _visibleCount = _allMessages.length;
+              });
               _updateNotifierFromAll();
               debugPrint(
                   '   - Page $_currentPage: Set _visibleCount to ${_visibleCount} to show all messages');
             }
 
             debugPrint(
-                '✅ GroupChatLoaded: dbMessages=${dbMessages.length}, _allMessages=${_allMessages.length}, visible=$_visibleCount');
+                '✅ GroupChatLoaded processed: total=${_allMessages.length}, visible=$_visibleCount');
           }
         } else if (state is GroupDetailsLoaded) {
           debugPrint(
@@ -2563,32 +2553,16 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                               padding:
                                   const EdgeInsets.symmetric(vertical: 8.0),
                               child: Center(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(20),
-                                    boxShadow: [
-                                      BoxShadow(
-                                          color: Colors.black.withOpacity(0.06),
-                                          blurRadius: 6)
-                                    ],
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: const [
-                                      SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                            strokeWidth: 2),
-                                      ),
-                                      SizedBox(width: 10),
-                                      Text('Loading older messages...',
-                                          style: TextStyle(fontSize: 13)),
-                                    ],
-                                  ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: const [
+                                    SizedBox(
+                                      width: 15,
+                                      height: 15,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 1.5),
+                                    ),
+                                  ],
                                 ),
                               ),
                             )
@@ -2669,6 +2643,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                             }
 
                             List<String> groupImages = [];
+                            List<Map<String, dynamic>> groupMessagesList = [];
                             for (int i = realIndex;
                                 i < combinedMessages.length;
                                 i++) {
@@ -2676,6 +2651,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                               final nextGrpId =
                                   nextMsg['group_message_id']?.toString();
                               if (nextGrpId == groupMessageId) {
+                                final normalizedNext =
+                                    normalizeMessage(nextMsg);
+                                groupMessagesList.add(normalizedNext);
                                 final mediaUrl =
                                     nextMsg['originalUrl']?.toString() ??
                                         nextMsg['fileUrl']?.toString() ??
@@ -2692,6 +2670,16 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                             }
 
                             if (groupImages.isNotEmpty) {
+                              final String userName = message['userName'] ?? "";
+                              final senderData = message['sender'] is Map
+                                  ? message['sender']
+                                  : {};
+                              final String profileImageUrl =
+                                  senderData['profile_pic_path']?.toString() ??
+                                      senderData['profilePic']?.toString() ??
+                                      senderData['avatar']?.toString() ??
+                                      message['profile_pic_path']?.toString() ??
+                                      "";
                               return _hasLeftGroup
                                   ? SizedBox()
                                   : Column(
@@ -2705,111 +2693,254 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                         Padding(
                                           padding: const EdgeInsets.symmetric(
                                               horizontal: 8.0, vertical: 4.0),
-                                          child: Align(
-                                            alignment: isSentByMe
-                                                ? Alignment.centerRight
-                                                : Alignment.centerLeft,
-                                            child: ConstrainedBox(
-                                              constraints: BoxConstraints(
-                                                maxWidth: MediaQuery.of(context)
-                                                        .size
-                                                        .width *
-                                                    0.75,
-                                              ),
+                                          child: SwipeToReply(
+                                            onReply: () =>
+                                                _replyToMessage(message),
+                                            child: Align(
+                                              alignment: isSentByMe
+                                                  ? Alignment.centerRight
+                                                  : Alignment.centerLeft,
                                               child: Stack(
+                                                clipBehavior: Clip.none,
                                                 children: [
-                                                  GroupedMediaWidget(
-                                                    mediaUrls: groupImages,
-                                                    onMediaTap: (index) {
-                                                      Navigator.push(
-                                                        context,
-                                                        MaterialPageRoute(
-                                                          builder: (_) =>
-                                                              GroupedMediaViewer(
-                                                            mediaUrls:
-                                                                groupImages,
-                                                            initialIndex: index,
-                                                          ),
-                                                        ),
-                                                      );
-                                                    },
-                                                  ),
-                                                  Positioned(
-                                                    bottom: 5,
-                                                    right: 5,
+                                                  Padding(
+                                                    padding: EdgeInsets.only(
+                                                        left: isSentByMe
+                                                            ? 0
+                                                            : 36),
                                                     child: Container(
-                                                      padding: const EdgeInsets
-                                                          .symmetric(
-                                                          horizontal: 6,
-                                                          vertical: 2),
-                                                      decoration: BoxDecoration(
-                                                        color: Colors.black
-                                                            .withOpacity(0.45),
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(8),
+                                                      padding:
+                                                          const EdgeInsets.all(
+                                                              7),
+                                                      constraints:
+                                                          BoxConstraints(
+                                                        maxWidth: MediaQuery.of(
+                                                                    context)
+                                                                .size
+                                                                .width *
+                                                            0.75,
                                                       ),
-                                                      child: Row(
-                                                        mainAxisSize:
-                                                            MainAxisSize.min,
-                                                        children: [
-                                                          Text(
-                                                            TimeUtils
-                                                                .formatUtcToIst(
-                                                                    message[
-                                                                        'time']),
-                                                            style:
-                                                                const TextStyle(
-                                                                    fontSize:
-                                                                        10,
-                                                                    color: Colors
-                                                                        .white),
+                                                      decoration: BoxDecoration(
+                                                        color: isSentByMe
+                                                            ? senderColor
+                                                            : receiverColor,
+                                                        borderRadius:
+                                                            BorderRadius.only(
+                                                          topLeft: const Radius
+                                                              .circular(18),
+                                                          topRight: const Radius
+                                                              .circular(18),
+                                                          bottomLeft: isSentByMe
+                                                              ? const Radius
+                                                                  .circular(18)
+                                                              : Radius.zero,
+                                                          bottomRight:
+                                                              isSentByMe
+                                                                  ? Radius.zero
+                                                                  : const Radius
+                                                                      .circular(
+                                                                      16),
+                                                        ),
+                                                        boxShadow: [
+                                                          BoxShadow(
+                                                            color: Colors.black
+                                                                .withOpacity(
+                                                                    0.05),
+                                                            blurRadius: 4,
+                                                            offset:
+                                                                const Offset(
+                                                                    0, 2),
                                                           ),
-                                                          if (isSentByMe) ...[
-                                                            const SizedBox(
-                                                                width: 4),
-                                                            Builder(builder:
-                                                                (context) {
-                                                              final status =
-                                                                  message['messageStatus']
-                                                                          ?.toString() ??
-                                                                      'sent';
-                                                              switch (status) {
-                                                                case 'sent':
-                                                                  return const Icon(
-                                                                      Icons
-                                                                          .check,
-                                                                      size: 12,
-                                                                      color: Colors
-                                                                          .white);
-                                                                case 'delivered':
-                                                                  return const Icon(
-                                                                      Icons
-                                                                          .done_all_rounded,
-                                                                      size: 12,
-                                                                      color: Colors
-                                                                          .white);
-                                                                case 'read':
-                                                                  return const Icon(
-                                                                      Icons
-                                                                          .done_all,
-                                                                      size: 12,
-                                                                      color: Colors
-                                                                          .blueAccent);
-                                                                default:
-                                                                  return const Icon(
-                                                                      Icons
-                                                                          .access_time,
-                                                                      size: 12,
-                                                                      color: Colors
-                                                                          .white);
-                                                              }
-                                                            }),
-                                                          ],
+                                                        ],
+                                                      ),
+                                                      child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          if (!isSentByMe &&
+                                                              userName
+                                                                  .isNotEmpty)
+                                                            Padding(
+                                                              padding:
+                                                                  const EdgeInsets
+                                                                      .only(
+                                                                      bottom:
+                                                                          4.0),
+                                                              child: Text(
+                                                                userName,
+                                                                style:
+                                                                    TextStyle(
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                  color: ColorUtil
+                                                                      .getColorFromAlphabet(
+                                                                          userName),
+                                                                  fontSize: 14,
+                                                                ),
+                                                              ),
+                                                            ),
+                                                          Stack(
+                                                            children: [
+                                                              GroupedMediaWidget(
+                                                                mediaUrls:
+                                                                    groupImages,
+                                                                onMediaTap:
+                                                                    (index) {
+                                                                  Navigator
+                                                                      .push(
+                                                                    context,
+                                                                    MaterialPageRoute(
+                                                                      builder:
+                                                                          (_) =>
+                                                                              GroupedMediaViewer(
+                                                                        mediaUrls:
+                                                                            groupImages,
+                                                                        initialIndex:
+                                                                            index,
+                                                                      ),
+                                                                    ),
+                                                                  );
+                                                                },
+                                                              ),
+                                                              Positioned(
+                                                                bottom: 5,
+                                                                right: 5,
+                                                                child:
+                                                                    Container(
+                                                                  padding: const EdgeInsets
+                                                                      .symmetric(
+                                                                      horizontal:
+                                                                          6,
+                                                                      vertical:
+                                                                          2),
+                                                                  decoration:
+                                                                      BoxDecoration(
+                                                                    color: Colors
+                                                                        .black
+                                                                        .withOpacity(
+                                                                            0.45),
+                                                                    borderRadius:
+                                                                        BorderRadius
+                                                                            .circular(8),
+                                                                  ),
+                                                                  child: Row(
+                                                                    mainAxisSize:
+                                                                        MainAxisSize
+                                                                            .min,
+                                                                    children: [
+                                                                      Text(
+                                                                        TimeUtils.formatUtcToIst(
+                                                                            message['time']),
+                                                                        style: const TextStyle(
+                                                                            fontSize:
+                                                                                10,
+                                                                            color:
+                                                                                Colors.white),
+                                                                      ),
+                                                                      if (isSentByMe) ...[
+                                                                        const SizedBox(
+                                                                            width:
+                                                                                4),
+                                                                        Builder(builder:
+                                                                            (context) {
+                                                                          final status =
+                                                                              message['messageStatus']?.toString() ?? 'sent';
+                                                                          switch (
+                                                                              status) {
+                                                                            case 'sent':
+                                                                              return const Icon(Icons.check, size: 12, color: Colors.white);
+                                                                            case 'delivered':
+                                                                              return const Icon(Icons.done_all_rounded, size: 12, color: Colors.white);
+                                                                            case 'read':
+                                                                              return const Icon(Icons.done_all, size: 12, color: Colors.blueAccent);
+                                                                            default:
+                                                                              return const Icon(Icons.access_time, size: 12, color: Colors.white);
+                                                                          }
+                                                                        }),
+                                                                      ],
+                                                                    ],
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
                                                         ],
                                                       ),
                                                     ),
                                                   ),
+                                                  if (!isSentByMe)
+                                                    Positioned(
+                                                      left: 2,
+                                                      top: 10,
+                                                      child: CircleAvatar(
+                                                        radius: 16,
+                                                        backgroundColor:
+                                                            Colors.transparent,
+                                                        child: ClipOval(
+                                                          child: profileImageUrl
+                                                                  .isNotEmpty
+                                                              ? CachedNetworkImage(
+                                                                  imageUrl:
+                                                                      profileImageUrl,
+                                                                  fit: BoxFit
+                                                                      .cover,
+                                                                  width: 32,
+                                                                  height: 32,
+                                                                  errorWidget: (context,
+                                                                          url,
+                                                                          error) =>
+                                                                      _buildAvatarWithInitial(
+                                                                          userName),
+                                                                )
+                                                              : _buildAvatarWithInitial(
+                                                                  userName),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  // Positioned(
+                                                  //   top: 0,
+                                                  //   bottom: 0,
+                                                  //   left: isSentByMe ? -60 : null,
+                                                  //   right:
+                                                  //       isSentByMe ? null : -60,
+                                                  //   child: Center(
+                                                  //     child: Material(
+                                                  //       color: Colors.transparent,
+                                                  //       child: InkWell(
+                                                  //         borderRadius:
+                                                  //             BorderRadius
+                                                  //                 .circular(20),
+                                                  //         onTap: () {
+                                                  //           MyRouter.pushReplace(
+                                                  //             screen:
+                                                  //                 ForwardMessageScreen(
+                                                  //               messages:
+                                                  //                   groupMessagesList,
+                                                  //               currentUserId:
+                                                  //                   currentUserId,
+                                                  //               conversionalid: widget
+                                                  //                   .conversationId,
+                                                  //               username: widget
+                                                  //                   .groupName,
+                                                  //             ),
+                                                  //           );
+                                                  //         },
+                                                  //         child: CircleAvatar(
+                                                  //           maxRadius: 16,
+                                                  //           backgroundColor:
+                                                  //               Colors.white,
+                                                  //           child: Image.asset(
+                                                  //             "assets/images/forward.png",
+                                                  //             height: 20,
+                                                  //             width: 20,
+                                                  //           ),
+                                                  //         ),
+                                                  //       ),
+                                                  //     ),
+                                                  //   ),
+                                                  // ),
                                                 ],
                                               ),
                                             ),
@@ -2852,7 +2983,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                   margin:
                                       const EdgeInsets.symmetric(vertical: 2),
                                   color: isHighlighted
-                                      ? Colors.yellow.withOpacity(0.25)
+                                      ? Colors.blueAccent.withOpacity(0.1)
                                       : Colors.transparent,
                                   child: Column(
                                     crossAxisAlignment: isSentByMe
@@ -2885,6 +3016,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       width: 260,
       margin: const EdgeInsets.only(top: 8),
       child: Stack(
+        clipBehavior: Clip.none,
         children: [
           GestureDetector(
             onTap: () {
@@ -2936,6 +3068,39 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                             color: Colors.white, size: 50),
                       ),
                     ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 0,
+            bottom: 0,
+            left: isSentByMe ? -60 : null,
+            right: isSentByMe ? null : -60,
+            child: Center(
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  onTap: () {
+                    MyRouter.pushReplace(
+                      screen: ForwardMessageScreen(
+                        messages: [normalizeMessage(message)],
+                        currentUserId: currentUserId,
+                        conversionalid: widget.conversationId,
+                        username: widget.groupName,
+                      ),
+                    );
+                  },
+                  child: CircleAvatar(
+                    maxRadius: 16,
+                    backgroundColor: Colors.white,
+                    child: Image.asset(
+                      "assets/images/forward.png",
+                      height: 20,
+                      width: 20,
+                    ),
                   ),
                 ),
               ),
@@ -3059,14 +3224,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         : (contentType == "system" &&
                 (content.contains('added') || content.contains('left')))
             ? voidBox
-            : SwipeTo(
-                animationDuration: const Duration(milliseconds: 300),
-                iconOnRightSwipe: Icons.reply,
+            : SwipeToReply(
+                icon: Icons.reply,
                 iconColor: Colors.grey.shade600,
-                iconSize: 24.0,
-                offsetDx: 0.3,
-                swipeSensitivity: 5,
-                onRightSwipe: (details) {
+                onReply: () {
                   _replyToMessage(message);
                 },
                 child: Container(
@@ -3100,13 +3261,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                               margin: EdgeInsets.only(
                                 left: 5,
                                 right: 5,
-                                top: 6,
+                                top: 0,
                                 bottom: (message['reactions'] != null &&
                                         message['reactions'].isNotEmpty)
                                     ? 20 // WHEN REACTION EXISTS
-                                    : 6,
+                                    : 0,
                               ),
-                              padding: const EdgeInsets.all(7),
+                              padding: const EdgeInsets.only(
+                                  top: 3, left: 7, right: 6, bottom: 5),
                               constraints: const BoxConstraints(maxWidth: 250),
                               decoration: BoxDecoration(
                                 color: isSelected
@@ -3238,13 +3400,17 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                           BorderRadius.circular(
                                                               20),
                                                       onTap: () {
-                                                        MyRouter.push(
+                                                        MyRouter.pushReplace(
                                                           screen:
                                                               ForwardMessageScreen(
-                                                            messages: [message],
+                                                            messages: [
+                                                              normalizeMessage(
+                                                                  message)
+                                                            ],
                                                             currentUserId:
                                                                 currentUserId,
-                                                            conversionalid: "",
+                                                            conversionalid: widget
+                                                                .conversationId,
                                                             username: widget
                                                                 .groupName,
                                                           ),
@@ -3424,7 +3590,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                   const SizedBox(width: 4),
                                                   if (isSentByMe)
                                                     _buildStatusIcon(
-                                                        messageStatus),
+                                                        messageStatus, message),
                                                 ],
                                               ),
                                             ),
@@ -3442,13 +3608,17 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                 borderRadius:
                                                     BorderRadius.circular(20),
                                                 onTap: () {
-                                                  MyRouter.push(
+                                                  MyRouter.pushReplace(
                                                     screen:
                                                         ForwardMessageScreen(
-                                                      messages: [message],
+                                                      messages: [
+                                                        normalizeMessage(
+                                                            message)
+                                                      ],
                                                       currentUserId:
                                                           currentUserId,
-                                                      conversionalid: "",
+                                                      conversionalid:
+                                                          widget.conversationId,
                                                       username:
                                                           widget.groupName,
                                                     ),
@@ -3481,31 +3651,81 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                             : CrossAxisAlignment.start,
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          if (RegExp(r'https?:\/\/[^\s]+')
+                                          if (RegExp(
+                                                  r'((https?:\/\/)|(www\.))[^\s]+',
+                                                  caseSensitive: false)
                                               .hasMatch(content))
                                             Stack(
                                               clipBehavior: Clip.none,
                                               children: [
-                                                AnyLinkPreview(
-                                                  link:
-                                                      RegExp(r'https?:\/\/[^\s]+')
-                                                              .firstMatch(
-                                                                  content)
-                                                              ?.group(0) ??
-                                                          '',
-                                                  displayDirection: UIDirection
-                                                      .uiDirectionVertical,
-                                                  showMultimedia: true,
-                                                  backgroundColor:
-                                                      Colors.grey.shade200,
-                                                  bodyStyle: const TextStyle(
-                                                      color:
-                                                          Colors.transparent),
-                                                  cache:
-                                                      const Duration(hours: 1),
+                                                Padding(
+                                                  padding: const EdgeInsets
+                                                      .symmetric(vertical: 8.0),
+                                                  child: ClipRRect(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            12),
+                                                    child: AnyLinkPreview(
+                                                      link: (() {
+                                                        final match = RegExp(
+                                                                r'((https?:\/\/)|(www\.))[^\s]+',
+                                                                caseSensitive:
+                                                                    false)
+                                                            .firstMatch(
+                                                                content);
+                                                        if (match == null)
+                                                          return '';
+                                                        String url =
+                                                            match.group(0)!;
+                                                        try {
+                                                          final uri = Uri.parse(
+                                                              url.startsWith(
+                                                                      'www.')
+                                                                  ? 'https://$url'
+                                                                  : url);
+                                                          return uri.toString();
+                                                        } catch (e) {
+                                                          return url;
+                                                        }
+                                                      })(),
+                                                      displayDirection: UIDirection
+                                                          .uiDirectionVertical,
+                                                      showMultimedia: true,
+                                                      backgroundColor:
+                                                          Colors.grey.shade100,
+                                                      bodyStyle:
+                                                          const TextStyle(
+                                                        color: Colors.black87,
+                                                        fontSize: 12,
+                                                        fontWeight:
+                                                            FontWeight.w400,
+                                                      ),
+                                                      titleStyle:
+                                                          const TextStyle(
+                                                        color: Colors.black,
+                                                        fontSize: 14,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                      cache: const Duration(
+                                                          hours: 1),
+                                                      borderRadius: 12,
+                                                      errorBody:
+                                                          'Could not load link preview',
+                                                      errorTitle:
+                                                          'Link Preview',
+                                                      errorWidget: Container(
+                                                        height: 100,
+                                                        color: Colors.grey[200],
+                                                        child: const Center(
+                                                            child: Icon(Icons
+                                                                .link_off)),
+                                                      ),
+                                                    ),
+                                                  ),
                                                 ),
                                                 Positioned(
-                                                  top: 100,
+                                                  top: 20,
                                                   bottom: 0,
                                                   left: isSentByMe ? -60 : null,
                                                   right:
@@ -3518,16 +3738,17 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                             BorderRadius
                                                                 .circular(20),
                                                         onTap: () {
-                                                          MyRouter.push(
+                                                          MyRouter.pushReplace(
                                                             screen:
                                                                 ForwardMessageScreen(
                                                               messages: [
-                                                                message
+                                                                normalizeMessage(
+                                                                    message)
                                                               ],
                                                               currentUserId:
                                                                   currentUserId,
-                                                              conversionalid:
-                                                                  "",
+                                                              conversionalid: widget
+                                                                  .conversationId,
                                                               username: widget
                                                                   .groupName,
                                                             ),
@@ -3551,111 +3772,201 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                             ),
                                           Stack(
                                             children: [
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                    bottom: 5.0),
-                                                child: RichText(
-                                                  text: TextSpan(
-                                                    children: [
-                                                      ...(() {
-                                                        final List<InlineSpan>
-                                                            spans = [];
-                                                        final RegExp urlRegExp =
-                                                            RegExp(
-                                                                r'((https?:\/\/)|(www\.))[^\s]+');
-                                                        final matches =
-                                                            urlRegExp
-                                                                .allMatches(
-                                                                    content);
-                                                        int start = 0;
+                                              StatefulBuilder(
+                                                builder: (context, setState) {
+                                                  const maxCharsPerLine = 30;
+                                                  final bool isTextLong =
+                                                      (content.length /
+                                                                  maxCharsPerLine)
+                                                              .ceil() >
+                                                          10;
+                                                  bool isExpanded =
+                                                      (message['isExpanded'] ??
+                                                              false) ==
+                                                          true;
+                                                  return Padding(
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                            bottom: 5.0),
+                                                    child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      children: [
+                                                        RichText(
+                                                          maxLines:
+                                                              !isExpanded &&
+                                                                      isTextLong
+                                                                  ? 9
+                                                                  : null,
+                                                          overflow:
+                                                              !isExpanded &&
+                                                                      isTextLong
+                                                                  ? TextOverflow
+                                                                      .ellipsis
+                                                                  : TextOverflow
+                                                                      .visible,
+                                                          text: TextSpan(
+                                                            children: [
+                                                              ...(() {
+                                                                final List<
+                                                                        InlineSpan>
+                                                                    spans = [];
+                                                                final RegExp
+                                                                    urlRegExp =
+                                                                    RegExp(
+                                                                        r'((https?:\/\/)|(www\.))[^\s]+',
+                                                                        caseSensitive:
+                                                                            false);
+                                                                final matches =
+                                                                    urlRegExp
+                                                                        .allMatches(
+                                                                            content);
+                                                                int start = 0;
+                                                                for (final match
+                                                                    in matches) {
+                                                                  if (match
+                                                                          .start >
+                                                                      start) {
+                                                                    spans.add(
+                                                                      TextSpan(
+                                                                        text: content.substring(
+                                                                            start,
+                                                                            match.start),
+                                                                        style:
+                                                                            const TextStyle(
+                                                                          fontSize:
+                                                                              15,
+                                                                          color:
+                                                                              Colors.black87,
+                                                                        ),
+                                                                      ),
+                                                                    );
+                                                                  }
 
-                                                        for (final match
-                                                            in matches) {
-                                                          if (match.start >
-                                                              start) {
-                                                            spans.add(
-                                                              TextSpan(
-                                                                text: content
-                                                                    .substring(
-                                                                        start,
-                                                                        match
-                                                                            .start),
-                                                                style: const TextStyle(
-                                                                    fontSize:
-                                                                        15,
+                                                                  final String
+                                                                      url =
+                                                                      content.substring(
+                                                                          match
+                                                                              .start,
+                                                                          match
+                                                                              .end);
+
+                                                                  spans.add(
+                                                                    TextSpan(
+                                                                      text: url,
+                                                                      style:
+                                                                          const TextStyle(
+                                                                        color: Colors
+                                                                            .blue,
+                                                                        decoration:
+                                                                            TextDecoration.underline,
+                                                                        fontSize:
+                                                                            15,
+                                                                      ),
+                                                                      recognizer:
+                                                                          TapGestureRecognizer()
+                                                                            ..onTap =
+                                                                                () async {
+                                                                              try {
+                                                                                final uri = Uri.parse(url.startsWith('www.') ? 'https://$url' : url);
+                                                                                if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+                                                                                  throw 'Could not launch $uri';
+                                                                                }
+                                                                              } catch (e) {
+                                                                                debugPrint('Could not launch url: $e');
+                                                                              }
+                                                                            },
+                                                                    ),
+                                                                  );
+
+                                                                  start =
+                                                                      match.end;
+                                                                }
+
+                                                                if (start <
+                                                                    content
+                                                                        .length) {
+                                                                  spans.add(
+                                                                    TextSpan(
+                                                                      text: content
+                                                                          .substring(
+                                                                              start),
+                                                                      style:
+                                                                          const TextStyle(
+                                                                        fontSize:
+                                                                            15,
+                                                                        color: Colors
+                                                                            .black87,
+                                                                      ),
+                                                                    ),
+                                                                  );
+                                                                }
+
+                                                                return spans;
+                                                              })(),
+                                                              WidgetSpan(
+                                                                child: SizedBox(
+                                                                  width:
+                                                                      isSentByMe
+                                                                          ? 95
+                                                                          : 75,
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                        if (!isExpanded &&
+                                                            isTextLong)
+                                                          GestureDetector(
+                                                            onTap: () => setState(
+                                                                () => message[
+                                                                        'isExpanded'] =
+                                                                    true),
+                                                            child:
+                                                                const Padding(
+                                                              padding: EdgeInsets
+                                                                  .symmetric(
+                                                                      vertical:
+                                                                          4),
+                                                              child: Text(
+                                                                "Read more",
+                                                                style: TextStyle(
                                                                     color: Colors
-                                                                        .black87),
+                                                                        .blue,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .bold),
                                                               ),
-                                                            );
-                                                          }
-
-                                                          final String url =
-                                                              content.substring(
-                                                                  match.start,
-                                                                  match.end);
-
-                                                          spans.add(
-                                                            TextSpan(
-                                                              text: url,
-                                                              style:
-                                                                  const TextStyle(
-                                                                color:
-                                                                    Colors.blue,
-                                                                decoration:
-                                                                    TextDecoration
-                                                                        .underline,
+                                                            ),
+                                                          ),
+                                                        if (isExpanded)
+                                                          GestureDetector(
+                                                            onTap: () => setState(
+                                                                () => message[
+                                                                        'isExpanded'] =
+                                                                    false),
+                                                            child:
+                                                                const Padding(
+                                                              padding: EdgeInsets
+                                                                  .symmetric(
+                                                                      vertical:
+                                                                          4),
+                                                              child: Text(
+                                                                "Read less",
+                                                                style: TextStyle(
+                                                                    color: Colors
+                                                                        .blue,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .bold),
                                                               ),
-                                                              recognizer:
-                                                                  TapGestureRecognizer()
-                                                                    ..onTap =
-                                                                        () async {
-                                                                      try {
-                                                                        final uri = Uri.parse(url.startsWith('www.')
-                                                                            ? 'https://$url'
-                                                                            : url);
-                                                                        if (!await launchUrl(
-                                                                            uri,
-                                                                            mode:
-                                                                                LaunchMode.externalApplication)) {
-                                                                          throw 'Could not launch $uri';
-                                                                        }
-                                                                      } catch (e) {
-                                                                        debugPrint(
-                                                                            'Could not launch url: $e');
-                                                                      }
-                                                                    },
                                                             ),
-                                                          );
-
-                                                          start = match.end;
-                                                        }
-
-                                                        if (start <
-                                                            content.length) {
-                                                          spans.add(
-                                                            TextSpan(
-                                                              text: content
-                                                                  .substring(
-                                                                      start),
-                                                              style: const TextStyle(
-                                                                  fontSize: 15,
-                                                                  color: Colors
-                                                                      .black87),
-                                                            ),
-                                                          );
-                                                        }
-
-                                                        return spans;
-                                                      })(),
-                                                      WidgetSpan(
-                                                          child: SizedBox(
-                                                        width: isSentByMe
-                                                            ? 75
-                                                            : 60,
-                                                      )),
-                                                    ],
-                                                  ),
-                                                ),
+                                                          ),
+                                                      ],
+                                                    ),
+                                                  );
+                                                },
                                               ),
 
                                               Positioned(
@@ -3671,13 +3982,17 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                           BorderRadius.circular(
                                                               20),
                                                       onTap: () {
-                                                        MyRouter.push(
+                                                        MyRouter.pushReplace(
                                                           screen:
                                                               ForwardMessageScreen(
-                                                            messages: [message],
+                                                            messages: [
+                                                              normalizeMessage(
+                                                                  message)
+                                                            ],
                                                             currentUserId:
                                                                 currentUserId,
-                                                            conversionalid: "",
+                                                            conversionalid: widget
+                                                                .conversationId,
                                                             username: widget
                                                                 .groupName,
                                                           ),
@@ -3703,7 +4018,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                 bottom: 0,
                                                 right: 0,
                                                 child: IgnorePointer(
-                                                  ignoring: true,
+                                                  ignoring: false,
                                                   child: Row(
                                                     mainAxisSize:
                                                         MainAxisSize.min,
@@ -3723,7 +4038,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                           content !=
                                                               "Message Deleted")
                                                         _buildStatusIcon(
-                                                            messageStatus),
+                                                            messageStatus,
+                                                            message),
                                                     ],
                                                   ),
                                                 ),
@@ -3837,8 +4153,127 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     return DateTime.now();
   }
 
-  Widget _buildStatusIcon(String status) {
+  Widget _buildStatusIcon(String status, Map<String, dynamic> message) {
+    // Add tap handler for all unsent/pending messages
+    // Allow resend/delete for: failed, pending_offline, pending, sending
+    if (status == 'failed' ||
+        status == 'pending_offline' ||
+        status == 'pending' ||
+        status == 'sending') {
+      return GestureDetector(
+        onTap: () => _showResendDialog(message),
+        child: MessageStatusIcon(status: status),
+      );
+    }
     return MessageStatusIcon(status: status);
+  }
+
+  void _showResendDialog(Map<String, dynamic> message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Message not sent'),
+        content:
+            Text('This message couldn\'t be sent. Do you want to try again?'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteMessage(message);
+            },
+            child: Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _resendMessage(message);
+            },
+            child: Text('Resend'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _resendMessage(Map<String, dynamic> failedMessage) async {
+    final oldMessageId = failedMessage['message_id']?.toString() ?? '';
+    final content = failedMessage['content']?.toString() ?? '';
+
+    if (content.isEmpty) return;
+
+    if (!(_isOnline && socketService.isConnected)) {
+      Messenger.alertError("Cannot resend: No internet or socket disconnected");
+      _updateMessageStatus(oldMessageId, 'failed');
+      return;
+    }
+
+    // Update status to sending for the existing message
+    _updateMessageStatus(oldMessageId, 'sending');
+
+    try {
+      // Create a completer to wait for the sent message
+      final completer = Completer<GrpMessage>();
+      final subscription = _groupBloc.stream.listen((state) {
+        if (state is GrpMessageSentSuccessfully) {
+          completer.complete(state.sentMessage);
+        } else if (state is GroupChatError) {
+          completer.completeError(state.message);
+        }
+      });
+
+      // Dispatch the send event (this creates a NEW message with NEW ID)
+      _groupBloc.add(
+        SendMessageEvent(
+          convoId: widget.conversationId,
+          message: content,
+          senderId: currentUserId,
+          receiverId: widget.datumId,
+          replyTo: failedMessage['reply'],
+        ),
+      );
+
+      // Wait for the server response
+      final sentMsg = await completer.future.timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw TimeoutException('Resend timed out');
+        },
+      );
+      await subscription.cancel();
+
+      // Replace the old failed message with the new successful one
+      _replaceTempMessageWithReal(
+        tempId: oldMessageId,
+        realId: sentMsg.messageId,
+        status: 'sent',
+      );
+    } catch (e) {
+      debugPrint('❌ Resend failed: $e');
+      _updateMessageStatus(oldMessageId, 'failed');
+      if (e is! TimeoutException) {
+        Messenger.alertError("Resend failed: $e");
+      }
+    }
+  }
+
+  /// Delete a failed message
+  void _deleteMessage(Map<String, dynamic> message) {
+    final messageId = message['message_id']?.toString() ?? '';
+
+    setState(() {
+      socketMessages
+          .removeWhere((m) => (m['message_id'] ?? '').toString() == messageId);
+      messages
+          .removeWhere((m) => (m['message_id'] ?? '').toString() == messageId);
+      dbMessages
+          .removeWhere((m) => (m['message_id'] ?? '').toString() == messageId);
+
+      _refreshMessages();
+    });
+
+    // Save to storage
+    final combined = _getCombinedMessages();
+    GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
   }
 
   Widget _buildDateSeparator(DateTime? dateTime) {
@@ -4767,6 +5202,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       final combined = _getCombinedMessages();
       GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
       setState(() {}); // Trigger rebuild
+      _refreshMessages();
     }
   }
 
@@ -4801,18 +5237,33 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   Future<void> _flushOfflinePendingMessages() async {
     if (_offlineQueue.isEmpty) return;
+    if (!(_isOnline && socketService.isConnected)) return;
 
     final pending = List<Map<String, dynamic>>.from(_offlineQueue);
     _offlineQueue.clear();
 
     for (final item in pending) {
-      final String? messageId = item['message_id'];
+      final String? tempId = item['message_id'];
       final String content = item['content'];
       final Map<String, dynamic>? replyTo = item['replyTo'];
 
-      if (messageId == null) continue;
+      if (tempId == null) continue;
+
+      // Update status to sending for the existing message
+      _updateMessageStatus(tempId, 'sending');
 
       try {
+        // Create a completer to wait for the sent message
+        final completer = Completer<GrpMessage>();
+        final subscription = _groupBloc.stream.listen((state) {
+          if (state is GrpMessageSentSuccessfully) {
+            completer.complete(state.sentMessage);
+          } else if (state is GroupChatError) {
+            completer.completeError(state.message);
+          }
+        });
+
+        // Dispatch the send event (this creates a NEW message with NEW ID)
         _groupBloc.add(
           SendMessageEvent(
             convoId: widget.conversationId,
@@ -4822,9 +5273,25 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             replyTo: replyTo,
           ),
         );
-        _updateMessageStatus(messageId, 'sending');
+
+        // Wait for the server response
+        final sentMsg = await completer.future.timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {
+            throw TimeoutException('Flush timed out');
+          },
+        );
+        await subscription.cancel();
+
+        // Replace the old failed message with the new successful one
+        _replaceTempMessageWithReal(
+          tempId: tempId,
+          realId: sentMsg.messageId,
+          status: 'sent',
+        );
       } catch (e) {
-        _updateMessageStatus(messageId, 'failed');
+        debugPrint('❌ Flush failed for $tempId: $e');
+        _updateMessageStatus(tempId, 'failed');
       }
     }
   }
