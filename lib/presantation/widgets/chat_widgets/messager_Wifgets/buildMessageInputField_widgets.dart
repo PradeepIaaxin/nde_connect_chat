@@ -79,7 +79,6 @@ class _MessageInputFieldState extends State<MessageInputField> {
     return match?.group(0);
   }
 
-
   @override
   void initState() {
     super.initState();
@@ -175,7 +174,7 @@ class _MessageInputFieldState extends State<MessageInputField> {
                                             color: Colors.grey,
                                             size: 24),
                                       )
-                                    : SizedBox(),
+                                    : const SizedBox(),
                                 const SizedBox(width: 4),
                               ],
                             ),
@@ -242,15 +241,16 @@ class _MessageInputFieldState extends State<MessageInputField> {
     final String? imageUrl = widget.replyText?['imageUrl'];
     final String? fileName = widget.replyText?['fileName'];
     final String? fileType = widget.replyText?['fileType'];
-    final String userName = widget.replyText?['userName'] ?? '';
+    // final String userName = widget.replyText?['userName'] ?? '';
     final String? originalUrl = widget.replyText?['originalUrl'];
 
-   final String firstName =
-    widget.replyText?['receiver']?['first_name']?.toString() ?? "";
-    final String lastName = widget.replyText?['receiver']?['last_name'].toString()??"";
+    // final String firstName =
+    //     widget.replyText?['receiver']?['first_name']?.toString() ?? "";
+    // final String lastName =
+    //     widget.replyText?['receiver']?['last_name']?.toString() ?? "";
     final bool isSendMe = widget.replyText?['isSendMe'] ?? false;
-print("hhhhhhhhhhhhhhhhhhhhh $isSendMe");
-    // Type label like WhatsApp
+    debugPrint("isSendMe: $isSendMe");
+
     // Type label like WhatsApp
     String typeLabel = '';
 
@@ -270,8 +270,6 @@ print("hhhhhhhhhhhhhhhhhhhhh $isSendMe");
 
     // ---------- build trailing thumbnail (image / video) ----------
     Widget? trailingThumb;
-
-    // ---------- build trailing thumbnail (image / video) ----------
 
     const double thumbSize = 70;
 
@@ -295,7 +293,7 @@ print("hhhhhhhhhhhhhhhhhhhhh $isSendMe");
               );
             }
 
-            if (thumbFile != null && thumbFile.existsSync()) {
+            if (thumbFile.existsSync()) {
               return Stack(
                 alignment: Alignment.center,
                 children: [
@@ -333,28 +331,26 @@ print("hhhhhhhhhhhhhhhhhhhhh $isSendMe");
       trailingThumb = ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: imageUrl.startsWith('/')
-  ? Image.file(
-      File(imageUrl),
-      width: thumbSize,
-      height: thumbSize,
-      fit: BoxFit.cover,
-    )
-  : Image.network(
-      imageUrl,
-      width: thumbSize,
-      height: thumbSize,
-      fit: BoxFit.cover,
-    )
+            ? Image.file(
+                File(imageUrl),
+                width: thumbSize,
+                height: thumbSize,
+                fit: BoxFit.cover,
+              )
+            : Image.network(
+                imageUrl,
+                width: thumbSize,
+                height: thumbSize,
+                fit: BoxFit.cover,
+              ),
       );
     }
 
     return Container(
       decoration: BoxDecoration(
         color: Colors.grey.shade200,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(25),
-          topRight: Radius.circular(25),
-        ),
+        borderRadius: BorderRadius.circular(10),
+        border: Border(left: BorderSide(color: Colors.blueAccent, width: 5)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       child: Row(
@@ -377,14 +373,13 @@ print("hhhhhhhhhhhhhhhhhhhhh $isSendMe");
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-               Text(
-                        "You",
-                        style: const TextStyle(
-                          color: AppColors.primaryButton,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500
-                        ),
-                      ),
+                const Text(
+                  "You",
+                  style: TextStyle(
+                      color: AppColors.primaryButton,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500),
+                ),
                 if (typeLabel.isNotEmpty)
                   Row(
                     mainAxisSize: MainAxisSize.min,
@@ -396,7 +391,9 @@ print("hhhhhhhhhhhhhhhhhhhhh $isSendMe");
                                 ? Icons.video_camera_back_rounded
                                 : null,
                         color: Colors.grey,
-                        size: typeLabel == 'Photo' ||  typeLabel == 'Video'?0:16,
+                        size: (typeLabel == 'Photo' || typeLabel == 'Video')
+                            ? 0
+                            : 16,
                       ),
                       const SizedBox(width: 6),
                       Text(
@@ -409,17 +406,22 @@ print("hhhhhhhhhhhhhhhhhhhhh $isSendMe");
                     ],
                   ),
                 if (content.isNotEmpty)
-                  Flexible(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
                           content,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                              color: Colors.black, fontSize: 12),
+                            color: Colors.black,
+                            fontSize: 12,
+                          ),
                         ),
+                      ),
+                      const SizedBox(width: 8),
+                      if (trailingThumb == null)
                         InkWell(
                           onTap: widget.onCancelReply,
                           child: Container(
@@ -434,9 +436,8 @@ print("hhhhhhhhhhhhhhhhhhhhh $isSendMe");
                               color: Colors.black87,
                             ),
                           ),
-                        )
-                      ],
-                    ),
+                        ),
+                    ],
                   ),
               ],
             ),

@@ -48,13 +48,14 @@ class GroupedMediaWidget extends StatelessWidget {
         width: bubbleWidth,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(_radius),
-          border: Border.all(color: isSentByMe?senderColor:receiverColor, width: 2),
-          color:  isSentByMe?senderColor:receiverColor,
+          border: Border.all(
+              color: isSentByMe ? senderColor : receiverColor, width: 2),
+          color: isSentByMe ? senderColor : receiverColor,
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: [ 
+          children: [
             // 🔹 MEDIA AREA
             AspectRatio(
               aspectRatio: _aspectRatio(visibleCount),
@@ -65,8 +66,8 @@ class GroupedMediaWidget extends StatelessWidget {
             Container(
               height: _statusBarHeight,
               padding: const EdgeInsets.symmetric(horizontal: 8),
-              decoration:  BoxDecoration(
-                color: isSentByMe?senderColor:receiverColor,
+              decoration: BoxDecoration(
+                color: isSentByMe ? senderColor : receiverColor,
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -114,10 +115,10 @@ class GroupedMediaWidget extends StatelessWidget {
       return Row(
         children: [
           Expanded(child: _tile(context, 0)),
-           Container(
-        width: 4,
-        color: isSentByMe?senderColor:receiverColor, // divider line
-      ),
+          Container(
+            width: 4,
+            color: isSentByMe ? senderColor : receiverColor, // divider line
+          ),
           Expanded(child: _tile(context, 1)),
         ],
       );
@@ -131,29 +132,30 @@ class GroupedMediaWidget extends StatelessWidget {
             child: Column(
               children: [
                 Expanded(child: _tile(context, 1)),
-               Expanded(
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    _tile(context, 2),
-                    if (media.length > 2)
-                      GestureDetector(   onTap: () => onImageTap?.call(0),
-                        child: Container(
-                          color: Colors.black54,
-                          alignment: Alignment.center,
-                          child: Text(
-                            '+${media.length}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      _tile(context, 2),
+                      if (media.length > 2)
+                        GestureDetector(
+                          onTap: () => onImageTap?.call(0),
+                          child: Container(
+                            color: Colors.black54,
+                            alignment: Alignment.center,
+                            child: Text(
+                              '+${media.length}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
               ],
             ),
           ),
@@ -182,7 +184,8 @@ class GroupedMediaWidget extends StatelessWidget {
                   children: [
                     _tile(context, 3),
                     if (media.length > 4)
-                      GestureDetector(   onTap: () => onImageTap?.call(0),
+                      GestureDetector(
+                        onTap: () => onImageTap?.call(0),
                         child: Container(
                           color: Colors.black54,
                           alignment: Alignment.center,
@@ -221,7 +224,7 @@ class GroupedMediaWidget extends StatelessWidget {
             child: _thumb(item),
           ),
           if (item.isVideo)
-             Center(
+            Center(
               child: Icon(Icons.play_circle_fill,
                   size: 36, color: Colors.grey.shade300),
             ),
@@ -229,58 +232,61 @@ class GroupedMediaWidget extends StatelessWidget {
       ),
     );
   }
-bool _isLocalPath(String url) {
-  return url.startsWith('/') || url.startsWith('file://');
-}
 
-  Widget _thumb(GroupMediaItem item) {
-  // ---------- IMAGE ----------
-  if (!item.isVideo) {
-    final String url = item.previewUrl;
-
-    // ✅ LOCAL IMAGE
-    if (_isLocalPath(url)) {
-      return Image.file(
-        File(url.replaceFirst('file://', '')),
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) =>
-            const Icon(Icons.broken_image),
-      );
-    }
-
-    // ✅ NETWORK IMAGE
-    return CachedNetworkImage(
-      imageUrl: url,
-      fit: BoxFit.cover,
-      placeholder: (_, __) =>
-          Container(color: Colors.grey.shade300),
-      errorWidget: (_, __, ___) =>
-          const Icon(Icons.broken_image),
-    );
+  bool _isLocalPath(String url) {
+    return url.startsWith('/') || url.startsWith('file://');
   }
 
-  // ---------- VIDEO ----------
-  return FutureBuilder<File?>(
-    future: VideoThumbUtil.generateFromUrl(item.mediaUrl),
-    builder: (_, snap) {
-      if (snap.connectionState == ConnectionState.done &&
-          snap.hasData &&
-          snap.data!.existsSync()) {
+  Widget _thumb(GroupMediaItem item) {
+    // ---------- IMAGE ----------
+    if (!item.isVideo) {
+      final String url = item.previewUrl;
+
+      // ✅ LOCAL IMAGE
+      if (_isLocalPath(url)) {
         return Image.file(
-          snap.data!,
+          File(url.replaceFirst('file://', '')),
           fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
         );
       }
 
-      return Container(
-        color: Colors.black26,
-        alignment: Alignment.center,
-        child: const CircularProgressIndicator(strokeWidth: 2),
+      // ✅ NETWORK IMAGE
+      return CachedNetworkImage(
+        imageUrl: url,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        placeholder: (_, __) => Container(color: Colors.grey.shade300),
+        errorWidget: (_, __, ___) => const Icon(Icons.broken_image),
       );
-    },
-  );
-}
+    }
 
+    // ---------- VIDEO ----------
+    return FutureBuilder<File?>(
+      future: VideoThumbUtil.generateFromUrl(item.mediaUrl),
+      builder: (_, snap) {
+        if (snap.connectionState == ConnectionState.done &&
+            snap.hasData &&
+            snap.data!.existsSync()) {
+          return Image.file(
+            snap.data!,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+          );
+        }
+
+        return Container(
+          color: Colors.black26,
+          alignment: Alignment.center,
+          child: const CircularProgressIndicator(strokeWidth: 2),
+        );
+      },
+    );
+  }
 }
 
 class GroupMediaItem {
