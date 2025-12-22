@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/message_handler.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/audio_reuable.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/commonfuntion.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/date_separate.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/double_tick_ui.dart';
 import 'package:nde_email/presantation/chat/widget/delete_dialogue.dart';
@@ -722,11 +723,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       }
     }
 
-    canonicalId ??= rawMsg['message_id']?.toString() ??
-        rawMsg['messageId']?.toString() ??
-        rawMsg['id']?.toString() ??
-        rawMsg['_id']?.toString();
-
     m['message_id'] = canonicalId;
     m['id'] = canonicalId;
     m['messageId'] = canonicalId;
@@ -750,7 +746,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     String? senderId = rawMsg['senderId']?.toString();
 
     if (senderRaw is Map) {
-      senderId ??= (senderRaw['_id'] ?? senderRaw['id'])?.toString();
+      senderId ??= senderRaw['_id']?.toString();
     } else if (senderRaw != null && senderId == null) {
       senderId = senderRaw.toString();
       senderRaw = {'_id': senderId};
@@ -766,7 +762,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     String? receiverId = rawMsg['receiverId']?.toString();
 
     if (receiverRaw is Map) {
-      receiverId ??= (receiverRaw['_id'] ?? receiverRaw['id'])?.toString();
+      receiverId ??= receiverRaw['_id']?.toString();
     } else if (receiverRaw != null && receiverId == null) {
       receiverId = receiverRaw.toString();
       receiverRaw = {'_id': receiverId};
@@ -777,7 +773,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     m['receiver'] = receiverRaw;
     m['receiverId'] = receiverId;
 
-    // ================= GROUP MESSAGE (TOP LEVEL) =================
+    // ================= GROUP MESSAGE =================
     final bool isGrouped = rawMsg['is_grouped_message'] == true ||
         rawMsg['is_group_message'] == true;
 
@@ -787,20 +783,16 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     // ================= REPLY =================
     bool isReply = rawMsg['isReplyMessage'] == true;
-    Map<String, dynamic>? replyMap;
-
-    if (rawMsg['reply'] is Map) {
-      replyMap = Map<String, dynamic>.from(rawMsg['reply']);
-    }
+    Map<String, dynamic>? replyMap = rawMsg['reply'] is Map
+        ? Map<String, dynamic>.from(rawMsg['reply'])
+        : null;
 
     String? replyId = (rawMsg['reply_message_id'] ??
             rawMsg['replyMessageId'] ??
-            rawMsg['replyId'])
+            rawMsg['replyId'] ??
+            replyMap?['id'] ??
+            replyMap?['message_id'])
         ?.toString();
-
-    if ((replyId == null || replyId.isEmpty) && replyMap != null) {
-      replyId = (replyMap['id'] ?? replyMap['message_id'])?.toString();
-    }
 
     if (replyId != null && replyId.isNotEmpty) {
       isReply = true;
@@ -809,51 +801,57 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       replyMap['id'] = replyId;
       replyMap['message_id'] = replyId;
       replyMap['reply_message_id'] = replyId;
-      m['reply_message_id'] = replyId;
 
-      // 🔥 REPLY GROUP INFO (CRITICAL)
-      replyMap['group_message_id'] ??= rawMsg['reply_group_message_id'] ??
-          replyMap['group_message_id'] ??
-          rawMsg['group_message_id'];
+      replyMap['content'] ??= replyMap['replyContent'] ?? '';
+
+      replyMap['group_message_id'] ??=
+          rawMsg['reply_group_message_id'] ?? replyMap['group_message_id'];
 
       replyMap['is_grouped_message'] ??=
           rawMsg['reply_is_group_message'] == true ||
               replyMap['is_grouped_message'] == true;
 
-      replyMap['content'] ??=
-          rawMsg['replyContent'] ?? replyMap['replyContent'] ?? '';
-
+      // 🔥 MEDIA INSIDE REPLY (STRICT PRIORITY)
       replyMap['originalUrl'] ??=
-          rawMsg['originalUrl'] ?? replyMap['originalUrl'] ?? rawMsg['fileUrl'];
+          replyMap['originalUrl'] ?? rawMsg['originalUrl'] ?? rawMsg['fileUrl'];
 
       replyMap['imageUrl'] ??=
-          rawMsg['imageUrl'] ?? replyMap['imageUrl'] ?? rawMsg['thumbnailUrl'];
+          replyMap['imageUrl'] ?? rawMsg['thumbnailUrl'] ?? rawMsg['imageUrl'];
 
       replyMap['fileUrl'] ??=
-          rawMsg['fileUrl'] ?? replyMap['fileUrl'] ?? rawMsg['originalUrl'];
+          replyMap['fileUrl'] ?? rawMsg['fileUrl'] ?? rawMsg['originalUrl'];
 
       replyMap['fileType'] ??=
-          rawMsg['fileType'] ?? replyMap['fileType'] ?? rawMsg['mimeType'];
+          replyMap['fileType'] ?? rawMsg['mimeType'] ?? rawMsg['fileType'];
 
       m['reply'] = replyMap;
       m['isReplyMessage'] = true;
+      m['reply_message_id'] = replyId;
     }
 
-    // ================= MEDIA =================
-    m['imageUrl'] = rawMsg['imageUrl'] ??
-        rawMsg['originalUrl'] ??
-        rawMsg['thumbnailUrl'] ??
-        rawMsg['localImagePath'];
+    // ================= MEDIA (TOP LEVEL) =================
+    String? imageUrl = rawMsg['imageUrl'];
+    if (imageUrl == null || imageUrl.toString().isEmpty) {
+      imageUrl = rawMsg['thumbnailUrl'];
+    }
+    if (imageUrl == null || imageUrl.toString().isEmpty) {
+      imageUrl = rawMsg['localImagePath'];
+    }
 
-    m['fileUrl'] =
-        rawMsg['fileUrl'] ?? rawMsg['originalUrl'] ?? rawMsg['localFilePath'];
+    String? originalUrl = rawMsg['originalUrl'];
+    if (originalUrl == null || originalUrl.toString().isEmpty) {
+      originalUrl = rawMsg['fileUrl'];
+    }
 
+    m['imageUrl'] = imageUrl;
+    m['originalUrl'] = originalUrl;
+    m['fileUrl'] = rawMsg['fileUrl'] ?? originalUrl;
     m['fileName'] = rawMsg['fileName'];
     m['fileType'] = rawMsg['mimeType'] ?? rawMsg['fileType'];
 
-    // ==========================================================
-    // 🔥 FINAL FIX: PROMOTE REPLY GROUP MEDIA TO TOP LEVEL
-    // ==========================================================
+    // =====================================================
+    // 🔥 FINAL: PROMOTE REPLY GROUP MEDIA (SAFE)
+    // =====================================================
     if (m['isReplyMessage'] == true && m['reply'] is Map) {
       final reply = m['reply'] as Map<String, dynamic>;
 
@@ -1119,11 +1117,15 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     void updateList(List<Map<String, dynamic>> list) {
       for (var i = 0; i < list.length; i++) {
         final m = list[i];
-        final mid = (m['message_id'] ?? m['messageId'] ?? '').toString();
+
+        final mid =
+            (m['message_id'] ?? m['messageId'] ?? m['id'] ?? m['_id'] ?? '')
+                .toString();
+
         if (mid == tempId) {
           final copy = Map<String, dynamic>.from(m);
 
-          // Preserve reply info in a durable local field so merges won't lose it.
+          // 🔥 Preserve reply info (CRITICAL for media reply)
           if (copy['reply'] != null || copy['reply_message_id'] != null) {
             copy['_localHasReply'] = true;
             try {
@@ -1134,9 +1136,24 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             }
           }
 
-          // Assign server id + status
+          // 🔥 Preserve grouping info (CRITICAL)
+          if (copy['group_message_id'] != null) {
+            copy['group_message_id'] = copy['group_message_id'].toString();
+            copy['is_grouped_message'] = copy['is_grouped_message'] == true;
+          }
+
+          // 🔥 Update ALL ID FIELDS
           copy['message_id'] = realId;
+          copy['messageId'] = realId;
+          copy['id'] = realId;
+          copy['_id'] = realId;
+
+          // 🔥 Normalize status
           copy['messageStatus'] = status;
+          copy['status'] = status;
+
+          // 🔥 No longer local
+          copy['isLocal'] = false;
 
           list[i] = copy;
           changed = true;
@@ -1150,7 +1167,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     updateList(dbMessages);
 
     if (changed) {
-      if (!_seenMessageIds.contains(realId)) _seenMessageIds.add(realId);
+      _seenMessageIds.remove(tempId);
+      _seenMessageIds.add(realId);
+
       _updateNotifier();
       _scheduleSaveMessages();
     }
@@ -2059,7 +2078,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
   // ------------------ UI builders ------------------
   Widget _buildMessageBubble(
-      Map<String, dynamic> message, bool isSentByMe, bool isReply) {
+      Map<String, dynamic> message, bool isSentByMe, bool isReply,
+      {int? length}) {
     log("messagessssssssssss $message");
     return MessageBubble(
       message: message,
@@ -2112,6 +2132,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           );
         }
       },
+      groupMediaLength: length,
+      allMessages: _getCombinedMessages(),
     );
   }
 
@@ -2175,7 +2197,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     final replyId = extractReplyId(message);
     debugPrint('📌 extracted replyId: $replyId');
-    final groupId = message["reply"]['group_message_id']?.toString();
+    final groupId = message["reply"]?['group_message_id']?.toString() ?? "";
     debugPrint('📌 extracted groupId: $groupId');
 
     if (replyId != null && replyId.isNotEmpty) {
@@ -3097,63 +3119,49 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     };
   }
 
-  void _replyToMessage(Map<String, dynamic> message, {bool isSendMe = false}) {
+  void _replyToMessage(
+    Map<String, dynamic> message, {
+    bool isSendMe = false,
+  }) {
     if (message.isEmpty) return;
 
-    log("Reply source message => $message");
+    log("Reply source (swiped) => $message");
 
-    // 🔹 TEXT
-    final String content =
-        (message['content'] ?? message['message'] ?? '').toString();
+    // ✅ ALWAYS reply to the swiped message itself
+    final Map<String, dynamic> replySource = Map<String, dynamic>.from(message);
 
-    // 🔹 MEDIA (FIXED)
-    final String? resolvedOriginalUrl = message['originalUrl'] ??
-        message['imageUrl'] ??
-        message['fileUrl'] ??
-        message['localImagePath'];
+    final String? originalUrl = replySource['originalUrl'] ??
+        replySource['imageUrl'] ??
+        replySource['fileUrl'];
 
-    final String? resolvedImageUrl = message['imageUrl'] ??
-        message['thumbnailUrl'] ??
-        message['localImagePath'] ??
-        resolvedOriginalUrl;
+    final String fileType =
+        replySource['fileType'] ?? replySource['mimeType'] ?? '';
 
-    final String? fileUrl = message['fileUrl'] ?? resolvedOriginalUrl;
-    final String? fileName = message['fileName'];
-    final String? fileType = message['fileType'];
-
-    // 🔹 USER NAME
-    final String userName = message['senderName'] ??
-        message['userName'] ??
-        (message['sender']?['name'] ?? message['sender']?['first_name'] ?? '');
-
-    final bool isVideo = (fileType ?? '').toLowerCase().startsWith('video/');
+    final bool isVideo = fileType.toLowerCase().startsWith('video/');
 
     setState(() {
-      // 1️⃣ KEEP original message (no change)
-      _replyMessage = message;
+      _replyMessage = replySource;
 
-      // 2️⃣ FIXED reply preview payload
       _replyPreview = {
-        'message_id':
-            (message['message_id'] ?? message['messageId'] ?? message['id'])
-                ?.toString(),
+        'message_id': replySource['message_id'] ??
+            replySource['messageId'] ??
+            replySource['id'],
 
-        'content': content,
+        'content': (replySource['content'] ?? '').toString(),
 
-        // ✅ THESE WERE EMPTY BEFORE
-        'imageUrl': resolvedImageUrl ?? '',
-        'fileUrl': fileUrl ?? '',
-        'originalUrl': resolvedOriginalUrl ?? '',
-
-        'fileName': fileName ?? '',
-        'fileType': fileType ?? '',
+        // ✅ media (LOCAL or NETWORK)
+        'originalUrl': originalUrl ?? '',
+        'imageUrl': replySource['imageUrl'] ?? originalUrl ?? '',
+        'fileUrl': replySource['fileUrl'] ?? originalUrl ?? '',
+        'fileName': replySource['fileName'] ?? '',
+        'fileType': fileType,
         'isVideo': isVideo,
 
-        'userName': userName,
-        'receiver': message['receiver'],
-        'sender': message['sender'],
-        'isSendMe': isSendMe,
+        // user
+        'sender': replySource['sender'],
+        'receiver': replySource['receiver'],
         'senderId': currentUserId,
+        'isSendMe': isSendMe,
       };
 
       _focusNode.requestFocus();
@@ -3431,6 +3439,14 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     };
   }
 
+  Map<String, dynamic> _resolveReplySource(Map<String, dynamic> message) {
+    // If message is itself a reply, reply to the original message
+    if (message['isReplyMessage'] == true) {
+      return message['_localReply'] ?? message['reply'] ?? message;
+    }
+    return message;
+  }
+
   // ------------------ Build ------------------
   @override
   Widget build(BuildContext context) {
@@ -3443,6 +3459,13 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
           return BlocConsumer<MessagerBloc, MessagerState>(
             listener: (context, state) {
+              if (state is MessageAckReceived) {
+                _replaceTempMessageWithReal(
+                  tempId: state.tempId,
+                  realId: state.realId,
+                  status: state.status,
+                );
+              }
               if (state is MessageSentSuccessfully) {
                 // ⛔ DO NOT add message again, _sendMessage already added it.
 
@@ -3786,7 +3809,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                         itemCount: combinedMessages.length,
                         itemBuilder: (context, index) {
                           final message = combinedMessages[index];
-                          // log("messagessssssssss ${message}");
+                          log("messagessssssssss ${message}");
                           final senderMap = message['sender'] is Map
                               ? Map<String, dynamic>.from(message['sender'])
                               : <String, dynamic>{};
@@ -3808,6 +3831,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
                           final bool isHighlighted =
                               _highlightedMessageId == messageId;
+                          final List<GroupMediaItem> groupMedia = [];
 
                           isSentByMe = senderId == currentUserId;
                           print("isssssssssssssss R${isSentByMe.runtimeType}");
@@ -3836,7 +3860,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                             }
 
                             // 👇 collect ALL media (images + videos) in this group
-                            final List<GroupMediaItem> groupMedia = [];
                             final String messageStatus =
                                 message['messageStatus']?.toString() ?? 'sent';
 
@@ -3935,6 +3958,21 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                                 isStatus: true,
                                               ),
                                           onImageTap: (tappedIndex) {
+                                            final conversationMedia =
+                                                buildConversationMedia(
+                                                    combinedMessages);
+
+                                            final tappedItem =
+                                                groupMedia[tappedIndex];
+
+                                            final startIndex =
+                                                conversationMedia.indexWhere(
+                                              (m) =>
+                                                  m.mediaUrl ==
+                                                  tappedItem.mediaUrl,
+                                            );
+
+                                          //  if (startIndex == -1) return;
                                             Navigator.push(
                                               context,
                                               PageRouteBuilder(
@@ -3944,7 +3982,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                                         milliseconds: 300),
                                                 pageBuilder: (_, __, ___) =>
                                                     MixedMediaViewer(
-                                                  items: groupMedia,
+                                                  items: conversationMedia,
                                                   initialIndex: tappedIndex,
                                                 ),
                                               ),
@@ -4025,20 +4063,22 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                               iconSize: 24.0,
                               offsetDx: 0.3,
                               swipeSensitivity: 5,
-                              onRightSwipe: (details) => _replyToMessage(
-                                  message,
-                                  isSendMe: isSentByMe),
+                              onRightSwipe: (details) {
+                                final resolved = _resolveReplySource(message);
+                                _replyToMessage(resolved, isSendMe: isSentByMe);
+                              },
                               child: AnimatedContainer(
                                 key: ValueKey(messageId),
                                 duration: const Duration(milliseconds: 300),
                                 curve: Curves.easeOut,
                                 margin: const EdgeInsets.symmetric(vertical: 2),
                                 color: isHighlighted
-                                    ? Colors.blueAccent
+                                    ? Colors.blueAccent.withValues(alpha: 0.3)
                                     : Colors.transparent,
                                 child: !hasReply
                                     ? _buildMessageBubble(
-                                        message, isSentByMe, hasReply)
+                                        message, isSentByMe, hasReply,
+                                        length: groupMedia.length)
                                     : Column(
                                         crossAxisAlignment: isSentByMe
                                             ? CrossAxisAlignment.end
@@ -4084,7 +4124,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                             child: Column(
                                               children: [
                                                 _buildMessageBubble(message,
-                                                    isSentByMe, hasReply),
+                                                    isSentByMe, hasReply,
+                                                    length: groupMedia.length),
                                               ],
                                             ),
                                           )

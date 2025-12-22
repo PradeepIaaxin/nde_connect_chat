@@ -13,13 +13,14 @@ class RepliedMessagePreview extends StatefulWidget {
   final VoidCallback? onTap;
   final Map<String, dynamic> receiver;
   final bool isSender;
+  final int? groupMediaLength;
 
   const RepliedMessagePreview({
     super.key,
     required this.replied,
     this.onTap,
     required this.receiver,
-    required this.isSender,
+    required this.isSender,this.groupMediaLength
   });
 
   @override
@@ -44,12 +45,12 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
 
     final fileName = (_replied['fileName'] ?? '').toString().toLowerCase();
 
-    final mediaUrl =
-    (_replied['replyUrl'] ??
-        _replied['thumbnailUrl'] ??
-        _replied['fileUrl'] ??
-        '')
-        .toString();
+   final mediaUrl =
+    _replied['originalUrl'] ??
+    _replied['imageUrl'] ??
+    _replied['fileUrl'] ??
+    '';
+
 
     final bool isVideo =
         fileName.endsWith('.mp4') ||
@@ -68,6 +69,13 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
    
 print("urrrrrrrrrrrrrr $mediaUrl");
     Widget? buildThumb() {
+       if (mediaUrl.startsWith('/')) {
+    return Image.file(
+      File(mediaUrl),
+      fit: BoxFit.cover,
+    );
+  }
+
       /// ✅ IMAGE
       if (isImage) {
         return CachedNetworkImage(

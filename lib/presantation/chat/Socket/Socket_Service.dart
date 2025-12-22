@@ -1199,17 +1199,39 @@ void _handleUserPresence(dynamic data, {required bool online}) {
     };
     log("groupMessageId in socket $groupMessageId");
         log("groupMessageId in socket $isGroupMessage");
+socket!.emitWithAck('send_message', messagePayload, ack: (data) {
+  try {
+    if (data is! Map) {
+      _slog('ACK is not a Map → $data');
+      return;
+    }
 
-    socket!.emitWithAck('send_message', messagePayload, ack: (data) {
-      try {
-        if (ackCallback != null && data is Map<String, dynamic>) {
-          ackCallback(data);
-          log(data.toString());
-        }
-      } catch (e) {
-        _slog('sendMessage ack parse error: $e');
-      }
-    });
+    log('✅ send_message ACK → $data');
+
+    // 🔥 REAL SERVER MESSAGE ID
+    final String? realMessageId =
+        data['messageId']?.toString() ??
+        data['message_id']?.toString() ??
+        data['id']?.toString();
+
+    if (realMessageId == null || realMessageId.isEmpty) {
+      _slog('❌ ACK missing real messageId');
+      return;
+    }
+
+    // 🔥 Notify UI to replace temp → real
+    if (ackCallback != null) {
+      ackCallback({
+        'tempId': messagePayload['messageId'], // TEMP ID
+        'realId': realMessageId,
+        'status': 'sent',
+      });
+    }
+  } catch (e, st) {
+    _slog('sendMessage ack parse error: $e\n$st');
+  }
+});
+
       log("groupMessageId in socket $messagePayload");
 
   

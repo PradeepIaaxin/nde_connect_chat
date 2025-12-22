@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/VideoCacheService.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/const/consts.dart';
 import 'package:swipe_to/swipe_to.dart';
@@ -31,7 +32,7 @@ class GroupedMediaWidget extends StatelessWidget {
       this.messageId,
       this.isHighlighted = false});
 
-  static const double _statusBarHeight = 26;
+  static const double _statusBarHeight = 20;
   static const double _radius = 14;
 
   @override
@@ -60,7 +61,7 @@ class GroupedMediaWidget extends StatelessWidget {
         curve: Curves.easeOut,
         margin: const EdgeInsets.symmetric(vertical: 2),
         color: isHighlighted!
-            ? Colors.blueAccent.withValues(alpha: 0.1)
+            ? Colors.blueAccent.withValues(alpha: 0.3)
             : Colors.transparent,
         child: Align(
           alignment: isSentByMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -70,7 +71,7 @@ class GroupedMediaWidget extends StatelessWidget {
               Container(
                 margin: EdgeInsets.only(
                   left: isSentByMe ? 60 : 0,
-                  right: isSentByMe ? 8 : 60,
+                  right: isSentByMe ? 1 : 60,
                   bottom: 8,
                 ),
                 width: bubbleWidth,
@@ -89,7 +90,7 @@ class GroupedMediaWidget extends StatelessWidget {
                   ),
                   border: Border.all(
                       color: isSentByMe ? senderColor : receiverColor,
-                      width: 2),
+                      width: 5),
                   color: isSentByMe ? senderColor : receiverColor,
                 ),
                 clipBehavior: Clip.antiAlias,
@@ -103,19 +104,20 @@ class GroupedMediaWidget extends StatelessWidget {
                     ),
 
                     // 🔹 STATUS BAR
-                    Container(
+                    
+                  ],
+                ),
+              ),
+              Positioned(
                       height: _statusBarHeight,
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      decoration: BoxDecoration(
-                        color: isSentByMe ? senderColor : receiverColor,
-                      ),
+                      top: 260,
+                      left: 265,
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           Text(
                             time,
                             style: const TextStyle(
-                                fontSize: 11, color: Colors.black),
+                                fontSize: 11, color: Colors.white),
                           ),
                           if (isSentByMe && buildStatusIcon != null) ...[
                             const SizedBox(width: 4),
@@ -124,9 +126,6 @@ class GroupedMediaWidget extends StatelessWidget {
                         ],
                       ),
                     ),
-                  ],
-                ),
-              ),
               Positioned(
                 top: 0,
                 bottom: 0,
@@ -165,7 +164,7 @@ class GroupedMediaWidget extends StatelessWidget {
       case 1:
         return 1;
       case 2:
-        return 2 / 1;
+        return 2 / 2;
       case 3:
         return 3 / 2;
       default:
@@ -246,27 +245,29 @@ class GroupedMediaWidget extends StatelessWidget {
                 color: isSentByMe ? senderColor : receiverColor, // divider line
               ),
               Expanded(
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    _tile(context, 3),
-                    if (media.length > 4)
-                      GestureDetector(
-                        onTap: () => onImageTap?.call(0),
-                        child: Container(
-                          color: Colors.black54,
-                          alignment: Alignment.center,
-                          child: Text(
-                            '+${4}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
+                child: ClipRRect(      borderRadius: BorderRadius.all(Radius.circular(10)),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      _tile(context, 3),
+                      if (media.length > 4)
+                        GestureDetector(
+                          onTap: () => onImageTap?.call(0),
+                          child: Container(
+                            color: Colors.black54,
+                            alignment: Alignment.center,
+                            child: Text(
+                              '+${4}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -281,24 +282,27 @@ class GroupedMediaWidget extends StatelessWidget {
   Widget _tile(BuildContext context, int index) {
     final item = media[index];
 
-    return GestureDetector(
-      onTap: () => onImageTap?.call(index),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Hero(
-            tag: '${item.mediaUrl}_$index',
-            child: _thumb(item),
-          ),
-          if (item.isVideo)
-            Center(
-              child: Icon(
-                Icons.play_circle_fill,
-                size: 36,
-                color: Colors.grey.shade300,
-              ),
+    return ClipRRect(
+      borderRadius: BorderRadius.all(Radius.circular(10)),
+      child: GestureDetector(
+        onTap: () => onImageTap?.call(index),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Hero(
+        tag: '${item.mediaUrl}_${messageId}_$index',
+              child: _thumb(item),
             ),
-        ],
+            if (item.isVideo)
+              Center(
+                child: Icon(
+                  Icons.play_circle_fill,
+                  size: 36,
+                  color: Colors.grey.shade300,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -334,7 +338,7 @@ class GroupedMediaWidget extends StatelessWidget {
 
     // ---------- VIDEO ----------
     return FutureBuilder<File?>(
-      future: VideoThumbUtil.generateFromUrl(item.mediaUrl),
+      future: VideoCacheService.instance.getThumbnailFuture(item.mediaUrl),
       builder: (_, snap) {
         if (snap.connectionState == ConnectionState.done &&
             snap.hasData &&
