@@ -243,14 +243,37 @@ class _MessageInputFieldState extends State<MessageInputField> {
     final String? fileType = widget.replyText?['fileType'];
     // final String userName = widget.replyText?['userName'] ?? '';
     final String? originalUrl = widget.replyText?['originalUrl'];
+      final String imageCount = widget.replyText?["imageCount"]?.toString()??"";
+            final String videoCount = widget.replyText?["videoCount"]?.toString()??"";
 
-    // final String firstName =
-    //     widget.replyText?['receiver']?['first_name']?.toString() ?? "";
-    // final String lastName =
-    //     widget.replyText?['receiver']?['last_name']?.toString() ?? "";
-    final bool isSendMe = widget.replyText?['isSendMe'] ?? false;
-    debugPrint("isSendMe: $isSendMe");
+   final String firstName =
+    widget.replyText?['receiver']?['first_name']?.toString() ?? "";
+    final String lastName = widget.replyText?['receiver']?['last_name'].toString()??"";
+   // final bool isSendMe = widget.replyText?['isSendMe'];
+        final String senderId = widget.replyText?['senderId']?.toString()??"";
+        final String userId = widget.replyText?['sender']?["_id"]?.toString()??"";
 
+       print("sssssssss ${senderId}");
+              print("userId ${userId}");
+
+    final bool isSendMe =senderId==userId;
+// 🔥 Detect grouped media safely
+final bool hasGroupId =
+    widget.replyText?['group_message_id'] != null;
+
+
+final int localImageCount = int.tryParse(
+  widget.replyText?['imageCount']?.toString() ?? '0',
+) ?? 0;
+
+final int localVideoCount = int.tryParse(
+  widget.replyText?['videoCount']?.toString() ?? '0',
+) ?? 0;
+
+final bool isGroupedMedia =
+    hasGroupId && (localImageCount + localVideoCount > 1);
+print("hhhhhhhhhhhhhhhhhhhhh $isSendMe");
+    // Type label like WhatsApp
     // Type label like WhatsApp
     String typeLabel = '';
 
@@ -260,19 +283,102 @@ class _MessageInputFieldState extends State<MessageInputField> {
                 widget.replyText?['isVideo'] == true) &&
             (originalUrl != null && originalUrl.isNotEmpty);
 
-    if (isVideoReply) {
-      typeLabel = 'Video';
-    } else if (imageUrl != null && imageUrl.isNotEmpty) {
-      typeLabel = 'Photo';
-    } else if (fileName != null && fileName.isNotEmpty) {
-      typeLabel = '';
-    }
+
+if (isGroupedMedia) {
+  if (localImageCount > 0 && localVideoCount > 0) {
+    typeLabel = 'Media';
+  } else if (localImageCount > 0) {
+    typeLabel = 'Photo';
+  } else if (localVideoCount > 0) {
+    typeLabel = 'Video';
+  }
+} else {
+  if (isVideoReply) {
+    typeLabel = 'Video';
+  } else if (imageUrl != null && imageUrl.isNotEmpty) {
+    typeLabel = 'Photo';
+  }
+}
+Widget _buildVideoThumb(String videoPathOrUrl) {
+  const double size = 70;
+
+  return SizedBox(
+    width: size,
+    height: size,
+    child: FutureBuilder<File?>(
+      future: VideoThumbUtil.generateFromUrl(videoPathOrUrl),
+      builder: (context, snapshot) {
+        // ⏳ Loading
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              color: Colors.black26,
+              child: const Center(
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          );
+        }
+
+        // ✅ Thumbnail generated
+        if (snapshot.hasData && snapshot.data != null) {
+          final file = snapshot.data!;
+          if (file.existsSync()) {
+            return Stack(
+              alignment: Alignment.center,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.file(
+                    file,
+                    width: size,
+                    height: size,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                const Icon(
+                  Icons.play_circle_fill,
+                  color: Colors.white,
+                  size: 26,
+                ),
+              ],
+            );
+          }
+        }
+
+        // ❌ Fallback (thumbnail failed)
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            width: size,
+            height: size,
+            color: Colors.black,
+            child: const Icon(
+              Icons.videocam,
+              color: Colors.white,
+              size: 26,
+            ),
+          ),
+        );
+      },
+    ),
+  );
+}
 
     // ---------- build trailing thumbnail (image / video) ----------
     Widget? trailingThumb;
 
     const double thumbSize = 70;
-
+if (!isGroupedMedia) {
+  if (isVideoReply && originalUrl != null) {
+    trailingThumb = _buildVideoThumb(originalUrl);
+  } else if (imageUrl != null && imageUrl.isNotEmpty) {
+    trailingThumb = imageUrl.startsWith('/')
+        ? Image.file(File(imageUrl), width: 70, height: 70, fit: BoxFit.cover)
+        : Image.network(imageUrl, width: 70, height: 70, fit: BoxFit.cover);
+  }
+}
     if (isVideoReply) {
       trailingThumb = SizedBox(
         width: thumbSize,
