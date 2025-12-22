@@ -55,16 +55,12 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
   Future<void> _onFetchGroupMessages(
       FetchGroupMessages event, Emitter<GroupChatState> emit) async {
     try {
-      List<GroupMessageModel> localMessages = [];
+      /// 1. Load ALL local stored (flat) messages first
+      final localMaps = GrpLocalChatStorage.loadMessages(event.convoId);
+      List<GroupMessageModel> localMessages =
+          localMaps.map((json) => GroupMessageModel.fromJson(json)).toList();
+
       if (event.page == 1) {
-        emit(GroupChatLoading());
-
-        /// Load local stored (flat) messages
-        final localMaps = GrpLocalChatStorage.loadMessages(event.convoId);
-
-        localMessages =
-            localMaps.map((json) => GroupMessageModel.fromJson(json)).toList();
-
         if (localMessages.isNotEmpty) {
           emit(GroupChatLoaded(
             GroupMessageResponse(
@@ -73,7 +69,7 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
               page: event.page,
               limit: event.limit,
               hasPreviousPage: false,
-              hasNextPage: false,
+              hasNextPage: true, // ✅ Allow immediate pagination from cache
             ),
           ));
 
@@ -99,7 +95,6 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
           incomingGroups.expand((group) => group.messages).toList();
 
       // 🛠️ FIX: Preserve pending 'sending' messages from local cache that are missing in API
-      // Because API sync might be faster than upload + server indexing
       final pendingMessages = localMessages.where((m) {
         return m.messageStatus == 'sending' &&
             !flatIncoming.any((apiMsg) =>
@@ -110,8 +105,6 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
         log("🔄 Providing persistence for ${pendingMessages.length} pending messages");
         flatIncoming.addAll(pendingMessages);
 
-        // Also add to incomingGroups for immediate UI reflection
-        // We find the group for "Today" or create it
         final todayLabel = _formatDate(DateTime.now());
         final todayGroupIndex =
             incomingGroups.indexWhere((g) => g.label == todayLabel);
@@ -124,21 +117,36 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
         }
       }
 
-      if (flatIncoming.isNotEmpty) {
-        await GrpLocalChatStorage.saveMessages(
-          event.convoId,
-          flatIncoming.map((m) => m.toJson()).toList(),
-        );
+      // 🛠️ CRITICAL FIX: Merge flatIncoming into localMessages instead of overwriting
+      final Map<String, GroupMessageModel> mergeMap = {};
+      // 1. Put existing local messages into map
+      for (var m in localMessages) {
+        final id = (m.messageId.isNotEmpty ? m.messageId : m.id).toString();
+        if (id.isNotEmpty) mergeMap[id] = m;
+      }
+      // 2. Overlay incoming API messages
+      for (var m in flatIncoming) {
+        final id = (m.messageId.isNotEmpty ? m.messageId : m.id).toString();
+        if (id.isNotEmpty) mergeMap[id] = m;
       }
 
-      // Merge Pages
+      final mergedFlatList = mergeMap.values.toList();
+      log("💾 Saving merged local storage: ${mergedFlatList.length} messages (was ${localMessages.length})");
+
+      await GrpLocalChatStorage.saveMessages(
+        event.convoId,
+        mergedFlatList.map((m) => m.toJson()).toList(),
+      );
+
+      // Merge Pages for State Emission
       if (state is GroupChatLoaded && event.page > 1) {
         final prev = (state as GroupChatLoaded).response;
+        log("🔄 Merging Page ${event.page} into existing state (Page ${prev.page})");
 
         // merge groups properly
         final mergedGroups = _mergeGroupedPages(prev.data, incomingGroups);
 
-        emit(GroupChatLoaded(
+        final newState = GroupChatLoaded(
           GroupMessageResponse(
             data: mergedGroups,
             total: apiResp.total,
@@ -147,11 +155,15 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
             hasPreviousPage: apiResp.hasPreviousPage,
             hasNextPage: apiResp.hasNextPage,
           ),
-        ));
+        );
+
+        log("📤 Emitting merged GroupChatLoaded: Page ${newState.response.page}, Total ${newState.response.total}, Groups ${newState.response.data.length}");
+        emit(newState);
       } else {
+        log("📤 Emitting fresh GroupChatLoaded: Page ${apiResp.page}, Total ${apiResp.total}, Groups ${apiResp.data.length}");
         emit(GroupChatLoaded(apiResp));
       }
-    } catch (e, st) {
+    } catch (e) {
       log("❌ FetchGroupMessages Error: $e");
       emit(GroupChatError("Failed to load messages"));
     }
@@ -218,7 +230,7 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
   // ==========================================================
   //               📌 SEND MESSAGE
   // ==========================================================
-Future<void> _onSendMessage(
+  Future<void> _onSendMessage(
       SendMessageEvent event, Emitter<GroupChatState> emit) async {
     try {
       final workspace = await UserPreferences.getDefaultWorkspace();

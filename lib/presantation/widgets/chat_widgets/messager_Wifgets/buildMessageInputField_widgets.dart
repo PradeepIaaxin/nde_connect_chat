@@ -346,62 +346,61 @@ class _MessageInputFieldState extends State<MessageInputField> {
       );
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey.shade200,
-        borderRadius: BorderRadius.circular(10),
-        border: Border(left: BorderSide(color: Colors.blueAccent, width: 5)),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          const SizedBox(width: 8),
+    return Padding(
+      padding: const EdgeInsets.all(8),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(10),
+          border: Border(left: BorderSide(color: Colors.blueAccent, width: 5)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const SizedBox(width: 8),
 
-          // text info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  "You",
-                  style: TextStyle(
-                      color: AppColors.primaryButton,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500),
-                ),
-                if (typeLabel.isNotEmpty)
-                  Row(
+            // text info
+            Expanded(
+              child: Stack(
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        typeLabel == 'Photo'
-                            ? Icons.photo
-                            : typeLabel == 'Video'
-                                ? Icons.video_camera_back_rounded
-                                : null,
-                        color: Colors.grey,
-                        size: (typeLabel == 'Photo' || typeLabel == 'Video')
-                            ? 0
-                            : 16,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        typeLabel,
-                        style: const TextStyle(
-                          color: Colors.black,
+                      const Text(
+                        "You",
+                        style: TextStyle(
+                          color: AppColors.primaryButton,
                           fontSize: 12,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                    ],
-                  ),
-                if (content.isNotEmpty)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
+                      if (typeLabel.isNotEmpty)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              typeLabel == 'Photo'
+                                  ? Icons.photo
+                                  : typeLabel == 'Video'
+                                      ? Icons.video_camera_back_rounded
+                                      : null,
+                              color: Colors.grey,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              typeLabel,
+                              style: const TextStyle(
+                                color: Colors.black,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      if (content.isNotEmpty)
+                        Text(
                           content,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -410,58 +409,61 @@ class _MessageInputFieldState extends State<MessageInputField> {
                             fontSize: 12,
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      if (trailingThumb == null)
-                        InkWell(
-                          onTap: widget.onCancelReply,
-                          child: Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: const BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.white,
-                            ),
-                            child: const Icon(
-                              Icons.close,
-                              size: 16,
-                              color: Colors.black87,
-                            ),
-                          ),
-                        ),
                     ],
                   ),
-              ],
-            ),
-          ),
 
-          // thumbnail + close button (works for image & video)
-          if (trailingThumb != null)
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                trailingThumb,
-                Positioned(
-                  top: -2,
-                  right: -3,
-                  child: InkWell(
-                    onTap: widget.onCancelReply,
-                    child: Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white,
+                  /// ✅ Close icon at TOP RIGHT
+                  if (trailingThumb == null)
+                    Positioned(
+                      top: -7 ,
+                      right: 0,
+                      left: 258,
+                      child: InkWell(
+                        onTap: widget.onCancelReply,
+                        borderRadius: BorderRadius.circular(20),
+                        child: const Padding(
+                          padding: EdgeInsets.all(4),
+                          child: Icon(
+                            Icons.close,
+                            size: 16,
+                            color: Colors.black87,
+                          ),
+                        ),
                       ),
-                      child: const Icon(
-                        Icons.close,
-                        size: 16,
-                        color: Colors.black87,
+                    ),
+                ],
+              ),
+            ),
+
+            // thumbnail + close button (works for image & video)
+            if (trailingThumb != null)
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  trailingThumb,
+                  Positioned(
+                    top: -2,
+                    right: -3,
+                    child: InkWell(
+                      onTap: widget.onCancelReply,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white,
+                        ),
+                        child: const Icon(
+                          Icons.close,
+                          size: 16,
+                          color: Colors.black87,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
-            ),
-        ],
+                ],
+              ),
+          ],
+        ),
       ),
     );
   }

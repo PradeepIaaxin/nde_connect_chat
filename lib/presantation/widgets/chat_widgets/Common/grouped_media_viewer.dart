@@ -44,7 +44,7 @@ class GroupedMediaWidget extends StatelessWidget {
         screenWidth < 600 ? screenWidth * 0.72 : screenWidth * 0.5;
 
     final visibleCount = media.length > 4 ? 4 : media.length;
-       print("isHighlighted $isHighlighted");
+    print("isHighlighted $isHighlighted");
     return SwipeTo(
       animationDuration: const Duration(milliseconds: 650),
       iconOnRightSwipe: Icons.reply,
@@ -54,7 +54,7 @@ class GroupedMediaWidget extends StatelessWidget {
       swipeSensitivity: 5,
       onRightSwipe: onRightSwipe,
       child: AnimatedContainer(
-      key: ValueKey(messageId),
+        key: ValueKey(messageId),
         duration: const Duration(milliseconds: 600),
         curve: Curves.easeOut,
         margin: const EdgeInsets.symmetric(vertical: 2),

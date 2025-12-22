@@ -21,7 +21,7 @@ class GroupedMediaWidget extends StatelessWidget {
 
     // WhatsApp-like bubble width
     final double bubbleWidth =
-        screenWidth < 600 ? screenWidth * 0.72 : screenWidth * 0.5;
+        screenWidth < 600 ? screenWidth * 0.65 : screenWidth * 0.5;
 
     return ConstrainedBox(
       constraints: BoxConstraints(maxWidth: bubbleWidth),
@@ -46,7 +46,7 @@ class GroupedMediaWidget extends StatelessWidget {
 
     if (count == 2) {
       return AspectRatio(
-        aspectRatio: 2 / 1,
+        aspectRatio: 5 / 5,
         child: Row(
           children: [
             Expanded(child: _mediaTile(context, 0)),
@@ -59,7 +59,7 @@ class GroupedMediaWidget extends StatelessWidget {
 
     if (count == 3) {
       return AspectRatio(
-        aspectRatio: 3 / 2,
+        aspectRatio: 5 / 5,
         child: Row(
           children: [
             Expanded(child: _mediaTile(context, 0)),
@@ -80,7 +80,7 @@ class GroupedMediaWidget extends StatelessWidget {
 
     // 4 or more
     return AspectRatio(
-      aspectRatio: 1,
+      aspectRatio: 5 / 5,
       child: Column(
         children: [
           Expanded(
