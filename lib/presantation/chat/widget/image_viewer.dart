@@ -43,7 +43,8 @@ class ImageViewer {
       }
 
       // ✅ STEP 2: Handle expired presigned URLs
-      if (_looksLikePresignedUrl(imageUrl) && _isPresignedUrlExpired(imageUrl)) {
+      if (_looksLikePresignedUrl(imageUrl) &&
+          _isPresignedUrlExpired(imageUrl)) {
         log("ImageViewer: presigned url expired -> requesting fresh URL");
         final fresh = await fetchFreshPresignedUrlFromServer(imageUrl);
         if (fresh != null && fresh.isNotEmpty) {
@@ -70,35 +71,12 @@ class ImageViewer {
     }
   }
 
-  // Opens the dialog and shows a File image inside InteractiveViewer
+  // Opens a full-screen route and shows a File image inside InteractiveViewer
   static void _openDialogWithFile(BuildContext context, File file) {
-    showDialog(
-      context: context,
-      builder: (_) => Dialog(
-        backgroundColor: Colors.black,
-        insetPadding: const EdgeInsets.all(10),
-        child: GestureDetector(
-          onTap: () => Navigator.pop(context),
-          child: InteractiveViewer(
-            panEnabled: true,
-            minScale: 0.8,
-            maxScale: 4,
-            child: Image.file(
-              file,
-              fit: BoxFit.contain,
-              filterQuality: FilterQuality.high,
-              errorBuilder: (context, error, stackTrace) {
-                log("ImageViewer: Image.file error: $error\n$stackTrace");
-                return const Center(
-                  child: Text(
-                    "Failed to load image",
-                    style: TextStyle(color: Colors.white),
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => _FullScreenImageViewer(file: file),
       ),
     );
   }
@@ -110,7 +88,8 @@ class ImageViewer {
         title: const Text('Unable to open image'),
         content: Text(message),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
+          TextButton(
+              onPressed: () => Navigator.pop(context), child: const Text('OK')),
         ],
       ),
     );
@@ -121,7 +100,8 @@ class ImageViewer {
   static bool _looksLikePresignedUrl(String url) {
     try {
       final uri = Uri.parse(url);
-      return uri.queryParameters.keys.any((k) => k.toLowerCase().startsWith('x-amz-'));
+      return uri.queryParameters.keys
+          .any((k) => k.toLowerCase().startsWith('x-amz-'));
     } catch (_) {
       return false;
     }
@@ -131,8 +111,12 @@ class ImageViewer {
   static bool _isPresignedUrlExpired(String url) {
     try {
       final u = Uri.parse(url);
-      final xDate = u.queryParameters['X-Amz-Date'] ?? u.queryParameters['x-amz-date'];
-      final expires = int.tryParse(u.queryParameters['X-Amz-Expires'] ?? u.queryParameters['x-amz-expires'] ?? '') ?? 0;
+      final xDate =
+          u.queryParameters['X-Amz-Date'] ?? u.queryParameters['x-amz-date'];
+      final expires = int.tryParse(u.queryParameters['X-Amz-Expires'] ??
+              u.queryParameters['x-amz-expires'] ??
+              '') ??
+          0;
       if (xDate == null || expires == 0) return false;
 
       // xDate format: YYYYMMDDTHHMMSSZ, e.g. 20251204T052751Z
@@ -156,7 +140,8 @@ class ImageViewer {
   // ----- Server integration point -----
   // YOU MUST IMPLEMENT this to call your backend which returns a fresh presigned URL.
   // The input parameter is the existing URL or object key — adapt to your backend API.
-  static Future<String?> fetchFreshPresignedUrlFromServer(String currentUrlOrKey) async {
+  static Future<String?> fetchFreshPresignedUrlFromServer(
+      String currentUrlOrKey) async {
     // Example:
     // final key = extractKeyFromUrl(currentUrlOrKey);
     // final resp = await MyApi.getPresignedUrl(key);
@@ -165,5 +150,59 @@ class ImageViewer {
     // For now, return null so caller will try fallback download (which may fail).
     log("ImageViewer: fetchFreshPresignedUrlFromServer not implemented; input: $currentUrlOrKey");
     return null;
+  }
+}
+
+class _FullScreenImageViewer extends StatefulWidget {
+  final File file;
+  const _FullScreenImageViewer({required this.file});
+
+  @override
+  State<_FullScreenImageViewer> createState() => _FullScreenImageViewerState();
+}
+
+class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
+  bool _showUI = true;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      extendBodyBehindAppBar: true,
+      appBar: _showUI
+          ? AppBar(
+              backgroundColor: Colors.black.withOpacity(0.5),
+              elevation: 0,
+              iconTheme: const IconThemeData(color: Colors.white),
+            )
+          : null,
+      body: GestureDetector(
+        onTap: () {
+          setState(() {
+            _showUI = !_showUI;
+          });
+        },
+        child: Center(
+          child: InteractiveViewer(
+            panEnabled: true,
+            minScale: 0.8,
+            maxScale: 4,
+            child: Image.file(
+              widget.file,
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.high,
+              errorBuilder: (context, error, stackTrace) {
+                return const Center(
+                  child: Text(
+                    "Failed to load image",
+                    style: TextStyle(color: Colors.white),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -70,7 +70,7 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
             GroupMessageResponse(
               data: _groupMessagesByDate(localMessages),
               total: localMessages.length,
-              page: 1,
+              page: event.page,
               limit: event.limit,
               hasPreviousPage: false,
               hasNextPage: false,
@@ -218,12 +218,16 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
   // ==========================================================
   //               📌 SEND MESSAGE
   // ==========================================================
-  Future<void> _onSendMessage(
+Future<void> _onSendMessage(
       SendMessageEvent event, Emitter<GroupChatState> emit) async {
     try {
       final workspace = await UserPreferences.getDefaultWorkspace();
       final username = await UserPreferences.getUsername();
       final messageId = ObjectId().toString();
+
+      if (!grpSocket.isConnected) {
+        throw Exception("Socket not connected");
+      }
 
       grpSocket.sendMessage(
         isGroupMessage: false,
@@ -250,8 +254,9 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
           messageStatus: "sent",
         ),
       ));
-    } catch (e) {
-      emit(GroupChatError("Failed to send message"));
+    } catch (e, stackTrace) {
+      log("❌ GroupChatBloc._onSendMessage error: $e\n$stackTrace");
+      emit(GroupChatError("Failed to send message: $e"));
     }
   }
 

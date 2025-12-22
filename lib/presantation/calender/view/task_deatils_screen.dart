@@ -356,6 +356,7 @@ class _TaskDetailsPageState extends State<TaskDetailsPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+          surfaceTintColor: Colors.white,
         backgroundColor: Colors.white,
         leading: const BackButton(),
         actions: [

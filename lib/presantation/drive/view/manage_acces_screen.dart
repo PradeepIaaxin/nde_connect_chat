@@ -19,6 +19,7 @@ class ManageAccessScreenUI extends StatelessWidget {
       child: Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
+            surfaceTintColor: Colors.white,
           backgroundColor: Colors.white,
           title: const Text('Manage access'),
           actions: [

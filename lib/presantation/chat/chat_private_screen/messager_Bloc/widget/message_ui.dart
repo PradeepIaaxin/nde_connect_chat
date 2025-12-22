@@ -15,13 +15,8 @@ import 'package:nde_email/utils/datetime/date_time_utils.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
 import 'package:nde_email/utils/router/router.dart';
 import 'package:shimmer/shimmer.dart';
-import 'package:swipe_to/swipe_to.dart';
 import 'package:linkify/linkify.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:video_player/video_player.dart';
-import 'dart:io';
-import 'package:video_thumbnail/video_thumbnail.dart';
-import 'package:path_provider/path_provider.dart';
 import '../../../widget/image_viewer.dart';
 import 'VideoCacheService.dart';
 import 'VideoPlayerScreen.dart';
@@ -336,48 +331,6 @@ void _openConversationViewer(BuildContext context, String tappedUrl) {
     );
   }
 
-  Widget _buildReactionsBarWidget(Map<String, dynamic> msg) {
-    final reactionsRaw = msg['reactions'] ?? [];
-
-    final reactions = (reactionsRaw as List?)
-            ?.where((r) => r is Map)
-            .map((r) => Map<String, dynamic>.from(r as Map))
-            .toList() ??
-        [];
-
-    if (reactions.isEmpty) return const SizedBox.shrink();
-
-    // Count occurrences of each emoji
-    final Map<String, int> reactionCounts = {};
-    for (final reaction in reactions) {
-      final emoji = reaction['emoji']?.toString();
-      if (emoji != null && emoji.isNotEmpty) {
-        reactionCounts[emoji] = (reactionCounts[emoji] ?? 0) + 1;
-      }
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: reactionCounts.entries.map((entry) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 2),
-            child: Text(
-              entry.value > 1 ? '${entry.key} ${entry.value}' : entry.key,
-              style: const TextStyle(fontSize: 14),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
   Widget _buildImage(
     BuildContext context,
     String content,
@@ -406,9 +359,9 @@ void _openConversationViewer(BuildContext context, String tappedUrl) {
     };
 
     // Helper: heuristically decide if the URL/filename is an image
-    bool _looksLikeImage(String url, String fileName, String ext) {
+    bool looksLikeImage(String url, String fileName, String ext) {
       try {
-        final lowerUrl = (url ?? '').toLowerCase();
+        final lowerUrl = (url).toLowerCase();
         if (imageExtensions.contains(ext)) return true;
         if (lowerUrl
             .contains(RegExp(r'\.(jpe?g|png|gif|webp|bmp|heic|heif)($|\?)'))) {
@@ -423,10 +376,10 @@ void _openConversationViewer(BuildContext context, String tappedUrl) {
       return false;
     }
 
-    final bool looksImage = _looksLikeImage(imageUrl, name, extension);
+    final bool looksImage = looksLikeImage(imageUrl, name, extension);
 
     // Choose fallback document tile (so PDFs/docs don't show the red '!') ----------------
-    Widget _documentFallbackTile() {
+    Widget documentFallbackTile() {
       IconData icon = Icons.insert_drive_file;
       switch (extension) {
         case 'pdf':
@@ -485,7 +438,7 @@ void _openConversationViewer(BuildContext context, String tappedUrl) {
     }
 
     // Build the image preview -------------------------------------------------------------
-    Widget _imageWidget() {
+    Widget imageWidget() {
       try {
         if (imageUrl.startsWith('http')) {
           return CachedNetworkImage(
@@ -530,12 +483,12 @@ void _openConversationViewer(BuildContext context, String tappedUrl) {
               fit: BoxFit.cover,
             );
           } else {
-            return _documentFallbackTile();
+            return documentFallbackTile();
           }
         }
       } catch (e) {
         debugPrint('Error in _imageWidget: $e');
-        return _documentFallbackTile();
+        return documentFallbackTile();
       }
     }
 
@@ -576,7 +529,7 @@ void _openConversationViewer(BuildContext context, String tappedUrl) {
                   ),
                 ],
               ),
-              child: looksImage ? _imageWidget() : _documentFallbackTile(),
+              child: looksImage ? imageWidget() : documentFallbackTile(),
             ),
           ),
         ),
@@ -942,35 +895,6 @@ void _openConversationViewer(BuildContext context, String tappedUrl) {
 
     return StatefulBuilder(
       builder: (context, setState) {
-        final Widget textWidget = Padding(
-          padding: const EdgeInsets.only(
-            left: 5,
-          ),
-          child: Linkify(
-            text: content,
-            maxLines: isExpanded ? null : 9,
-            overflow: isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
-            onOpen: (link) async {
-              final uri = Uri.parse(link.url);
-              if (await canLaunchUrl(uri)) {
-                await launchUrl(uri, mode: LaunchMode.externalApplication);
-              }
-            },
-            style: const TextStyle(fontSize: 15, color: Colors.black87),
-            linkStyle: const TextStyle(color: Colors.blue),
-            options: LinkifyOptions(
-              humanize: true,
-              looseUrl: true,
-              defaultToHttps: true,
-            ),
-            linkifiers: [
-              EmailLinkifier(),
-              UrlLinkifier(),
-              CustomPhoneNumberLinkifier(),
-            ],
-          ),
-        );
-
         final Widget messageContent = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
