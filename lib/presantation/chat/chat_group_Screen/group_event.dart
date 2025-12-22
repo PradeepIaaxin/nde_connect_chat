@@ -13,18 +13,18 @@ class FetchGroupMessages extends GroupChatEvent {
   final String convoId;
   final int page;
   final int limit;
+  final void Function(int newMessagesCount)? onMessagesFetched;
 
   const FetchGroupMessages({
     required this.convoId,
-    this.page = 1,
-    this.limit = 50,
+    required this.page,
+    required this.limit,
+    this.onMessagesFetched,
   });
 
   @override
-  List<Object> get props => [convoId, page, limit];
+  List<Object?> get props => [convoId, page, limit, onMessagesFetched];
 }
-
-
 
 class ListenToMessages extends GroupChatEvent {
   final String senderId;
@@ -221,8 +221,8 @@ class GroupRemoveReaction extends GroupChatEvent {
     this.firstName,
     this.lastName,
   });
-  
 }
+
 class FetchGroupDetails extends GroupChatEvent {
   final String groupId;
 

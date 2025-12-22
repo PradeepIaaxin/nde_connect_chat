@@ -85,7 +85,7 @@ class _NewGroupState extends State<NewGroup> {
           backgroundColor: Colors.white,
           appBar: AppBar(
             backgroundColor: Colors.white,
-            shadowColor: Colors.grey.shade200,
+              surfaceTintColor: Colors.white,
             elevation: 0.2,
             title: _isSearching
                 ? TextField(

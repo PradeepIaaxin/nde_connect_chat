@@ -1,3 +1,4 @@
+import 'package:nde_email/data/respiratory.dart';
 import 'package:nde_email/presantation/chat/Socket/Socket_Service.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/bloc/profile_screen_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/bloc/profile_screen_event.dart';
@@ -19,11 +20,27 @@ class GroupContactList extends StatefulWidget {
 }
 
 class _GroupContactListState extends State<GroupContactList> {
+  String _uid = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUid();
+  }
+
+  Future<void> _loadUid() async {
+    final uid = await UserPreferences.getUserId() ?? '';
+    if (!mounted) return;
+    setState(() {
+      _uid = uid;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<MediaBloc, MediaState>(
       builder: (context, state) {
-        if (state is MediaLoading) {
+        if (state is MediaLoading || _uid.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         } else if (state is ContactLoaded) {
           final contacts = state.contacts;
@@ -38,7 +55,9 @@ class _GroupContactListState extends State<GroupContactList> {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: contacts.length,
-                separatorBuilder: (_, __) => const Divider(),
+                separatorBuilder: (_, __) => const Divider(
+                  color: Colors.transparent,
+                ),
                 itemBuilder: (context, index) {
                   final contact = contacts[index];
                   final members = contact.groupMembers;
@@ -46,7 +65,7 @@ class _GroupContactListState extends State<GroupContactList> {
 
                   return Padding(
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -56,18 +75,33 @@ class _GroupContactListState extends State<GroupContactList> {
                             Text(
                               "$count Member${count == 1 ? '' : 's'}",
                               style: const TextStyle(
-                                  fontSize: 18, fontWeight: FontWeight.w500),
+                                fontSize: 18,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                             IconButton(
-                                onPressed: () {},
-                                icon: const Icon(Icons.search)),
+                              onPressed: () {},
+                              icon: const Icon(Icons.search),
+                            ),
                           ],
                         ),
-                        const SizedBox(height: 8),
+                     
                         ...members.asMap().entries.map((entry) {
                           final i = entry.key;
                           final member = entry.value;
-                          final isAdmin = member.isAdmin ?? false;
+
+                          final bool isAdmin = member.isAdmin ?? false;
+
+                          final bool isMe = member.memberId == _uid;
+                          final bool isTargetAdmin = member.isAdmin ?? false;
+
+                          final bool loggedUserIsAdmin =
+                              contact.groupMembers.any(
+                            (m) => m.memberId == _uid && (m.isAdmin ?? false),
+                          );
+
+                          final bool canManageMember =
+                              loggedUserIsAdmin && !isMe;
 
                           final profileAvatarUrl =
                               (member.profilePic?.isNotEmpty ?? false)
@@ -84,173 +118,173 @@ class _GroupContactListState extends State<GroupContactList> {
                                   ? nameText[0].toUpperCase()
                                   : 'U');
 
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: GestureDetector(
-                              onTap: i == 0
-                                  ? () {}
-                                  : () {
-                                      log(nameText);
-                                      log(member.firstName.toString());
-                                      UserActionDialog.show(
-                                        context,
-                                        name:
-                                            "${member.firstName ?? ''} ${member.lastName ?? ''}"
-                                                .trim(),
-                                        isAdmin: member.isAdmin ?? false,
-                                        onMessage: () {
-                                          MyRouter.push(
-                                              screen: PrivateChatScreen(
-                                                  firstname: member.firstName,
-                                                  convoId: "",
-                                                  profileAvatarUrl:
-                                                      profileAvatarUrl,
-                                                  userName: nameText,
-                                                  lastSeen: "",
-                                                  datumId: member.memberId,
-                                                  grpChat: false,
-                                                  favourite: false));
-                                        },
-                                        onView: () {
-                                          print(member.memberId);
-                                          MyRouter.push(
-                                            screen: UserProfileScreen(
-                                              profileAvatarUrl:
-                                                  profileAvatarUrl,
-                                              userName: nameText,
-                                              mailName:
-                                                  member.memberEmail ?? "",
-                                              lastname: member.lastName,
-                                              conversionalId:
-                                                  member.memberId ?? "",
-                                              grpId: '',
-                                              isGrp: false,
-                                              reciverId: member.memberId ?? "",
-                                              favourite: false,
-                                            ),
-                                          );
-                                        },
-                                        onToggleAdmin: () {
-                                          final updatedIsAdmin =
-                                              !(member.isAdmin ?? false);
+                          return GestureDetector(
+                            onTap: isMe
+                                ? () {}
+                                : () {
+                                    UserActionDialog.show(
+                                      context,
+                                      name: nameText,
+                                      isAdmin: isTargetAdmin,
 
-                                          context.read<MediaBloc>().add(
-                                                MakeAdmin(
-                                                  groupId: widget.groupId,
-                                                  updates: [
-                                                    {
-                                                      "member_id":
-                                                          member.memberId ?? "",
-                                                      "isAdmin": updatedIsAdmin,
-                                                    }
-                                                  ],
-                                                ),
-                                              );
-                                        },
-                                        onRemove: () {
-                                          context.read<MediaBloc>().add(
-                                                RemoveUserFromGroupEvent(
-                                                  groupId: widget.groupId,
-                                                  userId: member.memberId ?? "",
-                                                ),
-                                              );
-                                        },
-                                        onVerify: () =>
-                                            debugPrint("Verify code"),
-                                      );
-                                    },
-                              child: ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: Stack(
-                                  children: [
-                                    CircleAvatar(
-                                      radius: 22,
-                                      backgroundColor: profileAvatarUrl.isEmpty
-                                          ? ColorUtil.getColorFromAlphabet(
-                                              profileAvatar)
-                                          : Colors.transparent,
-                                      backgroundImage:
-                                          profileAvatarUrl.isNotEmpty
-                                              ? NetworkImage(profileAvatarUrl)
-                                              : null,
-                                      child: profileAvatarUrl.isEmpty
-                                          ? Text(
-                                              profileAvatar,
-                                              style: const TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.white,
-                                              ),
-                                            )
-                                          : null,
-                                    ),
-                                    ValueListenableBuilder(
-                                      valueListenable:
-                                          SocketService().userStatusNotifier,
-                                      builder: (context, val, _) {
-                                        final isOnline = SocketService()
-                                            .onlineUsers
-                                            .contains(member.memberId);
-                                        if (!isOnline) {
-                                          return const SizedBox.shrink();
-                                        }
-                                        return Positioned(
-                                          right: 0,
-                                          bottom: 0,
-                                          child: Container(
-                                            width: 12,
-                                            height: 12,
-                                            decoration: BoxDecoration(
-                                              color: Colors.green,
-                                              shape: BoxShape.circle,
-                                              border: Border.all(
-                                                color: Colors.white,
-                                                width: 2,
-                                              ),
-                                            ),
+                                      onMessage: () {
+                                        MyRouter.push(
+                                          screen: PrivateChatScreen(
+                                            firstname: member.firstName,
+                                            convoId: "",
+                                            profileAvatarUrl: profileAvatarUrl,
+                                            userName: nameText,
+                                            lastSeen: "",
+                                            datumId: member.memberId,
+                                            grpChat: false,
+                                            favourite: false,
                                           ),
                                         );
                                       },
-                                    ),
-                                  ],
-                                ),
-                                title: Text(
-                                  i == 0 ? 'You' : nameText,
-                                  style: const TextStyle(
-                                    color: Colors.black,
-                                    fontSize: 16,
+
+                                      onView: () {
+                                        MyRouter.push(
+                                          screen: UserProfileScreen(
+                                            profileAvatarUrl: profileAvatarUrl,
+                                            userName: nameText,
+                                            mailName: member.memberEmail ?? "",
+                                            lastname: member.lastName,
+                                            conversionalId:
+                                                member.memberId ?? "",
+                                            grpId: '',
+                                            isGrp: false,
+                                            reciverId: member.memberId ?? "",
+                                            favourite: false,
+                                          ),
+                                        );
+                                      },
+
+                                      // ✅ SHOW ONLY IF LOGGED USER IS ADMIN & NOT SELF
+                                      onToggleAdmin: canManageMember
+                                          ? () {
+                                              context.read<MediaBloc>().add(
+                                                    MakeAdmin(
+                                                      groupId: widget.groupId,
+                                                      updates: [
+                                                        {
+                                                          "member_id":
+                                                              member.memberId ??
+                                                                  "",
+                                                          "isAdmin":
+                                                              !isTargetAdmin,
+                                                        }
+                                                      ],
+                                                    ),
+                                                  );
+                                            }
+                                          : null,
+
+                                      onRemove: canManageMember
+                                          ? () {
+                                              context.read<MediaBloc>().add(
+                                                    RemoveUserFromGroupEvent(
+                                                      groupId: widget.groupId,
+                                                      userId:
+                                                          member.memberId ?? "",
+                                                    ),
+                                                  );
+                                            }
+                                          : null,
+
+                                      onVerify: () {},
+                                    );
+                                  },
+                            child: ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: Stack(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 25,
+                                    backgroundColor: profileAvatarUrl.isEmpty
+                                        ? ColorUtil.getColorFromAlphabet(
+                                            profileAvatar)
+                                        : Colors.transparent,
+                                    backgroundImage: profileAvatarUrl.isNotEmpty
+                                        ? NetworkImage(profileAvatarUrl)
+                                        : null,
+                                    child: profileAvatarUrl.isEmpty
+                                        ? Text(
+                                            profileAvatar,
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                          )
+                                        : null,
                                   ),
-                                ),
-                                subtitle: Text(
-                                  member.role ?? '',
-                                  style: const TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                                trailing: isAdmin
-                                    ? Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 8, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: Colors.green[700],
-                                          borderRadius:
-                                              BorderRadius.circular(6),
-                                        ),
-                                        child: const Text(
-                                          'Group Admin',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w500,
+                                  ValueListenableBuilder(
+                                    valueListenable:
+                                        SocketService().userStatusNotifier,
+                                    builder: (context, val, _) {
+                                      final isOnline = SocketService()
+                                          .onlineUsers
+                                          .contains(member.memberId);
+                                      if (!isOnline) {
+                                        return const SizedBox.shrink();
+                                      }
+                                      return Positioned(
+                                        right: 0,
+                                        bottom: 0,
+                                        child: Container(
+                                          width: 12,
+                                          height: 12,
+                                          decoration: BoxDecoration(
+                                            color: Colors.green,
+                                            shape: BoxShape.circle,
+                                            border: Border.all(
+                                              color: Colors.white,
+                                              width: 2,
+                                            ),
                                           ),
                                         ),
-                                      )
-                                    : null,
+                                      );
+                                    },
+                                  ),
+                                ],
                               ),
+                              title: Text(
+                                isMe ? 'You' : nameText, // ✅ FIX
+                                style: const TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              subtitle: Text(
+                                member.role ?? '',
+                                style: const TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              trailing: isAdmin
+                                  ? Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green[700],
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Text(
+                                        'Group Admin',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    )
+                                  : null,
                             ),
                           );
-                        }).toList(),
+                        }),
                       ],
                     ),
                   );
@@ -259,24 +293,21 @@ class _GroupContactListState extends State<GroupContactList> {
               GroupActionSheet(
                 onAddToFavorites: () {
                   final updatedFavourite = !contacts.first.isFavourite;
-
                   context.read<MediaBloc>().add(
                         ToggleFavourite(
-                          targetId: widget.groupId ?? "",
+                          targetId: widget.groupId,
                           isFavourite: updatedFavourite,
                           grp: true,
                         ),
                       );
                 },
-                onAddToList: () => debugPrint('List pressed'),
+                onAddToList: () {},
                 onExitGroup: () {
-                  if (widget.groupId != null) {
-                    context.read<MediaBloc>().add(
-                          ExitGroup(grpId: widget.groupId),
-                        );
-                  }
+                  context.read<MediaBloc>().add(
+                        ExitGroup(grpId: widget.groupId),
+                      );
                 },
-                onReportGroup: () => debugPrint('Report pressed'),
+                onReportGroup: () {},
                 isGroupChat: true,
                 fullName: contacts.first.groupName,
                 isFavorite: contacts.first.isFavourite,
@@ -284,7 +315,7 @@ class _GroupContactListState extends State<GroupContactList> {
             ],
           );
         } else {
-          return const SizedBox.shrink();
+          return SizedBox();
         }
       },
     );

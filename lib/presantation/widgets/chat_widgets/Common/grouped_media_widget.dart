@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
-import 'package:nde_email/utils/const/consts.dart';
 
 class GroupedMediaWidget extends StatelessWidget {
   final List<String> mediaUrls;
@@ -28,7 +27,7 @@ class GroupedMediaWidget extends StatelessWidget {
       constraints: BoxConstraints(maxWidth: bubbleWidth),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: SizedBox(),
+        child: _buildLayout(context),
       ),
     );
   }
@@ -105,15 +104,18 @@ class GroupedMediaWidget extends StatelessWidget {
                     children: [
                       _mediaTile(context, 3),
                       if (mediaUrls.length > 4)
-                        Container(
-                          color: Colors.black54,
-                          alignment: Alignment.center,
-                          child: Text(
-                            '+${mediaUrls.length - 4}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
+                        GestureDetector(
+                          onTap: () => onMediaTap?.call(3),
+                          child: Container(
+                            color: Colors.black54,
+                            alignment: Alignment.center,
+                            child: Text(
+                              '+${mediaUrls.length - 4}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
@@ -131,6 +133,8 @@ class GroupedMediaWidget extends StatelessWidget {
   // --------------------------------------------------
 
   Widget _mediaTile(BuildContext context, int index) {
+    if (index >= mediaUrls.length) return const SizedBox.shrink();
+
     final path = mediaUrls[index];
     final isVideo = _isVideo(path);
     final isLocal = path.startsWith('/') || path.startsWith('file://');
@@ -139,24 +143,10 @@ class GroupedMediaWidget extends StatelessWidget {
       onTap: () => onMediaTap?.call(index),
       child: Container(
         decoration: BoxDecoration(
-          border: Border.all(width: 2, color: senderColor),
+          border: Border.all(width: 0.5, color: Colors.white),
         ),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            isVideo
-                ? _buildVideoThumbnail(path)
-                : _buildImage(path, isLocal),
-            if (isVideo)
-              const Center(
-                child: Icon(
-                  Icons.play_circle_fill,
-                  color: Colors.white,
-                  size: 36,
-                ),
-              ),
-          ],
-        ),
+        child:
+            isVideo ? _buildVideoThumbnail(path) : _buildImage(path, isLocal),
       ),
     );
   }
@@ -177,7 +167,10 @@ class GroupedMediaWidget extends StatelessWidget {
       future: VideoThumbUtil.generateFromUrl(videoPath),
       builder: (context, snapshot) {
         if (snapshot.hasData) {
-          return Image.file(snapshot.data!, fit: BoxFit.cover);
+          return Image.file(snapshot.data!,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity);
         }
         return Container(
           color: Colors.black26,
@@ -193,14 +186,16 @@ class GroupedMediaWidget extends StatelessWidget {
         ? Image.file(
             File(imagePath.replaceFirst('file://', '')),
             fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
           )
         : CachedNetworkImage(
             imageUrl: imagePath,
             fit: BoxFit.cover,
-            placeholder: (_, __) =>
-                Container(color: Colors.grey.shade200),
-            errorWidget: (_, __, ___) =>
-                const Icon(Icons.broken_image),
+            width: double.infinity,
+            height: double.infinity,
+            placeholder: (_, __) => Container(color: Colors.grey.shade200),
+            errorWidget: (_, __, ___) => const Icon(Icons.broken_image),
           );
   }
 }

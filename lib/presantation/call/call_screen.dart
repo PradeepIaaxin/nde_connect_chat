@@ -53,6 +53,7 @@ class _CallScreenState extends State<CallScreen> {
       value: _callBloc,
       child: Scaffold(
         appBar: AppBar(
+          
           automaticallyImplyLeading: false,
           title: const Text("Calls"),
           backgroundColor: Colors.transparent,

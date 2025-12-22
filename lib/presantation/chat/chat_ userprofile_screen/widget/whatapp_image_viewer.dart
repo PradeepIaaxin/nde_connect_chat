@@ -254,6 +254,7 @@ class _WhatsAppImageViewerState extends State<WhatsAppImageViewer> {
       backgroundColor: AppColors.bg,
       appBar: AppBar(
         backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

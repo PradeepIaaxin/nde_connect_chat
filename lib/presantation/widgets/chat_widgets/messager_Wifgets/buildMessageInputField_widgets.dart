@@ -79,7 +79,6 @@ class _MessageInputFieldState extends State<MessageInputField> {
     return match?.group(0);
   }
 
-
   @override
   void initState() {
     super.initState();
@@ -175,7 +174,7 @@ class _MessageInputFieldState extends State<MessageInputField> {
                                             color: Colors.grey,
                                             size: 24),
                                       )
-                                    : SizedBox(),
+                                    : const SizedBox(),
                                 const SizedBox(width: 4),
                               ],
                             ),
@@ -242,7 +241,7 @@ class _MessageInputFieldState extends State<MessageInputField> {
     final String? imageUrl = widget.replyText?['imageUrl'];
     final String? fileName = widget.replyText?['fileName'];
     final String? fileType = widget.replyText?['fileType'];
-    final String userName = widget.replyText?['userName'] ?? '';
+    // final String userName = widget.replyText?['userName'] ?? '';
     final String? originalUrl = widget.replyText?['originalUrl'];
       final String imageCount = widget.replyText?["imageCount"]?.toString()??"";
             final String videoCount = widget.replyText?["videoCount"]?.toString()??"";
@@ -370,8 +369,6 @@ Widget _buildVideoThumb(String videoPathOrUrl) {
     // ---------- build trailing thumbnail (image / video) ----------
     Widget? trailingThumb;
 
-    // ---------- build trailing thumbnail (image / video) ----------
-
     const double thumbSize = 70;
 if (!isGroupedMedia) {
   if (isVideoReply && originalUrl != null) {
@@ -402,7 +399,7 @@ if (!isGroupedMedia) {
               );
             }
 
-            if (thumbFile != null && thumbFile.existsSync()) {
+            if (thumbFile.existsSync()) {
               return Stack(
                 alignment: Alignment.center,
                 children: [
@@ -440,42 +437,31 @@ if (!isGroupedMedia) {
       trailingThumb = ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: imageUrl.startsWith('/')
-  ? Image.file(
-      File(imageUrl),
-      width: thumbSize,
-      height: thumbSize,
-      fit: BoxFit.cover,
-    )
-  : Image.network(
-      imageUrl,
-      width: thumbSize,
-      height: thumbSize,
-      fit: BoxFit.cover,
-    )
+            ? Image.file(
+                File(imageUrl),
+                width: thumbSize,
+                height: thumbSize,
+                fit: BoxFit.cover,
+              )
+            : Image.network(
+                imageUrl,
+                width: thumbSize,
+                height: thumbSize,
+                fit: BoxFit.cover,
+              ),
       );
     }
 
     return Container(
       decoration: BoxDecoration(
         color: Colors.grey.shade200,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(25),
-          topRight: Radius.circular(25),
-        ),
+        borderRadius: BorderRadius.circular(10),
+        border: Border(left: BorderSide(color: Colors.blueAccent, width: 5)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // vertical strip
-          Container(
-            width: 3,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppColors.primaryButton,
-              borderRadius: BorderRadius.circular(3),
-            ),
-          ),
           const SizedBox(width: 8),
 
           // text info
@@ -515,22 +501,22 @@ if (!isGroupedMedia) {
   ),
 
                 if (content.isNotEmpty)
-                  Flexible(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.only(right: 8.0),
-                            child: Text(
-                              content,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                  color: Colors.black, fontSize: 12),
-                            ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          content,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.black,
+                            fontSize: 12,
                           ),
                         ),
+                      ),
+                      const SizedBox(width: 8),
+                      if (trailingThumb == null)
                         InkWell(
                           onTap: widget.onCancelReply,
                           child: Container(
@@ -545,9 +531,8 @@ if (!isGroupedMedia) {
                               color: Colors.black87,
                             ),
                           ),
-                        )
-                      ],
-                    ),
+                        ),
+                    ],
                   ),
               ],
             ),

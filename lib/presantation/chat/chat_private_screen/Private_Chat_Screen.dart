@@ -14,11 +14,7 @@ import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/bui
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/show_Bottom_Sheet.dart';
 import 'package:nde_email/utils/imports/common_imports.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
-import 'package:video_player/video_player.dart';
-
-import '../../widgets/chat_widgets/Common/group_image_ui.dart';
 import '../../widgets/chat_widgets/Common/grouped_media_viewer.dart';
-import '../chat_group_Screen/group_media_viewer.dart';
 import '../chat_list/chat_session_storage/chat_session.dart';
 import 'messager_Bloc/MessagerEvent.dart';
 import 'messager_Bloc/MessagerState.dart';

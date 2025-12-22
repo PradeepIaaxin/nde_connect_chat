@@ -178,6 +178,8 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
       ],
       child: Scaffold(
         appBar: AppBar(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
           title: Text(selectedUsers.isEmpty
               ? "Forward to..."
               : "${selectedUsers.length} selected"),
@@ -186,7 +188,7 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
         body: BlocBuilder<ChatListBloc, ChatListState>(
           builder: (context, chatState) {
             if (chatState is ChatListLoaded) {
-           //   ChatSessionStorage.saveChatList(chatState.chats);
+              //   ChatSessionStorage.saveChatList(chatState.chats);
               frequentlyContactedChats = ChatSessionStorage.getChatList();
             }
 
