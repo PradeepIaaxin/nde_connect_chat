@@ -356,15 +356,6 @@ class _MessageInputFieldState extends State<MessageInputField> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // vertical strip
-          Container(
-            width: 3,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppColors.primaryButton,
-              borderRadius: BorderRadius.circular(3),
-            ),
-          ),
           const SizedBox(width: 8),
 
           // text info
