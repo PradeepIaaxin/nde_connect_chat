@@ -25,7 +25,7 @@ class MessageStatusIcon extends StatelessWidget {
         return Icon(Icons.access_time, size: 14); // clock
 
       case 'sent':
-        return Icon(Icons.check, size: 14,color: Colors.black,);       // single tick (grey)
+        return Icon(Icons.check, size: 14,color: Colors.white,);       // single tick (grey)
       case 'delivered':
         return Icon(
           Icons.done_all,
