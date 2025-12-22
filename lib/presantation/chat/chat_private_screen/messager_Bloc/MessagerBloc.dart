@@ -369,7 +369,7 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
         onProgress: (p) => emit(UploadInProgress(p)),
         onSuccess: (data) async {
           emit(UploadSuccess(data));
-print("datasssss $data");
+log("datasssss $data");
           String? workspaceID = await UserPreferences.getDefaultWorkspace();
           final roomId =
               socketService.generateRoomId(event.senderId, event.receiverId);
@@ -380,27 +380,48 @@ print("iiiiiiiiiiiiiiii${data["ContentType"]}");
 log("groupMesageIdss ${event.isGroupMessage}");
 log("isGroupMessage ${event.groupMesageId}");
 
-          socketService.sendMessage(
-            isGroupMessage: event.isGroupMessage,
-            groupMessageId: event.groupMesageId,
-            messageId: event.messageId.toString(),
-            conversationId: event.convoId,
-            senderId: event.senderId,
-            receiverId: event.receiverId,
-            message: event.message,
-            roomId: roomId,
-            workspaceId: workspaceID!,
-            isGroupChat: false,
-            contentType: data["ContentType"],
-            mimeType: data["mimetype"],
-            fileWithText: data["file_with_text"] != "",
-            fileName: data["fileName"] ?? "",
-            size: data["size"] ?? 0,
-            thumbnailKey: data["thumbnail_key"] ?? "",
-            thumbnailUrl: data["thumbnailUrl"] ?? "",
-            originalKey: data["originalKey"] ?? "",
-            originalUrl: data["originalUrl"] ?? "",
-          );
+         socketService.sendMessage(
+  isGroupMessage: event.isGroupMessage,
+  groupMessageId: event.groupMesageId,
+  messageId: event.messageId.toString(), // tempId
+  conversationId: event.convoId,
+  senderId: event.senderId,
+  receiverId: event.receiverId,
+  message: event.message,
+  roomId: roomId,
+  workspaceId: workspaceID!,
+  isGroupChat: false,
+  contentType: data["ContentType"],
+  mimeType: data["mimetype"],
+  fileWithText: data["file_with_text"] != "",
+  fileName: data["fileName"] ?? "",
+  size: data["size"] ?? 0,
+  thumbnailKey: data["thumbnail_key"] ?? "",
+  thumbnailUrl: data["thumbnailUrl"] ?? "",
+  originalKey: data["originalKey"] ?? "",
+  originalUrl: data["originalUrl"] ?? "",
+
+  // 🔥🔥 ADD THIS 🔥🔥
+ ackCallback: (ack) {
+  final tempId = ack['tempId'] ?? ack['messageId'];
+  final realId =
+      ack['realId'] ??
+      ack['data']?['messageId'] ??
+      ack['message_id'];
+
+  if (tempId == null || realId == null) return;
+
+  emit(
+    MessageAckReceived(
+      tempId: tempId.toString(),
+      realId: realId.toString(),
+      status: 'sent',
+    ),
+  );
+},
+
+);
+
         },
         onError: (err) => emit(UploadFailure(err)),
       );
