@@ -651,7 +651,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
           ],
           bottom: PreferredSize(
             preferredSize: Size.fromHeight(
-              (_showAdBanner ? 80 : 0) + (!_hasInternet ? 70 : 0) + 56,
+              (_showAdBanner ? 99 : 0) + (!_hasInternet ? 70 : 0) + 56,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
