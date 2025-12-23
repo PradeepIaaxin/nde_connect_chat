@@ -29,7 +29,7 @@ class MessagerApiService {
     final token = await UserPreferences.getAccessToken();
     final workspace = await UserPreferences.getDefaultWorkspace();
 
-    const baseUrl = "https://945067be4009.ngrok-free.app/v1/messages";
+    const baseUrl = 'https://api.nowdigitaleasy.com/wschat/v1/messages';
 
     final uri = Uri.parse(baseUrl).replace(queryParameters: {
       "convoId": convoId,
