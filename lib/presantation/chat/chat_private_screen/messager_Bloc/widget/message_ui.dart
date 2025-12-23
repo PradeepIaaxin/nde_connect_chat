@@ -17,6 +17,8 @@ import 'package:nde_email/utils/router/router.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:linkify/linkify.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:video_player/video_player.dart';
+import 'package:video_thumbnail/video_thumbnail.dart';
 import '../../../widget/image_viewer.dart';
 import 'VideoCacheService.dart';
 import 'VideoPlayerScreen.dart';
@@ -1335,7 +1337,7 @@ void _openConversationViewer(BuildContext context, String tappedUrl) {
       final seconds =
           duration.inSeconds.remainder(60).toString().padLeft(2, '0');
 
-      return '$minutes:$seconds';
+      return '$minutes:$seconds'; 
     } catch (e) {
       return "00:00";
     } finally {
