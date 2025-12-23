@@ -2,15 +2,17 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:developer';
 import 'package:http/http.dart' as http;
+import 'package:nde_email/bridge_generated.dart/api.dart';
 import 'package:nde_email/data/respiratory.dart';
 import 'package:nde_email/presantation/chat/chat_list/chat_session_storage/chat_session.dart';
 import 'package:nde_email/presantation/login/login_screen.dart';
-import 'package:nde_email/rust/api.dart/api.dart';
+
 import 'package:nde_email/utils/router/router.dart';
 import 'chat_response_model.dart';
 
 class ChatListApiService {
-  final String baseUrl = 'https://api.nowdigitaleasy.com/wschat/v1/chats';
+  final String baseUrl = "https://945067be4009.ngrok-free.app/v1/chats";
+  //'https://api.nowdigitaleasy.com/wschat/v1/chats';
   List<Datu> _lastData = [];
   final StreamController<List<Datu>> _chatStreamController =
       StreamController<List<Datu>>.broadcast();
@@ -130,67 +132,144 @@ class ChatListApiService {
   }
 
   Future<List<Datu>> fetchChats({
-    required int page,
-    required int limit,
-    String? filter,
-  }) async {
-    final accessToken = await UserPreferences.getAccessToken();
-    final workspace = await UserPreferences.getDefaultWorkspace();
+  required int page,
+  required int limit,
+  String? filter,
+}) async {
+  final accessToken = await UserPreferences.getAccessToken();
+  final workspace = await UserPreferences.getDefaultWorkspace();
 
-    if (accessToken == null || workspace == null) {
-      throw Exception("User authentication missing");
-    }
-
-    Map<String, String> queryParams = {
-      'page': page.toString(),
-      'limit': limit.toString(),
-    };
-
-    if (filter != null && filter.isNotEmpty && filter.toLowerCase() != "all") {
-      queryParams['filter'] = filter.toLowerCase();
-    }
-
-    final uri = Uri.parse(baseUrl).replace(queryParameters: queryParams);
-
-    final headers = {
-      'Authorization': 'Bearer $accessToken',
-      'x-workspace': workspace,
-      'Content-Type': 'application/json',
-    };
-
-    final response = await http.get(uri, headers: headers);
-
-    if (response.statusCode == 200) {
-      final jsonData = jsonDecode(response.body);
-
-      // NEW: Check for Loro snapshot
-      if (jsonData["snapshot"] != null) {
-        final snapshotBase64 = jsonData["snapshot"];
-        log("📥 Received Loro Snapshot. Decoding using Rust...");
-
-        final chats = await decodeChatsFromLoro(snapshotBase64);
-        ChatSessionStorage.clear();
-        ChatSessionStorage.saveChatList(chats);
-        log("📦 Chat count after fetch: ${ChatSessionStorage.getChatList().length}");
-
-        return chats;
-      }
-
-      // BACKUP: If normal JSON array is sent instead of snapshot
-      final List<dynamic> chatJson = jsonData["data"] ?? [];
-      final chats = chatJson.map((e) => Datu.fromJson(e)).toList();
-
-      return chats;
-    } else if (response.statusCode == 401) {
-      final refreshed = await _onRefreshToken();
-      if (refreshed) {
-        return fetchChats(page: page, limit: limit, filter: filter);
-      }
-      throw Exception("Authentication failed");
-    } else {
-      throw Exception("Failed to fetch chats");
-    }
+  if (accessToken == null || workspace == null) {
+    throw Exception("User authentication missing");
   }
+
+  final Map<String, String> queryParams = {
+    'page': page.toString(),
+    'limit': limit.toString(),
+  };
+
+  if (filter != null && filter.isNotEmpty && filter.toLowerCase() != "all") {
+    queryParams['filter'] = filter.toLowerCase();
+  }
+
+  final uri = Uri.parse(baseUrl).replace(queryParameters: queryParams);
+
+  final headers = {
+    'Authorization': 'Bearer $accessToken',
+    'x-workspace': workspace,
+    'Content-Type': 'application/json',
+  };
+
+  final response = await http.get(uri, headers: headers);
+
+  if (response.statusCode == 200) {
+    final jsonData = jsonDecode(response.body);
+
+    // ===================== LORO SNAPSHOT FLOW =====================
+    if (jsonData["snapshot"] != null) {
+      final snapshotBase64 = jsonData["snapshot"];
+      log("📥 Received Loro Snapshot. Decoding using Rust...");
+
+      // 🔥 VERY IMPORTANT: reset Rust global doc first
+      await resetGlobalDoc();
+
+      final chats = await decodeChatsFromLoro(snapshotBase64);
+
+      // ⚠️ SAFETY: don't clear existing chats if snapshot is empty
+      if (chats.isEmpty) {
+        log("⚠️ Snapshot decoded but chat list is empty. Keeping existing chats.");
+        return ChatSessionStorage.getChatList();
+      }
+
+      ChatSessionStorage.clear();
+      ChatSessionStorage.saveChatList(chats);
+
+      log("📦 Chat count after fetch: ${chats.length}");
+      return chats;
+    }
+
+    // ===================== BACKUP NORMAL JSON FLOW =====================
+    final List<dynamic> chatJson = jsonData["data"] ?? [];
+    final chats = chatJson.map((e) => Datu.fromJson(e)).toList();
+
+    return chats;
+  }
+
+  // ===================== TOKEN REFRESH =====================
+  if (response.statusCode == 401) {
+    final refreshed = await _onRefreshToken();
+    if (refreshed) {
+      return fetchChats(page: page, limit: limit, filter: filter);
+    }
+    throw Exception("Authentication failed");
+  }
+
+  throw Exception("Failed to fetch chats");
+}
+
+
+  // Future<List<Datu>> fetchChats({
+  //   required int page,
+  //   required int limit,
+  //   String? filter,
+  // }) async {
+  //   final accessToken = await UserPreferences.getAccessToken();
+  //   final workspace = await UserPreferences.getDefaultWorkspace();
+
+  //   if (accessToken == null || workspace == null) {
+  //     throw Exception("User authentication missing");
+  //   }
+
+  //   Map<String, String> queryParams = {
+  //     'page': page.toString(),
+  //     'limit': limit.toString(),
+  //   };
+
+  //   if (filter != null && filter.isNotEmpty && filter.toLowerCase() != "all") {
+  //     queryParams['filter'] = filter.toLowerCase();
+  //   }
+
+  //   final uri = Uri.parse(baseUrl).replace(queryParameters: queryParams);
+
+  //   final headers = {
+  //     'Authorization': 'Bearer $accessToken',
+  //     'x-workspace': workspace,
+  //     'Content-Type': 'application/json',
+  //   };
+
+  //   final response = await http.get(uri, headers: headers);
+
+  //   if (response.statusCode == 200) {
+  //     final jsonData = jsonDecode(response.body);
+
+  //     // NEW: Check for Loro snapshot
+  //     if (jsonData["snapshot"] != null) {
+  //       final snapshotBase64 = jsonData["snapshot"];
+  //       log("📥 Received Loro Snapshot. Decoding using Rust...");
+
+  //       final chats = await decodeChatsFromLoro(snapshotBase64);
+  //       ChatSessionStorage.clear();
+  //       ChatSessionStorage.saveChatList(chats);
+  //       log("📦 Chat count after fetch: ${ChatSessionStorage.getChatList().length}");
+
+  //       return chats;
+  //     }
+
+  //     // BACKUP: If normal JSON array is sent instead of snapshot
+  //     final List<dynamic> chatJson = jsonData["data"] ?? [];
+  //     final chats = chatJson.map((e) => Datu.fromJson(e)).toList();
+
+  //     return chats;
+  //   } else if (response.statusCode == 401) {
+  //     final refreshed = await _onRefreshToken();
+  //     if (refreshed) {
+  //       return fetchChats(page: page, limit: limit, filter: filter);
+  //     }
+  //     throw Exception("Authentication failed");
+  //   } else {
+  //     throw Exception("Failed to fetch chats");
+  //   }
+  // }
 
   void dispose() {
     _chatRefreshTimer?.cancel();
