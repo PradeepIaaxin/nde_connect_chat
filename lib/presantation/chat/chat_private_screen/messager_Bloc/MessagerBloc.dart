@@ -216,19 +216,30 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
 
       // -------- PAGE 1: REPLACE --------
       if (event.page == 1) {
+        final serverJsonList = newFlat.map((e) => e.toJson()).toList();
+
+        // Merge local reactions
+        final mergedJsonList = _mergeLocalReactionsIntoServerJson(
+          convoId: event.convoId,
+          serverJsonList: serverJsonList,
+        );
+
+        final mergedFlat =
+            mergedJsonList.map((j) => Datum.fromJson(j)).toList();
+
         await LocalChatStorage.saveMessages(
           event.convoId,
-          newFlat.map((e) => e.toJson()).toList(),
+          mergedJsonList,
         );
 
         emit(
           MessagerLoaded(
             MessageListResponse(
-              data: _convertFlatToGroups(newFlat),
-              total: newFlat.length,
+              data: _convertFlatToGroups(mergedFlat),
+              total: mergedFlat.length,
               page: 1,
               limit: event.limit,
-              hasNextPage: newFlat.length == event.limit,
+              hasNextPage: newFlat.length >= event.limit,
               hasPreviousPage: false,
               onlineParticipants: [],
             ),
@@ -237,7 +248,7 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
         return;
       }
 
-      // -------- PAGINATION --------
+      // -------- PAGINATION (page > 1) --------
       final current = state;
       if (current is MessagerLoaded) {
         final oldFlat =
@@ -246,21 +257,33 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
         final ids = oldFlat.map((m) => m.id).toSet();
         final unique = newFlat.where((m) => !ids.contains(m.id)).toList();
 
-        final combined = [...oldFlat, ...unique];
+        // Prepend older messages for Oldest -> Newest list
+        final combinedFlat = [...unique, ...oldFlat];
+
+        final combinedJsonList = combinedFlat.map((e) => e.toJson()).toList();
+
+        // Merge local reactions for the combined list
+        final mergedJsonList = _mergeLocalReactionsIntoServerJson(
+          convoId: event.convoId,
+          serverJsonList: combinedJsonList,
+        );
+
+        final mergedFlat =
+            mergedJsonList.map((j) => Datum.fromJson(j)).toList();
 
         await LocalChatStorage.saveMessages(
           event.convoId,
-          combined.map((e) => e.toJson()).toList(),
+          mergedJsonList,
         );
 
         emit(
           MessagerLoaded(
             MessageListResponse(
-              data: _convertFlatToGroups(combined),
-              total: combined.length,
+              data: _convertFlatToGroups(mergedFlat),
+              total: mergedFlat.length,
               page: event.page,
               limit: event.limit,
-              hasNextPage: unique.length == event.limit,
+              hasNextPage: unique.length >= event.limit,
               hasPreviousPage: true,
               onlineParticipants: current.response.onlineParticipants,
             ),
@@ -481,48 +504,45 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
           log("groupMesageIdss ${event.isGroupMessage}");
           log("isGroupMessage ${event.groupMesageId}");
 
-         socketService.sendMessage(
-  isGroupMessage: event.isGroupMessage,
-  groupMessageId: event.groupMesageId,
-  messageId: event.messageId.toString(), // tempId
-  conversationId: event.convoId,
-  senderId: event.senderId,
-  receiverId: event.receiverId,
-  message: event.message,
-  roomId: roomId,
-  workspaceId: workspaceID!,
-  isGroupChat: false,
-  contentType: data["ContentType"],
-  mimeType: data["mimetype"],
-  fileWithText: data["file_with_text"] != "",
-  fileName: data["fileName"] ?? "",
-  size: data["size"] ?? 0,
-  thumbnailKey: data["thumbnail_key"] ?? "",
-  thumbnailUrl: data["thumbnailUrl"] ?? "",
-  originalKey: data["originalKey"] ?? "",
-  originalUrl: data["originalUrl"] ?? "",
+          socketService.sendMessage(
+            isGroupMessage: event.isGroupMessage,
+            groupMessageId: event.groupMesageId,
+            messageId: event.messageId.toString(), // tempId
+            conversationId: event.convoId,
+            senderId: event.senderId,
+            receiverId: event.receiverId,
+            message: event.message,
+            roomId: roomId,
+            workspaceId: workspaceID!,
+            isGroupChat: false,
+            contentType: data["ContentType"],
+            mimeType: data["mimetype"],
+            fileWithText: data["file_with_text"] != "",
+            fileName: data["fileName"] ?? "",
+            size: data["size"] ?? 0,
+            thumbnailKey: data["thumbnail_key"] ?? "",
+            thumbnailUrl: data["thumbnailUrl"] ?? "",
+            originalKey: data["originalKey"] ?? "",
+            originalUrl: data["originalUrl"] ?? "",
 
-  // 🔥🔥 ADD THIS 🔥🔥
- ackCallback: (ack) {
-  final tempId = ack['tempId'] ?? ack['messageId'];
-  final realId =
-      ack['realId'] ??
-      ack['data']?['messageId'] ??
-      ack['message_id'];
+            // 🔥🔥 ADD THIS 🔥🔥
+            ackCallback: (ack) {
+              final tempId = ack['tempId'] ?? ack['messageId'];
+              final realId = ack['realId'] ??
+                  ack['data']?['messageId'] ??
+                  ack['message_id'];
 
-  if (tempId == null || realId == null) return;
+              if (tempId == null || realId == null) return;
 
-  emit(
-    MessageAckReceived(
-      tempId: tempId.toString(),
-      realId: realId.toString(),
-      status: 'sent',
-    ),
-  );
-},
-
-);
-
+              emit(
+                MessageAckReceived(
+                  tempId: tempId.toString(),
+                  realId: realId.toString(),
+                  status: 'sent',
+                ),
+              );
+            },
+          );
         },
         onError: (err) => emit(UploadFailure(err)),
       );

@@ -11,8 +11,9 @@ import 'package:nde_email/utils/router/router.dart';
 import 'chat_response_model.dart';
 
 class ChatListApiService {
-  final String baseUrl = "https://945067be4009.ngrok-free.app/v1/chats";
-  //'https://api.nowdigitaleasy.com/wschat/v1/chats';
+  final String baseUrl =
+  // "https://945067be4009.ngrok-free.app/v1/chats";
+  'https://api.nowdigitaleasy.com/wschat/v1/chats';
   List<Datu> _lastData = [];
   final StreamController<List<Datu>> _chatStreamController =
       StreamController<List<Datu>>.broadcast();
