@@ -170,9 +170,8 @@ class SocketService {
     _socketCreationCount++;
     _slog('🔄 Socket creation attempt #$_socketCreationCount');
     _slog('📊 Previous socket ID: $_lastSocketId');
-    const String socketUrl =
-        //'https://api.nowdigitaleasy.com/wschat';
-        "https://945067be4009.ngrok-free.app/wschat";
+    const String socketUrl = 'https://api.nowdigitaleasy.com/wschat';
+    //"https://945067be4009.ngrok-free.app/wschat";
 
     // clean old socket
     try {
@@ -184,7 +183,7 @@ class SocketService {
       socketUrl,
       IO.OptionBuilder()
           // /wschat
-          .setPath('/socket.io')
+          .setPath('/wschat/socket.io')
           .setQuery({
             'token': 'Bearer $token',
             'userId': clientId,
@@ -1346,7 +1345,6 @@ class SocketService {
         },
     };
     log("groupMessageId in socket $groupMessageId");
-  
 
     socket!.emitWithAck('send_message', messagePayload, ack: (data) {
       try {

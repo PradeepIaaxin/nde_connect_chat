@@ -21,6 +21,7 @@ import 'messager_Bloc/MessagerState.dart';
 import 'messager_Bloc/widget/MixedMediaViewer.dart';
 import 'messager_Bloc/widget/VideoPlayerScreen.dart';
 import 'messager_Bloc/widget/VideoThumbUtil.dart';
+import 'package:nde_email/presantation/widgets/chat_widgets/Common/whatsapp_swipe_to_reply.dart';
 
 class PrivateChatScreen extends StatefulWidget {
   final String convoId;
@@ -103,8 +104,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   bool isSentByMe = false;
   // Pagination / client-side windowing
   int _currentPage = 1;
-  final int _initialLimit = 10;
-  final int _pageSize = 5;
+  final int _initialLimit = 40;
+  final int _pageSize = 40;
 
   bool _isLoadingMore = false;
   bool _hasNextPage = false;
@@ -128,9 +129,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   /// How many from the **end** we are currently showing
   int _visibleCount = 0;
 
-  /// Show +5 older messages each time user scrolls to top
-  final int _pageStep = 5;
-  final int _initialVisible = 10;
+  /// Show +40 older messages each time user scrolls to top
+  final int _pageStep = 40;
+  final int _initialVisible = 40;
 
   // Media
   File? _imageFile;
@@ -204,7 +205,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
   // ------------------ Initialization ------------------
   Future<void> _initializeChat() async {
-  //  log("Initializing chat for convoId: ${widget.convoId}");
+    //  log("Initializing chat for convoId: ${widget.convoId}");
     socketMessages.clear();
     messages.clear();
     dbMessages.clear();
@@ -367,7 +368,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         .where((id) => id.trim().isNotEmpty && !_alreadyRead.contains(id))
         .toList();
 
-  //  log("🟢 idsToSend after _alreadyRead filter: $idsToSend");
+    //  log("🟢 idsToSend after _alreadyRead filter: $idsToSend");
 
     if (idsToSend.isEmpty) return;
 
@@ -387,14 +388,26 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   void _updateNotifierFromAll() {
     final total = _allMessages.length;
     final count = _visibleCount.clamp(0, total);
+
+    // _allMessages is Old -> New.
+    // We want the *last* `count` messages (the newest ones).
+    // Start index = total - count.
     final startIndex = total - count;
+    debugPrint(
+        '📊 _updateNotifierFromAll: total=$total, count=$count, startIndex=$startIndex');
 
     final visibleSlice = (count == 0)
         ? <Map<String, dynamic>>[]
         : _allMessages.sublist(startIndex, total);
 
-    _messagesNotifier.value =
-        List<Map<String, dynamic>>.unmodifiable(visibleSlice);
+    debugPrint('   - visibleSlice length: ${visibleSlice.length}');
+
+    // List passed to ListView (reverse: true).
+    // The list itself is [OldestSlice, ..., NewestSlice].
+    // ListView index 0 (bottom) will be the last item of this list.
+    // This matches GroupChatScreen logic.
+
+    _messagesNotifier.value = List<Map<String, dynamic>>.from(visibleSlice);
   }
 
   void _handleIncomingRawMessage(Map<String, dynamic> raw, {String? event}) {
@@ -405,7 +418,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     if (rawConvoId != null &&
         rawConvoId.isNotEmpty &&
         rawConvoId != widget.convoId) {
-     // log('🚫 Ignoring message for convo=$rawConvoId (this screen=${widget.convoId})');
+      // log('🚫 Ignoring message for convo=$rawConvoId (this screen=${widget.convoId})');
       return;
     }
 
@@ -418,7 +431,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       if (event == 'forward_message' && msgId.isNotEmpty) {
         _replaceLocalForwardIdWithRealId(msgId, normalized);
       }
-    //  log('Echo of my own message ignored: $msgId');
+      //  log('Echo of my own message ignored: $msgId');
       return;
     }
 
@@ -426,7 +439,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         !msgId.startsWith('temp_') &&
         !msgId.startsWith('forward_') &&
         _seenMessageIds.contains(msgId)) {
-     // log('Duplicate incoming message blocked: $msgId');
+      // log('Duplicate incoming message blocked: $msgId');
       return;
     }
 
@@ -439,7 +452,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     );
 
     if (alreadyInList) {
-     // log('Message already exists in local lists: $msgId');
+      // log('Message already exists in local lists: $msgId');
       return;
     }
 
@@ -900,17 +913,26 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     });
   }
 
-  void _updateNotifier() {
+  void _updateNotifier({bool isInitialLoad = false}) {
     final full = _getCombinedMessages();
+    final oldTotal = _allMessages.length;
 
     _allMessages
       ..clear()
       ..addAll(full);
 
-    if (_visibleCount == 0) {
-      final total = _allMessages.length;
-      _visibleCount =
-          total >= _initialVisible ? _initialVisible : total; // last 10 or less
+    final newTotal = _allMessages.length;
+
+    if (isInitialLoad || _visibleCount == 0) {
+      _visibleCount = newTotal >= _initialVisible ? _initialVisible : newTotal;
+    } else {
+      // If messages were added (sent/received/paginated), increase visibleCount
+      final diff = newTotal - oldTotal;
+      if (diff > 0) {
+        _visibleCount += diff;
+      }
+      // Ensure it doesn't exceed total
+      if (_visibleCount > newTotal) _visibleCount = newTotal;
     }
 
     _updateNotifierFromAll();
@@ -1213,7 +1235,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
 
     if (fetchIfMissing) {
-      await _loadMoreMessages();
+      _triggerServerFetch();
       await Future.delayed(const Duration(milliseconds: 150));
       return _scrollToMessageById(messageId);
     }
@@ -1827,8 +1849,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       socketService.generateRoomId(currentUserId, widget.datumId ?? '');
 
   void _sendReadReceipts(List<String> messageIds) {
-   
-   //log("🟢 _sendReadReceipts called with: $messageIds");
+    //log("🟢 _sendReadReceipts called with: $messageIds");
 
     // helper: try to find message locally by id
     Map<String, dynamic>? _findLocalMessageById(String id) {
@@ -1893,7 +1914,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           : null;
 
       if (senderId != null && senderId != currentUserId) {
-       // log("🔵 Locally marking message as read: $id");
+        // log("🔵 Locally marking message as read: $id");
         _updateMessageStatus(id, 'read', localMark: true);
       } else {
         log("ℹ️ Not locally marking (not found or message is mine): $id");
@@ -1930,48 +1951,71 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   void _scrollListener() {
     if (!_scrollController.hasClients) return;
 
-    // if scrolled near the top, try to load older messages
-    if (_scrollController.position.pixels <=
-        _scrollController.position.minScrollExtent + 50) {
+    // In a REVERSED list:
+    // pixels = 0 is BOTTOM (newest)
+    // pixels = maxScrollExtent is TOP (oldest)
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 100) {
       final total = _allMessages.length;
+
+      log('🔍 Scroll at top - total: $total, visible: $_visibleCount, hasNextPage: $_hasNextPage, isLoading: $_isLoadingMore');
+
+      // 1. Client-side pagination: Show more from local cache
       if (_visibleCount < total && !_isLoadingMore) {
         setState(() {
           _isLoadingMore = true;
         });
 
-        // increase visible window locally first for snappier UI
+        // Increase visible window locally first for snappier UI
         Future.delayed(const Duration(milliseconds: 300), () {
           if (!mounted) return;
 
+          final newVisibleCount = (_visibleCount + _pageStep).clamp(0, total);
+
           setState(() {
-            _visibleCount = (_visibleCount + _pageStep).clamp(0, total);
+            _visibleCount = newVisibleCount;
             _isLoadingMore = false;
           });
 
           _updateNotifierFromAll();
+          log('📜 Client Pagination: Loaded more messages. Now showing $_visibleCount of $total (local cache)');
+
+          // ✅ AUTO-FETCH: If we just showed ALL local messages AND there's more on server
+          if (_visibleCount >= total && _hasNextPage) {
+            log('🔄 Auto-triggering server fetch after client pagination');
+            Future.delayed(const Duration(milliseconds: 200), () {
+              if (!mounted || _isLoadingMore) return;
+              _triggerServerFetch();
+            });
+          }
         });
-      } else {
-        // if we already show all from local cache but there is a next page on server, fetch it
-        if (!_isLoadingMore && _hasNextPage) {
-          _loadMoreMessages();
-        }
+      }
+      // 2. Server-side pagination: User scrolled with all local messages already shown
+      else if (_visibleCount >= total && _hasNextPage && !_isLoadingMore) {
+        _triggerServerFetch();
       }
     }
   }
 
-  _loadMoreMessages() {
-    if (!_hasNextPage || _isLoadingMore) return;
-
-    setState(() => _isLoadingMore = true);
-
-    // increment page BEFORE fetching so bloc receives new page number
-    _currentPage++;
-
-    // small delay to avoid calling too rapidly while scrolling
-    Future.delayed(const Duration(milliseconds: 150), () {
-      if (!mounted) return;
-      _fetchMessages();
+  void _triggerServerFetch() {
+    if (_isLoadingMore || !_hasNextPage) return;
+    setState(() {
+      _isLoadingMore = true;
     });
+
+    _currentPage++;
+    log('📡 Server Pagination: Fetching page $_currentPage from server... (hasNextPage: $_hasNextPage)');
+
+    // Save current max scroll extent to maintain position after load
+    _prevScrollExtentBeforeLoad = _scrollController.position.maxScrollExtent;
+
+    _messagerBloc.add(
+      FetchMessagesEvent(
+        convoId: widget.convoId,
+        page: _currentPage,
+        limit: _initialLimit,
+      ),
+    );
   }
 
   List<Map<String, dynamic>> _inferGrouping(
@@ -2077,7 +2121,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   Widget _buildMessageBubble(
       Map<String, dynamic> message, bool isSentByMe, bool isReply,
       {int? length}) {
-    
     return MessageBubble(
       message: message,
       isSentByMe: isSentByMe,
@@ -3326,7 +3369,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       roomId: computedRoomId,
     );
 
- //   log("✅ initial read receipts emitted: $unread (roomId=$computedRoomId)");
+    //   log("✅ initial read receipts emitted: $unread (roomId=$computedRoomId)");
   }
 
   void _scrollToBottom({int maxRetries = 6}) {
@@ -3345,26 +3388,23 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         try {
           if (!_scrollController.hasClients) break;
 
-          final maxScroll = _scrollController.position.maxScrollExtent;
-          // if already at bottom, no need to animate
-          final isAtBottom = (_scrollController.offset - maxScroll).abs() < 1.0;
+          const targetScroll = 0.0;
+          // if already at bottom (0.0), no need to animate
+          final isAtBottom =
+              (_scrollController.offset - targetScroll).abs() < 1.0;
           if (isAtBottom) return;
 
           // Try animate first -,@message_ui.dart- smoother
           await _scrollController.animateTo(
-            maxScroll,
+            targetScroll,
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeInOut,
           );
 
           // If after animate still not at bottom, try jumpTo as a fallback
           if (_scrollController.hasClients &&
-              (_scrollController.offset -
-                          _scrollController.position.maxScrollExtent)
-                      .abs() >
-                  1.0) {
-            _scrollController
-                .jumpTo(_scrollController.position.maxScrollExtent);
+              (_scrollController.offset - targetScroll).abs() > 1.0) {
+            _scrollController.jumpTo(targetScroll);
           }
 
           return;
@@ -3379,7 +3419,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       await Future.delayed(const Duration(milliseconds: 120));
       if (_scrollController.hasClients) {
         try {
-          _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+          _scrollController.jumpTo(0.0);
         } catch (_) {}
       }
     });
@@ -3688,7 +3728,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                 }
 
                 // 6) Rebuild combined list & notify UI
-                _updateNotifier();
+                _updateNotifier(isInitialLoad: _currentPage == 1);
                 _scheduleSaveMessages();
 
                 if (_currentPage == 1) {
@@ -3748,64 +3788,48 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                               key: const ValueKey('top_loader'),
                               padding:
                                   const EdgeInsets.symmetric(vertical: 8.0),
-                              child: Center(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(20),
-                                    boxShadow: [
-                                      BoxShadow(
-                                          color: Colors.black.withOpacity(0.06),
-                                          blurRadius: 6)
-                                    ],
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: const [
-                                      SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                            strokeWidth: 2),
-                                      ),
-                                      SizedBox(width: 10),
-                                      Text('Loading older messages...',
-                                          style: TextStyle(fontSize: 13)),
-                                    ],
-                                  ),
-                                ),
-                              ),
+                              child: const SizedBox.shrink(),
                             )
-                          : (!_hasNextPage && _allMessages.isNotEmpty)
-                              ? Padding(
-                                  key: const ValueKey('all_loaded'),
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 8.0),
-                                  child: Center(
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 12, vertical: 6),
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey.shade100,
-                                        borderRadius: BorderRadius.circular(16),
-                                        border: Border.all(
-                                            color: Colors.grey.shade300),
-                                      ),
-                                      child: const Text('All messages loaded',
-                                          style: TextStyle(fontSize: 13)),
-                                    ),
-                                  ),
-                                )
-                              : const SizedBox.shrink(),
+                          // : (!_hasNextPage && _allMessages.isNotEmpty)
+                          //     ? Padding(
+                          //         key: const ValueKey('all_loaded'),
+                          //         padding:
+                          //             const EdgeInsets.symmetric(vertical: 8.0),
+                          //         child: Center(
+                          //           child: Container(
+                          //             padding: const EdgeInsets.symmetric(
+                          //                 horizontal: 12, vertical: 6),
+                          //             decoration: BoxDecoration(
+                          //               color: Colors.grey.shade100,
+                          //               borderRadius: BorderRadius.circular(16),
+                          //               border: Border.all(
+                          //                   color: Colors.grey.shade300),
+                          //             ),
+                          //             child: const Text('All messages loaded',
+                          //                 style: TextStyle(fontSize: 13)),
+                          //           ),
+                          //         ),
+                          //       )
+                          : const SizedBox.shrink(),
                     ),
                     Expanded(
                       child: ListView.builder(
                         controller: _scrollController,
                         itemCount: combinedMessages.length,
+                        reverse: true, // Start from bottom
                         itemBuilder: (context, index) {
-                          final message = combinedMessages[index];
+                          // Calculate real index for [Oldest ... Newest] list
+                          // combinedMessages is [Oldest ... Newest]
+                          // ListView index 0 is at Bottom (Newest)
+                          final int realIndex =
+                              combinedMessages.length - 1 - index;
+
+                          if (realIndex < 0 ||
+                              realIndex >= combinedMessages.length) {
+                            return const SizedBox.shrink();
+                          }
+
+                          final message = combinedMessages[realIndex];
                           log("messagessssssssss ${message}");
                           final senderMap = message['sender'] is Map
                               ? Map<String, dynamic>.from(message['sender'])
@@ -3832,10 +3856,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
                           isSentByMe = senderId == currentUserId;
 
-                          final showDate = index == 0 ||
+                          final showDate = realIndex == 0 ||
                               !isSameDay(
                                 _parseTime(message['time']),
-                                _parseTime(combinedMessages[index - 1]['time']),
+                                _parseTime(
+                                    combinedMessages[realIndex - 1]['time']),
                               );
                           final isGroupMessage =
                               message['is_grouped_message'] == true;
@@ -3846,8 +3871,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                               groupMessageId != null &&
                               groupMessageId.isNotEmpty) {
                             // Is this the first message in the group?
-                            final isFirstInGroup = index == 0 ||
-                                combinedMessages[index - 1]['group_message_id']
+                            final isFirstInGroup = realIndex == 0 ||
+                                combinedMessages[realIndex - 1]
+                                            ['group_message_id']
                                         ?.toString() !=
                                     groupMessageId;
 
@@ -3860,7 +3886,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                             final String messageStatus =
                                 message['messageStatus']?.toString() ?? 'sent';
 
-                            for (int i = index;
+                            for (int i = realIndex;
                                 i < combinedMessages.length;
                                 i++) {
                               final nextMsg = combinedMessages[i];
@@ -3969,7 +3995,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                                   tappedItem.mediaUrl,
                                             );
 
-                                          //  if (startIndex == -1) return;
+                                            //  if (startIndex == -1) return;
                                             Navigator.push(
                                               context,
                                               PageRouteBuilder(
@@ -3988,7 +4014,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                           onForwardTap: () {
                                             final forwardMessages =
                                                 _getGroupedMessages(
-                                                    combinedMessages, index);
+                                                    combinedMessages,
+                                                    realIndex);
 
                                             print(
                                                 "forwardMessagessss ${forwardMessages.length}");
@@ -4016,7 +4043,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
                                               final grouped =
                                                   _getGroupedMessages(
-                                                      combinedMessages, index);
+                                                      combinedMessages,
+                                                      realIndex);
 
                                               final replyPreview =
                                                   buildReplyPreviewFromGroup(
@@ -4050,21 +4078,14 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                             if (messageId != null && messageId.isNotEmpty) {
                               _messageContexts[messageId] = ctx;
                             }
-                            return SwipeTo(
-                              animationDuration:
-                                  const Duration(milliseconds: 650),
-                              iconOnRightSwipe: Icons.reply,
-                              iconColor: Colors.grey.shade600,
-                              iconSize: 24.0,
-                              offsetDx: 0.3,
-                              swipeSensitivity: 5,
-                              onRightSwipe: (details) {
+                            return SwipeToReply(
+                              onReply: () {
                                 final resolved = _resolveReplySource(message);
                                 _replyToMessage(resolved, isSendMe: isSentByMe);
                               },
                               child: AnimatedContainer(
                                 key: ValueKey(messageId),
-                                duration: const Duration(milliseconds: 300),
+                                duration: const Duration(milliseconds: 600),
                                 curve: Curves.easeOut,
                                 margin: const EdgeInsets.symmetric(vertical: 2),
                                 color: isHighlighted
@@ -4291,26 +4312,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   void _rebuildFromStore({bool resetVisibleIfEmpty = false}) {
-    final fullCombined = _getCombinedMessages();
-    _allMessages
-      ..clear()
-      ..addAll(fullCombined);
-
-    final total = _allMessages.length;
-
-    if (_visibleCount == 0 || (resetVisibleIfEmpty && _visibleCount > total)) {
-      _visibleCount = total >= _initialVisible ? _initialVisible : total;
-    } else if (_visibleCount > total) {
-      _visibleCount = total;
-    } else {
-      // If new messages were appended and we already are showing a window,
-      // increase the visible window by 1 so newly appended messages show up.
-      // This prevents the case where we're viewing only last N and new item gets hidden.
-      _visibleCount =
-          (_visibleCount < total) ? (_visibleCount + 1) : _visibleCount;
-    }
-
-    _updateNotifierFromAll();
+    _updateNotifier(isInitialLoad: resetVisibleIfEmpty);
     _scheduleSaveMessages();
   }
 
