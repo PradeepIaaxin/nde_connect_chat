@@ -226,7 +226,7 @@ class CommonAppBarBuilder {
                 // Is this specific user online?
                 final isUserOnline = SocketService().onlineUsers.contains(resvID);
 
-                print("🔥Buildingpresencefor  $isUserOnline ");
+             
 
 
                 return StreamBuilder<Map<String, dynamic>>(
