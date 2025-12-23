@@ -1327,7 +1327,7 @@ void _openConversationViewer(BuildContext context, String tappedUrl) {
       final seconds =
           duration.inSeconds.remainder(60).toString().padLeft(2, '0');
 
-      return '$minutes:$seconds';
+      return '$minutes:$seconds'; 
     } catch (e) {
       return "00:00";
     } finally {
