@@ -21,7 +21,7 @@ class GroupChatMessageDeletedSuccessfully extends GroupChatState {
 
 class PermissionState extends GroupChatState {
   final Map<String, dynamic>? response;
-  
+
   PermissionState(this.response);
 }
 
@@ -68,6 +68,9 @@ class GroupChatLoaded extends GroupChatState {
   final GroupMessageResponse response;
 
   const GroupChatLoaded(this.response);
+
+  @override
+  List<Object?> get props => [response];
 }
 
 class UploadInitial extends GroupChatState {}

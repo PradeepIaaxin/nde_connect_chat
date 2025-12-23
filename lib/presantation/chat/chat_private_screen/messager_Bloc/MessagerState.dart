@@ -320,3 +320,16 @@ class MessageForwardedPartialSuccess extends MessagerState {
   @override
   List<Object?> get props => [successes, failures];
 }
+
+class MessageAckReceived extends MessagerState {
+  final String tempId;
+  final String realId;
+  final String status;
+
+  MessageAckReceived({
+    required this.tempId,
+    required this.realId,
+    required this.status,
+  });
+}
+

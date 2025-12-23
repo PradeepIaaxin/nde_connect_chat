@@ -243,14 +243,37 @@ class _MessageInputFieldState extends State<MessageInputField> {
     final String? fileType = widget.replyText?['fileType'];
     // final String userName = widget.replyText?['userName'] ?? '';
     final String? originalUrl = widget.replyText?['originalUrl'];
+      final String imageCount = widget.replyText?["imageCount"]?.toString()??"";
+            final String videoCount = widget.replyText?["videoCount"]?.toString()??"";
 
-    // final String firstName =
-    //     widget.replyText?['receiver']?['first_name']?.toString() ?? "";
-    // final String lastName =
-    //     widget.replyText?['receiver']?['last_name']?.toString() ?? "";
-    final bool isSendMe = widget.replyText?['isSendMe'] ?? false;
-    debugPrint("isSendMe: $isSendMe");
+   final String firstName =
+    widget.replyText?['receiver']?['first_name']?.toString() ?? "";
+    final String lastName = widget.replyText?['receiver']?['last_name'].toString()??"";
+   // final bool isSendMe = widget.replyText?['isSendMe'];
+        final String senderId = widget.replyText?['senderId']?.toString()??"";
+        final String userId = widget.replyText?['sender']?["_id"]?.toString()??"";
 
+       print("sssssssss ${senderId}");
+              print("userId ${userId}");
+
+    final bool isSendMe =senderId==userId;
+// 🔥 Detect grouped media safely
+final bool hasGroupId =
+    widget.replyText?['group_message_id'] != null;
+
+
+final int localImageCount = int.tryParse(
+  widget.replyText?['imageCount']?.toString() ?? '0',
+) ?? 0;
+
+final int localVideoCount = int.tryParse(
+  widget.replyText?['videoCount']?.toString() ?? '0',
+) ?? 0;
+
+final bool isGroupedMedia =
+    hasGroupId && (localImageCount + localVideoCount > 1);
+print("hhhhhhhhhhhhhhhhhhhhh $isSendMe");
+    // Type label like WhatsApp
     // Type label like WhatsApp
     String typeLabel = '';
 
@@ -260,19 +283,102 @@ class _MessageInputFieldState extends State<MessageInputField> {
                 widget.replyText?['isVideo'] == true) &&
             (originalUrl != null && originalUrl.isNotEmpty);
 
-    if (isVideoReply) {
-      typeLabel = 'Video';
-    } else if (imageUrl != null && imageUrl.isNotEmpty) {
-      typeLabel = 'Photo';
-    } else if (fileName != null && fileName.isNotEmpty) {
-      typeLabel = '';
-    }
+
+if (isGroupedMedia) {
+  if (localImageCount > 0 && localVideoCount > 0) {
+    typeLabel = 'Media';
+  } else if (localImageCount > 0) {
+    typeLabel = 'Photo';
+  } else if (localVideoCount > 0) {
+    typeLabel = 'Video';
+  }
+} else {
+  if (isVideoReply) {
+    typeLabel = 'Video';
+  } else if (imageUrl != null && imageUrl.isNotEmpty) {
+    typeLabel = 'Photo';
+  }
+}
+Widget _buildVideoThumb(String videoPathOrUrl) {
+  const double size = 70;
+
+  return SizedBox(
+    width: size,
+    height: size,
+    child: FutureBuilder<File?>(
+      future: VideoThumbUtil.generateFromUrl(videoPathOrUrl),
+      builder: (context, snapshot) {
+        // ⏳ Loading
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              color: Colors.black26,
+              child: const Center(
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          );
+        }
+
+        // ✅ Thumbnail generated
+        if (snapshot.hasData && snapshot.data != null) {
+          final file = snapshot.data!;
+          if (file.existsSync()) {
+            return Stack(
+              alignment: Alignment.center,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.file(
+                    file,
+                    width: size,
+                    height: size,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                const Icon(
+                  Icons.play_circle_fill,
+                  color: Colors.white,
+                  size: 26,
+                ),
+              ],
+            );
+          }
+        }
+
+        // ❌ Fallback (thumbnail failed)
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            width: size,
+            height: size,
+            color: Colors.black,
+            child: const Icon(
+              Icons.videocam,
+              color: Colors.white,
+              size: 26,
+            ),
+          ),
+        );
+      },
+    ),
+  );
+}
 
     // ---------- build trailing thumbnail (image / video) ----------
     Widget? trailingThumb;
 
     const double thumbSize = 70;
-
+if (!isGroupedMedia) {
+  if (isVideoReply && originalUrl != null) {
+    trailingThumb = _buildVideoThumb(originalUrl);
+  } else if (imageUrl != null && imageUrl.isNotEmpty) {
+    trailingThumb = imageUrl.startsWith('/')
+        ? Image.file(File(imageUrl), width: 70, height: 70, fit: BoxFit.cover)
+        : Image.network(imageUrl, width: 70, height: 70, fit: BoxFit.cover);
+  }
+}
     if (isVideoReply) {
       trailingThumb = SizedBox(
         width: thumbSize,
@@ -346,71 +452,61 @@ class _MessageInputFieldState extends State<MessageInputField> {
       );
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey.shade200,
-        borderRadius: BorderRadius.circular(10),
-        border: Border(left: BorderSide(color: Colors.blueAccent, width: 5)),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // vertical strip
-          Container(
-            width: 3,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppColors.primaryButton,
-              borderRadius: BorderRadius.circular(3),
-            ),
-          ),
-          const SizedBox(width: 8),
+    return Padding(
+      padding: const EdgeInsets.all(8),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(10),
+          border: Border(left: BorderSide(color: Colors.blueAccent, width: 5)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const SizedBox(width: 8),
 
-          // text info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  "You",
-                  style: TextStyle(
-                      color: AppColors.primaryButton,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500),
-                ),
-                if (typeLabel.isNotEmpty)
-                  Row(
+            // text info
+            Expanded(
+              child: Stack(
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        typeLabel == 'Photo'
-                            ? Icons.photo
-                            : typeLabel == 'Video'
-                                ? Icons.video_camera_back_rounded
-                                : null,
-                        color: Colors.grey,
-                        size: (typeLabel == 'Photo' || typeLabel == 'Video')
-                            ? 0
-                            : 16,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        typeLabel,
-                        style: const TextStyle(
-                          color: Colors.black,
+                      const Text(
+                        "You",
+                        style: TextStyle(
+                          color: AppColors.primaryButton,
                           fontSize: 12,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                    ],
-                  ),
-                if (content.isNotEmpty)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
+                      if (typeLabel.isNotEmpty)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              typeLabel == 'Photo'
+                                  ? Icons.photo
+                                  : typeLabel == 'Video'
+                                      ? Icons.video_camera_back_rounded
+                                      : null,
+                              color: Colors.grey,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              typeLabel,
+                              style: const TextStyle(
+                                color: Colors.black,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      if (content.isNotEmpty)
+                        Text(
                           content,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -419,58 +515,61 @@ class _MessageInputFieldState extends State<MessageInputField> {
                             fontSize: 12,
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      if (trailingThumb == null)
-                        InkWell(
-                          onTap: widget.onCancelReply,
-                          child: Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: const BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.white,
-                            ),
-                            child: const Icon(
-                              Icons.close,
-                              size: 16,
-                              color: Colors.black87,
-                            ),
-                          ),
-                        ),
                     ],
                   ),
-              ],
-            ),
-          ),
 
-          // thumbnail + close button (works for image & video)
-          if (trailingThumb != null)
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                trailingThumb,
-                Positioned(
-                  top: -2,
-                  right: -3,
-                  child: InkWell(
-                    onTap: widget.onCancelReply,
-                    child: Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white,
+                  /// ✅ Close icon at TOP RIGHT
+                  if (trailingThumb == null)
+                    Positioned(
+                      top: -7 ,
+                      right: 0,
+                      left: 258,
+                      child: InkWell(
+                        onTap: widget.onCancelReply,
+                        borderRadius: BorderRadius.circular(20),
+                        child: const Padding(
+                          padding: EdgeInsets.all(4),
+                          child: Icon(
+                            Icons.close,
+                            size: 16,
+                            color: Colors.black87,
+                          ),
+                        ),
                       ),
-                      child: const Icon(
-                        Icons.close,
-                        size: 16,
-                        color: Colors.black87,
+                    ),
+                ],
+              ),
+            ),
+
+            // thumbnail + close button (works for image & video)
+            if (trailingThumb != null)
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  trailingThumb,
+                  Positioned(
+                    top: -2,
+                    right: -3,
+                    child: InkWell(
+                      onTap: widget.onCancelReply,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white,
+                        ),
+                        child: const Icon(
+                          Icons.close,
+                          size: 16,
+                          color: Colors.black87,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
-            ),
-        ],
+                ],
+              ),
+          ],
+        ),
       ),
     );
   }
