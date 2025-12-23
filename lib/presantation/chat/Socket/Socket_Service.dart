@@ -1346,7 +1346,7 @@ class SocketService {
         },
     };
     log("groupMessageId in socket $groupMessageId");
-    log("groupMessageId in socket $isGroupMessage");
+  
 
     socket!.emitWithAck('send_message', messagePayload, ack: (data) {
       try {

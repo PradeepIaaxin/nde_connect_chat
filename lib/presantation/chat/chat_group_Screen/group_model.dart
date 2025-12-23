@@ -396,11 +396,12 @@
 // }
 
 import 'dart:io';
+import 'package:equatable/equatable.dart';
 
 /// ===============================
 ///   PAGINATION RESPONSE MODEL
 /// ===============================
-class GroupMessageResponse {
+class GroupMessageResponse extends Equatable {
   final List<GroupMessageGroup> data;
   final int total;
   final int page;
@@ -408,7 +409,7 @@ class GroupMessageResponse {
   final bool hasPreviousPage;
   final bool hasNextPage;
 
-  GroupMessageResponse({
+  const GroupMessageResponse({
     required this.data,
     required this.total,
     required this.page,
@@ -438,6 +439,9 @@ class GroupMessageResponse {
         "hasPreviousPage": hasPreviousPage,
         "hasNextPage": hasNextPage,
       };
+
+  @override
+  List<Object?> get props => [page, total, data.length, hasNextPage];
 }
 
 /// ===============================
