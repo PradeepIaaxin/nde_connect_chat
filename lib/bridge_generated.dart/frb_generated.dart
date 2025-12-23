@@ -68,7 +68,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -1710999925;
+  int get rustContentHash => 1103812950;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -81,7 +81,12 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 abstract class RustLibApi extends BaseApi {
   Future<String> crateApiDecodeChatSnapshot({required String snapshotBase64});
 
+  Future<String> crateApiDecodeMessageSnapshot(
+      {required String snapshotBase64});
+
   Future<String> crateApiImportChatUpdate({required List<int> updateBytes});
+
+  Future<void> crateApiResetGlobalDoc();
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -117,13 +122,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<String> crateApiDecodeMessageSnapshot(
+      {required String snapshotBase64}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(snapshotBase64, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 2, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_String,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiDecodeMessageSnapshotConstMeta,
+      argValues: [snapshotBase64],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiDecodeMessageSnapshotConstMeta =>
+      const TaskConstMeta(
+        debugName: "decode_message_snapshot",
+        argNames: ["snapshotBase64"],
+      );
+
+  @override
   Future<String> crateApiImportChatUpdate({required List<int> updateBytes}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_list_prim_u_8_loose(updateBytes, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 2, port: port_);
+            funcId: 3, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_String,
@@ -138,6 +169,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiImportChatUpdateConstMeta => const TaskConstMeta(
         debugName: "import_chat_update",
         argNames: ["updateBytes"],
+      );
+
+  @override
+  Future<void> crateApiResetGlobalDoc() {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 4, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiResetGlobalDocConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiResetGlobalDocConstMeta => const TaskConstMeta(
+        debugName: "reset_global_doc",
+        argNames: [],
       );
 
   @protected

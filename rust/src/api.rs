@@ -2,35 +2,95 @@ use flutter_rust_bridge::frb;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use loro::{LoroDoc, ToJson};
-use serde_json::{json, Map, Value};
+
+use serde_json::{json, Value};
 use std::sync::Mutex;
 use lazy_static::lazy_static;
 
 // --------------------------------------------------
-//  GLOBAL LORO DOCUMENT (Persist across updates)
+//  GLOBAL LORO DOCUMENT (Persists across updates)
 // --------------------------------------------------
 lazy_static! {
     static ref GLOBAL_DOC: Mutex<LoroDoc> = Mutex::new({
-        let mut d = LoroDoc::new();
-        d.get_list("chatDataList");
-        d.get_map("chatData");
+        let d = LoroDoc::new();
+        // IMPORTANT: initialize movable list
+        d.get_movable_list("chatDataList");
+        d.get_map("messages");
         d
     });
 }
 
 // --------------------------------------------------
-//  FULL SNAPSHOT DECODER (already working)
+//  RESET GLOBAL DOCUMENT (call before snapshot)
+// --------------------------------------------------
+#[frb]
+pub fn reset_global_doc() {
+    let mut global = GLOBAL_DOC.lock().unwrap();
+    let d = LoroDoc::new();
+    d.get_movable_list("chatDataList");
+    d.get_map("messages");
+    *global = d;
+}
+
+
+
+#[frb]
+pub fn decode_message_snapshot(snapshot_base64: String) -> String {
+    use base64::engine::general_purpose::STANDARD;
+    use base64::Engine;
+    use loro::{LoroDoc, ToJson};
+    use serde_json::{json, Value};
+
+    let bytes = STANDARD
+        .decode(snapshot_base64)
+        .expect("Invalid base64 snapshot");
+
+    let snapshot_doc =
+        LoroDoc::from_snapshot(&bytes).expect("Invalid Loro snapshot");
+
+    let mut global = GLOBAL_DOC.lock().unwrap();
+    *global = snapshot_doc;
+
+    // ✅ Convert FULL document → JSON
+    let root_json = global
+        .get_deep_value()
+        .to_json_value();
+
+    // ✅ Extract only messages
+    let messages_json = match &root_json {
+        Value::Object(map) => map.get("messages").cloned().unwrap_or(Value::Null),
+        _ => Value::Null,
+    };
+
+    json!({
+        "messages": messages_json
+    })
+    .to_string()
+}
+
+
+
+// --------------------------------------------------
+//  FULL SNAPSHOT DECODER
+//  - Snapshot becomes BASE STATE
 // --------------------------------------------------
 fn decode_chat_snapshot_internal(snapshot_base64: String) -> String {
     // Decode Base64 → bytes
-    let bytes = STANDARD.decode(snapshot_base64).expect("Invalid base64");
+    let bytes = STANDARD
+        .decode(snapshot_base64)
+        .expect("Invalid base64 snapshot");
 
-    // Load snapshot
-    let doc = LoroDoc::from_snapshot(&bytes).expect("Invalid snapshot");
+    // Create document from snapshot
+    let snapshot_doc =
+        LoroDoc::from_snapshot(&bytes).expect("Invalid Loro snapshot");
 
-    // =========================== chatDataList ===========================
+    // 🔥 Replace GLOBAL_DOC with snapshot state
+    let mut global = GLOBAL_DOC.lock().unwrap();
+    *global = snapshot_doc;
+
+    // Read movable list from GLOBAL_DOC
+    let list = global.get_movable_list("chatDataList");
     let mut chat_data_list = Vec::<Value>::new();
-    let list = doc.get_list("chatDataList");
 
     for i in 0..list.len() {
         if let Some(item) = list.get(i) {
@@ -40,27 +100,10 @@ fn decode_chat_snapshot_internal(snapshot_base64: String) -> String {
         }
     }
 
-    // ============================== chatData =============================
-    let mut chat_data = Map::<String, Value>::new();
-    let map = doc.get_map("chatData");
-
-    for key in map.keys() {
-        let key_string = key.to_string();
-
-        if let Some(value) = map.get(&key) {
-            if let Some(v) = value.as_value() {
-                chat_data.insert(key_string, v.to_json_value().clone());
-            }
-        }
-    }
-
-    // ============================ Final Output ============================
-    let output = json!({
-        "chatDataList": chat_data_list,
-        "chatData": chat_data
-    });
-
-    output.to_string()
+    json!({
+        "chatDataList": chat_data_list
+    })
+    .to_string()
 }
 
 #[frb]
@@ -69,16 +112,17 @@ pub fn decode_chat_snapshot(snapshot_base64: String) -> String {
 }
 
 // --------------------------------------------------
-//  INCREMENTAL UPDATE (chatlistUpdate socket event)
+//  INCREMENTAL UPDATE (Socket: chatlistUpdate)
 // --------------------------------------------------
 fn import_chat_update_internal(update_bytes: Vec<u8>) -> String {
-    let mut doc = GLOBAL_DOC.lock().unwrap();
+    let doc = GLOBAL_DOC.lock().unwrap();
 
-    // 1) Import incremental CRDT update
-    doc.import(&update_bytes).expect("CRDT import failed");
+    // Apply incremental CRDT update
+    doc.import(&update_bytes)
+        .expect("CRDT import failed");
 
-    // 2) Extract updated chatDataList
-    let list = doc.get_list("chatDataList");
+    // Read movable list after update
+    let list = doc.get_movable_list("chatDataList");
     let mut chat_data_list = Vec::<Value>::new();
 
     for i in 0..list.len() {
@@ -89,25 +133,10 @@ fn import_chat_update_internal(update_bytes: Vec<u8>) -> String {
         }
     }
 
-    // 3) Extract updated chatData map
-    let map = doc.get_map("chatData");
-    let mut chat_data = Map::<String, Value>::new();
-
-    for key in map.keys() {
-        if let Some(value) = map.get(&key) {
-            if let Some(v) = value.as_value() {
-                chat_data.insert(key.to_string(), v.to_json_value().clone());
-            }
-        }
-    }
-
-    // 4) Output JSON (same structure as snapshot)
-    let output = json!({
-        "chatDataList": chat_data_list,
-        "chatData": chat_data
-    });
-
-    output.to_string()
+    json!({
+        "chatDataList": chat_data_list
+    })
+    .to_string()
 }
 
 #[frb]

@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'package:nde_email/bridge_generated.dart/api.dart';
 import 'package:nde_email/data/respiratory.dart';
+import 'package:nde_email/presantation/chat/chat_list/chat_session_storage/chat_session.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
-import 'package:nde_email/rust/api.dart/api.dart';
+
 import 'package:nde_email/presantation/chat/chat_list/chat_response_model.dart';
 import 'package:nde_email/presantation/chat/model/emoj_model.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
@@ -168,7 +170,9 @@ class SocketService {
     _socketCreationCount++;
     _slog('🔄 Socket creation attempt #$_socketCreationCount');
     _slog('📊 Previous socket ID: $_lastSocketId');
-    const String socketUrl = 'https://api.nowdigitaleasy.com/wschat';
+    const String socketUrl =
+        //'https://api.nowdigitaleasy.com/wschat';
+        "https://945067be4009.ngrok-free.app/wschat";
 
     // clean old socket
     try {
@@ -180,7 +184,7 @@ class SocketService {
       socketUrl,
       IO.OptionBuilder()
           // /wschat
-          .setPath('/wschat/socket.io')
+          .setPath('/socket.io')
           .setQuery({
             'token': 'Bearer $token',
             'userId': clientId,
@@ -271,7 +275,8 @@ class SocketService {
         _slog("❌ Missing workspaceId or userId in onConnect");
         return;
       }
-
+      print(socket!.id);
+      _slog("join_workspace -> {workspaceId: $wsId, userId: $uid}");
       // 1️⃣ Join workspace FIRST
       socket!.emit('join_workspace', {
         'workspaceId': wsId,
@@ -280,7 +285,7 @@ class SocketService {
       _slog("join_workspace -> {workspaceId: $wsId, userId: $uid}");
 
       // 2️⃣ THEN join the actual chat room
-      Future.delayed(const Duration(milliseconds: 1), () {
+      Future.delayed(const Duration(milliseconds: 150), () {
         if (isGroupchat == true) {
           final joinDataGrp = {"groupId": receiverId};
           socket!.emit("join_group_room", joinDataGrp);
@@ -292,6 +297,8 @@ class SocketService {
         }
       });
     });
+
+    //messageListUpdate
 
     // Room events
     reg(
@@ -589,6 +596,86 @@ class SocketService {
             }));
 
     // chatlistUpdate (binary/base64 preserved, Rust import unchanged)
+    // reg(
+    //   'chatlistUpdate',
+    //   (payload) => scheduleMicrotask(() async {
+    //     _slog('💥 chatlistUpdate received');
+
+    //     try {
+    //       final bytes = _decodeToBytes(payload);
+    //       if (bytes == null) {
+    //         _slog('chatlistUpdate: could not decode payload');
+    //         return;
+    //       }
+
+    //       final jsonString = await importChatUpdate(updateBytes: bytes);
+    //       final decoded = jsonDecode(jsonString);
+
+    //       final chatList = decoded["chatDataList"] ?? [];
+    //       final datuList =
+    //           (chatList as List).map<Datu>((e) => Datu.fromJson(e)).toList();
+
+    //       _onChatListUpdatedCallback?.call(datuList);
+    //     } catch (e, st) {
+    //       _slog('chatlistUpdate error: $e\n$st');
+    //     }
+    //   }),
+    // );
+
+    reg(
+      'messageListUpdate',
+      (payload) => scheduleMicrotask(() async {
+        _slog('🔥 messageListUpdate received → $payload');
+
+        try {
+          // Payload usually comes as a list
+          if (payload is! List || payload.isEmpty) return;
+
+          final first = payload.first;
+          if (first is! Map) return;
+
+          final convoId = first['conversationId']?.toString();
+          final rawUpdate = first['update'];
+
+          if (convoId == null || rawUpdate == null) {
+            _slog('❌ messageListUpdate missing data');
+            return;
+          }
+
+          // 🔥 Convert update array → Uint8List
+          final bytes = _bytesFromIntList(rawUpdate);
+          if (bytes == null || bytes.isEmpty) {
+            _slog('❌ messageListUpdate empty bytes');
+            return;
+          }
+
+          // 🔥 Apply Loro update (DO NOT RESET DOC)
+          final jsonString = await importChatUpdate(updateBytes: bytes);
+          final decoded = jsonDecode(jsonString);
+
+          final List list = decoded['chatDataList'] ?? [];
+          if (list.isEmpty) {
+            _slog('⚠️ messageListUpdate produced empty list – skipping');
+            return;
+          }
+
+          final datuList = list.map<Datu>((e) => Datu.fromJson(e)).toList();
+
+          // 🔥 SAVE incrementally
+          ChatSessionStorage.saveChatList(datuList);
+
+          // 🔥 Notify UI / BLoC
+          _onChatListUpdatedCallback?.call(datuList);
+
+          _slog(
+            '✅ messageListUpdate applied → convo=$convoId, items=${datuList.length}',
+          );
+        } catch (e, st) {
+          _slog('❌ messageListUpdate error: $e\n$st');
+        }
+      }),
+    );
+
     reg(
       'chatlistUpdate',
       (payload) => scheduleMicrotask(() async {
@@ -596,21 +683,34 @@ class SocketService {
 
         try {
           final bytes = _decodeToBytes(payload);
-          if (bytes == null) {
-            _slog('chatlistUpdate: could not decode payload');
+          if (bytes == null || bytes.isEmpty) {
+            _slog('❌ chatlistUpdate: empty payload');
             return;
           }
 
+          // 🔥 APPLY INCREMENTAL UPDATE (DO NOT RESET DOC)
           final jsonString = await importChatUpdate(updateBytes: bytes);
+
           final decoded = jsonDecode(jsonString);
+          final List list = decoded["chatDataList"] ?? [];
 
-          final chatList = decoded["chatDataList"] ?? [];
-          final datuList =
-              (chatList as List).map<Datu>((e) => Datu.fromJson(e)).toList();
+          // ⚠️ IMPORTANT: ignore empty CRDT updates
+          if (list.isEmpty) {
+            _slog('⚠️ chatlistUpdate produced empty list – skipping');
+            return;
+          }
 
+          final datuList = list.map<Datu>((e) => Datu.fromJson(e)).toList();
+
+          // 🔥 SAVE — DO NOT CLEAR
+          ChatSessionStorage.saveChatList(datuList);
+
+          // 🔥 NOTIFY UI / BLOC
           _onChatListUpdatedCallback?.call(datuList);
+
+          _slog('✅ chatlistUpdate applied → ${datuList.length} chats');
         } catch (e, st) {
-          _slog('chatlistUpdate error: $e\n$st');
+          _slog('❌ chatlistUpdate error: $e\n$st');
         }
       }),
     );
@@ -665,6 +765,19 @@ class SocketService {
                 _handleIncomingMessage(payload);
               }));
     }
+  }
+
+  Uint8List? _bytesFromIntList(dynamic raw) {
+    try {
+      if (raw is Uint8List) return raw;
+
+      if (raw is List) {
+        final ints = raw.whereType<int>().toList();
+        if (ints.isEmpty) return null;
+        return Uint8List.fromList(ints);
+      }
+    } catch (_) {}
+    return null;
   }
 
   // ------------------------
@@ -1013,7 +1126,7 @@ class SocketService {
     required String conversationId,
     required String roomId,
   }) {
-    _slog('sendReadReceipts -> $messageIds');
+    // _slog('sendReadReceipts -> $messageIds');
     if (socket == null || !socket!.connected) {
       _slog('sendReadReceipts aborted: socket not connected');
       return;
@@ -1025,7 +1138,7 @@ class SocketService {
       "messageIds": messageIds,
     };
     socket!.emit('read_messages', payload);
-    _slog('read_messages emitted');
+    //  _slog('read_messages emitted');
   }
 
   void deleteMessage({
@@ -1220,7 +1333,7 @@ class SocketService {
       if (reply != null)
         "reply": {
           "userId": reply["sender"]?["_id"],
-          "id":reply["message_id"],
+          "id": reply["message_id"],
           "mimeType": reply["mimeType"],
           "ContentType": reply["ContentType"],
           "replyContent": reply["content"],
@@ -1233,43 +1346,19 @@ class SocketService {
         },
     };
     log("groupMessageId in socket $groupMessageId");
-        log("groupMessageId in socket $isGroupMessage");
-socket!.emitWithAck('send_message', messagePayload, ack: (data) {
-  try {
-    if (data is! Map) {
-      _slog('ACK is not a Map → $data');
-      return;
-    }
-
-    log('✅ send_message ACK → $data');
-
-    // 🔥 REAL SERVER MESSAGE ID
-    final String? realMessageId =
-        data['messageId']?.toString() ??
-        data['message_id']?.toString() ??
-        data['id']?.toString();
-
-    if (realMessageId == null || realMessageId.isEmpty) {
-      _slog('❌ ACK missing real messageId');
-      return;
-    }
-
-    // 🔥 Notify UI to replace temp → real
-    if (ackCallback != null) {
-      ackCallback({
-        'tempId': messagePayload['messageId'], // TEMP ID
-        'realId': realMessageId,
-        'status': 'sent',
-      });
-    }
-  } catch (e, st) {
-    _slog('sendMessage ack parse error: $e\n$st');
-  }
-});
-
-      log("groupMessageId in socket $messagePayload");
-
   
+
+    socket!.emitWithAck('send_message', messagePayload, ack: (data) {
+      try {
+        if (ackCallback != null && data is Map<String, dynamic>) {
+          ackCallback(data);
+          log(data.toString());
+        }
+      } catch (e) {
+        _slog('sendMessage ack parse error: $e');
+      }
+    });
+    log("groupMessageId in socket $messagePayload");
   }
 
   String generateRoomId(String a, String b) {
