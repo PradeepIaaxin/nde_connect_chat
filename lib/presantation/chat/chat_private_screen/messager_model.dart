@@ -81,7 +81,6 @@ class Message {
   final String? fileUrl;
   final String? fileType;
 
-
   final bool? isTemporary;
   final File? localImagePath;
   final bool? isGroupMessage;
@@ -147,6 +146,13 @@ class Message {
   }
 }
 
+bool? _bool(dynamic v) {
+  if (v is bool) return v;
+  if (v is String) return v == "true";
+  if (v is num) return v == 1;
+  return false;
+}
+
 class Datum {
   final String? id;
   final Sender? sender;
@@ -176,37 +182,39 @@ class Datum {
   final List<Reaction>? reactions;
   final bool? isGroupMessage;
   final String? groupMessageId;
+  final String created_at;
 
-  Datum(
-      {this.id,
-      this.sender,
-      this.receiver,
-      this.conversationId,
-      this.isDeleted,
-      this.properties,
-      this.messageType,
-      this.isStarred,
-      this.reply,
-      this.messageId,
-      this.fileWithText,
-      this.content,
-      this.thumbNailKey,
-      this.ContentType,
-      this.originalKey,
-      this.originalUrl,
-      this.thumbnailUrl,
-      this.mimeType,
-      this.isForwarded,
-      this.userName,
-      this.fileName,
-      this.isPinned,
-      this.time,
-      this.messageStatus,
-      this.isReplyMessage,
-      this.reactions, 
-      this.isGroupMessage,
-      this.groupMessageId
-      });
+  Datum({
+    this.id,
+    this.sender,
+    this.receiver,
+    this.conversationId,
+    this.isDeleted,
+    this.properties,
+    this.messageType,
+    this.isStarred,
+    this.reply,
+    this.messageId,
+    this.fileWithText,
+    this.content,
+    this.thumbNailKey,
+    this.ContentType,
+    this.originalKey,
+    this.originalUrl,
+    this.thumbnailUrl,
+    this.mimeType,
+    this.isForwarded,
+    this.userName,
+    this.fileName,
+    this.isPinned,
+    this.time,
+    this.messageStatus,
+    this.isReplyMessage,
+    this.reactions,
+    this.isGroupMessage,
+    this.groupMessageId,
+    required this.created_at,
+  });
 
   Datum copyWith({
     String? id,
@@ -235,8 +243,9 @@ class Datum {
     String? messageStatus,
     bool? isReplyMessage,
     List<Reaction>? reactions,
-    bool? isGroupMessage, 
+    bool? isGroupMessage,
     String? groupMessageId,
+    String? created_at,
   }) =>
       Datum(
           id: id ?? this.id,
@@ -264,59 +273,85 @@ class Datum {
           time: time ?? this.time,
           messageStatus: messageStatus ?? this.messageStatus,
           isReplyMessage: isReplyMessage ?? this.isReplyMessage,
-          reactions: reactions ?? this.reactions, 
+          reactions: reactions ?? this.reactions,
           isGroupMessage: isGroupMessage ?? this.isGroupMessage,
           groupMessageId: groupMessageId ?? this.groupMessageId,
-          );
+          created_at: created_at ?? this.created_at);
 
   factory Datum.fromRawJson(String str) => Datum.fromJson(json.decode(str));
 
   String toRawJson() => json.encode(toJson());
 
   factory Datum.fromJson(Map<String, dynamic> json) {
-    if (json.containsKey('is_grouped_message') ||
-        json.containsKey('isGroupMessage')) {
-      //log('🔍 Datum keys: ${json.keys.toList()}');
-      //log('🔍 isGroupMessage value: ${json['is_group_message']} / ${json['isGroupMessage']}');
+    bool? _bool(dynamic v) {
+      if (v is bool) return v;
+      if (v is String) return v.toLowerCase() == "true";
+      if (v is num) return v == 1;
+      return false;
     }
+
     return Datum(
-      id: json["_id"],
+      id: json["_id"]?.toString(),
+
       sender: json["sender"] != null
           ? Sender.fromJson(Map<String, dynamic>.from(json["sender"]))
           : null,
+
       receiver: json["receiver"] != null
           ? Receiver.fromJson(Map<String, dynamic>.from(json["receiver"]))
           : null,
-      conversationId: json["conversation_id"],
-      isDeleted: json["is_deleted"],
+
+      conversationId: json["conversation_id"]?.toString() ?? "",
+
+      // ✅ FIXED BOOLS
+      isDeleted: _bool(json["is_deleted"]),
+      isStarred: _bool(json["isStarred"]),
+      fileWithText: _bool(json["file_with_text"]),
+      isForwarded: _bool(json["isForwarded"]),
+      isPinned: _bool(json["isPinned"]),
+      isReplyMessage: _bool(json["isReplyMessage"]),
+      isGroupMessage:
+          _bool(json['is_grouped_message'] ?? json['isGroupMessage']),
+
       properties: json["properties"] != null
-          ? List<Property>.from(json["properties"]
-              .map((x) => Property.fromJson(Map<String, dynamic>.from(x))))
+          ? List<Property>.from(
+              json["properties"]
+                  .map((x) => Property.fromJson(Map<String, dynamic>.from(x))),
+            )
           : null,
-      messageType: json["messageType"],
-      isStarred: json["isStarred"],
+
+      messageType: json["messageType"]?.toString() ?? "",
+
       reply: json["reply"] != null
           ? Reply.fromJson(Map<String, dynamic>.from(json["reply"]))
           : null,
-      messageId: json["message_id"],
-      fileWithText: json["file_with_text"],
-      content: json["content"],
+
+      messageId: json["message_id"]?.toString() ?? "",
+      content: json["content"]?.toString() ?? "",
+
       thumbNailKey: json["thumbNailKey"],
-      ContentType: json["ContentType"],
-      originalKey: json["originalKey"],
-      originalUrl: json["originalUrl"],
-      thumbnailUrl: json["thumbnailUrl"],
-      mimeType: json["mimeType"],
-      isForwarded: json["isForwarded"],
-      userName: json["userName"],
-      fileName: json["fileName"],
-      isPinned: json["isPinned"],
-  isGroupMessage: json['is_grouped_message'] ?? json['isGroupMessage'],
+
+      ContentType: json["ContentType"]?.toString() ?? "",
+      originalKey: json["originalKey"]?.toString() ?? "",
+      originalUrl: json["originalUrl"]?.toString() ?? "",
+      thumbnailUrl: json["thumbnailUrl"]?.toString() ?? "",
+      mimeType: json["mimeType"]?.toString() ?? "",
+
+      userName: json["userName"]?.toString() ?? "",
+      fileName: json["fileName"]?.toString() ?? "",
+
       groupMessageId: json['group_message_id']?.toString() ??
           json['groupMessageId']?.toString(),
-      time: json["time"] != null ? DateTime.parse(json["time"]) : null,
-      messageStatus: json["messageStatus"],
-      isReplyMessage: json['isReplyMessage'],
+
+      time: json["time"] != null
+          ? DateTime.tryParse(json["time"].toString())
+          : null,
+
+      messageStatus: json["messageStatus"]?.toString() ?? "",
+
+      created_at:
+          json['createdAt']?.toString() ?? json['created_at']?.toString() ?? "",
+
       reactions: (json["reactions"] is List)
           ? (json["reactions"] as List)
               .where((x) => x is Map)
@@ -354,6 +389,7 @@ class Datum {
         "isPinned": isPinned,
         'is_grouped_message': isGroupMessage,
         'group_message_id': groupMessageId,
+        'created_at': created_at,
         "time": time?.toIso8601String(),
         "messageStatus": messageStatus,
         'isReplyMessage': isReplyMessage,
@@ -912,10 +948,7 @@ class Reply {
   factory Reply.fromJson(Map<String, dynamic> json) {
     return Reply(
       replyToMessageId:
-      json['reply_message_id'] ??
-          json['messageId'] ??
-          json['id'] ??
-          '',
+          json['reply_message_id'] ?? json['messageId'] ?? json['id'] ?? '',
       content: json['replyContent'] ?? json['content'],
       fileUrl: json['replyUrl'] ?? json['originalUrl'],
       fileName: json['fileName'],
@@ -981,7 +1014,6 @@ class MessageListResponse {
       };
 }
 
-
 class MessageGroup {
   final String label;
   final List<Datum> messages;
@@ -1004,7 +1036,6 @@ class MessageGroup {
         "messages": List<dynamic>.from(messages.map((x) => x.toJson())),
       };
 }
-
 
 class Sender {
   final String? id;

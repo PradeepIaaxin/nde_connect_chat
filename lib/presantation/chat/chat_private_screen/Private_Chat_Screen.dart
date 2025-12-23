@@ -203,7 +203,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
   // ------------------ Initialization ------------------
   Future<void> _initializeChat() async {
-    log("Initializing chat for convoId: ${widget.convoId}");
+  //  log("Initializing chat for convoId: ${widget.convoId}");
     socketMessages.clear();
     messages.clear();
     dbMessages.clear();
@@ -359,20 +359,20 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     // 1) Collect all unread messages from other user
     final allUnreadIds = _getUnreadMessageIds(combined);
-    log("🟢 visible unreadIds: $allUnreadIds");
+    //log("🟢 visible unreadIds: $allUnreadIds");
 
     // 2) Filter out ones we already sent to server
     final idsToSend = allUnreadIds
         .where((id) => id.trim().isNotEmpty && !_alreadyRead.contains(id))
         .toList();
 
-    log("🟢 idsToSend after _alreadyRead filter: $idsToSend");
+  //  log("🟢 idsToSend after _alreadyRead filter: $idsToSend");
 
     if (idsToSend.isEmpty) return;
 
     // 3) Mark them as read locally
     for (final id in idsToSend) {
-      log("🔵 Locally marking message as read: $id");
+      // log("🔵 Locally marking message as read: $id");
       _updateMessageStatus(id, 'read');
     }
 
@@ -404,7 +404,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     if (rawConvoId != null &&
         rawConvoId.isNotEmpty &&
         rawConvoId != widget.convoId) {
-      log('🚫 Ignoring message for convo=$rawConvoId (this screen=${widget.convoId})');
+     // log('🚫 Ignoring message for convo=$rawConvoId (this screen=${widget.convoId})');
       return;
     }
 
@@ -417,7 +417,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       if (event == 'forward_message' && msgId.isNotEmpty) {
         _replaceLocalForwardIdWithRealId(msgId, normalized);
       }
-      log('Echo of my own message ignored: $msgId');
+    //  log('Echo of my own message ignored: $msgId');
       return;
     }
 
@@ -425,7 +425,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         !msgId.startsWith('temp_') &&
         !msgId.startsWith('forward_') &&
         _seenMessageIds.contains(msgId)) {
-      log('Duplicate incoming message blocked: $msgId');
+     // log('Duplicate incoming message blocked: $msgId');
       return;
     }
 
@@ -438,7 +438,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     );
 
     if (alreadyInList) {
-      log('Message already exists in local lists: $msgId');
+     // log('Message already exists in local lists: $msgId');
       return;
     }
 
@@ -467,7 +467,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       _sendReadReceipts([msgId]);
     }
 
-    log('New incoming message added: $msgId from $senderId');
+    //'New incoming message added: $msgId from $senderId');
   }
 
   Future<void> _initializeSocket() async {
@@ -1765,7 +1765,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
   void _updateMessageStatus(String messageId, String status,
       {bool localMark = false}) {
-    log("🔄 _updateMessageStatus called for $messageId → $status (localMark=$localMark)");
+    //log("🔄 _updateMessageStatus called for $messageId → $status (localMark=$localMark)");
 
     bool updated = false;
 
@@ -1808,7 +1808,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       socketService.generateRoomId(currentUserId, widget.datumId ?? '');
 
   void _sendReadReceipts(List<String> messageIds) {
-    log("🟢 _sendReadReceipts called with: $messageIds");
+   
+   //log("🟢 _sendReadReceipts called with: $messageIds");
 
     // helper: try to find message locally by id
     Map<String, dynamic>? _findLocalMessageById(String id) {
@@ -1854,10 +1855,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       unique.add(id);
     }
 
-    log("🟢 unique read IDs after filter: $unique");
+    //log("🟢 unique read IDs after filter: $unique");
 
     if (unique.isEmpty) {
-      log("ℹ️ _sendReadReceipts: nothing to send (empty after filter).");
+      //log("ℹ️ _sendReadReceipts: nothing to send (empty after filter).");
       return;
     }
 
@@ -1873,7 +1874,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           : null;
 
       if (senderId != null && senderId != currentUserId) {
-        log("🔵 Locally marking message as read: $id");
+       // log("🔵 Locally marking message as read: $id");
         _updateMessageStatus(id, 'read', localMark: true);
       } else {
         log("ℹ️ Not locally marking (not found or message is mine): $id");
@@ -2056,7 +2057,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   // ------------------ UI builders ------------------
   Widget _buildMessageBubble(
       Map<String, dynamic> message, bool isSentByMe, bool isReply) {
-    log("messagessssssssssss $message");
     return MessageBubble(
       message: message,
       isSentByMe: isSentByMe,
@@ -3268,7 +3268,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   /// Call this after messages are loaded and socket is connected.
   Future<void> _sendInitialReadReceiptsIfNeeded() async {
     if (!mounted) return;
-    log("🔁 _sendInitialReadReceiptsIfNeeded(): start");
+    //log("🔁 _sendInitialReadReceiptsIfNeeded(): start");
 
     // Wait short time for socket to become connected (try a few times)
     const maxAttempts = 8;
@@ -3295,7 +3295,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         .where((id) => id.trim().isNotEmpty && !_alreadyRead.contains(id))
         .toList();
 
-    log("🟢 initial unread IDs found (pre-check): $unread");
+    //log("🟢 initial unread IDs found (pre-check): $unread");
 
     // if (unread.isEmpty) {
     //   log("ℹ️ No unread messages to mark as read on init.");
@@ -3317,7 +3317,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       roomId: computedRoomId,
     );
 
-    log("✅ initial read receipts emitted: $unread (roomId=$computedRoomId)");
+ //   log("✅ initial read receipts emitted: $unread (roomId=$computedRoomId)");
   }
 
   void _scrollToBottom({int maxRetries = 6}) {
@@ -3806,7 +3806,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                               _highlightedMessageId == messageId;
 
                           isSentByMe = senderId == currentUserId;
-                          print("isssssssssssssss R${isSentByMe.runtimeType}");
+
                           final showDate = index == 0 ||
                               !isSameDay(
                                 _parseTime(message['time']),
@@ -4005,8 +4005,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                           }
 
                           final hasReply = _hasReplyForMessage(message);
-
-                          print("hasReply $hasReply");
 
                           return Builder(builder: (ctx) {
                             final messageId = _anyId(message)?.toString();
