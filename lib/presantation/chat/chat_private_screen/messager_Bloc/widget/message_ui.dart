@@ -1,23 +1,15 @@
-import 'dart:developer';
-import 'dart:io';
-import 'package:any_link_preview/any_link_preview.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
-import 'package:flutter_linkify/flutter_linkify.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/MixedMediaViewer.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/commonfuntion.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/replymessgae.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/grouped_media_viewer.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/ForwardMessageScreen_widget.dart';
-import 'package:nde_email/utils/datetime/date_time_utils.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
-import 'package:nde_email/utils/router/router.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:linkify/linkify.dart';
-import 'package:url_launcher/url_launcher.dart';
-import '../../../widget/image_viewer.dart';
+import 'package:video_player/video_player.dart';
+import 'package:video_thumbnail/video_thumbnail.dart';
 import 'VideoCacheService.dart';
 import 'VideoPlayerScreen.dart';
 
