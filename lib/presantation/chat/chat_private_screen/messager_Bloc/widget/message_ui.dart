@@ -89,7 +89,7 @@ class MessageBubble extends StatelessWidget {
         message['reply_message_id'] != null ||
         message['replyContent'] != null;
 
-    log("imagesUrllss $message");
+    
 
     final bool hasFile = fileUrl != null && fileUrl.isNotEmpty;
     final bool hasImage = imageUrl != null && imageUrl.isNotEmpty;
@@ -107,7 +107,7 @@ class MessageBubble extends StatelessWidget {
         ),
       );
     }
-    log("properties ${message['reply']}");
+   //log("properties ${message['reply']}");
 
     return Padding(
       padding: EdgeInsets.symmetric(vertical: emojpicker != null ? 8.0 : 0),

@@ -3,7 +3,7 @@ import 'package:nde_email/data/respiratory.dart';
 import 'package:nde_email/main.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart'
-    hide Category, Emoji;
+    hide Category;
 import 'package:flutter/foundation.dart' as foundation;
 
 import '../../../chat/chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
