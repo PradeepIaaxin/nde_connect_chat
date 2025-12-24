@@ -2,10 +2,8 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/VideoCacheService.dart';
-import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/const/consts.dart';
-import 'package:swipe_to/swipe_to.dart';
-import '../../../chat/chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
+import 'package:nde_email/presantation/widgets/chat_widgets/Common/whatsapp_swipe_to_reply.dart';
 
 class GroupedMediaWidget extends StatelessWidget {
   final List<GroupMediaItem> media;
@@ -27,13 +25,12 @@ class GroupedMediaWidget extends StatelessWidget {
       this.onImageTap,
       required this.messageStatus,
       this.buildStatusIcon,
-      this.onForwardTap, // ✅ ADD
+      this.onForwardTap,
       this.onRightSwipe,
       this.messageId,
       this.isHighlighted = false});
 
   static const double _statusBarHeight = 20;
-  static const double _radius = 14;
 
   @override
   Widget build(BuildContext context) {
@@ -46,15 +43,10 @@ class GroupedMediaWidget extends StatelessWidget {
         screenWidth < 600 ? screenWidth * 0.72 : screenWidth * 0.5;
 
     final visibleCount = media.length > 4 ? 4 : media.length;
-    print("isHighlighted $isHighlighted");
-    return SwipeTo(
-      animationDuration: const Duration(milliseconds: 650),
-      iconOnRightSwipe: Icons.reply,
-      iconColor: Colors.grey.shade600,
-      iconSize: 24.0,
-      offsetDx: 0.3,
-      swipeSensitivity: 5,
-      onRightSwipe: onRightSwipe,
+
+    return SwipeToReply(
+      onReply: () =>
+          onRightSwipe?.call(DragUpdateDetails(globalPosition: Offset.zero)),
       child: AnimatedContainer(
         key: ValueKey(messageId),
         duration: const Duration(milliseconds: 600),
@@ -77,12 +69,8 @@ class GroupedMediaWidget extends StatelessWidget {
                 width: bubbleWidth,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.only(
-                    topLeft: isSentByMe
-                        ? const Radius.circular(18)
-                        : const Radius.circular(18),
-                    topRight: isSentByMe
-                        ? const Radius.circular(18)
-                        : const Radius.circular(18),
+                    topLeft: const Radius.circular(18),
+                    topRight: const Radius.circular(18),
                     bottomLeft:
                         isSentByMe ? const Radius.circular(18) : Radius.zero,
                     bottomRight:
@@ -102,30 +90,26 @@ class GroupedMediaWidget extends StatelessWidget {
                       aspectRatio: _aspectRatio(visibleCount),
                       child: _buildMediaLayout(context, visibleCount),
                     ),
-
-                    // 🔹 STATUS BAR
-                    
                   ],
                 ),
               ),
               Positioned(
-                      height: _statusBarHeight,
-                      top: 260,
-                      left: 265,
-                      child: Row(
-                        children: [
-                          Text(
-                            time,
-                            style: const TextStyle(
-                                fontSize: 11, color: Colors.white),
-                          ),
-                          if (isSentByMe && buildStatusIcon != null) ...[
-                            const SizedBox(width: 4),
-                            buildStatusIcon!(messageStatus),
-                          ],
-                        ],
-                      ),
+                height: _statusBarHeight,
+                top: 260,
+                left: 265,
+                child: Row(
+                  children: [
+                    Text(
+                      time,
+                      style: const TextStyle(fontSize: 11, color: Colors.white),
                     ),
+                    if (isSentByMe && buildStatusIcon != null) ...[
+                      const SizedBox(width: 4),
+                      buildStatusIcon!(messageStatus),
+                    ],
+                  ],
+                ),
+              ),
               Positioned(
                 top: 0,
                 bottom: 0,
@@ -245,20 +229,21 @@ class GroupedMediaWidget extends StatelessWidget {
                 color: isSentByMe ? senderColor : receiverColor, // divider line
               ),
               Expanded(
-                child: ClipRRect(      borderRadius: BorderRadius.all(Radius.circular(10)),
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.all(Radius.circular(10)),
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
                       _tile(context, 3),
                       if (media.length > 4)
                         GestureDetector(
-                          onTap: () => onImageTap?.call(0),
+                          onTap: () => onImageTap?.call(0), 
                           child: Container(
                             color: Colors.black54,
                             alignment: Alignment.center,
-                            child: Text(
-                              '+${4}',
-                              style: const TextStyle(
+                            child: const Text(
+                              '+4',
+                              style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
@@ -283,14 +268,14 @@ class GroupedMediaWidget extends StatelessWidget {
     final item = media[index];
 
     return ClipRRect(
-      borderRadius: BorderRadius.all(Radius.circular(10)),
+      borderRadius: const BorderRadius.all(Radius.circular(10)),
       child: GestureDetector(
         onTap: () => onImageTap?.call(index),
         child: Stack(
           fit: StackFit.expand,
           children: [
             Hero(
-        tag: '${item.mediaUrl}_${messageId}_$index',
+              tag: '${item.mediaUrl}_${messageId}_$index',
               child: _thumb(item),
             ),
             if (item.isVideo)

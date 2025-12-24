@@ -162,7 +162,9 @@ class MessageBubble extends StatelessWidget {
                       : null,
                 ),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: hasReply
+                      ? CrossAxisAlignment.stretch
+                      : CrossAxisAlignment.start,
                   children: [
                     if (hasReply)
                       RepliedMessagePreview(
@@ -209,7 +211,7 @@ class MessageBubble extends StatelessWidget {
 
                     // Text content
                     if (content.isNotEmpty)
-                      _buildTextMessage(content, messageStatus),
+                      _buildTextMessage(content, messageStatus, hasReply),
                   ],
                 ),
               ),
@@ -234,7 +236,13 @@ class MessageBubble extends StatelessWidget {
                   ),
                 ),
 
-              if (isVideo || hasImage)
+              if (isVideo ||
+                  hasImage ||
+                  hasFile ||
+                  (content.isNotEmpty &&
+                      RegExp(r'((https?:\/\/)|(www\.))[^\s]+',
+                              caseSensitive: false)
+                          .hasMatch(content)))
                 Positioned(
                   top: 0,
                   bottom: 0,
@@ -879,26 +887,63 @@ class MessageBubble extends StatelessWidget {
     }
   }
 
-  Widget _buildTextMessage(String content, String messageStatus) {
+  Widget _buildTextMessage(
+      String content, String messageStatus, bool shouldStretch) {
     final bool useIntrinsic = content.trim().length < 25;
     bool isExpanded = false;
 
     return StatefulBuilder(
       builder: (context, setState) {
         final Widget messageContent = Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: shouldStretch
+              ? CrossAxisAlignment.stretch
+              : CrossAxisAlignment.start,
           children: [
-            if (RegExp(r'https?:\/\/[^\s]+').hasMatch(content))
-              AnyLinkPreview(
-                link: RegExp(r'https?:\/\/[^\s]+')
-                        .firstMatch(content)
-                        ?.group(0) ??
-                    '',
-                displayDirection: UIDirection.uiDirectionVertical,
-                showMultimedia: true,
-                backgroundColor: Colors.grey.shade200,
-                bodyStyle: const TextStyle(color: Colors.transparent),
-                cache: const Duration(hours: 1),
+            if (RegExp(r'((https?:\/\/)|(www\.))[^\s]+', caseSensitive: false)
+                .hasMatch(content))
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: AnyLinkPreview(
+                    link: (() {
+                      final match = RegExp(r'((https?:\/\/)|(www\.))[^\s]+',
+                              caseSensitive: false)
+                          .firstMatch(content);
+                      if (match == null) return '';
+                      String url = match.group(0)!;
+                      try {
+                        final uri = Uri.parse(
+                            url.startsWith('www.') ? 'https://$url' : url);
+                        return uri.toString();
+                      } catch (e) {
+                        return url;
+                      }
+                    })(),
+                    displayDirection: UIDirection.uiDirectionVertical,
+                    showMultimedia: true,
+                    backgroundColor: Colors.grey.shade100,
+                    bodyStyle: const TextStyle(
+                      color: Colors.black87,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                    ),
+                    titleStyle: const TextStyle(
+                      color: Colors.black,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    cache: const Duration(hours: 1),
+                    borderRadius: 12,
+                    errorBody: 'Could not load link preview',
+                    errorTitle: 'Link Preview',
+                    errorWidget: Container(
+                      height: 100,
+                      color: Colors.grey[200],
+                      child: const Center(child: Icon(Icons.link_off)),
+                    ),
+                  ),
+                ),
               ),
 
             /// 💬 WhatsApp-like Stack (Message + Time + Tick)
@@ -1033,14 +1078,16 @@ class MessageBubble extends StatelessWidget {
 
         final textBubble = Padding(
           padding: const EdgeInsets.only(top: 6),
-          child: useIntrinsic
+          child: (useIntrinsic && !shouldStretch)
               ? IntrinsicWidth(child: constrainedBox)
               : constrainedBox,
         );
 
-        final hasLink = RegExp(r'https?:\/\/[^\s]+').hasMatch(content);
+        final bool hasLinkLocal = content.isNotEmpty &&
+            RegExp(r'((https?:\/\/)|(www\.))[^\s]+', caseSensitive: false)
+                .hasMatch(content);
 
-        return hasLink
+        return hasLinkLocal
             ? Stack(
                 clipBehavior: Clip.none,
                 children: [
