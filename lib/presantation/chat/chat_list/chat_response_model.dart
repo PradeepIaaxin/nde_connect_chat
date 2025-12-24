@@ -78,8 +78,9 @@ class Datu {
   bool? isFavorites;
   String? groupName;
   String? draftMessage;
+  String? reciverId;
 
-  /// ⭐ NEW FIELD — ALL MEMBERS OF GROUP
+ 
   List<String>? participants;
 
   /// ⭐ NEW FIELD — ACTIVE/ONLINE MEMBERS
@@ -107,6 +108,7 @@ class Datu {
     this.isArchived,
     this.groupName,
     this.draftMessage,
+    this.reciverId,
     this.participants,
     this.onlineParticipants,
   });
@@ -133,6 +135,7 @@ class Datu {
     bool? isFavorites,
     String? groupName,
     String? draftMessage,
+    String? reciverId,
     List<String>? participants,
     List<String>? onlineParticipants,
   }) =>
@@ -158,6 +161,7 @@ class Datu {
         isFavorites: isFavorites ?? this.isFavorites,
         groupName: groupName ?? this.groupName,
         draftMessage: draftMessage ?? this.draftMessage,
+        reciverId: reciverId?? this.reciverId,
         participants: participants ?? this.participants,
         onlineParticipants: onlineParticipants ?? this.onlineParticipants,
       );
@@ -174,6 +178,7 @@ class Datu {
             ? DateTime.tryParse(json["lastMessageTime"])
             : null,
         unreadCount: json["unreadCount"] ?? 0,
+        reciverId: json["receiverId"] ?? "",
 
         firstName: json["first_name"] ?? "",
         lastName: json["last_name"] ?? "",
@@ -224,6 +229,7 @@ class Datu {
         "name": name,
         "profile_pic": profilePic,
         "id": datumId,
+        "receiverId": reciverId,
         "lastMessageSender": lastMessageSender,
         "conversationId": conversationId,
         "isPinned": isPinned,

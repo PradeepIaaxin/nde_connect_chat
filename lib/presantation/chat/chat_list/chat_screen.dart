@@ -32,6 +32,7 @@ class ChatListScreen extends StatefulWidget {
   const ChatListScreen({super.key});
 
   @override
+  // ignore: library_private_types_in_public_api
   _ChatListScreenState createState() => _ChatListScreenState();
 }
 
@@ -918,12 +919,14 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                                   convoId: chat.id ?? "",
                                                   datumId: chat.datumId,
                                                   firstname: chat.firstName,
+                                                  receiverId: chat.reciverId,
                                                   grpChat: false,
                                                   lastname: chat.lastName,
                                                   favourite:
                                                       chat.isFavorites ?? false,
                                                 ),
                                         ).then((_) {
+                                          log(chat.toJson().toString());
                                           if (mounted) {
                                             context
                                                 .read<ChatListBloc>()

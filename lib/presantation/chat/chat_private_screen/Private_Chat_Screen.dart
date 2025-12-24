@@ -65,6 +65,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   // Inline reaction overlay
   bool _suppressReactionDialog = false;
   String? _highlightedMessageId;
+  StreamSubscription<Map<String, dynamic>>? _crdtSub;
 
   Timer? _highlightTimer;
   final Map<String, BuildContext> _messageContexts = {};
@@ -155,6 +156,21 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     _scrollController.addListener(_scrollListener);
     _initializeChat();
     _screenActive = true;
+    _crdtSub = socketService.crdtMessageStream.listen((data) {
+      log('🎯 UI received CRDT stream: $data');
+
+      final convoId = data['conversationId'];
+      final messagesMap = Map<String, dynamic>.from(data['messages'] ?? {});
+
+      debugPrint('🎯 convoId=$convoId mapLen=${messagesMap.length}');
+
+      if (convoId != widget.convoId) {
+        debugPrint('⛔ convoId mismatch, skipping');
+        return;
+      }
+
+      _applyCrdtMessages(convoId, messagesMap);
+    });
 
     // initial state
     Connectivity().checkConnectivity().then((results) {
@@ -181,8 +197,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   void dispose() {
     _reactionSubscription?.cancel();
     _scrollController.removeListener(_scrollListener);
-    _connSub?.cancel(); // 👈 don’t forget
+    _connSub?.cancel();
 
+    _crdtSub?.cancel();
     _saveDebounceTimer?.cancel();
     _saveAllMessages();
     _statusSubscription?.cancel();
@@ -202,9 +219,39 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     super.dispose();
   }
 
+  void _applyCrdtMessages(
+    String convoId,
+    Map<String, dynamic> messagesMap,
+  ) {
+    if (convoId != widget.convoId) return;
+
+    final handler = MessageHandler(
+      currentUserId: currentUserId,
+      convoId: widget.convoId,
+    );
+
+    final crdtMessages = messagesMap.values
+        .map((raw) => handler.normalizeMessage(raw))
+        .where((m) => m.isNotEmpty)
+        .toList();
+
+    // 🔥 SORT LIKE WEB
+    crdtMessages.sort(
+      (a, b) =>
+          handler.parseTime(a['time']).compareTo(handler.parseTime(b['time'])),
+    );
+
+    // 🔥 REPLACE SOURCE OF TRUTH
+    _allMessages
+      ..clear()
+      ..addAll(crdtMessages);
+
+    _updateNotifierFromAll();
+  }
+
   // ------------------ Initialization ------------------
   Future<void> _initializeChat() async {
-  //  log("Initializing chat for convoId: ${widget.convoId}");
+    //  log("Initializing chat for convoId: ${widget.convoId}");
     socketMessages.clear();
     messages.clear();
     dbMessages.clear();
@@ -285,7 +332,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             convoId: widget.convoId,
             message: text,
             senderId: currentUserId,
-            receiverId: widget.datumId!,
+            receiverId: widget.receiverId ?? "",
             replyTo: reply,
             replyMessageId: replyMessageId,
           ),
@@ -367,7 +414,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         .where((id) => id.trim().isNotEmpty && !_alreadyRead.contains(id))
         .toList();
 
-  //  log("🟢 idsToSend after _alreadyRead filter: $idsToSend");
+    //  log("🟢 idsToSend after _alreadyRead filter: $idsToSend");
 
     if (idsToSend.isEmpty) return;
 
@@ -405,7 +452,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     if (rawConvoId != null &&
         rawConvoId.isNotEmpty &&
         rawConvoId != widget.convoId) {
-     // log('🚫 Ignoring message for convo=$rawConvoId (this screen=${widget.convoId})');
+      // log('🚫 Ignoring message for convo=$rawConvoId (this screen=${widget.convoId})');
       return;
     }
 
@@ -418,7 +465,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       if (event == 'forward_message' && msgId.isNotEmpty) {
         _replaceLocalForwardIdWithRealId(msgId, normalized);
       }
-    //  log('Echo of my own message ignored: $msgId');
+      //  log('Echo of my own message ignored: $msgId');
       return;
     }
 
@@ -426,7 +473,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         !msgId.startsWith('temp_') &&
         !msgId.startsWith('forward_') &&
         _seenMessageIds.contains(msgId)) {
-     // log('Duplicate incoming message blocked: $msgId');
+      // log('Duplicate incoming message blocked: $msgId');
       return;
     }
 
@@ -439,7 +486,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     );
 
     if (alreadyInList) {
-     // log('Message already exists in local lists: $msgId');
+      // log('Message already exists in local lists: $msgId');
       return;
     }
 
@@ -448,7 +495,14 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     normalized['fileUrl'] = raw['originalUrl'] ?? raw['fileUrl'];
     normalized['fileName'] = raw['fileName'];
     normalized['fileType'] = raw['mimeType'] ?? raw['fileType'];
-    normalized['isForwarded'] = raw['isForwarded'] == true;
+    // normalized['isForwarded'] = raw['isForwarded'] == true;
+    final hasForwardParent = raw['original_message_id'] != null ||
+        raw['parent_message_id'] != null ||
+        raw['originalMessageId'] != null ||
+        raw['parentMessageId'] != null;
+
+    normalized['isForwarded'] = hasForwardParent;
+
     normalized['roomId'] = raw['roomId']?.toString();
 
     socketMessages.add(normalized);
@@ -505,9 +559,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     final replyRaw = message['reply'];
     Map<String, dynamic>? reply;
-    if (replyRaw is Map)
+    if (replyRaw is Map) {
       reply = Map<String, dynamic>.from(replyRaw);
-    else if (replyRaw is String) {
+    } else if (replyRaw is String) {
       try {
         final decoded = jsonDecode(replyRaw);
         if (decoded is Map) reply = Map<String, dynamic>.from(decoded);
@@ -924,10 +978,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
 
     final reply = _replyMessage;
-    log("_replyMessagessss $_replyMessage");
+
     final text = _messageController.text.trim();
     final visibleMessages = _messagesNotifier.value;
-    print("visibleMessages ${visibleMessages}");
+
     final String? replyGroupMessageId =
         reply == null ? null : reply['group_message_id']?.toString();
 
@@ -935,7 +989,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         reply != null && reply['is_grouped_message'] == true;
 
     final unreadIds = _getUnreadMessageIds(visibleMessages);
-    print("unreadIds $unreadIds"); // uses _isUnreadMessage
+
     if (unreadIds.isNotEmpty) {
       _sendReadReceipts(unreadIds);
     }
@@ -955,18 +1009,15 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             // ✅ NEW (IMPORTANT)
             'group_message_id': originalGroupId,
             'is_grouped_message': originalGroupId != null,
-
             'replyContent':
                 (reply['content'] ?? reply['message'] ?? '').toString(),
             'content': (reply['content'] ?? reply['message'] ?? '').toString(),
-
             'originalUrl': reply['originalUrl'] ??
                 reply['fileUrl'] ??
                 reply['imageUrl'] ??
                 reply['thumbnailUrl'] ??
                 reply['localImagePath'] ??
                 '',
-
             'imageUrl': reply['imageUrl'] ??
                 reply['thumbnailUrl'] ??
                 reply['localImagePath'] ??
@@ -1059,11 +1110,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           convoId: widget.convoId,
           message: text,
           senderId: currentUserId,
-          receiverId: widget.datumId!,
+          receiverId: widget.receiverId ?? "",
           replyTo: reply,
           replyMessageId: replyMessageId,
-
-          // ✅ ADD THESE
           replyGroupMessageId: replyGroupMessageId,
           replyIsGroupMessage: replyIsGroupMessage,
         ),
@@ -1081,26 +1130,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       log('❌ send message error: $e\n$st');
       _updateMessageStatus(localId, 'failed');
     }
-  }
-
-  void _refreshMessagesWithReplies() {
-    final combined = _getCombinedMessages();
-
-    for (final msg in combined) {
-      if (msg['isReplyMessage'] == true && msg['repliedMessage'] == null) {
-        final resolved = resolveRepliedMessage(
-          message: msg,
-          allMessages: combined,
-        );
-
-        if (resolved != null) {
-          msg['repliedMessage'] = resolved;
-        }
-      }
-    }
-
-    // 🔥 THIS LINE IS THE MOST IMPORTANT LINE
-    _messagesNotifier.value = List<Map<String, dynamic>>.from(combined);
   }
 
   void _replaceTempMessageWithReal({
@@ -1278,72 +1307,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   // }
 
   // ------------------ Send image (optimistic) ------------------
-  void _sendMessageImage() async {
-    await _loadSessionImagePath();
-    await _loadSessionFilePath();
-
-    final nowIso = DateTime.now().toIso8601String();
-    final String? mimeType =
-        _fileUrl != null ? lookupMimeType(_fileUrl!.path) : null;
-
-    final optimistic = {
-      'message_id': 'temp_${DateTime.now().millisecondsSinceEpoch}',
-      'content': _messageController.text.trim(),
-      'sender': {'_id': currentUserId},
-      'receiver': {'_id': widget.datumId},
-      'messageStatus': 'pending',
-      'time': nowIso,
-      'fileName': _fileUrl?.path.split('/').last,
-      'fileType': mimeType,
-      'imageUrl': _imageFile?.path,
-      'fileUrl': _fileUrl?.path,
-      // --- NEW: if replying include reply metadata ---
-      if (_replyMessage != null)
-        'reply': {
-          'id': _replyMessage!['message_id'] ??
-              _replyMessage!['messageId'] ??
-              _replyMessage!['id'],
-          'reply_message_id': _replyMessage!['message_id'] ??
-              _replyMessage!['messageId'] ??
-              _replyMessage!['id'],
-          'replyContent': (_replyMessage!['content'] ?? '')?.toString() ?? '',
-          if (_replyMessage!['originalUrl'] != null)
-            'originalUrl': _replyMessage!['originalUrl'],
-          if (_replyMessage!['imageUrl'] != null)
-            'imageUrl': _replyMessage!['imageUrl'],
-          if (_replyMessage!['fileUrl'] != null)
-            'fileUrl': _replyMessage!['fileUrl'],
-          if (_replyMessage!['fileName'] != null)
-            'fileName': _replyMessage!['fileName'],
-          if (_replyMessage!['fileType'] != null)
-            'fileType': _replyMessage!['fileType'],
-        },
-    };
-
-    socketMessages.add(optimistic);
-    final idStr = (optimistic['message_id'] ?? '').toString();
-    if (idStr.isNotEmpty) _seenMessageIds.add(idStr);
-    _updateNotifier();
-    _scheduleSaveMessages();
-    _scrollToBottom();
-
-    if (_fileUrl != null) {
-      context.read<MessagerBloc>().add(
-            UploadFileEvent(
-              File(_fileUrl!.path),
-              widget.convoId,
-              currentUserId,
-              widget.datumId ?? "",
-              "",
-            ),
-          );
-    }
-
-    _messageController.clear();
-    _imageFile = null;
-    _fileUrl = null;
-    await _clearSessionPaths();
-  }
 
   Future<void> _openCamera() async {
     try {
@@ -1653,7 +1616,14 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           final copy = Map<String, dynamic>.from(m);
           copy['message_id'] = realId;
           copy['messageStatus'] = serverMsg['messageStatus'] ?? 'delivered';
-          copy['isForwarded'] = true;
+          final isRealForward = serverOriginalId.isNotEmpty;
+
+          copy['isForwarded'] = isRealForward;
+
+          if (isRealForward) {
+            copy['original_message_id'] = serverOriginalId;
+          }
+
           if (serverOriginalId.isNotEmpty) {
             copy['original_message_id'] = serverOriginalId;
           }
@@ -1827,8 +1797,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       socketService.generateRoomId(currentUserId, widget.datumId ?? '');
 
   void _sendReadReceipts(List<String> messageIds) {
-   
-   //log("🟢 _sendReadReceipts called with: $messageIds");
+    //log("🟢 _sendReadReceipts called with: $messageIds");
 
     // helper: try to find message locally by id
     Map<String, dynamic>? _findLocalMessageById(String id) {
@@ -1893,7 +1862,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           : null;
 
       if (senderId != null && senderId != currentUserId) {
-       // log("🔵 Locally marking message as read: $id");
+        // log("🔵 Locally marking message as read: $id");
         _updateMessageStatus(id, 'read', localMark: true);
       } else {
         log("ℹ️ Not locally marking (not found or message is mine): $id");
@@ -2077,7 +2046,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   Widget _buildMessageBubble(
       Map<String, dynamic> message, bool isSentByMe, bool isReply,
       {int? length}) {
-    
     return MessageBubble(
       message: message,
       isSentByMe: isSentByMe,
@@ -3326,7 +3294,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       roomId: computedRoomId,
     );
 
- //   log("✅ initial read receipts emitted: $unread (roomId=$computedRoomId)");
+    //   log("✅ initial read receipts emitted: $unread (roomId=$computedRoomId)");
   }
 
   void _scrollToBottom({int maxRetries = 6}) {
@@ -3464,13 +3432,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                 );
               }
               if (state is MessageSentSuccessfully) {
-                // ⛔ DO NOT add message again, _sendMessage already added it.
-
-                print("messageStatus ${state.sentMessage.messageStatus}");
-                final id = state.sentMessage.messageId ?? '';
+                final id = state.sentMessage.messageId;
                 if (id.isNotEmpty) {
-                  _updateMessageStatus(
-                      id, state.sentMessage.messageStatus ?? 'pending');
+                  _updateMessageStatus(id, state.sentMessage.messageStatus);
                   //  _sendReadForNewOutgoing(id);  // only if your backend really expects this
                 }
               } else if (state is MessagerLoaded) {
@@ -3606,11 +3570,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
                     // ---- Preserve reply info if local had it but server omitted it ----
                     try {
-                      final bool prevHasLocalReply =
-                          (localPrev != null && localPrev.isNotEmpty) &&
-                              (localPrev['_localHasReply'] == true ||
-                                  localPrev['reply'] != null ||
-                                  localPrev['reply_message_id'] != null);
+                      final bool prevHasLocalReply = (localPrev.isNotEmpty) &&
+                          (localPrev['_localHasReply'] == true ||
+                              localPrev['reply'] != null ||
+                              localPrev['reply_message_id'] != null);
 
                       final bool freshHasReply = _hasReplyForMessage(merged);
 
@@ -3643,10 +3606,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
                     // ---- Preserve local reactions if server omitted them (optional) ----
                     try {
-                      final prevReactions =
-                          (localPrev != null && localPrev.isNotEmpty)
-                              ? _extractReactions(localPrev['reactions'])
-                              : <Map<String, dynamic>>[];
+                      final prevReactions = (localPrev.isNotEmpty)
+                          ? _extractReactions(localPrev['reactions'])
+                          : <Map<String, dynamic>>[];
                       final newReactions =
                           _extractReactions(merged['reactions']);
                       if (newReactions.isEmpty && prevReactions.isNotEmpty) {
@@ -3656,9 +3618,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
                     // ---- Preserve locally marked read state if we previously flagged it ----
                     try {
-                      final prevLocallyMarkedRead =
-                          (localPrev != null && localPrev.isNotEmpty) &&
-                              localPrev['_localMarkedRead'] == true;
+                      final prevLocallyMarkedRead = (localPrev.isNotEmpty) &&
+                          localPrev['_localMarkedRead'] == true;
                       final newStatus =
                           (merged['messageStatus'] ?? merged['status'] ?? '')
                               .toString();
@@ -3806,7 +3767,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                         itemCount: combinedMessages.length,
                         itemBuilder: (context, index) {
                           final message = combinedMessages[index];
-                          log("messagessssssssss ${message}");
+
                           final senderMap = message['sender'] is Map
                               ? Map<String, dynamic>.from(message['sender'])
                               : <String, dynamic>{};
@@ -3918,8 +3879,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                 final String groupAnchorMessageId =
                                     message['message_id'] ?? message['id'];
 
-                                if (groupAnchorMessageId != null &&
-                                    groupAnchorMessageId.isNotEmpty) {
+                                if (groupAnchorMessageId.isNotEmpty) {
                                   _messageContexts[groupAnchorMessageId] =
                                       ctx; // 🔥 IMPORTANT
                                 } else if (messageId != null &&
@@ -3969,7 +3929,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                                   tappedItem.mediaUrl,
                                             );
 
-                                          //  if (startIndex == -1) return;
+                                            //  if (startIndex == -1) return;
                                             Navigator.push(
                                               context,
                                               PageRouteBuilder(
@@ -4173,7 +4133,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
   List<Map<String, dynamic>> _getCombinedMessages() {
     final combined = <Map<String, dynamic>>[];
-
     int idx = 0;
 
     void addWithIndex(List<Map<String, dynamic>> source) {
@@ -4190,6 +4149,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     addWithIndex(messages);
     addWithIndex(socketMessages);
 
+    // 🔥 SORT BY TIME (LIKE WEB)
     combined.sort((a, b) {
       try {
         final ta = _parseTime(a['time']);
@@ -4230,30 +4190,36 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         final existingHasReply = _hasReplyForMessage(existing);
         final newHasReply = _hasReplyForMessage(m);
 
-        final existingIsForwarded = existing['isForwarded'] == true;
-        final newIsForwarded = m['isForwarded'] == true;
+        // 🔥 STRICT FORWARDED CHECK (CRDT WINS)
+        final bool newIsForwarded = m['isForwarded'] == true;
+        final bool existingIsForwarded = existing['isForwarded'] == true;
 
-        if ((!existingHasReply && newHasReply) ||
-            (!existingIsForwarded && newIsForwarded)) {
+        if (newHasReply && !existingHasReply) {
+          // Prefer message with reply info
+          result[existingIndex] = m;
+        } else if (newIsForwarded != existingIsForwarded) {
+          // 🔥 CRDT OVERRIDES OLD FORWARDED STATE
           result[existingIndex] = m;
         } else {
-          // otherwise pick the one with reply or the incoming one (your current policy).
-          result[existingIndex] = newHasReply ? m : existing;
+          // Otherwise keep latest (CRDT already sorted)
+          result[existingIndex] = m;
         }
       }
     }
+
+    // 🔥 RESOLVE REPLIES AFTER MERGE
     for (final msg in result) {
       if (msg['isReplyMessage'] == true && msg['repliedMessage'] == null) {
         final resolved = resolveRepliedMessage(
           message: msg,
           allMessages: result,
         );
-
         if (resolved != null) {
           msg['repliedMessage'] = resolved;
         }
       }
     }
+
     return result;
   }
 
@@ -4283,9 +4249,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             'senderName': original['senderName'],
             'duration': original['duration'],
           };
-        } catch (_) {
-          // original not loaded yet (pagination case)
-        }
+        } catch (_) {}
       }
     }
   }
@@ -4607,10 +4571,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                           const Icon(Icons.videocam, size: 14),
                           const SizedBox(width: 4),
                           Text(
-                              'Video' +
-                                  (durationSec > 0
-                                      ? ' (${formatDuration(durationSec)})'
-                                      : ''),
+                              'Video${durationSec > 0 ? ' (${formatDuration(durationSec)})' : ''}',
                               style: const TextStyle(fontSize: 12))
                         ])
                       else if (isImage)

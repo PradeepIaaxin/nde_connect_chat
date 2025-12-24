@@ -34,6 +34,7 @@ class ChatSessionStorage {
               id: chatReq.id,
               name: chatReq.name,
               firstName: chatReq.firstName,
+              reciverId: chatReq.reciverId,
               lastName: chatReq.lastName,
               profilePic: chatReq.profilePic,
               lastMessage: chatReq.lastMessage,
