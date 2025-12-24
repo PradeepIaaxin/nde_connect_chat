@@ -36,7 +36,7 @@ class MessageBubble extends StatelessWidget {
   final bool isReply;
   final int? groupMediaLength;
   final List<Map<String, dynamic>> allMessages;
-  MessageBubble(
+  const MessageBubble(
       {super.key,
       required this.message,
       required this.isSentByMe,
@@ -69,7 +69,7 @@ class MessageBubble extends StatelessWidget {
     final String? fileName = message['fileName'];
     final String? fileTypeRaw = message['fileType']?.toString();
     final String? originalUrl = message['originalUrl']?.toString();
-    final bool? isForwarded = message['isForwarded'];
+    final bool? isForwarded = message['isForwarded'] ?? false;
     final bool? isReplyMessage = message['isReplyMessage'];
     final String messageStatus = message['messageStatus']?.toString() ?? 'sent';
     final String fileType = fileTypeRaw?.toLowerCase() ?? '';
@@ -179,7 +179,7 @@ class MessageBubble extends StatelessWidget {
                         groupMediaLength: groupMediaLength,
                       ),
 
-                    if (!isSentByMe && isForwarded == false)
+                    if (!isSentByMe && isForwarded == true)
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -344,7 +344,6 @@ class MessageBubble extends StatelessWidget {
     final String extension =
         name.split('.').isNotEmpty ? name.split('.').last.toLowerCase() : '';
     final String? fileSize = message['fileSize']?.toString();
-    debugPrint("imageUrl $imageUrl");
 
     // List of image extensions
     final Set<String> imageExtensions = {
@@ -506,7 +505,7 @@ class MessageBubble extends StatelessWidget {
             // openSingleMediaViewer(context);
           },
           onTap: () async {
-            debugPrint('MessageBubble: image tapped => $imageUrl');
+        //    debugPrint('MessageBubble: image tapped => $imageUrl');
             // if it's an actual image, open viewer; otherwise, try to download/open file
             if (looksImage) {
               _openConversationViewer(context, imageUrl);

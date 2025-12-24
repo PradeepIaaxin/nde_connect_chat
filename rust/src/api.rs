@@ -69,6 +69,34 @@ pub fn decode_message_snapshot(snapshot_base64: String) -> String {
 }
 
 
+#[frb]
+pub fn import_message_update(update_bytes: Vec<u8>) -> String {
+    let doc = GLOBAL_DOC.lock().unwrap();
+
+    // Apply CRDT update
+    doc.import(&update_bytes)
+        .expect("CRDT import failed");
+
+    // 🔥 Convert FULL document → JSON
+    let root_json = doc
+        .get_deep_value()
+        .to_json_value();
+
+    // 🔥 Extract messages map safely
+    let messages_json = match &root_json {
+        serde_json::Value::Object(map) => {
+            map.get("messages").cloned().unwrap_or(serde_json::Value::Null)
+        }
+        _ => serde_json::Value::Null,
+    };
+
+    serde_json::json!({
+        "messages": messages_json
+    })
+    .to_string()
+}
+
+
 
 // --------------------------------------------------
 //  FULL SNAPSHOT DECODER

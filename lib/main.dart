@@ -21,14 +21,24 @@ void main() async {
   ));
 
   // await RustLib.init();
-  await RustLib.init(
-    externalLibrary: ExternalLibrary.open('libbridge.so'),
-  );
+  // await RustLib.init(
+  //   externalLibrary: ExternalLibrary.open('libbridge.so'),
+  // );
 
+   if (Platform.isAndroid) {
+    await RustLib.init(
+      externalLibrary: ExternalLibrary.open('libbridge.so'),
+    );
+  } else if (Platform.isIOS) {
+    /// 🔥 THIS IS THE KEY FIX
+    await RustLib.init(
+      externalLibrary: ExternalLibrary.process(iKnowHowToUseIt: true),
+    );
+  }
   // PARALLEL INIT — MAX SPEED
   await initializeStorage();
   await NotificationService.init();
-
+  await NotificationService.requestPermission();
 // ✅ check first
   final status = await Permission.storage.status;
   if (!status.isGranted) {

@@ -16,6 +16,9 @@ Future<String> decodeMessageSnapshot({required String snapshotBase64}) =>
     RustLib.instance.api
         .crateApiDecodeMessageSnapshot(snapshotBase64: snapshotBase64);
 
+Future<String> importMessageUpdate({required List<int> updateBytes}) =>
+    RustLib.instance.api.crateApiImportMessageUpdate(updateBytes: updateBytes);
+
 Future<String> decodeChatSnapshot({required String snapshotBase64}) =>
     RustLib.instance.api
         .crateApiDecodeChatSnapshot(snapshotBase64: snapshotBase64);
