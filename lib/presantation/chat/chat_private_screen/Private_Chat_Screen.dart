@@ -3256,37 +3256,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         .toList();
   }
 
-  Future<void> _loadSessionImagePath() async {
-    final prefs = await SharedPreferences.getInstance();
-    final imagePath = prefs.getString('chat_image_path');
-    if (imagePath != null && imagePath.isNotEmpty) {
-      setState(() => _imageFile = File(imagePath));
-    }
-  }
-
-  Future<void> _loadSessionFilePath() async {
-    final prefs = await SharedPreferences.getInstance();
-    final filePath = prefs.getString('chat_file_path');
-    if (filePath != null && filePath.isNotEmpty) {
-      setState(() => _fileUrl = File(filePath));
-    }
-  }
-
-  Future<void> _clearSessionImagePath() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('chat_image_path');
-  }
-
-  Future<void> _clearSessionFilePath() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('chat_file_path');
-  }
-
-  Future<void> _clearSessionPaths() async {
-    await _clearSessionImagePath();
-    await _clearSessionFilePath();
-  }
-
   /// Call this after messages are loaded and socket is connected.
   Future<void> _sendInitialReadReceiptsIfNeeded() async {
     if (!mounted) return;
@@ -3781,7 +3750,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                         itemCount: combinedMessages.length,
                         reverse: true, // Start from bottom
                         itemBuilder: (context, index) {
-                          final message = combinedMessages[index];
+                          // final message = combinedMessages[index];
+                          final int realIndex =
+                              combinedMessages.length - 1 - index;
+                          final message = combinedMessages[realIndex];
 
                           final senderMap = message['sender'] is Map
                               ? Map<String, dynamic>.from(message['sender'])
@@ -3799,8 +3771,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                   message['id'] ??
                                   '')
                               .toString();
-                          final groupId =
-                              message['group_message_id']?.toString();
+                          message['group_message_id']?.toString();
 
                           final bool isHighlighted =
                               _highlightedMessageId == messageId;
