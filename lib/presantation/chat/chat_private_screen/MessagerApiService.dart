@@ -64,7 +64,7 @@ class MessagerApiService {
           await decodeMessageSnapshot(snapshotBase64: snapshotBase64);
 
       final decoded = jsonDecode(jsonString);
-      log("🧪 RAW SNAPSHOT JSON → $decoded");
+     // log("🧪 RAW SNAPSHOT JSON → $decoded");
 
       final Map messageMap = decoded["messages"] ?? {};
       final List<Datum> flat = [];
@@ -80,7 +80,7 @@ class MessagerApiService {
         return at.compareTo(bt);
       });
 
-      log("✅ Parsed messages from snapshot → ${flat.length}");
+      //log("✅ Parsed messages from snapshot → ${flat.length}");
       return flat;
     }
 

@@ -36,7 +36,7 @@ class MessageBubble extends StatelessWidget {
   final bool isReply;
   final int? groupMediaLength;
   final List<Map<String, dynamic>> allMessages;
-  MessageBubble(
+  const MessageBubble(
       {super.key,
       required this.message,
       required this.isSentByMe,
@@ -57,7 +57,8 @@ class MessageBubble extends StatelessWidget {
       this.emojpicker,
       required this.isReply,
       this.onReplyTap,
-      this.groupMediaLength, required this.allMessages});
+      this.groupMediaLength,
+      required this.allMessages});
 
   @override
   Widget build(BuildContext context) {
@@ -68,7 +69,7 @@ class MessageBubble extends StatelessWidget {
     final String? fileName = message['fileName'];
     final String? fileTypeRaw = message['fileType']?.toString();
     final String? originalUrl = message['originalUrl']?.toString();
-    final bool? isForwarded = message['isForwarded'];
+    final bool? isForwarded = message['isForwarded'] ?? false;
     final bool? isReplyMessage = message['isReplyMessage'];
     final String messageStatus = message['messageStatus']?.toString() ?? 'sent';
     final String fileType = fileTypeRaw?.toLowerCase() ?? '';
@@ -86,8 +87,6 @@ class MessageBubble extends StatelessWidget {
         message['reply_message_id'] != null ||
         message['replyContent'] != null;
 
-    
-
     final bool hasFile = fileUrl != null && fileUrl.isNotEmpty;
     final bool hasImage = imageUrl != null && imageUrl.isNotEmpty;
     // If nothing to show (no text, no image, no file) -> shimmer placeholder
@@ -104,7 +103,7 @@ class MessageBubble extends StatelessWidget {
         ),
       );
     }
-   //log("properties ${message['reply']}");
+    //log("properties ${message['reply']}");
 
     return Padding(
       padding: EdgeInsets.symmetric(vertical: emojpicker != null ? 8.0 : 0),
@@ -178,7 +177,7 @@ class MessageBubble extends StatelessWidget {
                         groupMediaLength: groupMediaLength,
                       ),
 
-                    if (!isSentByMe && isForwarded == false)
+                    if (!isSentByMe && isForwarded == true)
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -274,22 +273,23 @@ class MessageBubble extends StatelessWidget {
       ),
     );
   }
-void _openConversationViewer(BuildContext context, String tappedUrl) {
-  final media = buildConversationMedia(allMessages);
 
-  final index = media.indexWhere((m) => m.mediaUrl == tappedUrl);
-  if (index == -1) return;
+  void _openConversationViewer(BuildContext context, String tappedUrl) {
+    final media = buildConversationMedia(allMessages);
 
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (_) => MixedMediaViewer(
-        items: media,
-        initialIndex: index,
+    final index = media.indexWhere((m) => m.mediaUrl == tappedUrl);
+    if (index == -1) return;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MixedMediaViewer(
+          items: media,
+          initialIndex: index,
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   void _showReactionPicker(BuildContext context) {
     if (onReact == null) return;
@@ -336,7 +336,6 @@ void _openConversationViewer(BuildContext context, String tappedUrl) {
     final String extension =
         name.split('.').isNotEmpty ? name.split('.').last.toLowerCase() : '';
     final String? fileSize = message['fileSize']?.toString();
-    debugPrint("imageUrl $imageUrl");
 
     // List of image extensions
     final Set<String> imageExtensions = {
@@ -495,14 +494,13 @@ void _openConversationViewer(BuildContext context, String tappedUrl) {
               // tap near forward icon area → ignore
               return;
             }
-           // openSingleMediaViewer(context);
+            // openSingleMediaViewer(context);
           },
           onTap: () async {
-            debugPrint('MessageBubble: image tapped => $imageUrl');
+        //    debugPrint('MessageBubble: image tapped => $imageUrl');
             // if it's an actual image, open viewer; otherwise, try to download/open file
             if (looksImage) {
-               _openConversationViewer(context, imageUrl);
-
+              _openConversationViewer(context, imageUrl);
             } else {
               // treat as file
               onFileTap?.call(imageUrl, null);
@@ -1153,8 +1151,7 @@ void _openConversationViewer(BuildContext context, String tappedUrl) {
     return GestureDetector(
       onTap: () {
         // 👇 open your full-screen player
-         _openConversationViewer(context, videoUrl);
-
+        _openConversationViewer(context, videoUrl);
       },
       child: Container(
         width: 250,

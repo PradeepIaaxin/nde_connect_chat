@@ -68,7 +68,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 1103812950;
+  int get rustContentHash => 237387192;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -85,6 +85,8 @@ abstract class RustLibApi extends BaseApi {
       {required String snapshotBase64});
 
   Future<String> crateApiImportChatUpdate({required List<int> updateBytes});
+
+  Future<String> crateApiImportMessageUpdate({required List<int> updateBytes});
 
   Future<void> crateApiResetGlobalDoc();
 }
@@ -172,12 +174,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<String> crateApiImportMessageUpdate({required List<int> updateBytes}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_list_prim_u_8_loose(updateBytes, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 4, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_String,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiImportMessageUpdateConstMeta,
+      argValues: [updateBytes],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiImportMessageUpdateConstMeta =>
+      const TaskConstMeta(
+        debugName: "import_message_update",
+        argNames: ["updateBytes"],
+      );
+
+  @override
   Future<void> crateApiResetGlobalDoc() {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 4, port: port_);
+            funcId: 5, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
