@@ -1,47 +1,68 @@
 import 'dart:developer';
+import 'dart:io';
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:permission_handler/permission_handler.dart';
+import 'package:timezone/data/latest_all.dart' as tz;
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
+  /// INIT
   static Future<void> init() async {
     tz.initializeTimeZones();
 
-    const AndroidInitializationSettings initializationSettingsAndroid =
+    // ANDROID
+    const AndroidInitializationSettings androidInit =
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
-    const InitializationSettings initializationSettings =
-        InitializationSettings(android: initializationSettingsAndroid);
+    // IOS
+    const DarwinInitializationSettings iosInit =
+        DarwinInitializationSettings(
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
+    );
 
-    final bool? initSuccess =
-        await _notificationsPlugin.initialize(initializationSettings);
+    const InitializationSettings settings = InitializationSettings(
+      android: androidInit,
+      iOS: iosInit,
+    );
 
-    if (initSuccess != null && initSuccess) {
-      log(' Notification service initialized successfully');
+    final bool? success =
+        await _notificationsPlugin.initialize(settings);
+
+    if (success == true) {
+      log('✅ Notification service initialized');
     } else {
-      log('  Notification service failed to initialize');
+      log('❌ Notification service failed to initialize');
     }
   }
 
+  /// PERMISSION
   static Future<void> requestPermission() async {
-    var status = await Permission.notification.status;
-
-    if (!status.isGranted) {
-      final result = await Permission.notification.request();
-      if (result.isGranted) {
-        log(" Notification permissions granted.");
-      } else {
-        log("  Notification permissions denied.");
+    if (Platform.isAndroid) {
+      final status = await Permission.notification.status;
+      if (!status.isGranted) {
+        await Permission.notification.request();
       }
-    } else {
-      log(" Notification permissions already granted.");
+    } else if (Platform.isIOS) {
+      final iosPlugin =
+          _notificationsPlugin.resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin>();
+
+      final result = await iosPlugin?.requestPermissions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+
+      log('🔔 iOS permission result: $result');
     }
   }
 
+  /// SHOW NOTIFICATION
   static Future<void> showNotification({
     required String title,
     required String body,
@@ -53,26 +74,33 @@ class NotificationService {
         'Email Notifications',
         importance: Importance.max,
         priority: Priority.high,
-        ticker: 'ticker',
         playSound: true,
         enableLights: true,
         enableVibration: true,
       );
 
-      const NotificationDetails notificationDetails = NotificationDetails(
+      const DarwinNotificationDetails iosDetails =
+          DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+
+      const NotificationDetails details = NotificationDetails(
         android: androidDetails,
+        iOS: iosDetails,
       );
 
       await _notificationsPlugin.show(
         DateTime.now().millisecondsSinceEpoch.remainder(100000),
         title,
         body,
-        notificationDetails,
+        details,
       );
 
-      log('🔔 Notification shown: $title - $body');
+      log('🔔 Notification shown: $title');
     } catch (e) {
-      log('  Error showing notification: $e');
+      log('❌ Error showing notification: $e');
     }
   }
 }

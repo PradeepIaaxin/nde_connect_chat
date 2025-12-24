@@ -418,6 +418,17 @@ class GroupMessageResponse extends Equatable {
     required this.hasNextPage,
   });
 
+   factory GroupMessageResponse.empty() {
+    return GroupMessageResponse(
+      data: [],
+      total: 0,
+      page: 1,
+      limit: 20,
+      hasNextPage: false,
+      hasPreviousPage: false,
+    );
+  }
+
   factory GroupMessageResponse.fromJson(Map<String, dynamic> json) {
     return GroupMessageResponse(
       data: (json["data"] as List)

@@ -3245,7 +3245,7 @@ Widget _buildChatBody() {
     final String? fileUrl = message['fileUrl'] ?? _fileUrl;
     final String? fileName = message['fileName'];
     final String? fileType = message['fileType'];
-    final bool? isForwarded = message['isForwarded'];
+    final bool? isForwarded = message['isForwarded']?? false;
     final String userName = message['userName'] ?? "";
     final String contentType = message['ContentType'] ?? "";
     final senderData = message['sender'] is Map ? message['sender'] : {};
