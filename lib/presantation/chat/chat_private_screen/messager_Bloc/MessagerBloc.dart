@@ -5,8 +5,8 @@ import 'package:nde_email/data/respiratory.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/localstorage/local_storage.dart';
 import 'package:objectid/objectid.dart';
 
-import '../../Socket/Socket_Service.dart';
-import '../MessagerApiService.dart';
+import '../../Socket/socket_service.dart';
+import '../messager_api_service.dart';
 import '../messager_model.dart';
 import 'MessagerEvent.dart';
 import 'MessagerState.dart';
@@ -575,9 +575,9 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
         roomId: roomId,
         workspaceId: workspaceID!,
         isGroupChat: false,
-        contentType: event.contentType ?? "text",
+        contentType: event.contentType,
         reply: event.replyTo,
-        groupMessageId: event.replyGroupMessageId ?? null,
+        groupMessageId: event.replyGroupMessageId,
       );
 
       final localMessage = Message(
@@ -638,19 +638,6 @@ List<MessageGroup> _convertFlatToGroups(List<Datum> messages) {
       .toList();
 }
 
-String _normalizeMessageIdForApi(String messageId) {
-  if (messageId.isEmpty) return messageId;
-
-  // For forwarded messages like: forward_<realId>_<timestamp>
-  if (messageId.startsWith('forward_')) {
-    final parts = messageId.split('_');
-    if (parts.length >= 3) {
-      return parts[1]; // the realId in the middle
-    }
-  }
-
-  return messageId;
-}
 
 String _extractDateLabel(DateTime? time) {
   if (time == null) return "Unknown";
@@ -677,7 +664,6 @@ List<Map<String, dynamic>> _mergeLocalReactionsIntoServerJson({
   final Map<String, List<Map<String, dynamic>>> localReactionsById = {};
 
   for (final raw in localRaw) {
-    if (raw is! Map) continue;
     final msg = Map<String, dynamic>.from(raw);
 
     final id = (msg['message_id'] ?? msg['_id'] ?? msg['id'])?.toString();

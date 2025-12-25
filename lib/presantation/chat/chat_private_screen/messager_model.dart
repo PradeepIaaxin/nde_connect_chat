@@ -153,6 +153,34 @@ bool? _bool(dynamic v) {
   return false;
 }
 
+Sender? _parseSender(dynamic s) {
+  if (s == null) return null;
+
+  if (s is Map) {
+    return Sender.fromJson(Map<String, dynamic>.from(s));
+  }
+
+  if (s is String) {
+    return Sender(id: s);
+  }
+
+  return null;
+}
+
+Receiver? _parseReceiver(dynamic r) {
+  if (r == null) return null;
+
+  if (r is Map) {
+    return Receiver.fromJson(Map<String, dynamic>.from(r));
+  }
+
+  if (r is String) {
+    return Receiver(id: r);
+  }
+
+  return null;
+}
+
 class Datum {
   final String? id;
   final Sender? sender;
@@ -293,13 +321,8 @@ class Datum {
     return Datum(
       id: json["_id"]?.toString(),
 
-      sender: json["sender"] != null
-          ? Sender.fromJson(Map<String, dynamic>.from(json["sender"]))
-          : null,
-
-      receiver: json["receiver"] != null
-          ? Receiver.fromJson(Map<String, dynamic>.from(json["receiver"]))
-          : null,
+      sender: _parseSender(json["sender"]),
+      receiver: _parseReceiver(json["receiver"]),
 
       conversationId: json["conversation_id"]?.toString() ?? "",
 
@@ -313,11 +336,11 @@ class Datum {
       isGroupMessage:
           _bool(json['is_grouped_message'] ?? json['isGroupMessage']),
 
-      properties: json["properties"] != null
-          ? List<Property>.from(
-              json["properties"]
-                  .map((x) => Property.fromJson(Map<String, dynamic>.from(x))),
-            )
+      properties: (json["properties"] is List)
+          ? (json["properties"] as List)
+              .whereType<Map>()
+              .map((x) => Property.fromJson(Map<String, dynamic>.from(x)))
+              .toList()
           : null,
 
       messageType: json["messageType"]?.toString() ?? "",

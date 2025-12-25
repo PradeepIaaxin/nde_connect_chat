@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/message_handler.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/audio_reuable.dart';
@@ -54,6 +53,7 @@ class PrivateChatScreen extends StatefulWidget {
   });
 
   @override
+  // ignore: library_private_types_in_public_api
   _PrivateChatScreenState createState() => _PrivateChatScreenState();
 }
 
@@ -64,7 +64,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   final FocusNode _focusNode = FocusNode();
 
   // Inline reaction overlay
-  bool _suppressReactionDialog = false;
   String? _highlightedMessageId;
   StreamSubscription<Map<String, dynamic>>? _crdtSub;
 
@@ -152,25 +151,42 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   @override
   void initState() {
     super.initState();
+    print('🔐 private chat screen : ${widget.convoId}');
+    socketService.setActiveConversation(widget.convoId);
 
     _messagerBloc = context.read<MessagerBloc>();
     _scrollController.addListener(_scrollListener);
     _initializeChat();
     _screenActive = true;
+    // _crdtSub = socketService.crdtMessageStream.listen((data) {
+    // log('🎯 UI received CRDT stream: $data');
+
+    //   final convoId = data['conversationId'];
+    //   final messagesMap = Map<String, dynamic>.from(data['messages'] ?? {});
+
+    //   debugPrint('🎯 convoId=$convoId mapLen=${messagesMap.length}');
+
+    //   if (convoId != widget.convoId) {
+    //     debugPrint('⛔ convoId mismatch, skipping');
+    //     return;
+    //   }
+
+    //   _applyCrdtMessages(convoId, messagesMap);
+    // });
+
     _crdtSub = socketService.crdtMessageStream.listen((data) {
-      log('🎯 UI received CRDT stream: $data');
+      final convoId = data['conversationId']?.toString();
+      final isGroup = data['isGroupChat'] == true;
 
-      final convoId = data['conversationId'];
-      final messagesMap = Map<String, dynamic>.from(data['messages'] ?? {});
+      // 🚫 STOP GROUP messages in PRIVATE chat screen
+      if (isGroup) return;
 
-      debugPrint('🎯 convoId=$convoId mapLen=${messagesMap.length}');
-
-      if (convoId != widget.convoId) {
-        debugPrint('⛔ convoId mismatch, skipping');
-        return;
-      }
-
-      _applyCrdtMessages(convoId, messagesMap);
+      if (convoId != widget.convoId) return;
+      // log('🎯 UI received CRDT stream: $data');
+      _applyCrdtMessages(
+        convoId!,
+        Map<String, dynamic>.from(data['messages'] ?? {}),
+      );
     });
 
     // initial state
@@ -196,6 +212,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
   @override
   void dispose() {
+    socketService.clearActiveConversation(widget.convoId);
     _reactionSubscription?.cancel();
     _scrollController.removeListener(_scrollListener);
     _connSub?.cancel();
@@ -231,24 +248,79 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       convoId: widget.convoId,
     );
 
-    final crdtMessages = messagesMap.values
+    /// 1️⃣ Normalize incoming CRDT messages
+    final incoming = messagesMap.values
         .map((raw) => handler.normalizeMessage(raw))
         .where((m) => m.isNotEmpty)
         .toList();
 
-    // 🔥 SORT LIKE WEB
-    crdtMessages.sort(
-      (a, b) =>
-          handler.parseTime(a['time']).compareTo(handler.parseTime(b['time'])),
-    );
+    if (incoming.isEmpty) return;
 
-    // 🔥 REPLACE SOURCE OF TRUTH
+    /// 2️⃣ Merge by message_id (CRITICAL FIX)
+    final Map<String, Map<String, dynamic>> merged = {};
+
+    // keep existing messages
+    for (final m in _allMessages) {
+      final id = m['message_id']?.toString();
+      if (id != null) {
+        merged[id] = m;
+      }
+    }
+
+    // merge / override with CRDT messages
+    for (final m in incoming) {
+      final id = m['message_id']?.toString();
+      if (id != null) {
+        merged[id] = m;
+      }
+    }
+
+    /// 3️⃣ Sort like web (old → new)
+    final mergedList = merged.values.toList()
+      ..sort(
+        (a, b) => handler
+            .parseTime(a['time'])
+            .compareTo(handler.parseTime(b['time'])),
+      );
+
+    /// 4️⃣ Replace source of truth SAFELY
     _allMessages
       ..clear()
-      ..addAll(crdtMessages);
+      ..addAll(mergedList);
 
+    /// 5️⃣ Notify UI
     _updateNotifierFromAll();
   }
+
+  // void _applyCrdtMessages(
+  //   String convoId,
+  //   Map<String, dynamic> messagesMap,
+  // ) {
+  //   if (convoId != widget.convoId) return;
+
+  //   final handler = MessageHandler(
+  //     currentUserId: currentUserId,
+  //     convoId: widget.convoId,
+  //   );
+
+  //   final crdtMessages = messagesMap.values
+  //       .map((raw) => handler.normalizeMessage(raw))
+  //       .where((m) => m.isNotEmpty)
+  //       .toList();
+
+  //   // 🔥 SORT LIKE WEB
+  //   crdtMessages.sort(
+  //     (a, b) =>
+  //         handler.parseTime(a['time']).compareTo(handler.parseTime(b['time'])),
+  //   );
+
+  //   // 🔥 REPLACE SOURCE OF TRUTH
+  //   _allMessages
+  //     ..clear()
+  //     ..addAll(crdtMessages);
+
+  //   _updateNotifierFromAll();
+  // }
 
   // ------------------ Initialization ------------------
   Future<void> _initializeChat() async {
@@ -434,27 +506,19 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
   void _updateNotifierFromAll() {
     final total = _allMessages.length;
-    final count = _visibleCount.clamp(0, total);
 
-    // _allMessages is Old -> New.
-    // We want the *last* `count` messages (the newest ones).
-    // Start index = total - count.
-    final startIndex = total - count;
-    debugPrint(
-        '📊 _updateNotifierFromAll: total=$total, count=$count, startIndex=$startIndex');
+    // 🔥 SAFETY: if visibleCount is zero or exceeds total
+    final int count =
+        _visibleCount <= 0 || _visibleCount > total ? total : _visibleCount;
 
-    final visibleSlice = (count == 0)
-        ? <Map<String, dynamic>>[]
-        : _allMessages.sublist(startIndex, total);
+    debugPrint('📊 _updateNotifierFromAll: total=$total, visibleCount=$count');
 
-    debugPrint('   - visibleSlice length: ${visibleSlice.length}');
+    // ✅ ALWAYS take latest `count` messages
+    final List<Map<String, dynamic>> visibleSlice =
+        _allMessages.sublist(total - count, total);
 
-    // List passed to ListView (reverse: true).
-    // The list itself is [OldestSlice, ..., NewestSlice].
-    // ListView index 0 (bottom) will be the last item of this list.
-    // This matches GroupChatScreen logic.
-
-    _messagesNotifier.value = List<Map<String, dynamic>>.from(visibleSlice);
+    _messagesNotifier.value =
+        List<Map<String, dynamic>>.unmodifiable(visibleSlice);
   }
 
   void _handleIncomingRawMessage(Map<String, dynamic> raw, {String? event}) {
@@ -1058,9 +1122,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     final localId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
 
-    // ✅ consider both network AND socket connection
     final bool canSendNow = _isOnline && socketService.isConnected;
-    print("hiiilocalId ${localId}");
+
     final localMessage = {
       'message_id': localId,
       'content': text,
@@ -1069,16 +1132,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       'receiver': {'_id': widget.datumId},
       'receiverId': widget.datumId,
       'time': DateTime.now().toIso8601String(),
-
       'isReplyMessage': replyPayload != null,
       if (replyPayload != null) 'reply': replyPayload,
       if (replyPayload != null) 'reply_message_id': replyMessageId,
-
-      // ✅ NEW (CRITICAL)
-
       'messageStatus': canSendNow ? 'sending' : 'pending_offline',
     };
-
     localMessage['message_id'] = localId;
     localMessage['time'] = DateTime.now().toIso8601String();
     if (replyPayload != null) {
@@ -1462,8 +1520,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     required bool isRemoval,
   }) {
     if (!mounted) return;
-    if (userId == currentUserId)
+    if (userId == currentUserId) {
       return; // you already optimistically updated locally
+    }
 
     String normalizeId(dynamic id) => id?.toString().trim() ?? '';
 
@@ -1529,10 +1588,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     try {
       if (reactionData == null) return;
 
-      // Backend may send:
-      //  - a single Map
-      //  - a List<Map>
-      //  - a wrapper with `reactions` or `reaction`
       List<Map<String, dynamic>> rawList = [];
 
       if (reactionData is List) {
@@ -2250,13 +2305,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       _reactionOverlayEntry?.remove();
       _reactionOverlayEntry = null;
     } catch (_) {}
-    _suppressReactionDialog = false;
   }
 
   void _showInlineReactionPicker(Map<String, dynamic> message) {
     if (_reactionOverlayEntry != null) return;
-
-    _suppressReactionDialog = true;
 
     final overlay = Overlay.of(context);
     if (overlay == null) return;
@@ -2315,9 +2367,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       _removeInlineReactionPicker();
     });
 
-    Future.delayed(const Duration(milliseconds: 250), () {
-      _suppressReactionDialog = false;
-    });
+    Future.delayed(const Duration(milliseconds: 250), () {});
   }
 
   String _normalizeMessageIdForApi(String messageId) {
@@ -3745,334 +3795,367 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                           : const SizedBox.shrink(),
                     ),
                     Expanded(
-                      child: ListView.builder(
-                        controller: _scrollController,
-                        itemCount: combinedMessages.length,
-                        reverse: true, // Start from bottom
-                        itemBuilder: (context, index) {
-                          // final message = combinedMessages[index];
-                          final int realIndex =
-                              combinedMessages.length - 1 - index;
-                          final message = combinedMessages[realIndex];
+                      child: Align(
+                        alignment: Alignment.topCenter,
+                        child: ListView.builder(
+                          controller: _scrollController,
+                          itemCount: combinedMessages.length,
+                          reverse: true, // Start from bottom
+                          shrinkWrap: true,
+                          itemBuilder: (context, index) {
+                            // final message = combinedMessages[index];
+                            final int realIndex =
+                                combinedMessages.length - 1 - index;
+                            final message = combinedMessages[realIndex];
 
-                          final senderMap = message['sender'] is Map
-                              ? Map<String, dynamic>.from(message['sender'])
-                              : <String, dynamic>{};
+                            final senderMap = message['sender'] is Map
+                                ? Map<String, dynamic>.from(message['sender'])
+                                : <String, dynamic>{};
 
-                          final senderId = (message['senderId'] ??
-                                      senderMap['_id'] ??
-                                      senderMap['id'] ??
-                                      message['sender'])
-                                  ?.toString() ??
-                              '';
+                            final senderId = (message['senderId'] ??
+                                        senderMap['_id'] ??
+                                        senderMap['id'] ??
+                                        message['sender'])
+                                    ?.toString() ??
+                                '';
 
-                          final messageId = (message['message_id'] ??
-                                  message['messageId'] ??
-                                  message['id'] ??
-                                  '')
-                              .toString();
-                          message['group_message_id']?.toString();
+                            final messageId = (message['message_id'] ??
+                                    message['messageId'] ??
+                                    message['id'] ??
+                                    '')
+                                .toString();
+                            message['group_message_id']?.toString();
 
-                          final bool isHighlighted =
-                              _highlightedMessageId == messageId;
-                          final List<GroupMediaItem> groupMedia = [];
+                            final bool isHighlighted =
+                                _highlightedMessageId == messageId;
+                            final List<GroupMediaItem> groupMedia = [];
 
-                          isSentByMe = senderId == currentUserId;
+                            isSentByMe = senderId == currentUserId;
 
-                          final showDate = realIndex == 0 ||
-                              !isSameDay(
-                                _parseTime(message['time']),
-                                _parseTime(
-                                    combinedMessages[realIndex - 1]['time']),
-                              );
-                          final isGroupMessage =
-                              message['is_grouped_message'] == true;
-                          final groupMessageId =
-                              message['group_message_id']?.toString();
+                            final showDate = realIndex == 0 ||
+                                !isSameDay(
+                                  _parseTime(message['time']),
+                                  _parseTime(
+                                      combinedMessages[realIndex - 1]['time']),
+                                );
+                            final isGroupMessage =
+                                message['is_grouped_message'] == true;
+                            final groupMessageId =
+                                message['group_message_id']?.toString();
 
-                          if (isGroupMessage &&
-                              groupMessageId != null &&
-                              groupMessageId.isNotEmpty) {
-                            // Is this the first message in the group?
-                            final isFirstInGroup = realIndex == 0 ||
-                                combinedMessages[realIndex - 1]
-                                            ['group_message_id']
-                                        ?.toString() !=
-                                    groupMessageId;
+                            if (isGroupMessage &&
+                                groupMessageId != null &&
+                                groupMessageId.isNotEmpty) {
+                              // Is this the first message in the group?
+                              final isFirstInGroup = realIndex == 0 ||
+                                  combinedMessages[realIndex - 1]
+                                              ['group_message_id']
+                                          ?.toString() !=
+                                      groupMessageId;
 
-                            // Skip non-first items
-                            if (!isFirstInGroup) {
-                              return const SizedBox.shrink();
-                            }
+                              // Skip non-first items
+                              if (!isFirstInGroup) {
+                                return const SizedBox.shrink();
+                              }
 
-                            // 👇 collect ALL media (images + videos) in this group
-                            final String messageStatus =
-                                message['messageStatus']?.toString() ?? 'sent';
+                              // 👇 collect ALL media (images + videos) in this group
+                              final String messageStatus =
+                                  message['messageStatus']?.toString() ??
+                                      'sent';
 
-                            for (int i = realIndex;
-                                i < combinedMessages.length;
-                                i++) {
-                              final nextMsg = combinedMessages[i];
-                              final nextGrpId =
-                                  nextMsg['group_message_id']?.toString();
-                              if (nextGrpId != groupMessageId) break;
+                              for (int i = realIndex;
+                                  i < combinedMessages.length;
+                                  i++) {
+                                final nextMsg = combinedMessages[i];
+                                final nextGrpId =
+                                    nextMsg['group_message_id']?.toString();
+                                if (nextGrpId != groupMessageId) break;
 
-                              final String? thumb =
-                                  nextMsg['originalUrl']?.toString() ??
-                                      nextMsg['imageUrl']?.toString() ??
-                                      nextMsg['localImagePath']?.toString();
+                                final String? thumb =
+                                    nextMsg['originalUrl']?.toString() ??
+                                        nextMsg['imageUrl']?.toString() ??
+                                        nextMsg['localImagePath']?.toString();
 
-                              final String? fileUrl =
-                                  nextMsg['fileUrl']?.toString();
-                              final String fileType = (nextMsg['fileType'] ??
-                                      nextMsg['mimeType'] ??
-                                      '')
-                                  .toString()
-                                  .toLowerCase();
+                                final String? fileUrl =
+                                    nextMsg['fileUrl']?.toString();
+                                final String fileType = (nextMsg['fileType'] ??
+                                        nextMsg['mimeType'] ??
+                                        '')
+                                    .toString()
+                                    .toLowerCase();
 
-                              final bool isVideo =
-                                  fileType.startsWith('video/') ||
-                                      (fileUrl != null &&
-                                          RegExp(r'\.(mp4|mov|mkv|avi|webm)$',
-                                                  caseSensitive: false)
-                                              .hasMatch(fileUrl));
+                                final bool isVideo =
+                                    fileType.startsWith('video/') ||
+                                        (fileUrl != null &&
+                                            RegExp(r'\.(mp4|mov|mkv|avi|webm)$',
+                                                    caseSensitive: false)
+                                                .hasMatch(fileUrl));
 
-                              if (!isVideo &&
-                                  thumb != null &&
-                                  thumb.isNotEmpty) {
-                                groupMedia.add(GroupMediaItem(
-                                  previewUrl: thumb,
-                                  mediaUrl: thumb,
-                                  isVideo: false,
-                                ));
-                              } else if (isVideo) {
-                                final preview = thumb ?? fileUrl ?? '';
-                                final media = fileUrl ?? thumb ?? '';
-                                if (media.isNotEmpty) {
+                                if (!isVideo &&
+                                    thumb != null &&
+                                    thumb.isNotEmpty) {
                                   groupMedia.add(GroupMediaItem(
-                                    previewUrl: preview,
-                                    mediaUrl: media,
-                                    isVideo: true,
+                                    previewUrl: thumb,
+                                    mediaUrl: thumb,
+                                    isVideo: false,
                                   ));
+                                } else if (isVideo) {
+                                  final preview = thumb ?? fileUrl ?? '';
+                                  final media = fileUrl ?? thumb ?? '';
+                                  if (media.isNotEmpty) {
+                                    groupMedia.add(GroupMediaItem(
+                                      previewUrl: preview,
+                                      mediaUrl: media,
+                                      isVideo: true,
+                                    ));
+                                  }
                                 }
                               }
-                            }
 
-                            // Render grouped media if we have any
-                            if (groupMedia.isNotEmpty) {
-                              return Builder(builder: (ctx) {
-                                final groupId =
-                                    message['group_message_id']?.toString();
-                                final messageId = _anyId(message)?.toString();
-                                final String groupAnchorMessageId =
-                                    message['message_id'] ?? message['id'];
+                              // Render grouped media if we have any
+                              if (groupMedia.isNotEmpty) {
+                                return Builder(builder: (ctx) {
+                                  final groupId =
+                                      message['group_message_id']?.toString();
+                                  final messageId = _anyId(message)?.toString();
+                                  final String groupAnchorMessageId =
+                                      message['message_id'] ?? message['id'];
 
-                                if (groupAnchorMessageId.isNotEmpty) {
-                                  _messageContexts[groupAnchorMessageId] =
-                                      ctx; // 🔥 IMPORTANT
-                                } else if (messageId != null &&
-                                    messageId.isNotEmpty) {
-                                  _messageContexts[messageId] = ctx;
-                                }
-                                return Column(
-                                  crossAxisAlignment: isSentByMe
-                                      ? CrossAxisAlignment.end
-                                      : CrossAxisAlignment.start,
-                                  children: [
-                                    if (showDate)
-                                      DateSeparator(
-                                          dateTime:
-                                              _parseTime(message['time'])),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 8.0, vertical: 4.0),
-                                      child: GroupedMediaWidget(
-                                          isHighlighted: isHighlighted,
-                                          messageId: groupAnchorMessageId,
-                                          media: groupMedia,
-                                          isSentByMe: isSentByMe,
-                                          time: TimeUtils.formatUtcToIst(
-                                              message['time']),
-                                          messageStatus:
-                                              message['messageStatus']
-                                                      ?.toString() ??
-                                                  'sent',
-                                          buildStatusIcon: (status) =>
-                                              MessageStatusIcon(
-                                                status: status ?? 'sent',
-                                                isStatus: true,
-                                              ),
-                                          onImageTap: (tappedIndex) {
-                                            final conversationMedia =
-                                                buildConversationMedia(
-                                                    combinedMessages);
-
-                                            final tappedItem =
-                                                groupMedia[tappedIndex];
-
-                                            final startIndex =
-                                                conversationMedia.indexWhere(
-                                              (m) =>
-                                                  m.mediaUrl ==
-                                                  tappedItem.mediaUrl,
-                                            );
-
-                                            //  if (startIndex == -1) return;
-                                            Navigator.push(
-                                              context,
-                                              PageRouteBuilder(
-                                                opaque: false,
-                                                transitionDuration:
-                                                    const Duration(
-                                                        milliseconds: 300),
-                                                pageBuilder: (_, __, ___) =>
-                                                    MixedMediaViewer(
-                                                  items: conversationMedia,
-                                                  initialIndex: tappedIndex,
+                                  if (groupAnchorMessageId.isNotEmpty) {
+                                    _messageContexts[groupAnchorMessageId] =
+                                        ctx; // 🔥 IMPORTANT
+                                  } else if (messageId != null &&
+                                      messageId.isNotEmpty) {
+                                    _messageContexts[messageId] = ctx;
+                                  }
+                                  return Column(
+                                    crossAxisAlignment: isSentByMe
+                                        ? CrossAxisAlignment.end
+                                        : CrossAxisAlignment.start,
+                                    children: [
+                                      if (showDate)
+                                        DateSeparator(
+                                            dateTime:
+                                                _parseTime(message['time'])),
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8.0, vertical: 4.0),
+                                        child: GroupedMediaWidget(
+                                            isHighlighted: isHighlighted,
+                                            messageId: groupAnchorMessageId,
+                                            media: groupMedia,
+                                            isSentByMe: isSentByMe,
+                                            time: TimeUtils.formatUtcToIst(
+                                                message['time']),
+                                            messageStatus:
+                                                message['messageStatus']
+                                                        ?.toString() ??
+                                                    'sent',
+                                            buildStatusIcon: (status) =>
+                                                MessageStatusIcon(
+                                                  status: status ?? 'sent',
+                                                  isStatus: true,
                                                 ),
-                                              ),
-                                            );
-                                          },
-                                          onForwardTap: () {
-                                            final forwardMessages =
-                                                _getGroupedMessages(
-                                                    combinedMessages,
-                                                    realIndex);
+                                            onImageTap: (tappedIndex) {
+                                              final conversationMedia =
+                                                  buildConversationMedia(
+                                                      combinedMessages);
 
-                                            print(
-                                                "forwardMessagessss ${forwardMessages.length}");
-                                            for (final m in forwardMessages) {
-                                              print(
-                                                  "ITEM TYPE => ${m.runtimeType}");
-                                              print("ITEM VALUE => $m");
-                                            }
+                                              final tappedItem =
+                                                  groupMedia[tappedIndex];
 
-                                            MyRouter.push(
-                                              screen: ForwardMessageScreen(
-                                                messages: forwardMessages,
-                                                currentUserId:
-                                                    message['senderId'] ?? '',
-                                                conversionalid: "",
-                                                username:
-                                                    message['senderName'] ?? '',
-                                              ),
-                                            );
-                                          },
-                                          onRightSwipe: (details) {
-                                            WidgetsBinding.instance
-                                                .addPostFrameCallback((_) {
-                                              if (!mounted) return;
+                                              final startIndex =
+                                                  conversationMedia.indexWhere(
+                                                (m) =>
+                                                    m.mediaUrl ==
+                                                    tappedItem.mediaUrl,
+                                              );
 
-                                              final grouped =
+                                              //  if (startIndex == -1) return;
+                                              Navigator.push(
+                                                context,
+                                                PageRouteBuilder(
+                                                  opaque: false,
+                                                  transitionDuration:
+                                                      const Duration(
+                                                          milliseconds: 300),
+                                                  pageBuilder: (_, __, ___) =>
+                                                      MixedMediaViewer(
+                                                    items: conversationMedia,
+                                                    initialIndex: tappedIndex,
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                            onForwardTap: () {
+                                              final forwardMessages =
                                                   _getGroupedMessages(
                                                       combinedMessages,
                                                       realIndex);
 
-                                              final replyPreview =
-                                                  buildReplyPreviewFromGroup(
-                                                grouped,
-                                                isSentByMe,
-                                                currentUserId,
-                                              );
+                                              print(
+                                                  "forwardMessagessss ${forwardMessages.length}");
+                                              for (final m in forwardMessages) {
+                                                print(
+                                                    "ITEM TYPE => ${m.runtimeType}");
+                                                print("ITEM VALUE => $m");
+                                              }
 
-                                              setState(() {
-                                                _replyMessage = grouped.first;
-                                                _replyPreview = replyPreview;
-                                              });
-                                              log("_replyPreview $_replyPreview");
-                                              log("_replyPreview $_replyMessage");
-
-                                              // ⌨️ open keyboard AFTER gesture completes
-                                              _focusNode.requestFocus();
-                                            });
-                                          }),
-                                    ),
-                                  ],
-                                );
-                              });
-                            }
-                          }
-
-                          final hasReply = _hasReplyForMessage(message);
-
-                          return Builder(builder: (ctx) {
-                            final messageId = _anyId(message)?.toString();
-                            if (messageId != null && messageId.isNotEmpty) {
-                              _messageContexts[messageId] = ctx;
-                            }
-                            return SwipeToReply(
-                              onReply: () {
-                                final resolved = _resolveReplySource(message);
-                                _replyToMessage(resolved, isSendMe: isSentByMe);
-                              },
-                              child: AnimatedContainer(
-                                key: ValueKey(messageId),
-                                duration: const Duration(milliseconds: 600),
-                                curve: Curves.easeOut,
-                                margin: const EdgeInsets.symmetric(vertical: 2),
-                                color: isHighlighted
-                                    ? Colors.blueAccent.withValues(alpha: 0.3)
-                                    : Colors.transparent,
-                                child: !hasReply
-                                    ? _buildMessageBubble(
-                                        message, isSentByMe, hasReply,
-                                        length: groupMedia.length)
-                                    : Column(
-                                        crossAxisAlignment: isSentByMe
-                                            ? CrossAxisAlignment.end
-                                            : CrossAxisAlignment.start,
-                                        children: [
-                                          if (showDate)
-                                            DateSeparator(
-                                                dateTime: _parseTime(
-                                                    message['time'])),
-                                          Container(
-                                            margin: const EdgeInsets.symmetric(
-                                                horizontal: 5, vertical: 6),
-                                            // padding: const EdgeInsets.all(7),
-                                            constraints: const BoxConstraints(
-                                                maxWidth: 160),
-                                            decoration: BoxDecoration(
-                                              color: (isSentByMe
-                                                  ? const Color(0xFFD8E1FE)
-                                                  : Colors.white),
-                                              borderRadius: BorderRadius.only(
-                                                topLeft: isSentByMe
-                                                    ? const Radius.circular(18)
-                                                    : const Radius.circular(18),
-                                                topRight: isSentByMe
-                                                    ? const Radius.circular(18)
-                                                    : const Radius.circular(18),
-                                                bottomLeft: isSentByMe
-                                                    ? const Radius.circular(18)
-                                                    : Radius.zero,
-                                                bottomRight: isSentByMe
-                                                    ? Radius.zero
-                                                    : const Radius.circular(16),
-                                              ),
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: Colors.black
-                                                      .withOpacity(0.05),
-                                                  blurRadius: 4,
-                                                  offset: const Offset(0, 2),
+                                              MyRouter.push(
+                                                screen: ForwardMessageScreen(
+                                                  messages: forwardMessages,
+                                                  currentUserId:
+                                                      message['senderId'] ?? '',
+                                                  conversionalid: "",
+                                                  username:
+                                                      message['senderName'] ??
+                                                          '',
                                                 ),
-                                              ],
-                                            ),
-                                            child: Column(
-                                              children: [
-                                                _buildMessageBubble(message,
-                                                    isSentByMe, hasReply,
-                                                    length: groupMedia.length),
-                                              ],
-                                            ),
-                                          )
-                                        ],
+                                              );
+                                            },
+                                            onRightSwipe: (details) {
+                                              WidgetsBinding.instance
+                                                  .addPostFrameCallback((_) {
+                                                if (!mounted) return;
+
+                                                final grouped =
+                                                    _getGroupedMessages(
+                                                        combinedMessages,
+                                                        realIndex);
+
+                                                final replyPreview =
+                                                    buildReplyPreviewFromGroup(
+                                                  grouped,
+                                                  isSentByMe,
+                                                  currentUserId,
+                                                );
+
+                                                setState(() {
+                                                  _replyMessage = grouped.first;
+                                                  _replyPreview = replyPreview;
+                                                });
+                                                log("_replyPreview $_replyPreview");
+                                                log("_replyPreview $_replyMessage");
+
+                                                _focusNode.requestFocus();
+                                              });
+                                            }),
                                       ),
-                              ),
-                            );
-                          });
-                        },
+                                    ],
+                                  );
+                                });
+                              }
+                            }
+
+                            final hasReply = _hasReplyForMessage(message);
+                            final bool hasReaction =
+                                message['reactions'] != null &&
+                                    (message['reactions'] as List).isNotEmpty;
+
+                            return Builder(builder: (ctx) {
+                              final messageId = _anyId(message)?.toString();
+                              if (messageId != null && messageId.isNotEmpty) {
+                                _messageContexts[messageId] = ctx;
+                              }
+                              return SwipeToReply(
+                                onReply: () {
+                                  final resolved = _resolveReplySource(message);
+                                  _replyToMessage(resolved,
+                                      isSendMe: isSentByMe);
+                                },
+                                child: AnimatedContainer(
+                                  key: ValueKey(messageId),
+                                  duration: const Duration(milliseconds: 600),
+                                  curve: Curves.easeOut,
+                                  margin: EdgeInsets.only(
+                                    top: hasReply ? 4 : 0,
+                                    bottom: hasReaction
+                                        ? (hasReply ? 14 : 5)
+                                        : (hasReply ? 15 : 0),
+                                  ),
+                                  color: isHighlighted
+                                      ? Colors.blueAccent.withValues(alpha: 0.3)
+                                      : Colors.transparent,
+                                  child: !hasReply
+                                      ? _buildMessageBubble(
+                                          message, isSentByMe, hasReply,
+                                          length: groupMedia.length)
+                                      : Align(
+                                          alignment: isSentByMe
+                                              ? Alignment.centerRight
+                                              : Alignment.centerLeft,
+                                          child: Column(
+                                            crossAxisAlignment: isSentByMe
+                                                ? CrossAxisAlignment.end
+                                                : CrossAxisAlignment.start,
+                                            children: [
+                                              if (showDate)
+                                                DateSeparator(
+                                                    dateTime: _parseTime(
+                                                        message['time'])),
+                                              IntrinsicWidth(
+                                                child: Container(
+                                                  margin:
+                                                      const EdgeInsets.symmetric(
+                                                          horizontal: 5,
+                                                          vertical: 6),
+                                                  // padding: const EdgeInsets.all(7),
+                                                  constraints:
+                                                      const BoxConstraints(
+                                                          maxWidth: 160),
+                                                  decoration: BoxDecoration(
+                                                    color: (isSentByMe
+                                                        ? const Color(0xFFD8E1FE)
+                                                        : Colors.white),
+                                                    borderRadius:
+                                                        BorderRadius.only(
+                                                      topLeft: isSentByMe
+                                                          ? const Radius.circular(
+                                                              18)
+                                                          : const Radius.circular(
+                                                              18),
+                                                      topRight: isSentByMe
+                                                          ? const Radius.circular(
+                                                              18)
+                                                          : const Radius.circular(
+                                                              18),
+                                                      bottomLeft: isSentByMe
+                                                          ? const Radius.circular(
+                                                              18)
+                                                          : Radius.zero,
+                                                      bottomRight: isSentByMe
+                                                          ? Radius.zero
+                                                          : const Radius.circular(
+                                                              16),
+                                                    ),
+                                                    boxShadow: [
+                                                      BoxShadow(
+                                                        color: Colors.black
+                                                            .withOpacity(0.05),
+                                                        blurRadius: 4,
+                                                        offset:
+                                                            const Offset(0, 2),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  child: Column(
+                                                    children: [
+                                                      _buildMessageBubble(message,
+                                                          isSentByMe, hasReply,
+                                                          length:
+                                                              groupMedia.length),
+                                                    ],
+                                                  ),
+                                                ),
+                                              )
+                                            ],
+                                          ),
+                                        ),
+                                ),
+                              );
+                            });
+                          },
+                        ),
                       ),
                     ),
                   ],
@@ -4382,7 +4465,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       if (imageOrVideoUrl.isEmpty && replyId.isNotEmpty) {
         Future.microtask(() async {
           try {
-            final groupId = message['group_message_id']?.toString();
+            message['group_message_id']?.toString();
 
             final fetched = await _scrollToMessageById(
               replyId,
@@ -4460,13 +4543,15 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           return FutureBuilder<File?>(
             future: VideoThumbUtil.generateFromUrl(url),
             builder: (context, snap) {
-              if (snap.connectionState == ConnectionState.waiting)
+              if (snap.connectionState == ConnectionState.waiting) {
                 return Container(color: Colors.grey.shade300);
-              if (!snap.hasData || snap.data == null)
+              }
+              if (!snap.hasData || snap.data == null) {
                 return Container(
                     color: Colors.black,
                     child: const Icon(Icons.videocam,
                         color: Colors.white, size: 18));
+              }
               return Image.file(snap.data!, fit: BoxFit.cover);
             },
           );
@@ -4496,7 +4581,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           } else if (isImage && imageOrVideoUrl.isNotEmpty) {
             ImageViewer.show(context, imageOrVideoUrl);
           } else if (replyContent.isNotEmpty) {
-            final groupId = message['group_message_id']?.toString();
+            message['group_message_id']?.toString();
             final found =
                 await _scrollToMessageById(replyId, fetchIfMissing: true);
             if (!found) {

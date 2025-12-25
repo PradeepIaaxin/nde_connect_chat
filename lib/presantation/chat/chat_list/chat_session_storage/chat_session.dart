@@ -8,26 +8,6 @@ class ChatSessionStorage {
 
   static Map<String, dynamic> _paginationData = {};
 
-  // static void saveChatList(List<Datu> newChats) {
-  //   final Map<String, Datu> uniqueChats = {};
-
-  //   for (final chat in chatList) {
-  //     if (chat.conversationId != null) {
-  //       uniqueChats[chat.conversationId!] = chat;
-  //     }
-  //   }
-
-  //   for (final chat in newChats) {
-  //     if (chat.conversationId == null) {
-  //       log("⛔ Dropping chat without conversationId");
-  //       continue;
-  //     }
-  //     uniqueChats[chat.conversationId!] = chat;
-  //   }
-
-  //   chatList = uniqueChats.values.toList();
-  // }
-
   static void saveChatList(List<Datu> newChats) {
     chatList = newChats
         .map((chatReq) => Datu(

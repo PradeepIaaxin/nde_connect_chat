@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:nde_email/bridge_generated.dart/api.dart';
 import 'package:nde_email/data/respiratory.dart';
-import 'package:nde_email/presantation/chat/chat_list/chat_session_storage/chat_session.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'package:nde_email/presantation/chat/chat_list/chat_response_model.dart';
 import 'package:nde_email/presantation/chat/model/emoj_model.dart';
@@ -27,8 +26,6 @@ class SocketService {
 
   Stream<Map<String, dynamic>> get typingStream => _typingController.stream;
 
-  // final StreamController<String> _typingController =
-  //     StreamController<String>.broadcast();
   final StreamController<MessageReaction> _reactionController =
       StreamController<MessageReaction>.broadcast();
   final StreamController<bool> _onlineStatusController =
@@ -94,6 +91,18 @@ class SocketService {
     if (!kReleaseMode) {
       // ignore: avoid_print
       print(msg.toString());
+    }
+  }
+
+  String? _activeConversationId;
+
+  void setActiveConversation(String convoId) {
+    _activeConversationId = convoId;
+  }
+
+  void clearActiveConversation(String convoId) {
+    if (_activeConversationId == convoId) {
+      _activeConversationId = null;
     }
   }
 
@@ -280,6 +289,7 @@ class SocketService {
         return;
       }
       print(socket!.id);
+      print(socket!.id);
       _slog("join_workspace -> {workspaceId: $wsId, userId: $uid}");
       // 1️⃣ Join workspace FIRST
       socket!.emit('join_workspace', {
@@ -301,8 +311,6 @@ class SocketService {
         }
       });
     });
-
-    //messageListUpdate
 
     // Room events
     reg(
@@ -362,35 +370,6 @@ class SocketService {
         });
       }),
     );
-
-    // reg(
-    //       'get_typing',
-    //       (response) => scheduleMicrotask(() {
-    //             _slog('🔥 RAW get_typing received: $response');
-
-    //             // Filter out self-typing
-    //             if (response is List && response.isNotEmpty) {
-    //               final first = response.first;
-    //               if (first is Map && first['userId'] == _currentUserId) return;
-    //             } else if (response is Map &&
-    //                 response['userId'] == _currentUserId) {
-    //               return;
-    //             }
-
-    //             final msg = _extractTypingMessage(response);
-    //             _slog('🔥 Extracted typing msg: $msg');
-
-    //             if (msg != null && msg.trim().isNotEmpty) {
-    //               _typingController.add(msg.toString());
-    //               _typingTimeout?.cancel();
-    //               _typingTimeout = Timer(const Duration(seconds: 2), () {
-    //                 _typingController.add('');
-    //               });
-    //             } else {
-    //               _typingController.add('');
-    //               _typingTimeout?.cancel();
-    //             }
-    //           }));
 
     // messagesRead
     reg(
@@ -599,33 +578,6 @@ class SocketService {
               _handleUserPresence(data, online: false);
             }));
 
-    // chatlistUpdate (binary/base64 preserved, Rust import unchanged)
-    // reg(
-    //   'chatlistUpdate',
-    //   (payload) => scheduleMicrotask(() async {
-    //     _slog('💥 chatlistUpdate received');
-
-    //     try {
-    //       final bytes = _decodeToBytes(payload);
-    //       if (bytes == null) {
-    //         _slog('chatlistUpdate: could not decode payload');
-    //         return;
-    //       }
-
-    //       final jsonString = await importChatUpdate(updateBytes: bytes);
-    //       final decoded = jsonDecode(jsonString);
-
-    //       final chatList = decoded["chatDataList"] ?? [];
-    //       final datuList =
-    //           (chatList as List).map<Datu>((e) => Datu.fromJson(e)).toList();
-
-    //       _onChatListUpdatedCallback?.call(datuList);
-    //     } catch (e, st) {
-    //       _slog('chatlistUpdate error: $e\n$st');
-    //     }
-    //   }),
-    // );
-
     reg(
       'messageListUpdate',
       (payload) => scheduleMicrotask(() async {
@@ -647,6 +599,7 @@ class SocketService {
           final jsonString = await importMessageUpdate(updateBytes: bytes);
 
           final decoded = jsonDecode(jsonString);
+          // log(decoded.toString());
 
           final Map<String, dynamic> messagesMap =
               Map<String, dynamic>.from(decoded['messages'] ?? {});
@@ -654,135 +607,29 @@ class SocketService {
           if (messagesMap.isEmpty) return;
 
           // ✅ EMIT TO UI LAYER
+          final currentOpenConvoId = _activeConversationId; // tracked value
+
+          if (currentOpenConvoId == null ||
+              convoIdFromEvent != currentOpenConvoId) {
+            // ❌ DO NOT EMIT — this CRDT update is for another chat
+            return;
+          }
+
           _crdtMessageController.add({
             'conversationId': convoIdFromEvent,
             'messages': messagesMap,
           });
+
+          // _crdtMessageController.add({
+          //   'conversationId': convoIdFromEvent,
+          //   'messages': messagesMap,
+          // });
         } catch (e, st) {
           debugPrint('messageListUpdate error: $e');
           debugPrint('$st');
         }
       }),
     );
-
-// reg(
-//   'messageListUpdate',
-//   (payload) => scheduleMicrotask(() async {
-//     debugPrint('================ messageListUpdate START ================');
-
-//     try {
-//       // 1️⃣ RAW PAYLOAD
-//       debugPrint('📦 RAW payload type: ${payload.runtimeType}');
-//       debugPrint('📦 RAW payload value: $payload');
-
-//       if (payload is! List || payload.isEmpty) {
-//         debugPrint('❌ Payload is not a List or empty');
-//         return;
-//       }
-
-//       final first = payload.first;
-//       debugPrint('📌 First element type: ${first.runtimeType}');
-//       debugPrint('📌 First element value: $first');
-
-//       if (first is! Map) {
-//         debugPrint('❌ First element is not Map');
-//         return;
-//       }
-
-//       // 2️⃣ UPDATE FIELD
-//       final rawUpdate = first['update'];
-//       debugPrint('🧩 update field type: ${rawUpdate.runtimeType}');
-
-//       if (rawUpdate is List) {
-//         debugPrint('🧩 update length: ${rawUpdate.length}');
-//         debugPrint(
-//           '🧩 update preview (first 20): ${rawUpdate.take(20).toList()}',
-//         );
-//       }
-
-//       if (rawUpdate == null) {
-//         debugPrint('❌ update field is null');
-//         return;
-//       }
-
-//       // 3️⃣ BYTES CONVERSION
-//       final bytes = _bytesFromIntList(rawUpdate);
-//       debugPrint('🔁 bytes type: ${bytes.runtimeType}');
-//       debugPrint('🔁 bytes length: ${bytes?.length}');
-
-//       if (bytes == null || bytes.isEmpty) {
-//         debugPrint('❌ bytes conversion failed');
-//         return;
-//       }
-
-//       debugPrint(
-//         '🔁 bytes preview (first 20): ${bytes.take(20).toList()}',
-//       );
-
-//       // 4️⃣ RUST RESPONSE
-//       debugPrint('🦀 Calling importMessageUpdate...');
-//       final jsonString =
-//           await importMessageUpdate(updateBytes: bytes);
-
-//       debugPrint('🦀 Rust returned JSON string:');
-//       debugPrint(jsonString);
-
-//       // 5️⃣ JSON DECODE
-//       final decoded = jsonDecode(jsonString);
-//       debugPrint('🧩 Decoded JSON runtimeType: ${decoded.runtimeType}');
-//       debugPrint('🧩 Decoded JSON keys: ${decoded is Map ? decoded.keys : 'N/A'}');
-
-//       // 6️⃣ MESSAGES MAP
-//       final Map<String, dynamic> messagesMap =
-//           Map<String, dynamic>.from(decoded['messages'] ?? {});
-
-//       debugPrint('📨 messagesMap length: ${messagesMap.length}');
-//       if (messagesMap.isNotEmpty) {
-//         debugPrint(
-//           '📨 first message key: ${messagesMap.keys.first}',
-//         );
-//         debugPrint(
-//           '📨 first message value: ${messagesMap.values.first}',
-//         );
-//       }
-
-//       if (messagesMap.isEmpty) {
-//         debugPrint('⚠️ messagesMap is empty');
-//         return;
-//       }
-
-//       // 7️⃣ NORMALIZATION
-//       final handler = MessageHandler(
-//         currentUserId: _currentUserId ?? '',
-//         convoId: '',
-//       );
-
-//       final normalizedMessages = messagesMap.values
-//           .map<Map<String, dynamic>>((raw) {
-//             final normalized = handler.normalizeMessage(raw);
-//             debugPrint('🔹 normalized message: $normalized');
-//             return normalized;
-//           })
-//           .where((m) => m.isNotEmpty)
-//           .toList();
-
-//       debugPrint('✅ normalizedMessages count: ${normalizedMessages.length}');
-
-//       // 8️⃣ SORT
-//       normalizedMessages.sort(
-//         (a, b) => handler
-//             .parseTime(a['time'])
-//             .compareTo(handler.parseTime(b['time'])),
-//       );
-
-//       debugPrint(
-//           '================ messageListUpdate END (SUCCESS) =================');
-//     } catch (e, st) {
-//       debugPrint('❌ messageListUpdate error: $e');
-//       debugPrint('📉 StackTrace: $st');
-//     }
-//   }),
-// );
 
     reg(
       'chatlistUpdate',
@@ -801,7 +648,7 @@ class SocketService {
 
           final decoded = jsonDecode(jsonString);
           final List list = decoded["chatDataList"] ?? [];
-          log(list.toString());
+          // log(list.toString());
 
           // ⚠️ IMPORTANT: ignore empty CRDT updates
           if (list.isEmpty) {
@@ -812,7 +659,7 @@ class SocketService {
           final datuList = list.map<Datu>((e) => Datu.fromJson(e)).toList();
 
           // 🔥 SAVE — DO NOT CLEAR
-          ChatSessionStorage.saveChatList(datuList);
+          // ChatSessionStorage.saveChatList(datuList);
 
           // 🔥 NOTIFY UI / BLOC
           _onChatListUpdatedCallback?.call(datuList);
@@ -1409,10 +1256,11 @@ class SocketService {
       _slog('sendMessage aborted: socket not connected');
       return;
     }
+    final convidId = conversationId;
 
     final messagePayload = {
       "messageId": messageId,
-      "conversationId": conversationId,
+      "conversationId": convidId ?? null,
       "sender": senderId,
       "receiver": receiverId,
       "message": message,

@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:nde_email/presantation/chat/Socket/Socket_Service.dart';
+import 'package:nde_email/presantation/chat/Socket/socket_service.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/localstorage/local_storage.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/local_strorage.dart';
 import 'chat_api.dart';

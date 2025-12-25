@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:nde_email/data/respiratory.dart';
 import 'dart:async';
 
-import 'package:nde_email/presantation/chat/Socket/Socket_Service.dart';
+import 'package:nde_email/presantation/chat/Socket/socket_service.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_listscreen.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_event.dart';
@@ -23,7 +23,7 @@ import 'package:nde_email/utils/reusbale/whatsapp_banner.dart';
 import 'package:nde_email/utils/reusbale/whatsapp_offline_banner.dart';
 import 'package:nde_email/utils/simmer_effect.dart/chat_list_item.dart';
 import '../chat_group_Screen/GroupChatScreen.dart';
-import '../chat_private_screen/Private_Chat_Screen.dart';
+import '../chat_private_screen/private_chat_screen.dart';
 import 'chat_bloc.dart';
 import 'chat_event.dart';
 import 'chat_state.dart';
@@ -83,15 +83,16 @@ class _ChatListScreenState extends State<ChatListScreen> {
   @override
   void initState() {
     super.initState();
+
     _loadUserData();
     _scrollController.addListener(_scrollListener);
+
+    /// 🔤 Typing listener
     _typingSub = SocketService().typingStream.listen((data) {
       if (!mounted) return;
 
       if (data.isEmpty) {
-        setState(() {
-          _typingByConvo.clear();
-        });
+        setState(() => _typingByConvo.clear());
         return;
       }
 
@@ -105,28 +106,20 @@ class _ChatListScreenState extends State<ChatListScreen> {
       }
     });
 
-    final initialChats = ChatSessionStorage.getChatList();
-    _allChats = List.from(initialChats);
-    _showFilterChips = initialChats.length < 12;
+    /// 🌐 Internet status listener
     _internetSub =
         InternetService.connectionStreams.listen((hasInternet) async {
       if (!mounted) return;
 
       setState(() {
         _hasInternet = hasInternet;
+        _networkStatus = hasInternet
+            ? NetworkStatus.reconnecting
+            : NetworkStatus.disconnected;
       });
 
-      if (!hasInternet) {
-        setState(() {
-          _networkStatus = NetworkStatus.disconnected;
-        });
-      } else {
-        setState(() {
-          _networkStatus = NetworkStatus.reconnecting;
-        });
-
+      if (hasInternet) {
         await Future.delayed(const Duration(seconds: 1));
-
         if (mounted) {
           setState(() {
             _networkStatus = NetworkStatus.connected;
@@ -135,19 +128,84 @@ class _ChatListScreenState extends State<ChatListScreen> {
       }
     });
 
+    /// 📡 Initial API fetch (NO LOCAL STORAGE)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        final cached = ChatSessionStorage.getChatList();
-        if (cached.isNotEmpty) {
-          _allChats = List.from(cached);
-          // context.read<ChatListBloc>().add(SetLocalChatList(chats: cached));
-          context.read<ChatListBloc>().add(FetchChatList(page: 1, limit: 20));
-        } else {
-          context.read<ChatListBloc>().add(FetchChatList(page: 1, limit: 20));
-        }
+        context.read<ChatListBloc>().add(
+              FetchChatList(page: 1, limit: 80),
+            );
       }
     });
   }
+
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   _loadUserData();
+  //   _scrollController.addListener(_scrollListener);
+  //   _typingSub = SocketService().typingStream.listen((data) {
+  //     if (!mounted) return;
+
+  //     if (data.isEmpty) {
+  //       setState(() {
+  //         _typingByConvo.clear();
+  //       });
+  //       return;
+  //     }
+
+  //     final convoId = data['convoId'];
+  //     final message = data['message'];
+
+  //     if (convoId != null && message != null) {
+  //       setState(() {
+  //         _typingByConvo[convoId] = message;
+  //       });
+  //     }
+  //   });
+
+  //   final initialChats = ChatSessionStorage.getChatList();
+  //   _allChats = List.from(initialChats);
+  //   _showFilterChips = initialChats.length < 12;
+  //   _internetSub =
+  //       InternetService.connectionStreams.listen((hasInternet) async {
+  //     if (!mounted) return;
+
+  //     setState(() {
+  //       _hasInternet = hasInternet;
+  //     });
+
+  //     if (!hasInternet) {
+  //       setState(() {
+  //         _networkStatus = NetworkStatus.disconnected;
+  //       });
+  //     } else {
+  //       setState(() {
+  //         _networkStatus = NetworkStatus.reconnecting;
+  //       });
+
+  //       await Future.delayed(const Duration(seconds: 1));
+
+  //       if (mounted) {
+  //         setState(() {
+  //           _networkStatus = NetworkStatus.connected;
+  //         });
+  //       }
+  //     }
+  //   });
+
+  //   WidgetsBinding.instance.addPostFrameCallback((_) {
+  //     if (mounted) {
+  //       final cached = ChatSessionStorage.getChatList();
+  //       if (cached.isNotEmpty) {
+  //         _allChats = List.from(cached);
+  //         // context.read<ChatListBloc>().add(SetLocalChatList(chats: cached));
+  //         context.read<ChatListBloc>().add(FetchChatList(page: 1, limit: 20));
+  //       } else {
+  //         context.read<ChatListBloc>().add(FetchChatList(page: 1, limit: 20));
+  //       }
+  //     }
+  //   });
+  // }
 
   void _updateLocalPin(String convoId, bool newStatus) {
     final chat = ChatSessionStorage.getChatList()
@@ -173,16 +231,15 @@ class _ChatListScreenState extends State<ChatListScreen> {
     final offset = _scrollController.offset;
     final bool atTop = offset <= 0;
 
-    // Get total chat count from storage
-    final totalChats = ChatSessionStorage.getChatList().length;
+    /// ✅ Use UI source of truth (NOT local storage)
+    final totalChats = _allChats.length;
 
+    // Filter chips behavior
     if (totalChats < 12) {
-      // Always show chips when less than 12 chats
       if (!_showFilterChips) {
         setState(() => _showFilterChips = true);
       }
     } else {
-      // WhatsApp behavior for 12+ chats
       if (atTop && !_showFilterChips) {
         setState(() => _showFilterChips = true);
       } else if (!atTop && _showFilterChips) {
@@ -190,7 +247,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
       }
     }
 
-    /// ✅ SEARCH BAR (optional – keep your logic)
+    /// 🔍 SEARCH BAR behavior (unchanged)
     final isScrollingDown = offset > _lastScrollOffset;
 
     if (!isScrollingDown && offset > 100) {
@@ -205,6 +262,45 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
     _lastScrollOffset = offset;
   }
+
+  // void _scrollListener() {
+  //   if (!_scrollController.hasClients) return;
+
+  //   final offset = _scrollController.offset;
+  //   final bool atTop = offset <= 0;
+
+  //   // Get total chat count from storage
+  //   final totalChats = ChatSessionStorage.getChatList().length;
+
+  //   if (totalChats < 12) {
+  //     // Always show chips when less than 12 chats
+  //     if (!_showFilterChips) {
+  //       setState(() => _showFilterChips = true);
+  //     }
+  //   } else {
+  //     // WhatsApp behavior for 12+ chats
+  //     if (atTop && !_showFilterChips) {
+  //       setState(() => _showFilterChips = true);
+  //     } else if (!atTop && _showFilterChips) {
+  //       setState(() => _showFilterChips = false);
+  //     }
+  //   }
+
+  //   /// ✅ SEARCH BAR (optional – keep your logic)
+  //   final isScrollingDown = offset > _lastScrollOffset;
+
+  //   if (!isScrollingDown && offset > 100) {
+  //     if (!_showSearchBar) {
+  //       setState(() => _showSearchBar = true);
+  //     }
+  //   } else if (isScrollingDown || atTop) {
+  //     if (_showSearchBar) {
+  //       setState(() => _showSearchBar = false);
+  //     }
+  //   }
+
+  //   _lastScrollOffset = offset;
+  // }
 
   @override
   void dispose() {

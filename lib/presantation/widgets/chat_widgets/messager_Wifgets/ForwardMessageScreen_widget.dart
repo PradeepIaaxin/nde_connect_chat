@@ -21,8 +21,8 @@ import 'package:nde_email/utils/const/consts.dart';
 import 'package:nde_email/utils/reusbale/colour_utlis.dart';
 import 'package:nde_email/utils/router/router.dart';
 
-import '../../../chat/chat_private_screen/Private_Chat_Screen.dart';
-import 'package:nde_email/presantation/chat/Socket/Socket_Service.dart';
+import '../../../chat/chat_private_screen/private_chat_screen.dart';
+import 'package:nde_email/presantation/chat/Socket/socket_service.dart';
 
 import '../../../chat/chat_private_screen/localstorage/local_storage.dart';
 
