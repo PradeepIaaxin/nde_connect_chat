@@ -4,7 +4,7 @@ import 'package:nde_email/presantation/chat/chat_contact_list/UserService.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_data_model.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_list_event.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_list_state.dart';
-import 'package:nde_email/presantation/chat/chat_private_screen/Private_Chat_Screen.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/private_chat_screen.dart';
 import 'package:nde_email/presantation/chat/contact_new_group/new_group.dart';
 import 'package:nde_email/utils/const/consts.dart';
 import 'package:nde_email/utils/reusbale/colour_utlis.dart';
@@ -201,6 +201,7 @@ class _UserListScreenState extends State<UserListScreen> {
                                 convoId: user.conversationId ?? "",
                                 profileAvatarUrl: "",
                                 firstname: user.firstName,
+                                receiverId: user.userId,
                                 lastname: user.lastName,
                                 userName: user.firstName,
                                 lastSeen: " ",

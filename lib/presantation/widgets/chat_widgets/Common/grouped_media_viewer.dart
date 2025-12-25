@@ -237,12 +237,12 @@ class GroupedMediaWidget extends StatelessWidget {
                       _tile(context, 3),
                       if (media.length > 4)
                         GestureDetector(
-                          onTap: () => onImageTap?.call(0), 
+                          onTap: () => onImageTap?.call(0),
                           child: Container(
                             color: Colors.black54,
                             alignment: Alignment.center,
-                            child: const Text(
-                              '+4',
+                            child: Text(
+                              '+${media.length - 3}',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 24,
@@ -303,10 +303,18 @@ class GroupedMediaWidget extends StatelessWidget {
 
       // ✅ LOCAL IMAGE
       if (_isLocalPath(url)) {
-        return Image.file(
-          File(url.replaceFirst('file://', '')),
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.file(
+              File(url.replaceFirst('file://', '')),
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
+            ),
+            // Show loader if status is 'sending'
+            if (messageStatus.toLowerCase() == 'sending')
+              Center(child: _buildWhatsAppLoader()),
+          ],
         );
       }
 
@@ -315,8 +323,18 @@ class GroupedMediaWidget extends StatelessWidget {
         child: CachedNetworkImage(
           imageUrl: url,
           fit: BoxFit.cover,
-          placeholder: (_, __) => Container(color: Colors.grey.shade300),
-          errorWidget: (_, __, ___) => const Icon(Icons.broken_image),
+          progressIndicatorBuilder: (_, __, downloadProgress) => Container(
+            color: Colors.grey.shade200,
+            child: Center(
+              child: _buildWhatsAppLoader(progress: downloadProgress.progress),
+            ),
+          ),
+          errorWidget: (_, __, ___) => Container(
+            color: Colors.grey.shade200,
+            child: const Center(
+              child: Icon(Icons.broken_image, color: Colors.grey),
+            ),
+          ),
         ),
       );
     }
@@ -328,9 +346,17 @@ class GroupedMediaWidget extends StatelessWidget {
         if (snap.connectionState == ConnectionState.done &&
             snap.hasData &&
             snap.data!.existsSync()) {
-          return Image.file(
-            snap.data!,
-            fit: BoxFit.cover,
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.file(
+                snap.data!,
+                fit: BoxFit.cover,
+              ),
+              // Show loader if status is 'sending'
+              if (messageStatus.toLowerCase() == 'sending')
+                Center(child: _buildWhatsAppLoader()),
+            ],
           );
         }
 
@@ -340,6 +366,33 @@ class GroupedMediaWidget extends StatelessWidget {
           child: const CircularProgressIndicator(strokeWidth: 2),
         );
       },
+    );
+  }
+
+  Widget _buildWhatsAppLoader({double? progress}) {
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: Colors.black38,
+        shape: BoxShape.circle,
+      ),
+      padding: const EdgeInsets.all(4),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          CircularProgressIndicator(
+            value: progress,
+            strokeWidth: 3,
+            valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+          ),
+          const Icon(
+            Icons.stop,
+            color: Colors.white,
+            size: 18,
+          ),
+        ],
+      ),
     );
   }
 }
