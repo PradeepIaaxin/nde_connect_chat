@@ -87,7 +87,7 @@ class SendMessageEvent extends MessagerEvent {
     required this.message,
     required this.convoId,
     this.contentType = 'text',
-    this.mediaUrl,         // 👈 NEW
+    this.mediaUrl,         
 
     this.replyTo, this.clientTempId, this.replyMessageId,this.replyIsGroupMessage,this.replyGroupMessageId
   });

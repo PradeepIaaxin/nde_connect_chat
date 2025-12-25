@@ -83,9 +83,13 @@ class MessageBubble extends StatelessWidget {
                 .toString()
                 .toLowerCase()
                 .endsWith('.mov'));
-    bool hasReply = message['reply'] != null ||
-        message['reply_message_id'] != null ||
-        message['replyContent'] != null;
+    final replyData = message['reply'];
+    final replyId = message['reply_message_id'] ?? message['replyMessageId'];
+    final replyContent = message['replyContent'];
+
+    bool hasReply = (replyData is Map && replyData.isNotEmpty) ||
+        (replyId != null && replyId.toString().isNotEmpty) ||
+        (replyContent != null && replyContent.toString().isNotEmpty);
 
     final bool hasFile = fileUrl != null && fileUrl.isNotEmpty;
     final bool hasImage = imageUrl != null && imageUrl.isNotEmpty;
@@ -114,11 +118,7 @@ class MessageBubble extends StatelessWidget {
           onLongPress?.call();
         },
         child: Align(
-          alignment: isReply
-              ? Alignment.centerLeft
-              : isSentByMe
-                  ? Alignment.centerRight
-                  : Alignment.centerLeft,
+          alignment: isSentByMe ? Alignment.centerRight : Alignment.centerLeft,
           child: Stack(
             clipBehavior: Clip.none,
             children: [
@@ -129,8 +129,8 @@ class MessageBubble extends StatelessWidget {
                   right: 9,
                   bottom: (message['reactions'] != null &&
                           (message['reactions'] as List).isNotEmpty)
-                      ? 20
-                      : 8,
+                      ? 8
+                      : 0,
                 ),
                 padding: isReply
                     ? null
@@ -161,58 +161,59 @@ class MessageBubble extends StatelessWidget {
                       ? Border.all(color: borderColor, width: 2)
                       : null,
                 ),
-                child: Column(
-                  crossAxisAlignment: hasReply
-                      ? CrossAxisAlignment.stretch
-                      : CrossAxisAlignment.start,
-                  children: [
-                    if (hasReply)
-                      RepliedMessagePreview(
-                        key: ValueKey(message['isReplyMessage']?.hashCode ??
-                            message['reply']),
-                        replied: message['reply'] ?? {},
-                        receiver: message['receiver'] is Map
-                            ? Map<String, dynamic>.from(message['receiver'])
-                            : {},
-                        isSender: isSentByMe,
-                        onTap: onReplyTap,
-                        groupMediaLength: groupMediaLength,
-                      ),
+                child: IntrinsicWidth(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (hasReply)
+                        RepliedMessagePreview(
+                          key: ValueKey(message['isReplyMessage']?.hashCode ??
+                              message['reply']),
+                          replied: message['reply'] ?? {},
+                          receiver: message['receiver'] is Map
+                              ? Map<String, dynamic>.from(message['receiver'])
+                              : {},
+                          isSender: isSentByMe,
+                          onTap: onReplyTap,
+                          groupMediaLength: groupMediaLength,
+                        ),
 
-                    if (!isSentByMe && isForwarded == true)
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Image.asset(
-                            "assets/images/forward.png",
-                            height: 14,
-                            width: 14,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            "Forwarded",
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[700],
+                      if (!isSentByMe && isForwarded == true)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Image.asset(
+                              "assets/images/forward.png",
+                              height: 14,
+                              width: 14,
                             ),
-                          ),
-                        ],
-                      ),
+                            const SizedBox(width: 4),
+                            Text(
+                              "Forwarded",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[700],
+                              ),
+                            ),
+                          ],
+                        ),
 
-                    // Image preview (only if not video)
-                    if (!isVideo && hasImage)
-                      _buildImage(context, content, imageUrl!, fileName,
-                          isSentByMe: isSentByMe),
+                      // Image preview (only if not video)
+                      if (!isVideo && hasImage)
+                        _buildImage(context, content, imageUrl!, fileName,
+                            isSentByMe: isSentByMe),
 
-                    // File preview (if file exists)
-                    if (hasFile)
-                      _buildFile(context, fileUrl!, fileName, fileType, content,
-                          isSentByMe: isSentByMe),
+                      // File preview (if file exists)
+                      if (hasFile)
+                        _buildFile(
+                            context, fileUrl!, fileName, fileType, content,
+                            isSentByMe: isSentByMe),
 
-                    // Text content
-                    if (content.isNotEmpty)
-                      _buildTextMessage(content, messageStatus, hasReply),
-                  ],
+                      // Text content
+                      if (content.isNotEmpty)
+                        _buildTextMessage(content, messageStatus, hasReply),
+                    ],
+                  ),
                 ),
               ),
 
@@ -221,7 +222,7 @@ class MessageBubble extends StatelessWidget {
                   (message['reactions'] as List).isNotEmpty &&
                   buildReactionsBar != null)
                 Positioned(
-                  bottom: -15,
+                  bottom: (isReplyMessage ?? false) ? -40 : -28,
                   right: isSentByMe ? 12 : null,
                   left: isSentByMe ? null : 12,
                   child: Padding(
@@ -445,9 +446,15 @@ class MessageBubble extends StatelessWidget {
             width: 260,
             height: imageExtensions.contains(extension) ? 300 : 200,
             fit: BoxFit.cover,
-            placeholder: (context, url) => const ShimmerImagePlaceholder(
+            placeholder: (context, url) => Container(
               width: 260,
               height: 200,
+              color: Colors.grey.shade200,
+              child: const Center(
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                ),
+              ),
             ),
             errorWidget: (context, url, error) => Container(
               width: 260,
@@ -505,7 +512,7 @@ class MessageBubble extends StatelessWidget {
             // openSingleMediaViewer(context);
           },
           onTap: () async {
-        //    debugPrint('MessageBubble: image tapped => $imageUrl');
+            //    debugPrint('MessageBubble: image tapped => $imageUrl');
             // if it's an actual image, open viewer; otherwise, try to download/open file
             if (looksImage) {
               _openConversationViewer(context, imageUrl);
@@ -1078,7 +1085,7 @@ class MessageBubble extends StatelessWidget {
 
         final textBubble = Padding(
           padding: const EdgeInsets.only(top: 6),
-          child: (useIntrinsic && !shouldStretch)
+          child: useIntrinsic
               ? IntrinsicWidth(child: constrainedBox)
               : constrainedBox,
         );
@@ -1353,8 +1360,13 @@ class MessageBubble extends StatelessWidget {
       width: 300,
       height: 300,
       decoration: BoxDecoration(
-        color: Colors.grey.shade300,
+        color: Colors.grey.shade200,
         borderRadius: BorderRadius.circular(10),
+      ),
+      child: const Center(
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+        ),
       ),
     );
   }
