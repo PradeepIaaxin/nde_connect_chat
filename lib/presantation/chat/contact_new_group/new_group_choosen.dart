@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:nde_email/data/respiratory.dart';
-import 'package:nde_email/presantation/chat/Socket/Socket_Service.dart'
+import 'package:nde_email/presantation/chat/Socket/socket_service.dart'
     show SocketService;
 import 'package:nde_email/presantation/chat/chat_contact_list/user_data_model.dart';
 import 'package:nde_email/utils/const/consts.dart';

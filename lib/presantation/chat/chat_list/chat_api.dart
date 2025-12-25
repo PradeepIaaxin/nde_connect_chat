@@ -133,81 +133,70 @@ class ChatListApiService {
   }
 
   Future<List<Datu>> fetchChats({
-    required int page,
-    required int limit,
-    String? filter,
-  }) async {
-    final accessToken = await UserPreferences.getAccessToken();
-    final workspace = await UserPreferences.getDefaultWorkspace();
+  required int page,
+  required int limit,
+  String? filter,
+}) async {
+  final accessToken = await UserPreferences.getAccessToken();
+  final workspace = await UserPreferences.getDefaultWorkspace();
 
-    if (accessToken == null || workspace == null) {
-      throw Exception("User authentication missing");
-    }
+  if (accessToken == null || workspace == null) {
+    throw Exception("User authentication missing");
+  }
 
-    final Map<String, String> queryParams = {
-      'page': page.toString(),
-      'limit': limit.toString(),
-    };
+  final Map<String, String> queryParams = {
+    'page': page.toString(),
+    'limit': limit.toString(),
+  };
 
-    if (filter != null && filter.isNotEmpty && filter.toLowerCase() != "all") {
-      queryParams['filter'] = filter.toLowerCase();
-    }
+  if (filter != null && filter.isNotEmpty && filter.toLowerCase() != "all") {
+    queryParams['filter'] = filter.toLowerCase();
+  }
 
-    final uri = Uri.parse(baseUrl).replace(queryParameters: queryParams);
+  final uri = Uri.parse(baseUrl).replace(queryParameters: queryParams);
 
-    final headers = {
-      'Authorization': 'Bearer $accessToken',
-      'x-workspace': workspace,
-      'Content-Type': 'application/json',
-    };
+  final headers = {
+    'Authorization': 'Bearer $accessToken',
+    'x-workspace': workspace,
+    'Content-Type': 'application/json',
+  };
 
-    final response = await http.get(uri, headers: headers);
+  final response = await http.get(uri, headers: headers);
 
-    if (response.statusCode == 200) {
-      final jsonData = jsonDecode(response.body);
-      log(jsonData.toString());
+  if (response.statusCode == 200) {
+    final jsonData = jsonDecode(response.body);
 
-      // ===================== LORO SNAPSHOT FLOW =====================
-      if (jsonData["snapshot"] != null) {
-        final snapshotBase64 = jsonData["snapshot"];
-        log("📥 Received Loro Snapshot. Decoding using Rust...");
+    // ===================== LORO SNAPSHOT FLOW =====================
+    if (jsonData["snapshot"] != null) {
+      final snapshotBase64 = jsonData["snapshot"];
+      log("📥 Received Loro Snapshot");
 
-        // 🔥 VERY IMPORTANT: reset Rust global doc first
-        await resetGlobalDoc();
+      // Reset Rust doc ONLY for decoding
+      await resetGlobalDoc();
 
-        final chats = await decodeChatsFromLoro(snapshotBase64);
-        // log(chats.toString());
+      final chats = await decodeChatsFromLoro(snapshotBase64);
 
-        // ⚠️ SAFETY: don't clear existing chats if snapshot is empty
-        if (chats.isEmpty) {
-          log("⚠️ Snapshot decoded but chat list is empty. Keeping existing chats.");
-          return ChatSessionStorage.getChatList();
-        }
-
-        ChatSessionStorage.clear();
-        ChatSessionStorage.saveChatList(chats);
-
-        log("📦 Chat count after fetch: ${chats.length}");
-        return chats;
-      }
-
-      // ===================== BACKUP NORMAL JSON FLOW =====================
-      final List<dynamic> chatJson = jsonData["data"] ?? [];
-      final chats = chatJson.map((e) => Datu.fromJson(e)).toList();
+      // ✅ JUST RETURN — NO LOCAL SAVE
       return chats;
     }
 
-    // ===================== TOKEN REFRESH =====================
-    if (response.statusCode == 401) {
-      final refreshed = await _onRefreshToken();
-      if (refreshed) {
-        return fetchChats(page: page, limit: limit, filter: filter);
-      }
-      throw Exception("Authentication failed");
-    }
-
-    throw Exception("Failed to fetch chats");
+    // ===================== NORMAL JSON FLOW =====================
+    final List<dynamic> chatJson = jsonData["data"] ?? [];
+    return chatJson.map((e) => Datu.fromJson(e)).toList();
   }
+
+  // ===================== TOKEN REFRESH =====================
+  if (response.statusCode == 401) {
+    final refreshed = await _onRefreshToken();
+    if (refreshed) {
+      return fetchChats(page: page, limit: limit, filter: filter);
+    }
+    throw Exception("Authentication failed");
+  }
+
+  throw Exception("Failed to fetch chats");
+}
+
 
   // Future<List<Datu>> fetchChats({
   //   required int page,
@@ -221,7 +210,7 @@ class ChatListApiService {
   //     throw Exception("User authentication missing");
   //   }
 
-  //   Map<String, String> queryParams = {
+  //   final Map<String, String> queryParams = {
   //     'page': page.toString(),
   //     'limit': limit.toString(),
   //   };
@@ -242,34 +231,48 @@ class ChatListApiService {
 
   //   if (response.statusCode == 200) {
   //     final jsonData = jsonDecode(response.body);
+  //     // log(jsonData.toString());
 
-  //     // NEW: Check for Loro snapshot
+  //     // ===================== LORO SNAPSHOT FLOW =====================
   //     if (jsonData["snapshot"] != null) {
   //       final snapshotBase64 = jsonData["snapshot"];
   //       log("📥 Received Loro Snapshot. Decoding using Rust...");
 
+  //       // 🔥 VERY IMPORTANT: reset Rust global doc first
+  //       await resetGlobalDoc();
+
   //       final chats = await decodeChatsFromLoro(snapshotBase64);
+  //       // log(chats.toString());
+
+  //       // ⚠️ SAFETY: don't clear existing chats if snapshot is empty
+  //       if (chats.isEmpty) {
+  //         log("⚠️ Snapshot decoded but chat list is empty. Keeping existing chats.");
+  //         return ChatSessionStorage.getChatList();
+  //       }
+
   //       ChatSessionStorage.clear();
   //       ChatSessionStorage.saveChatList(chats);
-  //       log("📦 Chat count after fetch: ${ChatSessionStorage.getChatList().length}");
 
+  //       log("📦 Chat count after fetch: ${chats.length}");
   //       return chats;
   //     }
 
-  //     // BACKUP: If normal JSON array is sent instead of snapshot
+  //     // ===================== BACKUP NORMAL JSON FLOW =====================
   //     final List<dynamic> chatJson = jsonData["data"] ?? [];
   //     final chats = chatJson.map((e) => Datu.fromJson(e)).toList();
-
   //     return chats;
-  //   } else if (response.statusCode == 401) {
+  //   }
+
+  //   // ===================== TOKEN REFRESH =====================
+  //   if (response.statusCode == 401) {
   //     final refreshed = await _onRefreshToken();
   //     if (refreshed) {
   //       return fetchChats(page: page, limit: limit, filter: filter);
   //     }
   //     throw Exception("Authentication failed");
-  //   } else {
-  //     throw Exception("Failed to fetch chats");
   //   }
+
+  //   throw Exception("Failed to fetch chats");
   // }
 
   void dispose() {

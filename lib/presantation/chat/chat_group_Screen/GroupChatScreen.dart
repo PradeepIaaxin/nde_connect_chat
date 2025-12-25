@@ -43,7 +43,7 @@ import '../../../data/respiratory.dart';
 import '../../../utils/simmer_effect.dart/chat_simmerefect.dart';
 import '../../widgets/chat_widgets/messager_Wifgets/ForwardMessageScreen_widget.dart';
 import '../../widgets/chat_widgets/messager_Wifgets/buildMessageInputField_widgets.dart';
-import '../Socket/Socket_Service.dart';
+import '../Socket/socket_service.dart';
 import 'group_media_viewer.dart';
 import '../chat_private_screen/messager_Bloc/widget/VideoPlayerScreen.dart';
 import '../chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
@@ -171,6 +171,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   @override
   void dispose() {
+    socketService.clearActiveConversation(widget.conversationId);
+
     final unsentText = _messageController.text.trim();
     if (unsentText.isNotEmpty) {
       GrpLocalChatStorage.saveDraftMessage(widget.conversationId, unsentText);
@@ -217,6 +219,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   void initState() {
     super.initState();
     currentUserId = widget.currentUserId;
+    socketService.setActiveConversation(widget.conversationId);
 
     _checkingPersmmion();
     _initMessages();
@@ -268,8 +271,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     // Load draft after initialization
     _loadDraft();
     groupMembers = widget.groupMembers ?? [];
-    print("Group Members: $groupMembers");
-// Fetch fresh group details to ensure we have all members
+
+    // Fetch fresh group details to ensure we have all members
     _groupBloc.add(FetchGroupDetails(groupId: widget.datumId));
     _loadCurrentUserName();
 
@@ -411,81 +414,224 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     });
   }
 
-  /// 🔁 SOCKET CALLBACK – now also understands reaction events, like private chat
   void onMessageReceived(Map<String, dynamic> rawData) {
-    // Step 1: Extract the actual message from the weird wrapper
-    Map<String, dynamic> messageData;
-
-    if (rawData['data'] != null) {
-      // Case 1: { "data": { ...message... } } → your log shows this
-      messageData = rawData['data'] as Map<String, dynamic>;
-    } else if (rawData is Map && rawData.values.isNotEmpty) {
-      // Case 2: The message is directly in rawData (fallback)
-      messageData = rawData;
+    /// 1️⃣ Extract message safely
+    Map<String, dynamic> msg;
+    if (rawData['data'] is Map) {
+      msg = Map<String, dynamic>.from(rawData['data']);
     } else {
-      log("Invalid message format: $rawData");
+      msg = Map<String, dynamic>.from(rawData);
+    }
+
+    print(widget.conversationId);
+    log("log message daa ${widget.conversationId}");
+    // ============================================================
+    // 🔥🔥🔥 CRITICAL FILTERS (THIS FIXES YOUR ISSUE)
+    // ============================================================
+
+    // ✅ Filter by conversationId (GROUP SAFETY)
+    final String? incomingConvoId =
+        (msg['conversationId'] ?? msg['convoId'] ?? msg['roomId'])?.toString();
+
+    if (incomingConvoId == null || incomingConvoId != widget.conversationId) {
+      return; // ❌ Message NOT for this open group
+    }
+
+    // ✅ Ensure GROUP CHAT ONLY
+    if (msg['isGroupChat'] != true) {
+      return; // ❌ Private chat message → IGNORE
+    }
+
+    /// 2️⃣ Reaction-only event
+    if (msg['event'] == 'updated_reaction') {
+      _handleReactionUpdate(msg['data']);
       return;
     }
 
-    // Step 2: Handle reactions (if backend sends event separately)
-    if (messageData['event'] == 'updated_reaction') {
-      _handleReactionUpdate(messageData['data']);
-      return;
+    /// 3️⃣ Message ID (dedupe)
+    final String? messageId =
+        (msg['message_id'] ?? msg['messageId'] ?? msg['_id'])?.toString();
+
+    if (messageId == null || _seenMessageIds.contains(messageId)) return;
+    _seenMessageIds.add(messageId);
+
+    /// 4️⃣ Resolve REAL sender (GROUP SAFE)
+    Map<String, dynamic> sender = {};
+
+    if (msg['properties'] is List) {
+      for (final p in msg['properties']) {
+        if (p is Map && p['type_of_user'] == 'sender' && p['user'] is Map) {
+          sender = Map<String, dynamic>.from(p['user']);
+          break;
+        }
+      }
     }
 
-    // Step 3: Extract fields safely
-    final content = (messageData['content'] ?? '').toString().trim();
-    final imageUrl = messageData['thumbnailUrl'] ?? messageData['originalUrl'];
-    final fileUrl = messageData['originalUrl'] ?? messageData['fileUrl'];
-    final fileName = messageData['fileName'];
-    final userName = messageData['userName'] ?? 'Unknown';
-
-    if (content.isEmpty && imageUrl == null && fileUrl == null) return;
-
-    final messageId =
-        (messageData['message_id'] ?? messageData['id'])?.toString();
-    if (messageId != null && _seenMessageIds.contains(messageId)) {
-      log("Duplicate group message ignored: $messageId");
-      return;
+    // Fallback only if properties missing
+    if (sender.isEmpty && msg['sender'] is Map) {
+      sender = Map<String, dynamic>.from(msg['sender']);
     }
-    if (messageId != null) _seenMessageIds.add(messageId);
 
-    final newMessage = {
+    /// 5️⃣ Normalize sender name
+    final String normalizedUserName = [
+      sender['first_name'],
+      sender['last_name'],
+      sender['name'],
+    ]
+        .where((e) => e != null && e.toString().trim().isNotEmpty)
+        .join(' ')
+        .trim();
+
+    /// 6️⃣ Normalize message for UI
+    final Map<String, dynamic> newMessage = {
       'message_id': messageId,
-      'content': content,
-      'sender': messageData['sender'] ?? {},
-      'receiver': messageData['receiver'] ?? {},
-      'messageStatus': messageData['messageStatus'] ?? 'delivered',
-      'time': messageData['time'],
-      'imageUrl': imageUrl,
-      'fileName': fileName,
-      'userName': userName,
-      'fileUrl': fileUrl,
-      'fileType': messageData['mimeType'] ?? messageData['fileType'],
-      'isForwarded': messageData['isForwarded'] ?? false,
-      'ContentType': messageData['ContentType'] ?? 'text',
-      'isReplyMessage': messageData['isReplyMessage'] ?? false,
-      'repliedMessage': messageData['reply'] ?? messageData['repliedMessage'],
-      'reactions': messageData['reactions'] ?? [],
+      'content': (msg['content'] ?? '').toString(),
+      'sender': sender,
+      'senderId': sender['_id']?.toString(),
+      'receiver': msg['receiver'] is Map
+          ? Map<String, dynamic>.from(msg['receiver'])
+          : {},
+      'userName':
+          normalizedUserName.isNotEmpty ? normalizedUserName : 'Unknown',
+      'messageStatus': msg['messageStatus'] ?? 'delivered',
+      'time':
+          DateTime.tryParse(msg['time']?.toString() ?? '') ?? DateTime.now(),
+      'imageUrl': msg['thumbnailUrl'] ?? msg['originalUrl'],
+      'fileUrl': msg['originalUrl'] ?? msg['fileUrl'],
+      'fileName': msg['fileName'],
+      'fileType': msg['mimeType'] ?? msg['fileType'],
+      'ContentType': msg['ContentType'] ?? 'text',
+      'isForwarded': msg['isForwarded'] ?? false,
+      'reactions': msg['reactions'] ?? [],
+      'repliedMessage': msg['reply'] ?? msg['repliedMessage'],
     };
 
     if (!mounted) return;
 
+    /// 7️⃣ Update UI + local storage
     setState(() {
-      final exists = socketMessages.any((msg) =>
-          (msg['message_id'] ?? msg['id']) == newMessage['message_id']);
+      socketMessages.add(newMessage);
+      _scrollToBottom();
 
-      if (!exists) {
-        socketMessages.add(newMessage);
-        _scrollToBottom();
-        log("NEW GROUP MESSAGE ADDED: $content - $userName");
-      }
-
-      final combined = [...dbMessages, ...messages, ...socketMessages];
+      final combined = _getCombinedMessages();
       GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
+
       _updateNotifier();
     });
+
+    log(
+      "✅ GROUP MESSAGE SHOWN → ${newMessage['content']} | sender=${newMessage['userName']}",
+    );
   }
+
+  // void onMessageReceived(Map<String, dynamic> rawData) {
+  //   /// 1️⃣ Extract message safely
+  //   Map<String, dynamic> msg;
+  //   if (rawData['data'] is Map) {
+  //     msg = Map<String, dynamic>.from(rawData['data']);
+  //   } else {
+  //     msg = Map<String, dynamic>.from(rawData);
+  //   }
+
+  //   /// 2️⃣ Reaction-only event
+  //   if (msg['event'] == 'updated_reaction') {
+  //     _handleReactionUpdate(msg['data']);
+  //     return;
+  //   }
+
+  //   /// 3️⃣ Message ID (dedupe)
+  //   final String? messageId =
+  //       (msg['message_id'] ?? msg['messageId'] ?? msg['_id'])?.toString();
+
+  //   if (messageId == null || _seenMessageIds.contains(messageId)) return;
+  //   _seenMessageIds.add(messageId);
+
+  //   /// 4️⃣ 🔥 Resolve REAL sender (GROUP SAFE)
+  //   Map<String, dynamic> sender = {};
+
+  //   if (msg['properties'] is List) {
+  //     for (final p in msg['properties']) {
+  //       if (p is Map && p['type_of_user'] == 'sender' && p['user'] is Map) {
+  //         sender = Map<String, dynamic>.from(p['user']);
+  //         break;
+  //       }
+  //     }
+  //   }
+
+  //   /// Fallback ONLY if properties missing
+  //   if (sender.isEmpty && msg['sender'] is Map) {
+  //     sender = Map<String, dynamic>.from(msg['sender']);
+  //   }
+
+  //   /// 🚫 DO NOT fallback to receiver unless absolutely required
+  //   if (sender.isEmpty) {
+  //     sender = {};
+  //   }
+
+  //   /// 5️⃣ Normalize sender name (CRITICAL)
+  //   final String normalizedUserName = [
+  //     sender['first_name'],
+  //     sender['last_name'],
+  //     sender['name'],
+  //   ]
+  //       .where((e) => e != null && e.toString().trim().isNotEmpty)
+  //       .join(' ')
+  //       .trim();
+
+  //   /// 6️⃣ Normalize message for UI
+  //   final Map<String, dynamic> newMessage = {
+  //     'message_id': messageId,
+  //     'content': (msg['content'] ?? '').toString(),
+
+  //     /// sender
+  //     'sender': sender,
+  //     'senderId': sender['_id']?.toString(),
+
+  //     /// receiver
+  //     'receiver': msg['receiver'] is Map
+  //         ? Map<String, dynamic>.from(msg['receiver'])
+  //         : {},
+
+  //     /// username (NEVER null now)
+  //     'userName':
+  //         normalizedUserName.isNotEmpty ? normalizedUserName : 'Unknown',
+
+  //     'messageStatus': msg['messageStatus'] ?? 'delivered',
+
+  //     /// time (DateTime ALWAYS)
+  //     'time':
+  //         DateTime.tryParse(msg['time']?.toString() ?? '') ?? DateTime.now(),
+
+  //     /// media
+  //     'imageUrl': msg['thumbnailUrl'] ?? msg['originalUrl'],
+  //     'fileUrl': msg['originalUrl'] ?? msg['fileUrl'],
+  //     'fileName': msg['fileName'],
+  //     'fileType': msg['mimeType'] ?? msg['fileType'],
+
+  //     /// flags
+  //     'ContentType': msg['ContentType'] ?? 'text',
+  //     'isForwarded': msg['isForwarded'] ?? false,
+  //     'reactions': msg['reactions'] ?? [],
+  //     'repliedMessage': msg['reply'] ?? msg['repliedMessage'],
+  //   };
+
+  //   if (!mounted) return;
+
+  //   /// 7️⃣ Update UI + local storage
+  //   setState(() {
+  //     socketMessages.add(newMessage);
+  //     _scrollToBottom();
+
+  //     final combined = _getCombinedMessages();
+  //     GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
+
+  //     _updateNotifier();
+  //   });
+
+  //   log(
+  //     "✅ GROUP MESSAGE SHOWN → ${newMessage['content']} | sender=${newMessage['userName']}",
+  //   );
+  // }
 
   void _handleReactionUpdate(dynamic reactionData) {
     try {
@@ -514,12 +660,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     });
   }
 
-  /// 🔁 Listen to Message Stream
   void _setupMessageListener() {
     _messageSubscription?.cancel();
     _messageSubscription =
         socketService.messageStream.listen((Map<String, dynamic> data) {
-      log("📩 Stream received message update: $data");
       onMessageReceived(data);
     });
   }
@@ -755,7 +899,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         // add new reaction if not null/empty
         if (newEmoji != null && newEmoji.isNotEmpty) {
           final nameParts = currentUserName.split(" ");
-          final firstName = nameParts.length > 0 ? nameParts.first : "";
+          final firstName = nameParts.isNotEmpty ? nameParts.first : "";
           final lastName =
               nameParts.length > 1 ? nameParts.sublist(1).join(" ") : "";
 
@@ -1476,10 +1620,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
   }
 
-void _scrollListener() {
+  void _scrollListener() {
     if (!_scrollController.hasClients) return;
 
-   
     if (_scrollController.position.pixels <=
         _scrollController.position.minScrollExtent + 50) {
       final total = _allMessages.length;
@@ -2016,9 +2159,15 @@ void _scrollListener() {
     }
 
     // Prioritize LIVE messages (socket) > Fetched (messages) > Local (dbMessages)
-    for (var m in socketMessages) addUnique(m);
-    for (var m in messages) addUnique(m);
-    for (var m in dbMessages) addUnique(m);
+    for (var m in socketMessages) {
+      addUnique(m);
+    }
+    for (var m in messages) {
+      addUnique(m);
+    }
+    for (var m in dbMessages) {
+      addUnique(m);
+    }
 
     combined.sort(
       (a, b) => _parseTime(a['time']).compareTo(_parseTime(b['time'])),
@@ -2495,7 +2644,7 @@ void _scrollListener() {
     return flat;
   }
 
-Widget _buildChatBody() {
+  Widget _buildChatBody() {
     return BlocListener<GroupChatBloc, GroupChatState>(
       bloc: _groupBloc,
       listener: (context, state) {
@@ -2569,9 +2718,6 @@ Widget _buildChatBody() {
             log('   ✅ After merge, dbMessages count: ${dbMessages.length}');
           });
 
-          // Save merged list to local storage
-          GrpLocalChatStorage.saveMessages(widget.conversationId, dbMessages);
-
           for (var m in incomingNormalized) {
             final id = (m['message_id'] ?? m['id'])?.toString();
             if (id != null && id.isNotEmpty) _seenMessageIds.add(id);
@@ -2637,57 +2783,34 @@ Widget _buildChatBody() {
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 220),
                       child: _isLoadingMore
-                          ? Padding(
-                              key: const ValueKey('top_loader'),
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 8.0),
-                              child: Center(
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: const [
-                                    SizedBox(
-                                      width: 15,
-                                      height: 15,
-                                      child: CircularProgressIndicator(
-                                          strokeWidth: 1.5),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            )
-                          // : (!_hasNextPage &&
-                          //         _allMessages.isNotEmpty &&
-                          //         _visibleCount >= _allMessages.length)
-                          //     ? Padding(
-                          //         key: const ValueKey('all_loaded'),
-                          //         padding:
-                          //             const EdgeInsets.symmetric(vertical: 8.0),
-                          //         child: Center(
-                          //           child: Container(
-                          //             padding: const EdgeInsets.symmetric(
-                          //                 horizontal: 12, vertical: 6),
-                          //             decoration: BoxDecoration(
-                          //               color: Colors.grey.shade100,
-                          //               borderRadius: BorderRadius.circular(16),
-                          //               border: Border.all(
-                          //                   color: Colors.grey.shade300),
-                          //             ),
-                          //             child: const Text('All messages loaded',
-                          //                 style: TextStyle(fontSize: 13)),
+                          ? SizedBox()
+                          //  Padding(
+                          //     key: const ValueKey('top_loader'),
+                          //     padding:
+                          //         const EdgeInsets.symmetric(vertical: 8.0),
+                          //     child: Center(
+                          //       child: Row(
+                          //         mainAxisSize: MainAxisSize.min,
+                          //         children: const [
+                          //           SizedBox(
+                          //             width: 15,
+                          //             height: 15,
+                          //             child: CircularProgressIndicator(
+                          //                 strokeWidth: 1.5),
                           //           ),
-                          //         ),
-                          //       )
-                              : const SizedBox.shrink(),
+                          //         ],
+                          //       ),
+                          //     ),
+                          //   )
+
+                          : const SizedBox.shrink(),
                     ),
                     Expanded(
                       child: ListView.builder(
                         controller: _scrollController,
                         itemCount: combinedMessages.length,
-                        reverse: true, // Start from bottom
+                        reverse: true,
                         itemBuilder: (context, index) {
-                          // Calculate real index for [Oldest ... Newest] list
-                          // combinedMessages is [Oldest ... Newest]
-                          // ListView index 0 is at Bottom (Newest)
                           final int realIndex =
                               combinedMessages.length - 1 - index;
 
@@ -2759,7 +2882,29 @@ Widget _buildChatBody() {
                             }
 
                             if (groupImages.isNotEmpty) {
-                              final String userName = message['userName'] ?? "";
+                              final String userName = (message['userName']
+                                          ?.toString()
+                                          .trim()
+                                          .isNotEmpty ==
+                                      true)
+                                  ? message['userName']
+                                  : (() {
+                                      final s = message['sender'];
+                                      if (s is Map) {
+                                        return [
+                                          s['first_name'],
+                                          s['last_name'],
+                                          s['name'],
+                                        ]
+                                            .where((e) =>
+                                                e != null &&
+                                                e.toString().trim().isNotEmpty)
+                                            .join(' ')
+                                            .trim();
+                                      }
+                                      return '';
+                                    })();
+
                               final senderData = message['sender'] is Map
                                   ? message['sender']
                                   : {};
@@ -2991,26 +3136,30 @@ Widget _buildChatBody() {
                                                   Positioned(
                                                     top: 0,
                                                     bottom: 0,
-                                                    left: isSentByMe ? -60 : null,
+                                                    left:
+                                                        isSentByMe ? -60 : null,
                                                     right:
                                                         isSentByMe ? null : -50,
                                                     child: Center(
                                                       child: Material(
-                                                        color: Colors.transparent,
+                                                        color:
+                                                            Colors.transparent,
                                                         child: InkWell(
                                                           borderRadius:
                                                               BorderRadius
                                                                   .circular(20),
                                                           onTap: () {
-                                                            MyRouter.pushReplace(
+                                                            MyRouter
+                                                                .pushReplace(
                                                               screen:
                                                                   ForwardMessageScreen(
                                                                 messages:
                                                                     groupMessagesList,
                                                                 currentUserId:
                                                                     currentUserId,
-                                                                conversionalid: widget
-                                                                    .conversationId,
+                                                                conversionalid:
+                                                                    widget
+                                                                        .conversationId,
                                                                 username: widget
                                                                     .groupName,
                                                               ),
@@ -3093,6 +3242,7 @@ Widget _buildChatBody() {
       ),
     );
   }
+
   Widget _buildVideoPreviewTile(
     BuildContext context,
     String fileUrl,
@@ -3245,8 +3395,25 @@ Widget _buildChatBody() {
     final String? fileUrl = message['fileUrl'] ?? _fileUrl;
     final String? fileName = message['fileName'];
     final String? fileType = message['fileType'];
-    final bool? isForwarded = message['isForwarded']?? false;
-    final String userName = message['userName'] ?? "";
+    final bool? isForwarded = message['isForwarded'] ?? false;
+    final String userName =
+        (message['userName']?.toString().trim().isNotEmpty == true)
+            ? message['userName']
+            : (() {
+                final s = message['sender'];
+                if (s is Map) {
+                  return [
+                    s['first_name'],
+                    s['last_name'],
+                    s['name'],
+                  ]
+                      .where((e) => e != null && e.toString().trim().isNotEmpty)
+                      .join(' ')
+                      .trim();
+                }
+                return '';
+              })();
+
     final String contentType = message['ContentType'] ?? "";
     final senderData = message['sender'] is Map ? message['sender'] : {};
     final String profileImageUrl = senderData['profile_pic_path']?.toString() ??
@@ -3761,8 +3928,9 @@ Widget _buildChatBody() {
                                                                     false)
                                                             .firstMatch(
                                                                 content);
-                                                        if (match == null)
+                                                        if (match == null) {
                                                           return '';
+                                                        }
                                                         String url =
                                                             match.group(0)!;
                                                         try {
@@ -4720,15 +4888,14 @@ Widget _buildChatBody() {
   }
 
   Widget _buildAvatarWithInitial(String name) {
-    final String initial = name.isNotEmpty ? name[0].toUpperCase() : "?";
+    final String initial = name.isNotEmpty ? name[0].toUpperCase() : "U";
     return Container(
       width: 32,
       height: 32,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: name.isNotEmpty
-            ? ColorUtil.getColorFromAlphabet(name)
-            : Colors.grey.shade400,
+        color:
+            name.isNotEmpty ? ColorUtil.getColorFromAlphabet(name) : Colors.red,
       ),
       alignment: Alignment.center,
       child: Text(
@@ -5384,4 +5551,3 @@ Widget _buildChatBody() {
     }
   }
 }
- 

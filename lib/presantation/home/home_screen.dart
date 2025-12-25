@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:nde_email/data/mailboxid.dart';
 import 'package:nde_email/data/respiratory.dart';
 import 'package:nde_email/presantation/calender/schedule/calendar_screen.dart';
-import 'package:nde_email/presantation/chat/Socket/Socket_Service.dart';
+import 'package:nde_email/presantation/chat/Socket/socket_service.dart';
 import 'package:nde_email/presantation/drive/view/landing_home.dart';
 import 'package:nde_email/presantation/meet/socket/test_socket.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar.dart';
