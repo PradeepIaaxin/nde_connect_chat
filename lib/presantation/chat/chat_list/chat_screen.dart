@@ -138,75 +138,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
     });
   }
 
-  // @override
-  // void initState() {
-  //   super.initState();
-  //   _loadUserData();
-  //   _scrollController.addListener(_scrollListener);
-  //   _typingSub = SocketService().typingStream.listen((data) {
-  //     if (!mounted) return;
-
-  //     if (data.isEmpty) {
-  //       setState(() {
-  //         _typingByConvo.clear();
-  //       });
-  //       return;
-  //     }
-
-  //     final convoId = data['convoId'];
-  //     final message = data['message'];
-
-  //     if (convoId != null && message != null) {
-  //       setState(() {
-  //         _typingByConvo[convoId] = message;
-  //       });
-  //     }
-  //   });
-
-  //   final initialChats = ChatSessionStorage.getChatList();
-  //   _allChats = List.from(initialChats);
-  //   _showFilterChips = initialChats.length < 12;
-  //   _internetSub =
-  //       InternetService.connectionStreams.listen((hasInternet) async {
-  //     if (!mounted) return;
-
-  //     setState(() {
-  //       _hasInternet = hasInternet;
-  //     });
-
-  //     if (!hasInternet) {
-  //       setState(() {
-  //         _networkStatus = NetworkStatus.disconnected;
-  //       });
-  //     } else {
-  //       setState(() {
-  //         _networkStatus = NetworkStatus.reconnecting;
-  //       });
-
-  //       await Future.delayed(const Duration(seconds: 1));
-
-  //       if (mounted) {
-  //         setState(() {
-  //           _networkStatus = NetworkStatus.connected;
-  //         });
-  //       }
-  //     }
-  //   });
-
-  //   WidgetsBinding.instance.addPostFrameCallback((_) {
-  //     if (mounted) {
-  //       final cached = ChatSessionStorage.getChatList();
-  //       if (cached.isNotEmpty) {
-  //         _allChats = List.from(cached);
-  //         // context.read<ChatListBloc>().add(SetLocalChatList(chats: cached));
-  //         context.read<ChatListBloc>().add(FetchChatList(page: 1, limit: 20));
-  //       } else {
-  //         context.read<ChatListBloc>().add(FetchChatList(page: 1, limit: 20));
-  //       }
-  //     }
-  //   });
-  // }
-
   void _updateLocalPin(String convoId, bool newStatus) {
     final chat = ChatSessionStorage.getChatList()
         .firstWhere((c) => c.id == convoId || c.conversationId == convoId);
@@ -263,45 +194,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
     _lastScrollOffset = offset;
   }
 
-  // void _scrollListener() {
-  //   if (!_scrollController.hasClients) return;
-
-  //   final offset = _scrollController.offset;
-  //   final bool atTop = offset <= 0;
-
-  //   // Get total chat count from storage
-  //   final totalChats = ChatSessionStorage.getChatList().length;
-
-  //   if (totalChats < 12) {
-  //     // Always show chips when less than 12 chats
-  //     if (!_showFilterChips) {
-  //       setState(() => _showFilterChips = true);
-  //     }
-  //   } else {
-  //     // WhatsApp behavior for 12+ chats
-  //     if (atTop && !_showFilterChips) {
-  //       setState(() => _showFilterChips = true);
-  //     } else if (!atTop && _showFilterChips) {
-  //       setState(() => _showFilterChips = false);
-  //     }
-  //   }
-
-  //   /// ✅ SEARCH BAR (optional – keep your logic)
-  //   final isScrollingDown = offset > _lastScrollOffset;
-
-  //   if (!isScrollingDown && offset > 100) {
-  //     if (!_showSearchBar) {
-  //       setState(() => _showSearchBar = true);
-  //     }
-  //   } else if (isScrollingDown || atTop) {
-  //     if (_showSearchBar) {
-  //       setState(() => _showSearchBar = false);
-  //     }
-  //   }
-
-  //   _lastScrollOffset = offset;
-  // }
-
   @override
   void dispose() {
     _typingSub?.cancel();
@@ -329,27 +221,38 @@ class _ChatListScreenState extends State<ChatListScreen> {
     });
   }
 
-  Future<void> handlePinChat(String messageId, bool isPinned) async {
-    _updateLocalPin(messageId, isPinned);
-    accessToken = await UserPreferences.getAccessToken();
-    defaultWorkspace = await UserPreferences.getDefaultWorkspace();
-    final url = Uri.parse('$baseURL/chats/pin');
-    final body = jsonEncode({
-      'action': isPinned,
-      'convoIds': [messageId]
-    });
-    final headers = {
-      'Authorization': 'Bearer $accessToken',
-      'x-workspace': defaultWorkspace ?? '',
-      'Content-Type': 'application/json',
-    };
-    try {
-      final response = await http.put(url, headers: headers, body: body);
-      if (response.statusCode == 200) log("Chat pinned");
-    } catch (e) {
-      log("Error pinning chat: $e");
-    }
+  Future<void> handlePinChat(String convoId, bool newPinState) async {
+    // ✅ 1️⃣ UPDATE UI IMMEDIATELY
+    // _updateLocalPin(convoId, newPinState);
+
+    // ✅ 2️⃣ FIRE SOCKET IN BACKGROUND
+    SocketService().pinUnpinChat(
+      conversationId: convoId,
+      nextPinnedState: newPinState,
+    );
   }
+
+  // Future<void> handlePinChat(String messageId, bool isPinned) async {
+  //   _updateLocalPin(messageId, isPinned);
+  //   accessToken = await UserPreferences.getAccessToken();
+  //   defaultWorkspace = await UserPreferences.getDefaultWorkspace();
+  //   final url = Uri.parse('$baseURL/chats/pin');
+  //   final body = jsonEncode({
+  //     'action': isPinned,
+  //     'convoIds': [messageId]
+  //   });
+  //   final headers = {
+  //     'Authorization': 'Bearer $accessToken',
+  //     'x-workspace': defaultWorkspace ?? '',
+  //     'Content-Type': 'application/json',
+  //   };
+  //   try {
+  //     final response = await http.put(url, headers: headers, body: body);
+  //     if (response.statusCode == 200) log("Chat pinned");
+  //   } catch (e) {
+  //     log("Error pinning chat: $e");
+  //   }
+  // }
 
   Future<void> handleArchiveChat(String messageId, bool isArchived) async {
     _updateLocalArchive(messageId, isArchived);
@@ -700,16 +603,35 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   final allPinned = selectedUsers.isNotEmpty &&
                       selectedUsers.every((chat) => chat.isPinned ?? false);
 
-                  for (var chat in selectedUsers) {
-                    final newPinStatus = !allPinned;
-                    await handlePinChat(chat.id ?? '', newPinStatus);
-                  }
+                  // ✅ 1️⃣ COPY selection (because we clear immediately)
+                  final chatsToPin = List<Datu>.from(selectedUsers);
 
+                  // ✅ 2️⃣ EXIT SELECTION MODE IMMEDIATELY (THIS WAS MISSING)
                   setState(() {
                     selectedUsers.clear();
                     longPressed = false;
                   });
+
+                  // ✅ 3️⃣ APPLY PIN (background)
+                  for (final chat in chatsToPin) {
+                    await handlePinChat(chat.id ?? '', !allPinned);
+                  }
                 },
+
+                // onPressed: () async {
+                //   final allPinned = selectedUsers.isNotEmpty &&
+                //       selectedUsers.every((chat) => chat.isPinned ?? false);
+
+                //   for (var chat in selectedUsers) {
+                //     final newPinStatus = !allPinned;
+                //     await handlePinChat(chat.id ?? '', newPinStatus);
+                //   }
+
+                //   setState(() {
+                //     selectedUsers.clear();
+                //     longPressed = false;
+                //   });
+                // },
               ),
             if (selectedUsers.isNotEmpty)
               IconButton(

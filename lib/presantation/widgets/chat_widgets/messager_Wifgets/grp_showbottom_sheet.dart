@@ -353,8 +353,7 @@ class GrpShowAltDialog {
                 localFile,
                 conversationId,
                 senderId,
-                receiverId,
-                "",
+                receiverId: receiverId,
               ),
             );
       }

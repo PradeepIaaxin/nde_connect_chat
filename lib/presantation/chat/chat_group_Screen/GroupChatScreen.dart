@@ -20,6 +20,8 @@ import 'package:nde_email/presantation/chat/chat_group_Screen/group_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_event.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_model.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_state.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/MixedMediaViewer.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/commonfuntion.dart';
 import 'package:nde_email/presantation/chat/widget/custom_appbar.dart';
 import 'package:nde_email/presantation/chat/widget/delete_dialogue.dart';
 import 'package:nde_email/presantation/chat/widget/scaffold.dart';
@@ -1175,8 +1177,24 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   void _showFullImage(BuildContext context, String imageUrl) {
-    log(imageUrl);
-    ImageViewer.show(context, imageUrl);
+    final media = buildConversationMedia(
+      _allMessages,
+      currentUserId: currentUserId,
+    );
+    final index = media.indexWhere((m) => m.mediaUrl == imageUrl);
+    if (index != -1) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => MixedMediaViewer(
+            items: media,
+            initialIndex: index,
+          ),
+        ),
+      );
+    } else {
+      ImageViewer.show(context, imageUrl);
+    }
   }
 
   IconData _getFileIcon(String? fileType) {
@@ -2782,28 +2800,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                   children: [
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 220),
-                      child: _isLoadingMore
-                          ? SizedBox()
-                          //  Padding(
-                          //     key: const ValueKey('top_loader'),
-                          //     padding:
-                          //         const EdgeInsets.symmetric(vertical: 8.0),
-                          //     child: Center(
-                          //       child: Row(
-                          //         mainAxisSize: MainAxisSize.min,
-                          //         children: const [
-                          //           SizedBox(
-                          //             width: 15,
-                          //             height: 15,
-                          //             child: CircularProgressIndicator(
-                          //                 strokeWidth: 1.5),
-                          //           ),
-                          //         ],
-                          //       ),
-                          //     ),
-                          //   )
-
-                          : const SizedBox.shrink(),
+                      child:
+                          _isLoadingMore ? SizedBox() : const SizedBox.shrink(),
                     ),
                     Expanded(
                       child: ListView.builder(
@@ -3022,22 +3020,60 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                     groupImages,
                                                                 onMediaTap:
                                                                     (index) {
-                                                                  Navigator
-                                                                      .push(
-                                                                    context,
-                                                                    MaterialPageRoute(
-                                                                      builder:
-                                                                          (_) =>
-                                                                              GroupedMediaViewer(
-                                                                        mediaUrls:
-                                                                            groupImages,
-                                                                        initialIndex:
-                                                                            index,
-                                                                      ),
-                                                                    ),
+                                                                  final media =
+                                                                      buildConversationMedia(
+                                                                    combinedMessages,
+                                                                    currentUserId:
+                                                                        currentUserId,
                                                                   );
+                                                                  final tappedUrl =
+                                                                      groupImages[
+                                                                          index];
+                                                                  final startIndex =
+                                                                      media.indexWhere((m) =>
+                                                                          m.mediaUrl ==
+                                                                          tappedUrl);
+
+                                                                  if (startIndex !=
+                                                                      -1) {
+                                                                    Navigator
+                                                                        .push(
+                                                                      context,
+                                                                      MaterialPageRoute(
+                                                                        builder:
+                                                                            (_) =>
+                                                                                MixedMediaViewer(
+                                                                          items:
+                                                                              media,
+                                                                          initialIndex:
+                                                                              startIndex,
+                                                                        ),
+                                                                      ),
+                                                                    );
+                                                                  }
                                                                 },
                                                               ),
+                                                              // GroupedMediaWidget(
+                                                              //   mediaUrls:
+                                                              //       groupImages,
+                                                              //   onMediaTap:
+                                                              //       (index) {
+                                                              //     Navigator
+                                                              //         .push(
+                                                              //       context,
+                                                              //       MaterialPageRoute(
+                                                              //         builder:
+                                                              //             (_) =>
+                                                              //                 GroupedMediaViewer(
+                                                              //           mediaUrls:
+                                                              //               groupImages,
+                                                              //           initialIndex:
+                                                              //               index,
+                                                              //         ),
+                                                              //       ),
+                                                              //     );
+                                                              //   },
+                                                              // ),
                                                               Positioned(
                                                                 bottom: 5,
                                                                 right: 5,

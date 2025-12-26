@@ -487,34 +487,40 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
   ) async {
     emit(UploadInProgress(0));
 
+    final tempMessageId = event.messageId ?? ObjectId().toString();
+
     try {
       await apiService.uploadFile(
         file: event.file,
         onProgress: (p) => emit(UploadInProgress(p)),
         onSuccess: (data) async {
           emit(UploadSuccess(data));
-          print("datasssss $data");
-          String? workspaceID = await UserPreferences.getDefaultWorkspace();
-          final roomId =
-              socketService.generateRoomId(event.senderId, event.receiverId);
 
-          final msgId = ObjectId().toString();
-          print("iiiiiiiiiiiiiiii${event.contentType}");
-          print("iiiiiiiiiiiiiiii${data["ContentType"]}");
-          log("groupMesageIdss ${event.isGroupMessage}");
-          log("isGroupMessage ${event.groupMesageId}");
+          final workspaceID = await UserPreferences.getDefaultWorkspace();
+
+          if (workspaceID == null) {
+            emit(UploadFailure("Workspace not found"));
+            return;
+          }
+
+          final roomId = event.isGroupMessage
+              ? event.convoId
+              : socketService.generateRoomId(
+                  event.senderId,
+                  event.receiverId,
+                );
 
           socketService.sendMessage(
             isGroupMessage: event.isGroupMessage,
             groupMessageId: event.groupMesageId,
-            messageId: event.messageId.toString(), // tempId
+            messageId: tempMessageId,
             conversationId: event.convoId,
             senderId: event.senderId,
             receiverId: event.receiverId,
             message: event.message,
             roomId: roomId,
-            workspaceId: workspaceID!,
-            isGroupChat: false,
+            workspaceId: workspaceID,
+            isGroupChat: event.isGroupMessage,
             contentType: data["ContentType"],
             mimeType: data["mimetype"],
             fileWithText: data["file_with_text"] != "",
@@ -524,15 +530,13 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
             thumbnailUrl: data["thumbnailUrl"] ?? "",
             originalKey: data["originalKey"] ?? "",
             originalUrl: data["originalUrl"] ?? "",
-
-            // 🔥🔥 ADD THIS 🔥🔥
             ackCallback: (ack) {
-              final tempId = ack['tempId'] ?? ack['messageId'];
+              final tempId = ack['tempId'] ?? tempMessageId;
               final realId = ack['realId'] ??
                   ack['data']?['messageId'] ??
                   ack['message_id'];
 
-              if (tempId == null || realId == null) return;
+              if (realId == null) return;
 
               emit(
                 MessageAckReceived(
@@ -637,7 +641,6 @@ List<MessageGroup> _convertFlatToGroups(List<Datum> messages) {
       .map((e) => MessageGroup(label: e.key, messages: e.value))
       .toList();
 }
-
 
 String _extractDateLabel(DateTime? time) {
   if (time == null) return "Unknown";
