@@ -21,7 +21,6 @@ class MessageBubble extends StatelessWidget {
   final VoidCallback? onLongPress;
   final VoidCallback? onRightSwipe;
   final Function(String url, String? fileType)? onFileTap;
-  final Function(String imageUrl)? onImageTap;
   final Widget Function(String status)? buildStatusIcon;
   final Widget Function(Map<String, dynamic> msg, bool isSentByMe)?
       buildReactionsBar;
@@ -36,6 +35,8 @@ class MessageBubble extends StatelessWidget {
   final bool isReply;
   final int? groupMediaLength;
   final List<Map<String, dynamic>> allMessages;
+  final String? currentUserId;
+  final String? receiverName;
   const MessageBubble(
       {super.key,
       required this.message,
@@ -45,7 +46,6 @@ class MessageBubble extends StatelessWidget {
       this.onLongPress,
       this.onRightSwipe,
       this.onFileTap,
-      this.onImageTap,
       this.buildStatusIcon,
       this.buildReactionsBar,
       required this.sentMessageColor,
@@ -58,7 +58,9 @@ class MessageBubble extends StatelessWidget {
       required this.isReply,
       this.onReplyTap,
       this.groupMediaLength,
-      required this.allMessages});
+      required this.allMessages,
+      this.currentUserId,
+      this.receiverName});
 
   @override
   Widget build(BuildContext context) {
@@ -284,7 +286,11 @@ class MessageBubble extends StatelessWidget {
   }
 
   void _openConversationViewer(BuildContext context, String tappedUrl) {
-    final media = buildConversationMedia(allMessages);
+    final media = buildConversationMedia(
+      allMessages,
+      currentUserId: currentUserId,
+      receiverName: receiverName,
+    );
 
     final index = media.indexWhere((m) => m.mediaUrl == tappedUrl);
     if (index == -1) return;

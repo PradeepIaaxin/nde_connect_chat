@@ -237,7 +237,7 @@ class GroupedMediaWidget extends StatelessWidget {
                       _tile(context, 3),
                       if (media.length > 4)
                         GestureDetector(
-                          onTap: () => onImageTap?.call(0),
+                          onTap: () => onImageTap?.call(3),
                           child: Container(
                             color: Colors.black54,
                             alignment: Alignment.center,
@@ -401,10 +401,16 @@ class GroupMediaItem {
   final String previewUrl;
   final String mediaUrl;
   final bool isVideo;
+  final String? senderName;
+  final String? senderId;
+  final String? time;
 
   GroupMediaItem({
     required this.previewUrl,
     required this.mediaUrl,
     required this.isVideo,
+    this.senderName,
+    this.senderId,
+    this.time,
   });
 }
