@@ -288,9 +288,10 @@ class SocketService {
         _slog("❌ Missing workspaceId or userId in onConnect");
         return;
       }
-      print(socket!.id);
+
       print(socket!.id);
       _slog("join_workspace -> {workspaceId: $wsId, userId: $uid}");
+      print(socket!.id);
       // 1️⃣ Join workspace FIRST
       socket!.emit('join_workspace', {
         'workspaceId': wsId,

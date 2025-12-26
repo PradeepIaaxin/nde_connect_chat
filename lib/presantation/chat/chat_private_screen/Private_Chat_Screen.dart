@@ -158,31 +158,16 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     _scrollController.addListener(_scrollListener);
     _initializeChat();
     _screenActive = true;
-    // _crdtSub = socketService.crdtMessageStream.listen((data) {
-    // log('🎯 UI received CRDT stream: $data');
-
-    //   final convoId = data['conversationId'];
-    //   final messagesMap = Map<String, dynamic>.from(data['messages'] ?? {});
-
-    //   debugPrint('🎯 convoId=$convoId mapLen=${messagesMap.length}');
-
-    //   if (convoId != widget.convoId) {
-    //     debugPrint('⛔ convoId mismatch, skipping');
-    //     return;
-    //   }
-
-    //   _applyCrdtMessages(convoId, messagesMap);
-    // });
 
     _crdtSub = socketService.crdtMessageStream.listen((data) {
       final convoId = data['conversationId']?.toString();
       final isGroup = data['isGroupChat'] == true;
 
-      // 🚫 STOP GROUP messages in PRIVATE chat screen
+      // 🚫 ignore group updates in private chat
       if (isGroup) return;
 
       if (convoId != widget.convoId) return;
-      // log('🎯 UI received CRDT stream: $data');
+
       _applyCrdtMessages(
         convoId!,
         Map<String, dynamic>.from(data['messages'] ?? {}),
@@ -248,7 +233,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       convoId: widget.convoId,
     );
 
-    /// 1️⃣ Normalize incoming CRDT messages
+    /// 1️⃣ Normalize CRDT messages
     final incoming = messagesMap.values
         .map((raw) => handler.normalizeMessage(raw))
         .where((m) => m.isNotEmpty)
@@ -256,26 +241,28 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     if (incoming.isEmpty) return;
 
-    /// 2️⃣ Merge by message_id (CRITICAL FIX)
+    /// 2️⃣ Merge with EXISTING messages (NO CLEAR)
     final Map<String, Map<String, dynamic>> merged = {};
 
-    // keep existing messages
+    // ✅ keep existing (REST + socket optimistic)
     for (final m in _allMessages) {
       final id = m['message_id']?.toString();
-      if (id != null) {
-        merged[id] = m;
-      }
+      if (id != null) merged[id] = m;
     }
 
-    // merge / override with CRDT messages
+    // ✅ CRDT overrides same IDs only
     for (final m in incoming) {
       final id = m['message_id']?.toString();
-      if (id != null) {
-        merged[id] = m;
-      }
+
+      // 🔥 REMOVE TEMP VERSION IF EXISTS
+      _allMessages.removeWhere(
+        (x) => x['isTemp'] == true && x['message_id'] == id,
+      );
+
+      merged[id ?? ""] = m;
     }
 
-    /// 3️⃣ Sort like web (old → new)
+    /// 3️⃣ Sort Old → New (web behavior)
     final mergedList = merged.values.toList()
       ..sort(
         (a, b) => handler
@@ -283,44 +270,19 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             .compareTo(handler.parseTime(b['time'])),
       );
 
-    /// 4️⃣ Replace source of truth SAFELY
+    final oldTotal = _allMessages.length;
+
     _allMessages
       ..clear()
       ..addAll(mergedList);
 
-    /// 5️⃣ Notify UI
+// 🔥 FIX: if CRDT brought new messages, show them
+    if (_allMessages.length > oldTotal) {
+      _visibleCount = _allMessages.length;
+    }
+
     _updateNotifierFromAll();
   }
-
-  // void _applyCrdtMessages(
-  //   String convoId,
-  //   Map<String, dynamic> messagesMap,
-  // ) {
-  //   if (convoId != widget.convoId) return;
-
-  //   final handler = MessageHandler(
-  //     currentUserId: currentUserId,
-  //     convoId: widget.convoId,
-  //   );
-
-  //   final crdtMessages = messagesMap.values
-  //       .map((raw) => handler.normalizeMessage(raw))
-  //       .where((m) => m.isNotEmpty)
-  //       .toList();
-
-  //   // 🔥 SORT LIKE WEB
-  //   crdtMessages.sort(
-  //     (a, b) =>
-  //         handler.parseTime(a['time']).compareTo(handler.parseTime(b['time'])),
-  //   );
-
-  //   // 🔥 REPLACE SOURCE OF TRUTH
-  //   _allMessages
-  //     ..clear()
-  //     ..addAll(crdtMessages);
-
-  //   _updateNotifierFromAll();
-  // }
 
   // ------------------ Initialization ------------------
   Future<void> _initializeChat() async {
@@ -329,6 +291,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     messages.clear();
     dbMessages.clear();
     _seenMessageIds.clear();
+    _visibleCount = _allMessages.length;
+
     _initialScrollDone = false;
 
     // 1) initialMessages (from forwarding)
@@ -346,7 +310,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       _scheduleSaveMessages();
     } else if (widget.convoId.isNotEmpty) {
       // 2) cached local messages
-      final loaded = LocalChatStorage.loadMessages(widget.convoId) ?? [];
+      final loaded = LocalChatStorage.loadMessages(widget.convoId);
       final normalized = [
         for (var msg in loaded)
           if (msg.isNotEmpty) normalizeMessage(msg)
@@ -416,8 +380,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
         _replaceTempMessageWithReal(
           tempId: localId,
-          realId: sent.messageId ?? '',
-          status: sent.messageStatus ?? 'sent',
+          realId: sent.messageId,
+          status: sent.messageStatus,
         );
       } catch (e, st) {
         log('❌ resend offline msg failed: $e\n$st');
@@ -505,18 +469,25 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   void _updateNotifierFromAll() {
-    final total = _allMessages.length;
+    final int total = _allMessages.length;
 
-    // 🔥 SAFETY: if visibleCount is zero or exceeds total
+    if (total == 0) {
+      _messagesNotifier.value = const [];
+      return;
+    }
+
+    // 🔥 clamp visibleCount safely
     final int count =
-        _visibleCount <= 0 || _visibleCount > total ? total : _visibleCount;
+        (_visibleCount <= 0) ? total : _visibleCount.clamp(0, total);
 
-    debugPrint('📊 _updateNotifierFromAll: total=$total, visibleCount=$count');
+    final int startIndex = (total - count).clamp(0, total);
 
-    // ✅ ALWAYS take latest `count` messages
-    final List<Map<String, dynamic>> visibleSlice =
-        _allMessages.sublist(total - count, total);
+    debugPrint(
+        '📊 _updateNotifierFromAll: total=$total, visibleCount=$count, start=$startIndex');
 
+    final visibleSlice = _allMessages.sublist(startIndex, total);
+
+    // ✅ immutable list → avoids accidental mutation
     _messagesNotifier.value =
         List<Map<String, dynamic>>.unmodifiable(visibleSlice);
   }
@@ -851,6 +822,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
 
     m['message_id'] = canonicalId;
+
     m['id'] = canonicalId;
     m['messageId'] = canonicalId;
     m['_id'] = canonicalId;
@@ -881,12 +853,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       senderRaw = {'_id': senderId};
     }
 
-    m['sender'] = senderRaw;
-    m['senderId'] = senderId;
-
     // ================= RECEIVER =================
     dynamic receiverRaw = rawMsg['receiver'];
     String? receiverId = rawMsg['receiverId']?.toString();
+    m['sender_id'] = senderId; // Add alternate field
+    m['from'] = senderId;
 
     if (receiverRaw is Map) {
       receiverId ??= receiverRaw['_id']?.toString();
@@ -1059,6 +1030,33 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   // ------------------ SEND MESSAGE (with reply support) ------------------
   /// This is the **old working reply logic**, adapted to your new storage.
   void _sendMessage() async {
+    print('=== MANUAL DEBUG ===');
+    print('currentUserId: $currentUserId');
+
+    // Check socketMessages
+    print('socketMessages (${socketMessages.length}):');
+    for (var msg in socketMessages) {
+      final id = (msg['message_id'] ?? '').toString();
+      final isTemp = id.startsWith('temp_');
+      print('  ID: $id, isTemp: $isTemp, senderId: ${msg['senderId']}');
+    }
+
+    // Call _getCombinedMessages
+    final combined = _getCombinedMessages();
+    print('_getCombinedMessages returned: ${combined.length}');
+
+    // Check for temp messages
+    final tempMsgs = combined.where((m) {
+      final id = (m['message_id'] ?? '').toString();
+      return id.startsWith('temp_');
+    }).toList();
+
+    print('Temp messages in combined: ${tempMsgs.length}');
+    for (var msg in tempMsgs) {
+      final id = (msg['message_id'] ?? '').toString();
+      print(
+          '  TEMP: $id, senderId: ${msg['senderId']}, isFromMe: ${_isMessageFromCurrentUser(msg)}');
+    }
     if (_messageController.text.trim().isEmpty || widget.datumId == null) {
       return;
     }
@@ -1124,11 +1122,22 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     final bool canSendNow = _isOnline && socketService.isConnected;
 
+    // ✅ FIXED: Ensure ALL sender fields are set
     final localMessage = {
       'message_id': localId,
+      'id': localId,
+      '_id': localId,
       'content': text,
-      'sender': {'_id': currentUserId},
+
+      'sender': {
+        '_id': currentUserId,
+        'id': currentUserId,
+        'first_name': widget.firstname ?? '',
+        'last_name': widget.lastname ?? '',
+      },
       'senderId': currentUserId,
+      'sender_id': currentUserId,
+      'from': currentUserId,
       'receiver': {'_id': widget.datumId},
       'receiverId': widget.datumId,
       'time': DateTime.now().toIso8601String(),
@@ -1136,6 +1145,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       if (replyPayload != null) 'reply': replyPayload,
       if (replyPayload != null) 'reply_message_id': replyMessageId,
       'messageStatus': canSendNow ? 'sending' : 'pending_offline',
+
+      // ✅ ADD THESE MARKERS
+      '_isOptimistic': true,
+      '_isTempMessage': true,
     };
     localMessage['message_id'] = localId;
     localMessage['time'] = DateTime.now().toIso8601String();
@@ -1230,6 +1243,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         if (mid == tempId) {
           final copy = Map<String, dynamic>.from(m);
 
+          // ✅ ADD THIS: PRESERVE SENDER INFO
+          copy['senderId'] = currentUserId;
+          if (copy['sender'] is! Map || (copy['sender'] as Map).isEmpty) {
+            copy['sender'] = {'_id': currentUserId};
+          }
           // 🔥 Preserve reply info (CRITICAL for media reply)
           if (copy['reply'] != null || copy['reply_message_id'] != null) {
             copy['_localHasReply'] = true;
@@ -3476,6 +3494,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   // ------------------ Build ------------------
   @override
   Widget build(BuildContext context) {
+    print('=== BUILD METHOD START ===');
+    print('Messages to render: ${_messagesNotifier.value.length}');
     return ReusableChatScaffold(
       appBar: _buildAppBar(),
       chatBody: ValueListenableBuilder<List<Map<String, dynamic>>>(
@@ -3492,13 +3512,41 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                   status: state.status,
                 );
               }
-              if (state is MessageSentSuccessfully) {
-                final id = state.sentMessage.messageId;
-                if (id.isNotEmpty) {
-                  _updateMessageStatus(id, state.sentMessage.messageStatus);
-                  //  _sendReadForNewOutgoing(id);  // only if your backend really expects this
+              // if (state is MessageSentSuccessfully) {
+              //   final id = state.sentMessage.messageId;
+              //   if (id.isNotEmpty) {
+              //     _updateMessageStatus(id, state.sentMessage.messageStatus);
+              //     //  _sendReadForNewOutgoing(id);
+              //   }
+              // }
+              else if (state is MessagerLoaded) {
+                final flat = state.response.data
+                    .expand((g) => g.messages)
+                    .map((e) => normalizeMessage(e.toJson()))
+                    .where((m) => m.isNotEmpty)
+                    .toList();
+
+                // 🔥 MERGE, DO NOT REPLACE
+                final Map<String, Map<String, dynamic>> merged = {
+                  for (final m in _allMessages)
+                    if (m['message_id'] != null) m['message_id']: m,
+                };
+
+                for (final m in flat) {
+                  final id = m['message_id'];
+                  if (id != null) merged[id] = m;
                 }
-              } else if (state is MessagerLoaded) {
+
+                _allMessages
+                  ..clear()
+                  ..addAll(merged.values);
+
+                _allMessages.sort(
+                  (a, b) =>
+                      _parseTime(a['time']).compareTo(_parseTime(b['time'])),
+                );
+
+                _updateNotifierFromAll();
                 _hasNextPage = state.response.hasNextPage;
                 _isLoadingMore = false;
 
@@ -3536,7 +3584,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                   final prev = previousById[id];
                   if (prev == null) continue;
 
-// --- preserve local reply if present on prev (marker set earlier) ---
+                  /// --- preserve local reply if present on prev (marker set earlier) ---
                   final bool prevHasLocalReply = prev['_localHasReply'] == true;
                   if (prevHasLocalReply) {
                     // if server message lacks reply, restore it from prev
@@ -3563,7 +3611,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                     }
                   }
 
-// preserve local reactions if server omitted them
+                  // preserve local reactions if server omitted them
                   final prevReactions = _extractReactions(prev['reactions']);
                   final newReactions = _extractReactions(m['reactions']);
                   if (newReactions.isEmpty && prevReactions.isNotEmpty) {
@@ -3575,7 +3623,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                         local: prevReactions, incoming: newReactions);
                   }
 
-// preserve local 'read' only if we locally marked it
+                  /// preserve local 'read' only if we locally marked it
                   final prevStatus =
                       (prev['messageStatus'] ?? prev['status'] ?? '')
                           .toString();
@@ -3596,7 +3644,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                 // 4) Now replace / prepend with merged list
                 if (_currentPage == 1) {
                   final Map<String, Map<String, dynamic>> byId = {};
-// overlay fresh messages from server
+                  // overlay fresh messages from server
                   for (final fresh in newDbMessages) {
                     final id = (fresh['message_id'] ??
                                 fresh['messageId'] ??
@@ -3604,8 +3652,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                             ?.toString() ??
                         '';
                     if (id.isEmpty) {
-                      // server returned a message without id — keep it as-is (append)
-                      // you may want to add it to dbMessages directly, but here we keep within byId
                       final tempKey =
                           '__noid_${DateTime.now().microsecondsSinceEpoch}';
                       byId[tempKey] = fresh;
@@ -3710,8 +3756,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                 }
 
                 // 6) Rebuild combined list & notify UI
-                _updateNotifier(isInitialLoad: _currentPage == 1);
-                _scheduleSaveMessages();
+                // _updateNotifier(isInitialLoad: _currentPage == 1);
+                // _scheduleSaveMessages();
 
                 if (_currentPage == 1) {
                   _scrollToBottom();
@@ -3735,10 +3781,33 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                   });
                 }
               } else if (state is NewMessageReceivedState) {
-                onMessageReceived(state.message);
+                final normalized = normalizeMessage(state.message);
+                if (normalized.isEmpty) return;
 
-                normalizeReplyMessages(socketMessages);
-                _updateNotifier();
+                final id = normalized['message_id']?.toString();
+                if (id == null || id.isEmpty) return;
+
+                final index =
+                    _allMessages.indexWhere((m) => m['message_id'] == id);
+
+                if (index == -1) {
+                  _allMessages.add(normalized);
+
+                  // 🔥 FIX: always expand visible window on new message
+                  _visibleCount = _allMessages.length;
+
+                  _allMessages.sort(
+                    (a, b) =>
+                        _parseTime(a['time']).compareTo(_parseTime(b['time'])),
+                  );
+
+                  _updateNotifierFromAll();
+                }
+
+                // onMessageReceived(state.message);
+
+                // normalizeReplyMessages(socketMessages);
+                // _updateNotifier();
               }
             },
             builder: (context, state) {
@@ -3772,26 +3841,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                   const EdgeInsets.symmetric(vertical: 8.0),
                               child: const SizedBox.shrink(),
                             )
-                          // : (!_hasNextPage && _allMessages.isNotEmpty)
-                          //     ? Padding(
-                          //         key: const ValueKey('all_loaded'),
-                          //         padding:
-                          //             const EdgeInsets.symmetric(vertical: 8.0),
-                          //         child: Center(
-                          //           child: Container(
-                          //             padding: const EdgeInsets.symmetric(
-                          //                 horizontal: 12, vertical: 6),
-                          //             decoration: BoxDecoration(
-                          //               color: Colors.grey.shade100,
-                          //               borderRadius: BorderRadius.circular(16),
-                          //               border: Border.all(
-                          //                   color: Colors.grey.shade300),
-                          //             ),
-                          //             child: const Text('All messages loaded',
-                          //                 style: TextStyle(fontSize: 13)),
-                          //           ),
-                          //         ),
-                          //       )
                           : const SizedBox.shrink(),
                     ),
                     Expanded(
@@ -3800,7 +3849,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                         child: ListView.builder(
                           controller: _scrollController,
                           itemCount: combinedMessages.length,
-                          reverse: true, // Start from bottom
+                          reverse: true,
                           shrinkWrap: true,
                           itemBuilder: (context, index) {
                             // final message = combinedMessages[index];
@@ -3830,7 +3879,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                 _highlightedMessageId == messageId;
                             final List<GroupMediaItem> groupMedia = [];
 
-                            isSentByMe = senderId == currentUserId;
+                            //isSentByMe = senderId == currentUserId;
+                            isSentByMe = _isMessageFromCurrentUser(message);
 
                             final showDate = realIndex == 0 ||
                                 !isSameDay(
@@ -4037,6 +4087,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                                 log("_replyPreview $_replyPreview");
                                                 log("_replyPreview $_replyMessage");
 
+                                                // ⌨️ open keyboard AFTER gesture completes
                                                 _focusNode.requestFocus();
                                               });
                                             }),
@@ -4095,38 +4146,39 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                                         message['time'])),
                                               IntrinsicWidth(
                                                 child: Container(
-                                                  margin:
-                                                      const EdgeInsets.symmetric(
-                                                          horizontal: 5,
-                                                          vertical: 6),
+                                                  margin: const EdgeInsets
+                                                      .symmetric(
+                                                      horizontal: 5,
+                                                      vertical: 6),
                                                   // padding: const EdgeInsets.all(7),
                                                   constraints:
                                                       const BoxConstraints(
                                                           maxWidth: 160),
                                                   decoration: BoxDecoration(
                                                     color: (isSentByMe
-                                                        ? const Color(0xFFD8E1FE)
+                                                        ? const Color(
+                                                            0xFFD8E1FE)
                                                         : Colors.white),
                                                     borderRadius:
                                                         BorderRadius.only(
                                                       topLeft: isSentByMe
-                                                          ? const Radius.circular(
-                                                              18)
-                                                          : const Radius.circular(
-                                                              18),
+                                                          ? const Radius
+                                                              .circular(18)
+                                                          : const Radius
+                                                              .circular(18),
                                                       topRight: isSentByMe
-                                                          ? const Radius.circular(
-                                                              18)
-                                                          : const Radius.circular(
-                                                              18),
+                                                          ? const Radius
+                                                              .circular(18)
+                                                          : const Radius
+                                                              .circular(18),
                                                       bottomLeft: isSentByMe
-                                                          ? const Radius.circular(
-                                                              18)
+                                                          ? const Radius
+                                                              .circular(18)
                                                           : Radius.zero,
                                                       bottomRight: isSentByMe
                                                           ? Radius.zero
-                                                          : const Radius.circular(
-                                                              16),
+                                                          : const Radius
+                                                              .circular(16),
                                                     ),
                                                     boxShadow: [
                                                       BoxShadow(
@@ -4140,10 +4192,12 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                                   ),
                                                   child: Column(
                                                     children: [
-                                                      _buildMessageBubble(message,
-                                                          isSentByMe, hasReply,
-                                                          length:
-                                                              groupMedia.length),
+                                                      _buildMessageBubble(
+                                                          message,
+                                                          isSentByMe,
+                                                          hasReply,
+                                                          length: groupMedia
+                                                              .length),
                                                     ],
                                                   ),
                                                 ),
@@ -4197,97 +4251,197 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     );
   }
 
-  List<Map<String, dynamic>> _getCombinedMessages() {
-    final combined = <Map<String, dynamic>>[];
-    int idx = 0;
+  // ✅ ADD THIS METHOD
+  String? _getMessageSenderId(Map<String, dynamic> message) {
+    if (message == null || message.isEmpty) return null;
 
-    void addWithIndex(List<Map<String, dynamic>> source) {
-      for (var m in source) {
-        if (m.isNotEmpty) {
-          final copy = Map<String, dynamic>.from(m);
-          copy['_localIndex'] ??= idx++;
-          combined.add(copy);
+    // Try all possible sender ID fields
+    final senderId = message['senderId']?.toString();
+    if (senderId != null && senderId.isNotEmpty) return senderId;
+
+    final senderId2 = message['sender_id']?.toString();
+    if (senderId2 != null && senderId2.isNotEmpty) return senderId2;
+
+    final from = message['from']?.toString();
+    if (from != null && from.isNotEmpty) return from;
+
+    // Extract from sender object
+    if (message['sender'] is Map) {
+      final sender = message['sender'] as Map<String, dynamic>;
+      return sender['_id']?.toString() ??
+          sender['id']?.toString() ??
+          sender['userId']?.toString();
+    }
+
+    return null;
+  }
+
+// ✅ ADD THIS METHOD
+  bool _isMessageFromCurrentUser(Map<String, dynamic> message) {
+    if (message == null || message.isEmpty) return false;
+
+    final id = (message['message_id'] ?? '').toString();
+
+    // Special case: temp messages are ALWAYS from current user
+    if (id.startsWith('temp_') || id.startsWith('forward_')) {
+      return true;
+    }
+
+    final senderId = _getMessageSenderId(message);
+    return senderId == currentUserId;
+  }
+
+// ✅ ADD THIS METHOD (optional for debugging)
+  void _debugMessage(String tag, Map<String, dynamic> message) {
+    final id = (message['message_id'] ?? 'N/A').toString();
+    final senderId = _getMessageSenderId(message);
+    final isFromMe = _isMessageFromCurrentUser(message);
+    print('🔍 [$tag] ID: $id, senderId: $senderId, isFromMe: $isFromMe');
+  }
+
+  List<Map<String, dynamic>> _getCombinedMessages() {
+    print('🔄 _getCombinedMessages() - Checking for temp messages...');
+
+    // SIMPLE VERSION: Just combine and fix sender info
+    final allMessages = <Map<String, dynamic>>[];
+
+    // Add all messages
+    allMessages.addAll(dbMessages);
+    allMessages.addAll(messages);
+    allMessages.addAll(socketMessages);
+
+    // Fix sender info for temp messages
+    for (var msg in allMessages) {
+      final id = (msg['message_id'] ?? '').toString();
+
+      if (id.startsWith('temp_')) {
+        print('🔵 Fixing TEMP message: $id');
+        msg['senderId'] = currentUserId;
+        msg['sender_id'] = currentUserId;
+        msg['from'] = currentUserId;
+
+        if (msg['sender'] is! Map || (msg['sender'] as Map).isEmpty) {
+          msg['sender'] = {'_id': currentUserId};
         }
       }
     }
 
-    addWithIndex(dbMessages);
-    addWithIndex(messages);
-    addWithIndex(socketMessages);
+    // Remove duplicates by ID
+    final Map<String, Map<String, dynamic>> unique = {};
+    for (var msg in allMessages) {
+      final id = (msg['message_id'] ?? '').toString();
+      if (id.isNotEmpty) {
+        unique[id] = msg;
+      }
+    }
 
-    // 🔥 SORT BY TIME (LIKE WEB)
+    // Sort by time
+    final combined = unique.values.toList();
     combined.sort((a, b) {
       try {
-        final ta = _parseTime(a['time']);
-        final tb = _parseTime(b['time']);
-        final cmp = ta.compareTo(tb);
-        if (cmp != 0) return cmp;
-
-        final ia = a['_localIndex'] as int? ?? 0;
-        final ib = b['_localIndex'] as int? ?? 0;
-        return ia.compareTo(ib);
+        return _parseTime(a['time']).compareTo(_parseTime(b['time']));
       } catch (_) {
         return 0;
       }
     });
 
-    final result = <Map<String, dynamic>>[];
+    print('📊 Final: ${combined.length} messages');
+    print(
+        '📊 Temp messages: ${combined.where((m) => (m['message_id'] ?? '').toString().startsWith('temp_')).length}');
 
-    for (final m in combined) {
-      final id =
-          (m['message_id'] ?? m['messageId'] ?? m['id'])?.toString() ?? '';
-
-      if (id.isEmpty) {
-        result.add(m);
-        continue;
-      }
-
-      final existingIndex = result.indexWhere((e) {
-        final eid =
-            (e['message_id'] ?? e['messageId'] ?? e['id'])?.toString() ?? '';
-        return eid == id;
-      });
-
-      if (existingIndex == -1) {
-        result.add(m);
-      } else {
-        final existing = result[existingIndex];
-
-        final existingHasReply = _hasReplyForMessage(existing);
-        final newHasReply = _hasReplyForMessage(m);
-
-        // 🔥 STRICT FORWARDED CHECK (CRDT WINS)
-        final bool newIsForwarded = m['isForwarded'] == true;
-        final bool existingIsForwarded = existing['isForwarded'] == true;
-
-        if (newHasReply && !existingHasReply) {
-          // Prefer message with reply info
-          result[existingIndex] = m;
-        } else if (newIsForwarded != existingIsForwarded) {
-          // 🔥 CRDT OVERRIDES OLD FORWARDED STATE
-          result[existingIndex] = m;
-        } else {
-          // Otherwise keep latest (CRDT already sorted)
-          result[existingIndex] = m;
-        }
-      }
-    }
-
-    // 🔥 RESOLVE REPLIES AFTER MERGE
-    for (final msg in result) {
-      if (msg['isReplyMessage'] == true && msg['repliedMessage'] == null) {
-        final resolved = resolveRepliedMessage(
-          message: msg,
-          allMessages: result,
-        );
-        if (resolved != null) {
-          msg['repliedMessage'] = resolved;
-        }
-      }
-    }
-
-    return result;
+    return combined;
   }
+  // List<Map<String, dynamic>> _getCombinedMessages() {
+  //   final combined = <Map<String, dynamic>>[];
+  //   int idx = 0;
+
+  //   void addWithIndex(List<Map<String, dynamic>> source) {
+  //     for (var m in source) {
+  //       if (m.isNotEmpty) {
+  //         final copy = Map<String, dynamic>.from(m);
+  //         copy['_localIndex'] ??= idx++;
+  //         combined.add(copy);
+  //       }
+  //     }
+  //   }
+
+  //   addWithIndex(dbMessages);
+  //   addWithIndex(messages);
+  //   addWithIndex(socketMessages);
+
+  //   // 🔥 SORT BY TIME (LIKE WEB)
+  //   combined.sort((a, b) {
+  //     try {
+  //       final ta = _parseTime(a['time']);
+  //       final tb = _parseTime(b['time']);
+  //       final cmp = ta.compareTo(tb);
+  //       if (cmp != 0) return cmp;
+
+  //       final ia = a['_localIndex'] as int? ?? 0;
+  //       final ib = b['_localIndex'] as int? ?? 0;
+  //       return ia.compareTo(ib);
+  //     } catch (_) {
+  //       return 0;
+  //     }
+  //   });
+
+  //   final result = <Map<String, dynamic>>[];
+
+  //   for (final m in combined) {
+  //     final id =
+  //         (m['message_id'] ?? m['messageId'] ?? m['id'])?.toString() ?? '';
+
+  //     if (id.isEmpty) {
+  //       result.add(m);
+  //       continue;
+  //     }
+
+  //     final existingIndex = result.indexWhere((e) {
+  //       final eid =
+  //           (e['message_id'] ?? e['messageId'] ?? e['id'])?.toString() ?? '';
+  //       return eid == id;
+  //     });
+
+  //     if (existingIndex == -1) {
+  //       result.add(m);
+  //     } else {
+  //       final existing = result[existingIndex];
+
+  //       final existingHasReply = _hasReplyForMessage(existing);
+  //       final newHasReply = _hasReplyForMessage(m);
+
+  //       // 🔥 STRICT FORWARDED CHECK (CRDT WINS)
+  //       final bool newIsForwarded = m['isForwarded'] == true;
+  //       final bool existingIsForwarded = existing['isForwarded'] == true;
+
+  //       if (newHasReply && !existingHasReply) {
+  //         // Prefer message with reply info
+  //         result[existingIndex] = m;
+  //       } else if (newIsForwarded != existingIsForwarded) {
+  //         // 🔥 CRDT OVERRIDES OLD FORWARDED STATE
+  //         result[existingIndex] = m;
+  //       } else {
+  //         // Otherwise keep latest (CRDT already sorted)
+  //         result[existingIndex] = m;
+  //       }
+  //     }
+  //   }
+
+  //   // 🔥 RESOLVE REPLIES AFTER MERGE
+  //   for (final msg in result) {
+  //     if (msg['isReplyMessage'] == true && msg['repliedMessage'] == null) {
+  //       final resolved = resolveRepliedMessage(
+  //         message: msg,
+  //         allMessages: result,
+  //       );
+  //       if (resolved != null) {
+  //         msg['repliedMessage'] = resolved;
+  //       }
+  //     }
+  //   }
+
+  //   return result;
+  // }
 
   void normalizeReplyMessages(List<Map<String, dynamic>> messages) {
     for (final msg in messages) {
