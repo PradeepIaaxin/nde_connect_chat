@@ -132,7 +132,7 @@ class ChatListApiService {
     return true;
   }
 
-  Future<List<Datu>> fetchChats({
+Future<List<Datu>> fetchChats({
   required int page,
   required int limit,
   String? filter,
@@ -166,21 +166,19 @@ class ChatListApiService {
   if (response.statusCode == 200) {
     final jsonData = jsonDecode(response.body);
 
-    // ===================== LORO SNAPSHOT FLOW =====================
-    if (jsonData["snapshot"] != null) {
-      final snapshotBase64 = jsonData["snapshot"];
-      log("📥 Received Loro Snapshot");
+    /// ✅ USE SNAPSHOT ONLY IF IT IS A VALID STRING
+    final snapshot = jsonData["snapshot"];
+    if (snapshot is String && snapshot.isNotEmpty) {
+      log("📥 Received valid Loro Snapshot");
 
-      // Reset Rust doc ONLY for decoding
+      // 🔥 reset Rust doc ONLY for snapshot
       await resetGlobalDoc();
 
-      final chats = await decodeChatsFromLoro(snapshotBase64);
-
-      // ✅ JUST RETURN — NO LOCAL SAVE
+      final chats = await decodeChatsFromLoro(snapshot);
       return chats;
     }
 
-    // ===================== NORMAL JSON FLOW =====================
+    /// 🚫 snapshot == null OR empty → NORMAL JSON FLOW
     final List<dynamic> chatJson = jsonData["data"] ?? [];
     return chatJson.map((e) => Datu.fromJson(e)).toList();
   }
@@ -196,6 +194,71 @@ class ChatListApiService {
 
   throw Exception("Failed to fetch chats");
 }
+
+//   Future<List<Datu>> fetchChats({
+//   required int page,
+//   required int limit,
+//   String? filter,
+// }) async {
+//   final accessToken = await UserPreferences.getAccessToken();
+//   final workspace = await UserPreferences.getDefaultWorkspace();
+
+//   if (accessToken == null || workspace == null) {
+//     throw Exception("User authentication missing");
+//   }
+
+//   final Map<String, String> queryParams = {
+//     'page': page.toString(),
+//     'limit': limit.toString(),
+//   };
+
+//   if (filter != null && filter.isNotEmpty && filter.toLowerCase() != "all") {
+//     queryParams['filter'] = filter.toLowerCase();
+//   }
+
+//   final uri = Uri.parse(baseUrl).replace(queryParameters: queryParams);
+
+//   final headers = {
+//     'Authorization': 'Bearer $accessToken',
+//     'x-workspace': workspace,
+//     'Content-Type': 'application/json',
+//   };
+
+//   final response = await http.get(uri, headers: headers);
+
+//   if (response.statusCode == 200) {
+//     final jsonData = jsonDecode(response.body);
+
+//     // ===================== LORO SNAPSHOT FLOW =====================
+//     if (jsonData["snapshot"] != null) {
+//       final snapshotBase64 = jsonData["snapshot"];
+//       log("📥 Received Loro Snapshot");
+
+//       // Reset Rust doc ONLY for decoding
+//       await resetGlobalDoc();
+
+//       final chats = await decodeChatsFromLoro(snapshotBase64);
+
+//       // ✅ JUST RETURN — NO LOCAL SAVE
+//       return chats;
+//     }
+
+//     // ===================== NORMAL JSON FLOW =====================
+//     final List<dynamic> chatJson = jsonData["data"] ?? [];
+//     return chatJson.map((e) => Datu.fromJson(e)).toList();
+//   }
+
+//   // ===================== TOKEN REFRESH =====================
+//   if (response.statusCode == 401) {
+//     final refreshed = await _onRefreshToken();
+//     if (refreshed) {
+//       return fetchChats(page: page, limit: limit, filter: filter);
+//     }
+//     throw Exception("Authentication failed");
+//   }
+
+//   throw Exception("Failed to fetch chats");
+// }
 
 
   // Future<List<Datu>> fetchChats({
