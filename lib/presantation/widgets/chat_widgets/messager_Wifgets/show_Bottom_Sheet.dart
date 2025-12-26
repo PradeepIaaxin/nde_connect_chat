@@ -56,17 +56,20 @@ class ShowAltDialog {
                         mainAxisSpacing: 16,
                         crossAxisSpacing: 16,
                         children: [
-                          _buildOption(context, Icons.photo_library, "Gallery", () async {
+                          _buildOption(context, Icons.photo_library, "Gallery",
+                              () async {
                             final picker = ImagePicker();
 
                             // ✅ Only images from gallery
-                            final List<XFile> images = await picker.pickMultiImage();
+                            final List<XFile> images =
+                                await picker.pickMultiImage();
 
                             if (images.isEmpty) return;
 
                             Navigator.of(context).pop();
 
-                            final localMessages = await Navigator.push<List<Map<String, dynamic>>>(
+                            final localMessages = await Navigator.push<
+                                List<Map<String, dynamic>>>(
                               context,
                               MaterialPageRoute(
                                 builder: (_) => MediaPreviewScreen(
@@ -79,27 +82,32 @@ class ShowAltDialog {
                               ),
                             );
 
-                            if (localMessages != null && localMessages.isNotEmpty) {
+                            if (localMessages != null &&
+                                localMessages.isNotEmpty) {
                               onOptionSelected(localMessages);
                             }
                           }),
-                          _buildOption(context, Icons.videocam, "Video", () async {
+                          _buildOption(context, Icons.videocam, "Video",
+                              () async {
                             final picker = ImagePicker();
 
                             // ✅ Opens GALLERY UI (NOT document UI)
-                            final List<XFile> allMedia = await picker.pickMultiVideo();
+                            final List<XFile> allMedia =
+                                await picker.pickMultiVideo();
 
                             if (allMedia.isEmpty) return;
 
                             // ✅ Keep ONLY videos
-                            final List<XFile> videoFiles = allMedia.where((file) {
+                            final List<XFile> videoFiles =
+                                allMedia.where((file) {
                               final mime = lookupMimeType(file.path) ?? '';
                               return mime.startsWith('video/');
                             }).toList();
 
                             if (videoFiles.isEmpty) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text("No videos selected")),
+                                const SnackBar(
+                                    content: Text("No videos selected")),
                               );
                               return;
                             }
@@ -108,7 +116,8 @@ class ShowAltDialog {
                             Navigator.of(context).pop();
 
                             // ✅ Open preview with MULTIPLE videos
-                            final localMessages = await Navigator.push<List<Map<String, dynamic>>>(
+                            final localMessages = await Navigator.push<
+                                List<Map<String, dynamic>>>(
                               context,
                               MaterialPageRoute(
                                 builder: (_) => MediaPreviewScreen(
@@ -122,11 +131,11 @@ class ShowAltDialog {
                             );
 
                             // ✅ Return messages to chat
-                            if (localMessages != null && localMessages.isNotEmpty) {
+                            if (localMessages != null &&
+                                localMessages.isNotEmpty) {
                               onOptionSelected(localMessages);
                             }
                           }),
-
                           _buildOption(context, Icons.camera_alt, "Camera",
                               () async {
                             final XFile? file = await ImagePicker()
@@ -138,15 +147,20 @@ class ShowAltDialog {
                               });
                             }
                           }),
-                          _buildOption(context, Icons.insert_drive_file, "Document", () async {
-                            final result = await FilePicker.platform.pickFiles();
-                            if (result == null || result.files.single.path == null) return;
+                          _buildOption(
+                              context, Icons.insert_drive_file, "Document",
+                              () async {
+                            final result =
+                                await FilePicker.platform.pickFiles();
+                            if (result == null ||
+                                result.files.single.path == null) return;
 
                             final xfile = XFile(result.files.single.path!);
 
                             Navigator.of(context).pop();
 
-                            final localMessages = await Navigator.push<List<Map<String, dynamic>>>(
+                            final localMessages = await Navigator.push<
+                                List<Map<String, dynamic>>>(
                               context,
                               MaterialPageRoute(
                                 builder: (_) => MediaPreviewScreen(
@@ -159,11 +173,11 @@ class ShowAltDialog {
                               ),
                             );
 
-                            if (localMessages != null && localMessages.isNotEmpty) {
+                            if (localMessages != null &&
+                                localMessages.isNotEmpty) {
                               onOptionSelected(localMessages);
                             }
                           }),
-
                           _buildOption(context, Icons.audiotrack, "Audio",
                               () async {
                             final result = await FilePicker.platform
@@ -205,8 +219,7 @@ class ShowAltDialog {
                                       fit: BoxFit.cover,
                                     ),
                                   );
-                                }
-                                else if (isVideo) {
+                                } else if (isVideo) {
                                   return Padding(
                                     padding: const EdgeInsets.all(8.0),
                                     child: GestureDetector(
@@ -215,7 +228,8 @@ class ShowAltDialog {
                                         Navigator.push(
                                           context,
                                           MaterialPageRoute(
-                                            builder: (_) => VideoPreviewScreen(file: File(file.path)),
+                                            builder: (_) => VideoPreviewScreen(
+                                                file: File(file.path)),
                                           ),
                                         );
                                       },
@@ -226,7 +240,9 @@ class ShowAltDialog {
                                             height: 200,
                                             width: 150,
                                             color: Colors.black12,
-                                            child: const Icon(Icons.videocam, size: 40, color: Colors.white70),
+                                            child: const Icon(Icons.videocam,
+                                                size: 40,
+                                                color: Colors.white70),
                                           ),
                                           const Icon(
                                             Icons.play_circle_fill,
@@ -237,8 +253,7 @@ class ShowAltDialog {
                                       ),
                                     ),
                                   );
-                                }
-                                else {
+                                } else {
                                   return const SizedBox.shrink();
                                 }
                               },
@@ -248,9 +263,11 @@ class ShowAltDialog {
                           FutureBuilder<ImageInfo>(
                             future: _loadImageDimensions(selectedFile!.path),
                             builder: (context, snapshot) {
-                              if (snapshot.connectionState == ConnectionState.done) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.done) {
                                 if (snapshot.hasError || !snapshot.hasData) {
-                                  return const Center(child: Text('Failed to load image'));
+                                  return const Center(
+                                      child: Text('Failed to load image'));
                                 }
                                 return Image.file(
                                   File(selectedFile!.path),
@@ -267,7 +284,8 @@ class ShowAltDialog {
                       ]
 
                       // ───────── DOCUMENT / AUDIO / ETC ─────────
-                      else if (selectedLabel != null && selectedFile != null) ...[
+                      else if (selectedLabel != null &&
+                          selectedFile != null) ...[
                         Column(
                           children: [
                             Icon(_getIconForType(selectedLabel!), size: 80),
@@ -279,11 +297,9 @@ class ShowAltDialog {
                             ),
                           ],
                         ),
-                      ]
-                      else ...[
-                          const Text('No file selected'),
-                        ],
-
+                      ] else ...[
+                        const Text('No file selected'),
+                      ],
                       const SizedBox(height: 16),
                       ElevatedButton.icon(
                         icon: const Icon(Icons.send),
@@ -292,7 +308,8 @@ class ShowAltDialog {
                           backgroundColor: Colors.green,
                         ),
                         onPressed: () async {
-                          final String tempGroupId = 'temp_group_${ObjectId().toString()}';
+                          final String tempGroupId =
+                              'temp_group_${ObjectId().toString()}';
                           final List<Map<String, dynamic>> mediaList = [];
 
                           localMessages.clear();
@@ -388,7 +405,8 @@ class ShowAltDialog {
     await prefs.setString('chat_file_path', fileFile.path);
     log(" File path saved to session: ${fileFile.path}");
   }
-   double maxVideoSizeMb = 10.0;
+
+  double maxVideoSizeMb = 10.0;
 
   static Future<Map<String, dynamic>?> sendFile({
     required BuildContext context,
@@ -399,8 +417,7 @@ class ShowAltDialog {
     required bool isGroupChat,
     required bool isGroupMessage,
     String? groupMessageId,
-  })
-  async {
+  }) async {
     try {
       final File localFile = File(file.path);
 
@@ -428,7 +445,7 @@ class ShowAltDialog {
             title: const Text('File too large'),
             content: Text(
               'This video is ${sizeInMb.toStringAsFixed(1)} MB.\n'
-                  'Maximum allowed size is $maxVideoSizeMb MB.',
+              'Maximum allowed size is $maxVideoSizeMb MB.',
             ),
             actions: [
               TextButton(
@@ -452,32 +469,30 @@ class ShowAltDialog {
         await prefs.setString('chat_file_path', localFile.path);
         log(" File path saved: ${localFile.path}");
       }
-final localMessageId = ObjectId().toString();
-final message = {
-  'content': '',
-  'message_id': localMessageId,
-  'sender': {'_id': senderId},
-  'receiver': {'_id': receiverId},
-  'messageStatus': 'sent',
-  'time': DateTime.now().toIso8601String(),
+      final localMessageId = ObjectId().toString();
+      final message = {
+        'content': '',
+        'message_id': localMessageId,
+        'sender': {'_id': senderId},
+        'receiver': {'_id': receiverId},
+        'messageStatus': 'sent',
+        'time': DateTime.now().toIso8601String(),
 
-  'fileName': file.name,
-  'fileType': mimeType,
+        'fileName': file.name,
+        'fileType': mimeType,
 
-  'imageUrl': isImage ? file.path : null,
-  'fileUrl': isVideo ? file.path : null,
-  'originalUrl': file.path,
-  'isVideo': isVideo,
+        'imageUrl': isImage ? file.path : null,
+        'fileUrl': isVideo ? file.path : null,
+        'originalUrl': file.path,
+        'isVideo': isVideo,
 
-  'isLocal': true,
+        'isLocal': true,
 
-  // 🔥🔥 ADD THESE TWO LINES 🔥🔥
-  'is_group_message': isGroupMessage,
-  'is_grouped_message': isGroupMessage,
-  'group_message_id': groupMessageId,
-};
-
-
+        // 🔥🔥 ADD THESE TWO LINES 🔥🔥
+        'is_group_message': isGroupMessage,
+        'is_grouped_message': isGroupMessage,
+        'group_message_id': groupMessageId,
+      };
 
       log("🟢 Local message metadata: $message");
 
@@ -497,15 +512,10 @@ final message = {
       } else {
         context.read<MessagerBloc>().add(
               UploadFileEvent(
-                localFile,
-                conversationId,
-                senderId,
-                receiverId,
-                "",
-                isGroupMessage: isGroupMessage,
-                groupMesageId: groupMessageId,
-                messageId: localMessageId.toString()
-              ),
+                  localFile, conversationId, senderId,  receiverId: receiverId ??"",
+                  isGroupMessage: isGroupMessage,
+                  groupMesageId: groupMessageId,
+                  messageId: localMessageId.toString()),
             );
       }
 

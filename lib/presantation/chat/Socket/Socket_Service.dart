@@ -110,19 +110,28 @@ class SocketService {
   // Public lifecycle helpers
   // ------------------------
   Future<void> ensureConnected() async {
-    _slog("ensureConnected()");
-    if (isConnected) return;
-    if (_isConnecting) return _connectionCompleter.future;
+    if (isConnected || _isConnecting) return;
+
     _isConnecting = true;
     try {
-      final uid = await UserPreferences.getUserId() ?? '';
-      await connectPrivateRoom(uid, uid, (_) {}, false);
-      if (!_connectionCompleter.isCompleted) _connectionCompleter.complete();
-    } catch (e) {
-      if (!_connectionCompleter.isCompleted) {
-        _connectionCompleter.completeError(e);
-      }
-      rethrow;
+      final userId = await UserPreferences.getUserId();
+      final token = await UserPreferences.getAccessToken();
+      final workspace = await UserPreferences.getDefaultWorkspace();
+
+      if (userId == null || token == null || workspace == null) return;
+
+      _currentUserId = userId;
+      currentWorkspaceId = workspace;
+
+      await _createSocket(
+        token: token,
+        clientId: userId,
+        workspaceId: workspace,
+        senderId: userId,
+        receiverId: '',
+        onMessageReceived: (_) {},
+        isGroupchat: false,
+      );
     } finally {
       _isConnecting = false;
     }
@@ -219,15 +228,11 @@ class SocketService {
     _registerHandlers(senderId, receiverId, onMessageReceived, isGroupchat);
 
     // socket!.onConnect((_) {
-    //   _slog('Socket connected successfully id=${socket!.id}');
+    //   _lastSocketId = socket!.id;
+    //   _slog('✅ Socket connected successfully id=${socket!.id}');
+    //   _slog('📊 Total sockets created: $_socketCreationCount');
     //   _joinWorkspace(workspaceId, clientId);
     // });
-    socket!.onConnect((_) {
-      _lastSocketId = socket!.id;
-      _slog('✅ Socket connected successfully id=${socket!.id}');
-      _slog('📊 Total sockets created: $_socketCreationCount');
-      _joinWorkspace(workspaceId, clientId);
-    });
 
     socket!.onConnectError((error) {
       _slog('Socket connection error: $error');
@@ -246,6 +251,24 @@ class SocketService {
 
     // finally connect
     socket!.connect();
+  }
+
+  /// 🔥 Pin / Unpin chat via socket (ACK based)
+  Future<void> pinUnpinChat({
+    required String conversationId,
+    required bool nextPinnedState,
+  }) async {
+    if (socket == null || !isConnected) {
+      _slog('❌ chat:pin skipped – socket/workspace not ready');
+      return;
+    }
+
+    socket!.emit('chat:pin', {
+      'action': nextPinnedState,
+      'convoIds': [conversationId],
+    });
+
+    _slog('📌 chat:pin emit -> $conversationId');
   }
 
   // ------------------------
@@ -276,42 +299,77 @@ class SocketService {
       });
     }
 
-    // Connection join logic (kept original behavior)
-
     socket!.onConnect((_) {
-      _slog('Socket connected successfully id=${socket!.id}');
+      _lastSocketId = socket!.id;
+      _slog('✅ Socket connected id=${socket!.id}');
+      _slog('📊 Total sockets created: $_socketCreationCount');
+
       final wsId = currentWorkspaceId;
       final uid = _currentUserId;
 
-      // 1️⃣ VERY IMPORTANT: Join workspace first
       if (wsId == null || uid == null) {
-        _slog("❌ Missing workspaceId or userId in onConnect");
+        _slog("❌ Cannot join workspace: missing wsId or userId");
         return;
       }
 
-      print(socket!.id);
-      _slog("join_workspace -> {workspaceId: $wsId, userId: $uid}");
-      print(socket!.id);
-      // 1️⃣ Join workspace FIRST
+      // ✅ ALWAYS JOIN WORKSPACE FIRST
       socket!.emit('join_workspace', {
         'workspaceId': wsId,
         'userId': uid,
       });
-      _slog("join_workspace -> {workspaceId: $wsId, userId: $uid}");
+      _slog("✅ join_workspace emitted");
 
-      // 2️⃣ THEN join the actual chat room
-      Future.delayed(const Duration(milliseconds: 150), () {
-        if (isGroupchat == true) {
-          final joinDataGrp = {"groupId": receiverId};
-          socket!.emit("join_group_room", joinDataGrp);
-          _slog("join_group_room -> $joinDataGrp");
-        } else {
-          final joinData = {"senderId": senderId, "receiverId": receiverId};
-          socket!.emit("join_private_room", joinData);
-          _slog("join_private_room -> $joinData");
-        }
-      });
+      // ✅ THEN JOIN CHAT ROOM (NO DELAY NEEDED)
+      if (isGroupchat == true) {
+        final joinDataGrp = {"groupId": receiverId};
+        socket!.emit("join_group_room", joinDataGrp);
+        _slog("✅ join_group_room -> $joinDataGrp");
+      } else {
+        final joinData = {
+          "senderId": senderId,
+          "receiverId": receiverId,
+        };
+        socket!.emit("join_private_room", joinData);
+        _slog("✅ join_private_room -> $joinData");
+      }
+
+      _onlineStatusController.add(true);
     });
+
+    // socket!.onConnect((_) {
+    //   _slog('Socket connected successfully id=${socket!.id}');
+    //   final wsId = currentWorkspaceId;
+    //   final uid = _currentUserId;
+
+    //   // 1️⃣ VERY IMPORTANT: Join workspace first
+    //   if (wsId == null || uid == null) {
+    //     _slog("❌ Missing workspaceId or userId in onConnect");
+    //     return;
+    //   }
+
+    //   print(socket!.id);
+    //   _slog("join_workspace -> {workspaceId: $wsId, userId: $uid}");
+    //   print(socket!.id);
+    //   // 1️⃣ Join workspace FIRST
+    //   socket!.emit('join_workspace', {
+    //     'workspaceId': wsId,
+    //     'userId': uid,
+    //   });
+    //   _slog("join_workspace -> {workspaceId: $wsId, userId: $uid}");
+
+    //   // 2️⃣ THEN join the actual chat room
+    //   Future.delayed(const Duration(milliseconds: 150), () {
+    //     if (isGroupchat == true) {
+    //       final joinDataGrp = {"groupId": receiverId};
+    //       socket!.emit("join_group_room", joinDataGrp);
+    //       _slog("join_group_room -> $joinDataGrp");
+    //     } else {
+    //       final joinData = {"senderId": senderId, "receiverId": receiverId};
+    //       socket!.emit("join_private_room", joinData);
+    //       _slog("join_private_room -> $joinData");
+    //     }
+    //   });
+    // });
 
     // Room events
     reg(
@@ -883,15 +941,6 @@ class SocketService {
     } catch (e, st) {
       _slog('incoming message error: $e $st');
     }
-  }
-
-  // ------------------------
-  // Outgoing helpers (kept names/signatures)
-  // ------------------------
-  void _joinWorkspace(String workspaceId, String currentId) {
-    if (socket == null || !isConnected) return;
-    socket!.emit(
-        'join_workspace', {'workspaceId': workspaceId, 'userId': currentId});
   }
 
   Future<void> saveRoomId(String rId) async {

@@ -153,6 +153,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     super.initState();
     print('🔐 private chat screen : ${widget.convoId}');
     socketService.setActiveConversation(widget.convoId);
+    print('🔐 private chat screen : ${widget.convoId}');
 
     _messagerBloc = context.read<MessagerBloc>();
     _scrollController.addListener(_scrollListener);
@@ -252,14 +253,17 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     // ✅ CRDT overrides same IDs only
     for (final m in incoming) {
+      final senderId = m['senderId']?.toString();
       final id = m['message_id']?.toString();
 
-      // 🔥 REMOVE TEMP VERSION IF EXISTS
-      _allMessages.removeWhere(
-        (x) => x['isTemp'] == true && x['message_id'] == id,
-      );
+      // 🔥 IGNORE MY OWN MESSAGES (already handled optimistically)
+      if (senderId == currentUserId) {
+        continue;
+      }
 
-      merged[id ?? ""] = m;
+      if (id != null && id.isNotEmpty) {
+        merged[id] = m;
+      }
     }
 
     /// 3️⃣ Sort Old → New (web behavior)
@@ -369,7 +373,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             convoId: widget.convoId,
             message: text,
             senderId: currentUserId,
-            receiverId: widget.receiverId ?? "",
+            receiverId: widget.receiverId!,
             replyTo: reply,
             replyMessageId: replyMessageId,
           ),
@@ -493,85 +497,181 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   void _handleIncomingRawMessage(Map<String, dynamic> raw, {String? event}) {
-    final rawConvoId =
-        (raw['conversation_id'] ?? raw['conversationId'] ?? raw['convoId'])
-            ?.toString();
-
-    if (rawConvoId != null &&
-        rawConvoId.isNotEmpty &&
-        rawConvoId != widget.convoId) {
-      // log('🚫 Ignoring message for convo=$rawConvoId (this screen=${widget.convoId})');
-      return;
-    }
-
     final normalized = normalizeMessage(raw);
-    final msgId = (normalized['message_id'] ?? '').toString();
-    final senderId = (normalized['senderId'] ?? '').toString();
+    if (normalized.isEmpty) return;
 
-    // ignore my own echo (for receive_message/forward_message socket event)
+    final realId = normalized['message_id']?.toString();
+    if (realId == null || realId.isEmpty) return;
+
+    final senderId = normalized['senderId']?.toString();
+    final content = normalized['content']?.toString() ?? '';
+    final time = _parseTime(normalized['time']);
+
+    // 🔥 CASE 1: THIS IS MY OWN MESSAGE COMING BACK FROM SERVER
     if (senderId == currentUserId) {
-      if (event == 'forward_message' && msgId.isNotEmpty) {
-        _replaceLocalForwardIdWithRealId(msgId, normalized);
+      bool replaced = false;
+
+      for (int i = 0; i < _allMessages.length; i++) {
+        final m = _allMessages[i];
+
+        if (m['_isTempMessage'] == true &&
+            m['senderId'] == currentUserId &&
+            m['content'] == content) {
+          final tempTime = _parseTime(m['time']);
+
+          // ⏱️ small time window match
+          if ((tempTime.difference(time).inSeconds).abs() <= 3) {
+            final updated = Map<String, dynamic>.from(normalized);
+
+            // preserve UI flags
+            updated['_isTempMessage'] = false;
+            updated['_isOptimistic'] = false;
+
+            _allMessages[i] = updated;
+            replaced = true;
+            break;
+          }
+        }
       }
-      //  log('Echo of my own message ignored: $msgId');
-      return;
+
+      if (replaced) {
+        _allMessages.sort(
+          (a, b) => _parseTime(a['time']).compareTo(_parseTime(b['time'])),
+        );
+        _updateNotifierFromAll();
+      }
+
+      return; // ⛔ DO NOT ADD NEW MESSAGE
     }
 
-    if (msgId.isNotEmpty &&
-        !msgId.startsWith('temp_') &&
-        !msgId.startsWith('forward_') &&
-        _seenMessageIds.contains(msgId)) {
-      // log('Duplicate incoming message blocked: $msgId');
-      return;
+    // 🔥 CASE 2: MESSAGE FROM OTHER USER
+    final index = _allMessages.indexWhere((m) => m['message_id'] == realId);
+
+    if (index == -1) {
+      _allMessages.add(normalized);
+    } else {
+      _allMessages[index] = normalized;
     }
 
-    final alreadyInList = [dbMessages, messages, socketMessages].any(
-      (list) => list.any(
-        (m) =>
-            (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '').toString() ==
-            msgId,
-      ),
+    _allMessages.sort(
+      (a, b) => _parseTime(a['time']).compareTo(_parseTime(b['time'])),
     );
 
-    if (alreadyInList) {
-      // log('Message already exists in local lists: $msgId');
-      return;
-    }
-
-    // enrich with media info
-    normalized['imageUrl'] = raw['originalUrl'] ?? raw['thumbnailUrl'];
-    normalized['fileUrl'] = raw['originalUrl'] ?? raw['fileUrl'];
-    normalized['fileName'] = raw['fileName'];
-    normalized['fileType'] = raw['mimeType'] ?? raw['fileType'];
-    // normalized['isForwarded'] = raw['isForwarded'] == true;
-    final hasForwardParent = raw['original_message_id'] != null ||
-        raw['parent_message_id'] != null ||
-        raw['originalMessageId'] != null ||
-        raw['parentMessageId'] != null;
-
-    normalized['isForwarded'] = hasForwardParent;
-
-    normalized['roomId'] = raw['roomId']?.toString();
-
-    socketMessages.add(normalized);
-
-    if (msgId.isNotEmpty &&
-        !msgId.startsWith('temp_') &&
-        !msgId.startsWith('forward_')) {
-      _seenMessageIds.add(msgId);
-    }
-
-    if (!mounted) return;
-
-    _rebuildFromStore(resetVisibleIfEmpty: true);
-    _scrollToBottom();
-
-    if (msgId.isNotEmpty) {
-      _sendReadReceipts([msgId]);
-    }
-
-    //'New incoming message added: $msgId from $senderId');
+    _updateNotifierFromAll();
   }
+
+//   void _handleIncomingRawMessage(Map<String, dynamic> raw, {String? event}) {
+//   final normalized = normalizeMessage(raw);
+//   if (normalized.isEmpty) return;
+
+//   final id = normalized['message_id']?.toString();
+//   if (id == null || id.isEmpty) return;
+
+//   // ignore my own echo
+//   final senderId = normalized['senderId'];
+//   if (senderId == currentUserId) return;
+
+//   final index =
+//       _allMessages.indexWhere((m) => m['message_id'] == id);
+
+//   if (index == -1) {
+//     _allMessages.add(normalized);
+//   } else {
+//     _allMessages[index] = normalized;
+//   }
+
+//   _allMessages.sort(
+//     (a, b) => _parseTime(a['time']).compareTo(_parseTime(b['time'])),
+//   );
+
+//   _visibleCount = _allMessages.length;
+//   _updateNotifierFromAll();
+// }
+
+  // void _handleIncomingRawMessage(Map<String, dynamic> raw, {String? event}) {
+  //   final rawConvoId =
+  //       (raw['conversation_id'] ?? raw['conversationId'] ?? raw['convoId'])
+  //           ?.toString();
+
+  //   if (rawConvoId != null &&
+  //       rawConvoId.isNotEmpty &&
+  //       rawConvoId != widget.convoId) {
+  //     return;
+  //   }
+
+  //   final normalized = normalizeMessage(raw);
+  //   final msgId = (normalized['message_id'] ?? '').toString();
+
+  //   // 🔥 FIX: Use helper method to get sender ID
+  //   final String? senderId = _getMessageSenderId(normalized);
+
+  //   // Debug log
+  //   debugPrint(
+  //       'Incoming message: senderId=$senderId, currentUserId=$currentUserId');
+
+  //   // ignore my own echo (for receive_message/forward_message socket event)
+  //   if (senderId == currentUserId) {
+  //     if (event == 'forward_message' && msgId.isNotEmpty) {
+  //       _replaceLocalForwardIdWithRealId(msgId, normalized);
+  //     }
+  //     debugPrint('Echo of my own message ignored: $msgId');
+  //     return;
+  //   }
+  //   if (msgId.isNotEmpty &&
+  //       !msgId.startsWith('temp_') &&
+  //       !msgId.startsWith('forward_') &&
+  //       _seenMessageIds.contains(msgId)) {
+  //     // log('Duplicate incoming message blocked: $msgId');
+  //     return;
+  //   }
+
+  //   final alreadyInList = [dbMessages, messages, socketMessages].any(
+  //     (list) => list.any(
+  //       (m) =>
+  //           (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '').toString() ==
+  //           msgId,
+  //     ),
+  //   );
+
+  //   if (alreadyInList) {
+  //     // log('Message already exists in local lists: $msgId');
+  //     return;
+  //   }
+
+  //   // enrich with media info
+  //   normalized['imageUrl'] = raw['originalUrl'] ?? raw['thumbnailUrl'];
+  //   normalized['fileUrl'] = raw['originalUrl'] ?? raw['fileUrl'];
+  //   normalized['fileName'] = raw['fileName'];
+  //   normalized['fileType'] = raw['mimeType'] ?? raw['fileType'];
+  //   // normalized['isForwarded'] = raw['isForwarded'] == true;
+  //   final hasForwardParent = raw['original_message_id'] != null ||
+  //       raw['parent_message_id'] != null ||
+  //       raw['originalMessageId'] != null ||
+  //       raw['parentMessageId'] != null;
+
+  //   normalized['isForwarded'] = hasForwardParent;
+
+  //   normalized['roomId'] = raw['roomId']?.toString();
+
+  //   socketMessages.add(normalized);
+
+  //   if (msgId.isNotEmpty &&
+  //       !msgId.startsWith('temp_') &&
+  //       !msgId.startsWith('forward_')) {
+  //     _seenMessageIds.add(msgId);
+  //   }
+
+  //   if (!mounted) return;
+
+  //   _rebuildFromStore(resetVisibleIfEmpty: true);
+  //   _scrollToBottom();
+
+  //   if (msgId.isNotEmpty) {
+  //     _sendReadReceipts([msgId]);
+  //   }
+
+  //   //'New incoming message added: $msgId from $senderId');
+  // }
 
   Future<void> _initializeSocket() async {
     final token = await UserPreferences.getAccessToken();
@@ -822,7 +922,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
 
     m['message_id'] = canonicalId;
-
     m['id'] = canonicalId;
     m['messageId'] = canonicalId;
     m['_id'] = canonicalId;
@@ -841,23 +940,44 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
 
     // ================= SENDER =================
+    // ================= SENDER =================
     dynamic senderRaw = rawMsg['sender'];
     String? senderId = rawMsg['senderId']?.toString();
 
+    // 🔥 FIX 1: Handle nested sender structure properly
     if (senderRaw is Map) {
-      senderId ??= senderRaw['_id']?.toString();
+      // Try multiple fields to get sender ID
+      senderId ??= senderRaw['_id']?.toString() ??
+          senderRaw['id']?.toString() ??
+          senderRaw['userId']?.toString();
+
+      // Ensure sender object is properly structured
+      senderRaw = {
+        '_id': senderId,
+        'id': senderId,
+        'first_name': senderRaw['first_name'] ?? senderRaw['firstName'] ?? '',
+        'last_name': senderRaw['last_name'] ?? senderRaw['lastName'] ?? '',
+      };
     } else if (senderRaw != null && senderId == null) {
       senderId = senderRaw.toString();
-      senderRaw = {'_id': senderId};
+      senderRaw = {'_id': senderId, 'id': senderId};
     } else if (senderRaw == null && senderId != null) {
-      senderRaw = {'_id': senderId};
+      senderRaw = {'_id': senderId, 'id': senderId};
     }
+
+    // 🔥 FIX 2: Also check 'from' field which sometimes contains sender ID
+    if ((senderId == null || senderId.isEmpty) && rawMsg['from'] != null) {
+      senderId = rawMsg['from'].toString();
+      senderRaw = {'_id': senderId, 'id': senderId};
+    }
+
+    m['sender'] = senderRaw;
+    m['senderId'] = senderId ?? ''; // Ensure it's never null
+    m['from'] = senderId ?? ''; // Add this for consistency
 
     // ================= RECEIVER =================
     dynamic receiverRaw = rawMsg['receiver'];
     String? receiverId = rawMsg['receiverId']?.toString();
-    m['sender_id'] = senderId; // Add alternate field
-    m['from'] = senderId;
 
     if (receiverRaw is Map) {
       receiverId ??= receiverRaw['_id']?.toString();
@@ -1027,44 +1147,27 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     _updateNotifierFromAll();
   }
 
-  // ------------------ SEND MESSAGE (with reply support) ------------------
-  /// This is the **old working reply logic**, adapted to your new storage.
-  void _sendMessage() async {
-    print('=== MANUAL DEBUG ===');
-    print('currentUserId: $currentUserId');
-
-    // Check socketMessages
-    print('socketMessages (${socketMessages.length}):');
-    for (var msg in socketMessages) {
-      final id = (msg['message_id'] ?? '').toString();
-      final isTemp = id.startsWith('temp_');
-      print('  ID: $id, isTemp: $isTemp, senderId: ${msg['senderId']}');
-    }
-
-    // Call _getCombinedMessages
-    final combined = _getCombinedMessages();
-    print('_getCombinedMessages returned: ${combined.length}');
-
-    // Check for temp messages
-    final tempMsgs = combined.where((m) {
-      final id = (m['message_id'] ?? '').toString();
-      return id.startsWith('temp_');
-    }).toList();
-
-    print('Temp messages in combined: ${tempMsgs.length}');
-    for (var msg in tempMsgs) {
-      final id = (msg['message_id'] ?? '').toString();
-      print(
-          '  TEMP: $id, senderId: ${msg['senderId']}, isFromMe: ${_isMessageFromCurrentUser(msg)}');
-    }
+  Future<void> _sendMessage() async {
     if (_messageController.text.trim().isEmpty || widget.datumId == null) {
       return;
     }
+    print('🔐 private chat screen : ${widget.convoId}');
 
     final reply = _replyMessage;
-
     final text = _messageController.text.trim();
+
+    // ---------- READ RECEIPTS ----------
     final visibleMessages = _messagesNotifier.value;
+    final unreadIds = _getUnreadMessageIds(visibleMessages);
+    if (unreadIds.isNotEmpty) {
+      _sendReadReceipts(unreadIds);
+    }
+
+    // ---------- REPLY INFO ----------
+    final String? replyMessageId = reply == null
+        ? null
+        : (reply['message_id'] ?? reply['messageId'] ?? reply['id'])
+            ?.toString();
 
     final String? replyGroupMessageId =
         reply == null ? null : reply['group_message_id']?.toString();
@@ -1072,63 +1175,37 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     final bool replyIsGroupMessage =
         reply != null && reply['is_grouped_message'] == true;
 
-    final unreadIds = _getUnreadMessageIds(visibleMessages);
-
-    if (unreadIds.isNotEmpty) {
-      _sendReadReceipts(unreadIds);
-    }
-    final String? replyMessageId = reply == null
-        ? null
-        : (reply['message_id'] ?? reply['messageId'] ?? reply['id'])
-            ?.toString();
-    final originalGroupId = reply?['group_message_id'];
-
     final replyPayload = reply == null
         ? null
         : <String, dynamic>{
             'id': replyMessageId,
             'message_id': replyMessageId,
             'reply_message_id': replyMessageId,
-
-            // ✅ NEW (IMPORTANT)
-            'group_message_id': originalGroupId,
-            'is_grouped_message': originalGroupId != null,
+            'group_message_id': reply['group_message_id'],
+            'is_grouped_message': reply['group_message_id'] != null,
+            'content': (reply['content'] ?? reply['message'] ?? '').toString(),
             'replyContent':
                 (reply['content'] ?? reply['message'] ?? '').toString(),
-            'content': (reply['content'] ?? reply['message'] ?? '').toString(),
             'originalUrl': reply['originalUrl'] ??
                 reply['fileUrl'] ??
                 reply['imageUrl'] ??
-                reply['thumbnailUrl'] ??
-                reply['localImagePath'] ??
                 '',
-            'imageUrl': reply['imageUrl'] ??
-                reply['thumbnailUrl'] ??
-                reply['localImagePath'] ??
-                '',
-
-            'fileUrl': reply['fileUrl'] ?? reply['originalUrl'] ?? '',
+            'imageUrl': reply['imageUrl'] ?? '',
+            'fileUrl': reply['fileUrl'] ?? '',
             'fileName': reply['fileName'] ?? '',
-            'fileType': (reply['fileType'] ??
-                    reply['mimeType'] ??
-                    reply['mimetype'] ??
-                    '')
-                .toString(),
+            'fileType':
+                (reply['fileType'] ?? reply['mimeType'] ?? '').toString(),
           };
 
-    log('SENDING replyPayload: $replyPayload');
-
+    // ---------- TEMP MESSAGE ----------
     final localId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
-
     final bool canSendNow = _isOnline && socketService.isConnected;
 
-    // ✅ FIXED: Ensure ALL sender fields are set
-    final localMessage = {
+    final Map<String, dynamic> localMessage = {
       'message_id': localId,
       'id': localId,
       '_id': localId,
       'content': text,
-
       'sender': {
         '_id': currentUserId,
         'id': currentUserId,
@@ -1136,49 +1213,50 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         'last_name': widget.lastname ?? '',
       },
       'senderId': currentUserId,
-      'sender_id': currentUserId,
       'from': currentUserId,
       'receiver': {'_id': widget.datumId},
       'receiverId': widget.datumId,
       'time': DateTime.now().toIso8601String(),
+      'messageStatus': canSendNow ? 'sending' : 'pending_offline',
       'isReplyMessage': replyPayload != null,
       if (replyPayload != null) 'reply': replyPayload,
       if (replyPayload != null) 'reply_message_id': replyMessageId,
-      'messageStatus': canSendNow ? 'sending' : 'pending_offline',
-
-      // ✅ ADD THESE MARKERS
-      '_isOptimistic': true,
       '_isTempMessage': true,
+      '_isOptimistic': true,
+      '_isSentByMe': true,
     };
-    localMessage['message_id'] = localId;
-    localMessage['time'] = DateTime.now().toIso8601String();
+
     if (replyPayload != null) {
       localMessage['_localHasReply'] = true;
       localMessage['_localReply'] = Map<String, dynamic>.from(replyPayload);
     }
 
-    setState(() {
-      socketMessages.add(localMessage);
-      if (!_seenMessageIds.contains(localId)) {
-        _seenMessageIds.add(localId);
-      }
-      _rebuildFromStore(resetVisibleIfEmpty: true);
-      // _scrollToBottom();
-    });
-    _refreshMessages();
+    // =========================================================
+    // 🔥 SINGLE SOURCE OF TRUTH — ADD TEMP MESSAGE
+    // =========================================================
+    _allMessages.add(localMessage);
+
+    _allMessages.sort(
+      (a, b) => _parseTime(a['time']).compareTo(_parseTime(b['time'])),
+    );
+
+    _visibleCount = _allMessages.length;
+    _updateNotifierFromAll();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToBottom();
     });
-    _saveAllMessages();
-    final unreadFromOtherUser = _collectUnreadIds();
-    _sendReadReceipts(unreadFromOtherUser);
+
+    _seenMessageIds.add(localId);
+
+    // ---------- RESET INPUT ----------
     _messageController.clear();
     _clearDraft();
     _replyMessage = null;
-    _imageFile = null;
     _replyPreview = null;
+    _imageFile = null;
 
-    // -------- OFFLINE / SOCKET DISCONNECTED --------
+    // ---------- OFFLINE ----------
     if (!canSendNow) {
       _offlineQueue.add({
         'text': text,
@@ -1189,10 +1267,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       return;
     }
 
-    // -------- ONLINE + SOCKET CONNECTED → send --------
+    // ---------- SEND TO SERVER ----------
     try {
       final completer = Completer<Message>();
-      final subscription = _messagerBloc.stream.listen((state) {
+
+      final sub = _messagerBloc.stream.listen((state) {
         if (state is MessageSentSuccessfully) {
           completer.complete(state.sentMessage);
         }
@@ -1203,7 +1282,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           convoId: widget.convoId,
           message: text,
           senderId: currentUserId,
-          receiverId: widget.receiverId ?? "",
+          receiverId: widget.receiverId!,
           replyTo: reply,
           replyMessageId: replyMessageId,
           replyGroupMessageId: replyGroupMessageId,
@@ -1212,7 +1291,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       );
 
       final sent = await completer.future;
-      await subscription.cancel();
+      await sub.cancel();
 
       _replaceTempMessageWithReal(
         tempId: localId,
@@ -1235,7 +1314,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     void updateList(List<Map<String, dynamic>> list) {
       for (var i = 0; i < list.length; i++) {
         final m = list[i];
-
         final mid =
             (m['message_id'] ?? m['messageId'] ?? m['id'] ?? m['_id'] ?? '')
                 .toString();
@@ -1243,12 +1321,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         if (mid == tempId) {
           final copy = Map<String, dynamic>.from(m);
 
-          // ✅ ADD THIS: PRESERVE SENDER INFO
-          copy['senderId'] = currentUserId;
-          if (copy['sender'] is! Map || (copy['sender'] as Map).isEmpty) {
-            copy['sender'] = {'_id': currentUserId};
-          }
-          // 🔥 Preserve reply info (CRITICAL for media reply)
+          // 🔥 preserve reply info
           if (copy['reply'] != null || copy['reply_message_id'] != null) {
             copy['_localHasReply'] = true;
             try {
@@ -1259,24 +1332,25 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             }
           }
 
-          // 🔥 Preserve grouping info (CRITICAL)
+          // 🔥 preserve grouping
           if (copy['group_message_id'] != null) {
-            copy['group_message_id'] = copy['group_message_id'].toString();
+            copy['group_message_id'] = copy['group_message_id']?.toString();
             copy['is_grouped_message'] = copy['is_grouped_message'] == true;
           }
 
-          // 🔥 Update ALL ID FIELDS
+          // 🔥 replace temp id with real id (ALL fields)
           copy['message_id'] = realId;
           copy['messageId'] = realId;
           copy['id'] = realId;
           copy['_id'] = realId;
 
-          // 🔥 Normalize status
+          // 🔥 update status
           copy['messageStatus'] = status;
           copy['status'] = status;
 
-          // 🔥 No longer local
-          copy['isLocal'] = false;
+          // 🔥 mark no longer temp
+          copy['_isTempMessage'] = false;
+          copy['_isOptimistic'] = false;
 
           list[i] = copy;
           changed = true;
@@ -1285,15 +1359,18 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       }
     }
 
+    // 🔥 UPDATE ALL STORES
     updateList(socketMessages);
     updateList(messages);
     updateList(dbMessages);
+    updateList(_allMessages); // ✅ THIS WAS MISSING
 
     if (changed) {
       _seenMessageIds.remove(tempId);
       _seenMessageIds.add(realId);
 
-      _updateNotifier();
+      // 🔥 rebuild UI from single source of truth
+      _updateNotifierFromAll();
       _scheduleSaveMessages();
     }
   }
@@ -1426,7 +1503,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         ShowAltDialog.showOptionsDialog(context,
             conversationId: widget.convoId,
             senderId: currentUserId,
-            receiverId: widget.datumId!,
+            receiverId: widget.receiverId!,
             isGroupChat: false,
             onOptionSelected: (List<Map<String, dynamic>> localMessages) {
           if (localMessages.isEmpty) return;
@@ -1474,8 +1551,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                 localFile,
                 widget.convoId,
                 currentUserId,
-                widget.datumId ?? "",
-                "",
+                receiverId: widget.receiverId!,
               ),
             );
         Navigator.pop(context);
@@ -1487,16 +1563,15 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
   // ------------------ Incoming messages ------------------
   void onMessageReceived(Map<String, dynamic> data) {
-    debugPrint(
-        'RECEIVED message (id=${data['message_id'] ?? data['id']}): reply=${data['reply']}');
-    debugPrint(
-        'INCOMING raw message: ${data}'); // rawMsg is what you received from server/socket
-    debugPrint('INCOMING raw reply field: ${data['reply']}');
-    debugPrint(
-        'INCOMING reply_message_id: ${data['reply_message_id'] ?? data['replyMessageId'] ?? data['reply_to']}');
+    // debugPrint(
+    //     'RECEIVED message (id=${data['message_id'] ?? data['id']}): reply=${data['reply']}');
+    // debugPrint(
+    //     'INCOMING raw message: ${data}'); // rawMsg is what you received from server/socket
+    // debugPrint('INCOMING raw reply field: ${data['reply']}');
+    // debugPrint(
+    //     'INCOMING reply_message_id: ${data['reply_message_id'] ?? data['replyMessageId'] ?? data['reply_to']}');
 
     final event = data['event'];
-    log("statusssssssssssss ${data}");
 
     if (event == 'update_message_read') {
       final messageId =
@@ -2164,15 +2239,21 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   Widget _buildMessageBubble(
       Map<String, dynamic> message, bool isSentByMe, bool isReply,
       {int? length}) {
+    final String? bubbleSenderId = _getMessageSenderId(message);
+    final bool correctIsSentByMe = bubbleSenderId == currentUserId;
+
+    isSentByMe = correctIsSentByMe;
+
     return MessageBubble(
       message: message,
-      isSentByMe: isSentByMe,
+      isSentByMe: correctIsSentByMe,
       isSelected: _selectedMessageKeys.contains(_generateMessageKey(message)),
       onTap: () => _onMessageTap(message),
       onLongPress: () => _onMessageLongPress(message),
       onRightSwipe: () => _replyToMessage(message),
       onFileTap: (url, type) => _openFile(url, type),
-      onImageTap: (url) => ImageViewer.show(context, url),
+
+      //   onImageTap: (url) => ImageViewer.show(context, url),
       buildStatusIcon: (status) => MessageStatusIcon(status: status ?? 'sent'),
       buildReactionsBar: (msg, sentByMe) => _buildReactionsBar(msg, sentByMe),
       sentMessageColor: senderColor,
@@ -3289,6 +3370,39 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     );
   }
 
+// 🔥 ADD THIS NEW HELPER METHOD
+  String? _getMessageSenderId(Map<String, dynamic> message) {
+    if (message == null || message.isEmpty) return null;
+
+    // Try multiple fields in order of priority
+    String? senderId;
+
+    // 1. Check direct senderId field
+    senderId = message['senderId']?.toString();
+    if (senderId != null && senderId.isNotEmpty) return senderId;
+
+    // 2. Check 'from' field
+    senderId = message['from']?.toString();
+    if (senderId != null && senderId.isNotEmpty) return senderId;
+
+    // 3. Check sender object
+    if (message['sender'] is Map) {
+      final sender = message['sender'] as Map<String, dynamic>;
+      senderId = sender['_id']?.toString() ??
+          sender['id']?.toString() ??
+          sender['userId']?.toString();
+      if (senderId != null && senderId.isNotEmpty) return senderId;
+    }
+
+    // 4. Check if it's a temp message (always from current user)
+    final msgId = (message['message_id'] ?? '').toString();
+    if (msgId.startsWith('temp_') || msgId.startsWith('forward_')) {
+      return currentUserId;
+    }
+
+    return null;
+  }
+
   void toggleSearchAppBar() =>
       setState(() => _showSearchAppBar = !_showSearchAppBar);
 
@@ -3494,8 +3608,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   // ------------------ Build ------------------
   @override
   Widget build(BuildContext context) {
-    print('=== BUILD METHOD START ===');
-    print('Messages to render: ${_messagesNotifier.value.length}');
     return ReusableChatScaffold(
       appBar: _buildAppBar(),
       chatBody: ValueListenableBuilder<List<Map<String, dynamic>>>(
@@ -3856,31 +3968,26 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                             final int realIndex =
                                 combinedMessages.length - 1 - index;
                             final message = combinedMessages[realIndex];
-
-                            final senderMap = message['sender'] is Map
-                                ? Map<String, dynamic>.from(message['sender'])
-                                : <String, dynamic>{};
-
-                            final senderId = (message['senderId'] ??
-                                        senderMap['_id'] ??
-                                        senderMap['id'] ??
-                                        message['sender'])
-                                    ?.toString() ??
-                                '';
+                            final String? senderId =
+                                _getMessageSenderId(message);
 
                             final messageId = (message['message_id'] ??
                                     message['messageId'] ??
                                     message['id'] ??
                                     '')
                                 .toString();
-                            message['group_message_id']?.toString();
 
                             final bool isHighlighted =
                                 _highlightedMessageId == messageId;
                             final List<GroupMediaItem> groupMedia = [];
 
-                            //isSentByMe = senderId == currentUserId;
-                            isSentByMe = _isMessageFromCurrentUser(message);
+                            // 🔥 FIX: Properly determine if message is sent by current user
+                            final bool isSentByMe = senderId == currentUserId &&
+                                senderId != null &&
+                                senderId.isNotEmpty;
+
+                            // Debug logging (remove after fixing)
+                            if (senderId != null) {}
 
                             final showDate = realIndex == 0 ||
                                 !isSameDay(
@@ -4102,10 +4209,16 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                             final bool hasReaction =
                                 message['reactions'] != null &&
                                     (message['reactions'] as List).isNotEmpty;
+                            final String? bubbleSenderId =
+                                _getMessageSenderId(message);
+                            final bool correctIsSentByMe =
+                                bubbleSenderId == currentUserId &&
+                                    bubbleSenderId != null &&
+                                    bubbleSenderId.isNotEmpty;
 
                             return Builder(builder: (ctx) {
-                              final messageId = _anyId(message)?.toString();
-                              if (messageId != null && messageId.isNotEmpty) {
+                              final messageId = _anyId(message).toString();
+                              if (messageId.isNotEmpty) {
                                 _messageContexts[messageId] = ctx;
                               }
                               return SwipeToReply(
@@ -4129,16 +4242,17 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                       : Colors.transparent,
                                   child: !hasReply
                                       ? _buildMessageBubble(
-                                          message, isSentByMe, hasReply,
+                                          message, correctIsSentByMe, hasReply,
                                           length: groupMedia.length)
                                       : Align(
-                                          alignment: isSentByMe
+                                          alignment: correctIsSentByMe
                                               ? Alignment.centerRight
                                               : Alignment.centerLeft,
                                           child: Column(
-                                            crossAxisAlignment: isSentByMe
-                                                ? CrossAxisAlignment.end
-                                                : CrossAxisAlignment.start,
+                                            crossAxisAlignment:
+                                                correctIsSentByMe
+                                                    ? CrossAxisAlignment.end
+                                                    : CrossAxisAlignment.start,
                                             children: [
                                               if (showDate)
                                                 DateSeparator(
@@ -4194,7 +4308,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                                     children: [
                                                       _buildMessageBubble(
                                                           message,
-                                                          isSentByMe,
+                                                          correctIsSentByMe,
                                                           hasReply,
                                                           length: groupMedia
                                                               .length),
@@ -4251,197 +4365,97 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     );
   }
 
-  // ✅ ADD THIS METHOD
-  String? _getMessageSenderId(Map<String, dynamic> message) {
-    if (message == null || message.isEmpty) return null;
-
-    // Try all possible sender ID fields
-    final senderId = message['senderId']?.toString();
-    if (senderId != null && senderId.isNotEmpty) return senderId;
-
-    final senderId2 = message['sender_id']?.toString();
-    if (senderId2 != null && senderId2.isNotEmpty) return senderId2;
-
-    final from = message['from']?.toString();
-    if (from != null && from.isNotEmpty) return from;
-
-    // Extract from sender object
-    if (message['sender'] is Map) {
-      final sender = message['sender'] as Map<String, dynamic>;
-      return sender['_id']?.toString() ??
-          sender['id']?.toString() ??
-          sender['userId']?.toString();
-    }
-
-    return null;
-  }
-
-// ✅ ADD THIS METHOD
-  bool _isMessageFromCurrentUser(Map<String, dynamic> message) {
-    if (message == null || message.isEmpty) return false;
-
-    final id = (message['message_id'] ?? '').toString();
-
-    // Special case: temp messages are ALWAYS from current user
-    if (id.startsWith('temp_') || id.startsWith('forward_')) {
-      return true;
-    }
-
-    final senderId = _getMessageSenderId(message);
-    return senderId == currentUserId;
-  }
-
-// ✅ ADD THIS METHOD (optional for debugging)
-  void _debugMessage(String tag, Map<String, dynamic> message) {
-    final id = (message['message_id'] ?? 'N/A').toString();
-    final senderId = _getMessageSenderId(message);
-    final isFromMe = _isMessageFromCurrentUser(message);
-    print('🔍 [$tag] ID: $id, senderId: $senderId, isFromMe: $isFromMe');
-  }
-
   List<Map<String, dynamic>> _getCombinedMessages() {
-    print('🔄 _getCombinedMessages() - Checking for temp messages...');
+    final combined = <Map<String, dynamic>>[];
+    int idx = 0;
 
-    // SIMPLE VERSION: Just combine and fix sender info
-    final allMessages = <Map<String, dynamic>>[];
-
-    // Add all messages
-    allMessages.addAll(dbMessages);
-    allMessages.addAll(messages);
-    allMessages.addAll(socketMessages);
-
-    // Fix sender info for temp messages
-    for (var msg in allMessages) {
-      final id = (msg['message_id'] ?? '').toString();
-
-      if (id.startsWith('temp_')) {
-        print('🔵 Fixing TEMP message: $id');
-        msg['senderId'] = currentUserId;
-        msg['sender_id'] = currentUserId;
-        msg['from'] = currentUserId;
-
-        if (msg['sender'] is! Map || (msg['sender'] as Map).isEmpty) {
-          msg['sender'] = {'_id': currentUserId};
+    void addWithIndex(List<Map<String, dynamic>> source) {
+      for (var m in source) {
+        if (m.isNotEmpty) {
+          final copy = Map<String, dynamic>.from(m);
+          copy['_localIndex'] ??= idx++;
+          combined.add(copy);
         }
       }
     }
 
-    // Remove duplicates by ID
-    final Map<String, Map<String, dynamic>> unique = {};
-    for (var msg in allMessages) {
-      final id = (msg['message_id'] ?? '').toString();
-      if (id.isNotEmpty) {
-        unique[id] = msg;
-      }
-    }
+    addWithIndex(dbMessages);
+    addWithIndex(messages);
+    addWithIndex(socketMessages);
 
-    // Sort by time
-    final combined = unique.values.toList();
+    // 🔥 SORT BY TIME (LIKE WEB)
     combined.sort((a, b) {
       try {
-        return _parseTime(a['time']).compareTo(_parseTime(b['time']));
+        final ta = _parseTime(a['time']);
+        final tb = _parseTime(b['time']);
+        final cmp = ta.compareTo(tb);
+        if (cmp != 0) return cmp;
+
+        final ia = a['_localIndex'] as int? ?? 0;
+        final ib = b['_localIndex'] as int? ?? 0;
+        return ia.compareTo(ib);
       } catch (_) {
         return 0;
       }
     });
 
-    print('📊 Final: ${combined.length} messages');
-    print(
-        '📊 Temp messages: ${combined.where((m) => (m['message_id'] ?? '').toString().startsWith('temp_')).length}');
+    final result = <Map<String, dynamic>>[];
 
-    return combined;
+    for (final m in combined) {
+      final id =
+          (m['message_id'] ?? m['messageId'] ?? m['id'])?.toString() ?? '';
+
+      if (id.isEmpty) {
+        result.add(m);
+        continue;
+      }
+
+      final existingIndex = result.indexWhere((e) {
+        final eid =
+            (e['message_id'] ?? e['messageId'] ?? e['id'])?.toString() ?? '';
+        return eid == id;
+      });
+
+      if (existingIndex == -1) {
+        result.add(m);
+      } else {
+        final existing = result[existingIndex];
+
+        final existingHasReply = _hasReplyForMessage(existing);
+        final newHasReply = _hasReplyForMessage(m);
+
+        // 🔥 STRICT FORWARDED CHECK (CRDT WINS)
+        final bool newIsForwarded = m['isForwarded'] == true;
+        final bool existingIsForwarded = existing['isForwarded'] == true;
+
+        if (newHasReply && !existingHasReply) {
+          // Prefer message with reply info
+          result[existingIndex] = m;
+        } else if (newIsForwarded != existingIsForwarded) {
+          // 🔥 CRDT OVERRIDES OLD FORWARDED STATE
+          result[existingIndex] = m;
+        } else {
+          // Otherwise keep latest (CRDT already sorted)
+          result[existingIndex] = m;
+        }
+      }
+    }
+
+    // 🔥 RESOLVE REPLIES AFTER MERGE
+    for (final msg in result) {
+      if (msg['isReplyMessage'] == true && msg['repliedMessage'] == null) {
+        final resolved = resolveRepliedMessage(
+          message: msg,
+          allMessages: result,
+        );
+        if (resolved != null) {
+          msg['repliedMessage'] = resolved;
+        }
+      }
+    }
+
+    return result;
   }
-  // List<Map<String, dynamic>> _getCombinedMessages() {
-  //   final combined = <Map<String, dynamic>>[];
-  //   int idx = 0;
-
-  //   void addWithIndex(List<Map<String, dynamic>> source) {
-  //     for (var m in source) {
-  //       if (m.isNotEmpty) {
-  //         final copy = Map<String, dynamic>.from(m);
-  //         copy['_localIndex'] ??= idx++;
-  //         combined.add(copy);
-  //       }
-  //     }
-  //   }
-
-  //   addWithIndex(dbMessages);
-  //   addWithIndex(messages);
-  //   addWithIndex(socketMessages);
-
-  //   // 🔥 SORT BY TIME (LIKE WEB)
-  //   combined.sort((a, b) {
-  //     try {
-  //       final ta = _parseTime(a['time']);
-  //       final tb = _parseTime(b['time']);
-  //       final cmp = ta.compareTo(tb);
-  //       if (cmp != 0) return cmp;
-
-  //       final ia = a['_localIndex'] as int? ?? 0;
-  //       final ib = b['_localIndex'] as int? ?? 0;
-  //       return ia.compareTo(ib);
-  //     } catch (_) {
-  //       return 0;
-  //     }
-  //   });
-
-  //   final result = <Map<String, dynamic>>[];
-
-  //   for (final m in combined) {
-  //     final id =
-  //         (m['message_id'] ?? m['messageId'] ?? m['id'])?.toString() ?? '';
-
-  //     if (id.isEmpty) {
-  //       result.add(m);
-  //       continue;
-  //     }
-
-  //     final existingIndex = result.indexWhere((e) {
-  //       final eid =
-  //           (e['message_id'] ?? e['messageId'] ?? e['id'])?.toString() ?? '';
-  //       return eid == id;
-  //     });
-
-  //     if (existingIndex == -1) {
-  //       result.add(m);
-  //     } else {
-  //       final existing = result[existingIndex];
-
-  //       final existingHasReply = _hasReplyForMessage(existing);
-  //       final newHasReply = _hasReplyForMessage(m);
-
-  //       // 🔥 STRICT FORWARDED CHECK (CRDT WINS)
-  //       final bool newIsForwarded = m['isForwarded'] == true;
-  //       final bool existingIsForwarded = existing['isForwarded'] == true;
-
-  //       if (newHasReply && !existingHasReply) {
-  //         // Prefer message with reply info
-  //         result[existingIndex] = m;
-  //       } else if (newIsForwarded != existingIsForwarded) {
-  //         // 🔥 CRDT OVERRIDES OLD FORWARDED STATE
-  //         result[existingIndex] = m;
-  //       } else {
-  //         // Otherwise keep latest (CRDT already sorted)
-  //         result[existingIndex] = m;
-  //       }
-  //     }
-  //   }
-
-  //   // 🔥 RESOLVE REPLIES AFTER MERGE
-  //   for (final msg in result) {
-  //     if (msg['isReplyMessage'] == true && msg['repliedMessage'] == null) {
-  //       final resolved = resolveRepliedMessage(
-  //         message: msg,
-  //         allMessages: result,
-  //       );
-  //       if (resolved != null) {
-  //         msg['repliedMessage'] = resolved;
-  //       }
-  //     }
-  //   }
-
-  //   return result;
-  // }
 
   void normalizeReplyMessages(List<Map<String, dynamic>> messages) {
     for (final msg in messages) {
@@ -4823,7 +4837,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       onAttachmentPressed: () => ShowAltDialog.showOptionsDialog(context,
           conversationId: widget.convoId,
           senderId: currentUserId,
-          receiverId: widget.datumId!,
+          receiverId: widget.receiverId!,
           isGroupChat: false,
           onOptionSelected: (List<Map<String, dynamic>> localMessages) {
         if (localMessages.isEmpty) return;

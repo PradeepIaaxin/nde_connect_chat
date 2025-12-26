@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -55,7 +56,6 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
         itemCount: widget.files.length,
         onPageChanged: (i) => setState(() => _currentIndex = i),
         backgroundDecoration: const BoxDecoration(color: Colors.black),
-
         builder: (context, index) {
           final file = widget.files[index];
           final mime = lookupMimeType(file.path) ?? '';
@@ -103,13 +103,13 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
         onPressed: _sending ? null : _sendAll,
         icon: _sending
             ? const SizedBox(
-          width: 18,
-          height: 18,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: Colors.white,
-          ),
-        )
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
             : const Icon(Icons.send),
         label: Text(_sending ? "Sending..." : "Send"),
         backgroundColor: Colors.green,
@@ -124,8 +124,7 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.insert_drive_file,
-              size: 64, color: Colors.white),
+          const Icon(Icons.insert_drive_file, size: 64, color: Colors.white),
           const SizedBox(height: 8),
           Text(
             file.name,
@@ -143,7 +142,7 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
 
     final List<Map<String, dynamic>> localMessages = [];
     final groupMessageId =
-    widget.files.length > 1 ? ObjectId().toString() : null;
+        widget.files.length > 1 ? ObjectId().toString() : null;
 
     for (final file in widget.files) {
       final msg = await ShowAltDialog.sendFile(
@@ -156,7 +155,7 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
         isGroupMessage: widget.files.length > 1,
         groupMessageId: groupMessageId,
       );
-
+      log(msg.toString());
       if (msg != null) localMessages.add(msg);
     }
 
