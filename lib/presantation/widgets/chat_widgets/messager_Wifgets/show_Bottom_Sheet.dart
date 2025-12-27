@@ -489,7 +489,7 @@ class ShowAltDialog {
         'isLocal': true,
 
         // 🔥🔥 ADD THESE TWO LINES 🔥🔥
-        'is_group_message': isGroupMessage,
+       // 'is_group_message': isGroupMessage,
         'is_grouped_message': isGroupMessage,
         'group_message_id': groupMessageId,
       };

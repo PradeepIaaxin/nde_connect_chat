@@ -293,7 +293,7 @@ class GrpShowAltDialog {
     required XFile file,
     required String conversationId,
     required String senderId,
-    required String receiverId, // GROUP ID
+    required String receiverId,
     required bool isGroupChat,
     required bool isGroupMessage,
     required String? groupMessageId,
@@ -318,6 +318,8 @@ class GrpShowAltDialog {
         await prefs.setString('chat_file_path', localFile.path);
       }
 
+      final messageId = ObjectId().toString();
+      await prefs.setString('chat_message_id', messageId);
       final localMessage = {
         "content": "",
         "sender": {"_id": senderId},
@@ -342,6 +344,7 @@ class GrpShowAltDialog {
                 senderId: senderId,
                 receiverId: receiverId,
                 groupId: receiverId,
+                messageId: messageId,
                 message: "",
                 isGroupMessage: isGroupMessage,
                 groupMessageId: groupMessageId,

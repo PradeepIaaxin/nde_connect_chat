@@ -46,7 +46,6 @@ import '../../../utils/simmer_effect.dart/chat_simmerefect.dart';
 import '../../widgets/chat_widgets/messager_Wifgets/ForwardMessageScreen_widget.dart';
 import '../../widgets/chat_widgets/messager_Wifgets/buildMessageInputField_widgets.dart';
 import '../Socket/socket_service.dart';
-import 'group_media_viewer.dart';
 import '../chat_private_screen/messager_Bloc/widget/VideoPlayerScreen.dart';
 import '../chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
 import '../chat_private_screen/messager_Bloc/widget/double_tick_ui.dart';
@@ -108,7 +107,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   bool _hasNextPage = false;
 
   File? _imageFile;
-
+  String? _sessionMessageId;
   bool _initialScrollDone = false;
   bool _isCompleted = false;
   bool _isDeletingMessages = false;
@@ -173,7 +172,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   @override
   void dispose() {
-    socketService.clearActiveConversation(widget.conversationId);
+    // socketService.clearActiveConversation(widget.conversationId);
+    SocketService().setActiveConversation(widget.conversationId);
 
     final unsentText = _messageController.text.trim();
     if (unsentText.isNotEmpty) {
@@ -222,6 +222,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     super.initState();
     currentUserId = widget.currentUserId;
     socketService.setActiveConversation(widget.conversationId);
+    SocketService().joinChatRoom(
+      senderId: currentUserId,
+      receiverId: widget.datumId,
+      isGroupChat: false,
+    );
 
     _checkingPersmmion();
     _initMessages();
@@ -335,8 +340,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             receiverId: widget.datumId,
             isGroupChat: true,
             onOptionSelected: _sendMessageImage);
+        final messageId = ObjectId().toString();
 
         final message = {
+          'message_id': messageId,
           'content': '',
           'sender': {'_id': currentUserId},
           'receiver': {'_id': widget.datumId},
@@ -362,6 +369,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 senderId: currentUserId,
                 receiverId: widget.datumId,
                 groupId: widget.datumId,
+                messageId: messageId,
                 message: "",
                 isGroupMessage: false,
                 groupMessageId: null,
@@ -511,9 +519,33 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     if (!mounted) return;
 
     /// 7️⃣ Update UI + local storage
+    // setState(() {
+    //   socketMessages.add(newMessage);
+    //   _scrollToBottom();
+
+    //   final combined = _getCombinedMessages();
+    //   GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
+
+    //   _updateNotifier();
+    // });
+
     setState(() {
-      socketMessages.add(newMessage);
-      _scrollToBottom();
+      // Check if message already exists in socketMessages (optimistic update)
+      int existingIndex = socketMessages.indexWhere((m) {
+        final mid = (m['message_id'] ?? m['messageId'] ?? m['_id'])?.toString();
+        return mid == messageId;
+      });
+
+      if (existingIndex != -1) {
+        // Update existing message with server data
+        socketMessages[existingIndex] = newMessage;
+        log("🔄 UPDATED existing message in socketMessages: $messageId");
+      } else {
+        // Add as new message
+        socketMessages.add(newMessage);
+        _scrollToBottom();
+        log("➕ ADDED new message to socketMessages: $messageId");
+      }
 
       final combined = _getCombinedMessages();
       GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
@@ -1612,6 +1644,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               senderId: currentUserId,
               receiverId: widget.datumId,
               groupId: widget.datumId,
+              messageId: messageId,
               message: "",
               isGroupMessage: isGrouped,
               groupMessageId: groupMessageId,

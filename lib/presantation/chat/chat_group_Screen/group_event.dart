@@ -89,6 +89,7 @@ class GrpUploadFileEvent extends GroupChatEvent {
   final String message;
   final bool isGroupMessage;
   final String? groupMessageId;
+  final String  messageId;
 
   const GrpUploadFileEvent({
     required this.file,
@@ -97,13 +98,15 @@ class GrpUploadFileEvent extends GroupChatEvent {
     required this.receiverId,
     required this.groupId,
     required this.message,
+    
     this.isGroupMessage = false,
     this.groupMessageId,
+    required this.messageId,
   });
 
   @override
   List<Object?> get props =>
-      [file, convoId, senderId, receiverId, groupId, message, isGroupMessage];
+      [file, convoId, senderId, receiverId, groupId, message, isGroupMessage, groupMessageId, messageId];
 }
 
 class ForwardMessageEvent extends GroupChatEvent {
