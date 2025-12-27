@@ -556,11 +556,11 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
       if (!grpSocket.isConnected) {
         throw Exception("Socket not connected");
       }
-
+      final convoidId = event.convoId;
       grpSocket.sendMessage(
         isGroupMessage: false,
         messageId: messageId,
-        conversationId: event.convoId,
+        conversationId: convoidId.isEmpty ? '' : convoidId,
         senderId: event.senderId,
         receiverId: event.receiverId,
         message: event.message,
@@ -599,7 +599,7 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
         file: event.file,
         onProgress: (p) => emit(UploadInProgress(p)),
         onSuccess: (data) async {
-          final messageId = ObjectId().toString();
+          final messageId = event.messageId ?? ObjectId().toString();
           final workspace = await UserPreferences.getDefaultWorkspace();
 
           // ✅ Correct mapping from backend response

@@ -25,7 +25,7 @@ void main() async {
   //   externalLibrary: ExternalLibrary.open('libbridge.so'),
   // );
 
-   if (Platform.isAndroid) {
+  if (Platform.isAndroid) {
     await RustLib.init(
       externalLibrary: ExternalLibrary.open('libbridge.so'),
     );
@@ -73,7 +73,8 @@ Future<void> _connectSocketOnStartup(String refreshToken) async {
 
     if (success) {
       log("SOCKET CONNECTED AT TOP LEVEL — PERSISTENT & LIGHTNING FAST");
-      await socketService.ensureConnected();
+      // await socketService.ensureConnected();
+      await socketService.initialize();
     }
   } catch (e) {
     log("Background token/socket failed: $e");
