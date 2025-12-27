@@ -65,7 +65,7 @@ class _NewGroupChoosenState extends State<NewGroupChoosen> {
     currentUserId = await UserPreferences.getUserId();
     token = await UserPreferences.getAccessToken();
     wrkspacetoken = await UserPreferences.getDefaultWorkspace();
-    await SocketService().ensureConnected();
+    await SocketService().initialize();
 
     // socketService.grpCreatSocket(
     //     token ?? "",
