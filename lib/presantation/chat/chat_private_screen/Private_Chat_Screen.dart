@@ -159,6 +159,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     _scrollController.addListener(_scrollListener);
     _initializeChat();
     _screenActive = true;
+    SocketService().joinChatRoom(
+      senderId: currentUserId,
+      receiverId: widget.receiverId ?? "",
+      isGroupChat: false,
+    );
 
     _crdtSub = socketService.crdtMessageStream.listen((data) {
       final convoId = data['conversationId']?.toString();
@@ -198,7 +203,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
   @override
   void dispose() {
-    socketService.clearActiveConversation(widget.convoId);
+    SocketService().clearActiveConversation();
+    // socketService.clearActiveConversation(widget.convoId);
     _reactionSubscription?.cancel();
     _scrollController.removeListener(_scrollListener);
     _connSub?.cancel();
@@ -992,11 +998,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     m['receiverId'] = receiverId;
 
     // ================= GROUP MESSAGE =================
-    final bool isGrouped = rawMsg['is_grouped_message'] == true ||
-        rawMsg['is_group_message'] == true;
+    final bool isGrouped = rawMsg['is_grouped_message'] == true;
 
     m['is_grouped_message'] = isGrouped;
-    m['is_group_message'] = isGrouped;
+
     m['group_message_id'] = rawMsg['group_message_id']?.toString();
 
     // ================= REPLY =================
@@ -1025,9 +1030,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       replyMap['group_message_id'] ??=
           rawMsg['reply_group_message_id'] ?? replyMap['group_message_id'];
 
-      replyMap['is_grouped_message'] ??=
-          rawMsg['reply_is_group_message'] == true ||
-              replyMap['is_grouped_message'] == true;
+      replyMap['is_grouped_message'] ??= replyMap['is_grouped_message'] == true;
 
       // 🔥 MEDIA INSIDE REPLY (STRICT PRIORITY)
       replyMap['originalUrl'] ??=
