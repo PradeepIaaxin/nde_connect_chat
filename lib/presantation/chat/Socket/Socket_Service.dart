@@ -1986,36 +1986,12 @@ class SocketService {
       current.remove(userId);
     }
 
-    onlineUsersNotifier.value = current; // 🔥 THIS TRIGGERS UI
+    onlineUsersNotifier.value = current; 
 
     _slog("Presence: $userId → ${online ? 'online' : 'offline'}");
   }
 
-  // void _handleUserPresence(dynamic data, {required bool online}) {
-  //   try {
-  //     final rawId = (data is List && data.isNotEmpty) ? data[0] : data;
-  //     if (rawId == null) return;
-  //     final String userId = rawId.toString().trim();
-  //     if (userId.isEmpty) return;
 
-  //     if (online) {
-  //       if (!onlineUsers.contains(userId)) onlineUsers.add(userId);
-  //     } else {
-  //       onlineUsers.remove(userId);
-  //     }
-
-  //     final statusMap = {
-  //       "userId": userId,
-  //       "status": online ? "online" : "offline"
-  //     };
-  //     userStatusNotifier.value = statusMap;
-  //     _userStatusController.add(statusMap);
-
-  //     _slog("Presence: $userId → ${online ? 'online' : 'offline'}");
-  //   } catch (e) {
-  //     _slog("Presence error: $e");
-  //   }
-  // }
 
   void _handleMessageListUpdate(dynamic payload) {
     scheduleMicrotask(() async {
