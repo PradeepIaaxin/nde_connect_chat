@@ -232,28 +232,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
     );
   }
 
-  // Future<void> handlePinChat(String messageId, bool isPinned) async {
-  //   _updateLocalPin(messageId, isPinned);
-  //   accessToken = await UserPreferences.getAccessToken();
-  //   defaultWorkspace = await UserPreferences.getDefaultWorkspace();
-  //   final url = Uri.parse('$baseURL/chats/pin');
-  //   final body = jsonEncode({
-  //     'action': isPinned,
-  //     'convoIds': [messageId]
-  //   });
-  //   final headers = {
-  //     'Authorization': 'Bearer $accessToken',
-  //     'x-workspace': defaultWorkspace ?? '',
-  //     'Content-Type': 'application/json',
-  //   };
-  //   try {
-  //     final response = await http.put(url, headers: headers, body: body);
-  //     if (response.statusCode == 200) log("Chat pinned");
-  //   } catch (e) {
-  //     log("Error pinning chat: $e");
-  //   }
-  // }
-
   Future<void> handleArchiveChat(String messageId, bool isArchived) async {
     _updateLocalArchive(messageId, isArchived);
 
@@ -876,11 +854,12 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
                             return ValueListenableBuilder(
                                 valueListenable:
-                                    SocketService().userStatusNotifier,
-                                builder: (context, onlineUsers, _) {
-                                  final isOnline = SocketService()
-                                      .onlineUsers
-                                      .contains(chat.datumId);
+                                    SocketService().onlineUsersNotifier,
+                                builder: (_, onlineSet, __) {
+                                  final bool isOnline =
+                                      !(chat.isGroupChat ?? false) &&
+                                          onlineSet.contains(chat.reciverId);
+
                                   return GestureDetector(
                                     onTap: () {
                                       if (longPressed) {
