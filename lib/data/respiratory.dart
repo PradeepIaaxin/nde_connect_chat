@@ -165,6 +165,8 @@ class UserPreferences {
     // 3️⃣ Now trigger logout event in Bloc
     context.read<LoginBloc>().add(LoginLoggedOut());
 
+    
+
     // 4️⃣ Wait again to clear data completely
     await Future.delayed(const Duration(milliseconds: 200));
 

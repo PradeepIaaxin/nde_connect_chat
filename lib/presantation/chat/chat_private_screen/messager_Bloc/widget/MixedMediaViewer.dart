@@ -9,7 +9,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../../widgets/chat_widgets/Common/grouped_media_viewer.dart';
 import 'VideoPlayerScreen.dart';
-import 'VideoThumbUtil.dart';
 
 class MixedMediaViewer extends StatefulWidget {
   final List<GroupMediaItem> items;
