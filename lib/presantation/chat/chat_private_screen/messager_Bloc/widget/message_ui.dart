@@ -66,11 +66,13 @@ class MessageBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final String content = message['content']?.toString() ?? '';
     final String? imageUrl = message['imageUrl'];
+    final String? originalUrl = message['originalUrl']?.toString();
+    final String? displayImageUrl = originalUrl ?? imageUrl;
     final String? replycontent = message['replyContent'];
     final String? fileUrl = message['fileUrl'];
     final String? fileName = message['fileName'];
     final String? fileTypeRaw = message['fileType']?.toString();
-    final String? originalUrl = message['originalUrl']?.toString();
+
     final bool? isForwarded = message['isForwarded'] ?? false;
     final bool? isReplyMessage = message['isReplyMessage'];
     final String messageStatus = message['messageStatus']?.toString() ?? 'sent';
@@ -202,7 +204,7 @@ class MessageBubble extends StatelessWidget {
 
                       // Image preview (only if not video)
                       if (!isVideo && hasImage)
-                        _buildImage(context, content, imageUrl!, fileName,
+                        _buildImage(context, content, displayImageUrl!, fileName,
                             isSentByMe: isSentByMe),
 
                       // File preview (if file exists)
@@ -256,7 +258,7 @@ class MessageBubble extends StatelessWidget {
                     child: GestureDetector(
                       behavior: HitTestBehavior.translucent,
                       onTap: () {
-                        log("FORWARD ICON TAP"); // ✅ WILL PRINT
+                        log("FORWARD ICON TAP");
                         MyRouter.push(
                           screen: ForwardMessageScreen(
                             messages: [message],

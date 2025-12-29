@@ -77,7 +77,9 @@ List<GroupMediaItem> buildConversationMedia(
   print('   receiverName: $receiverName');
 
   for (final msg in allMessages) {
-    final String? imageUrl = msg['imageUrl'] ?? msg['originalUrl'];
+    final String? originalUrl = msg['originalUrl']?.toString();
+    final String? imageUrl = msg['imageUrl']?.toString();
+    final String? thumbnailUrl = msg['thumbnailUrl']?.toString();
     final String? fileUrl = msg['fileUrl'];
     final String fileType = (msg['fileType'] ?? '').toLowerCase();
 
@@ -104,7 +106,7 @@ List<GroupMediaItem> buildConversationMedia(
       print('   📹 Adding video with senderName: $senderName');
       media.add(
         GroupMediaItem(
-          previewUrl: msg['localThumbPath'] ?? fileUrl,
+          previewUrl: msg['localThumbPath'] ?? thumbnailUrl ?? fileUrl,
           mediaUrl: fileUrl,
           isVideo: true,
           senderName: senderName,
@@ -112,15 +114,26 @@ List<GroupMediaItem> buildConversationMedia(
           time: time,
         ),
       );
-    } else if (imageUrl != null && imageUrl.isNotEmpty) {
-      // Use originalUrl for mediaUrl to match groupMedia construction
-      final String mediaUrl = msg['originalUrl'] ?? imageUrl;
-
-      print('   📸 Adding image with senderName: $senderName');
+    } else if (originalUrl != null && originalUrl.isNotEmpty) {
+      print(
+          '   📸 Adding image with originalUrl: $originalUrl, senderName: $senderName');
       media.add(
         GroupMediaItem(
-          previewUrl: imageUrl, // Keep thumbnail for preview
-          mediaUrl: mediaUrl, // Use full-size URL for matching
+          previewUrl: originalUrl,
+          mediaUrl: originalUrl,
+          isVideo: false,
+          senderName: senderName,
+          senderId: senderId,
+          time: time,
+        ),
+      );
+    } else if (imageUrl != null && imageUrl.isNotEmpty) {
+      print(
+          '   📸 Adding image with imageUrl: $imageUrl, senderName: $senderName');
+      media.add(
+        GroupMediaItem(
+          previewUrl: imageUrl,
+          mediaUrl: imageUrl,
           isVideo: false,
           senderName: senderName,
           senderId: senderId,

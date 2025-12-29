@@ -3967,11 +3967,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                   return const SizedBox.shrink();
                                 }
 
-                                // 👇 collect ALL media (images + videos) in this group
-                                final String messageStatus =
-                                    message['messageStatus']?.toString() ??
-                                        'sent';
-
                                 for (int i = realIndex;
                                     i < combinedMessages.length;
                                     i++) {
@@ -3980,7 +3975,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                       nextMsg['group_message_id']?.toString();
                                   if (nextGrpId != groupMessageId) break;
 
-                                  final String? thumb =
+                                  final String? previewUrl =
+                                      nextMsg['originalUrl']?.toString() ??
+                                          nextMsg['imageUrl']?.toString() ??
+                                          nextMsg['localImagePath']?.toString();
+                                  final String? mediaUrl =
                                       nextMsg['originalUrl']?.toString() ??
                                           nextMsg['imageUrl']?.toString() ??
                                           nextMsg['localImagePath']?.toString();
@@ -4002,16 +4001,16 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                               .hasMatch(fileUrl));
 
                                   if (!isVideo &&
-                                      thumb != null &&
-                                      thumb.isNotEmpty) {
+                                      mediaUrl != null &&
+                                      mediaUrl.isNotEmpty) {
                                     groupMedia.add(GroupMediaItem(
-                                      previewUrl: thumb,
-                                      mediaUrl: thumb,
+                                      previewUrl: mediaUrl,
+                                      mediaUrl: mediaUrl,
                                       isVideo: false,
                                     ));
                                   } else if (isVideo) {
-                                    final preview = thumb ?? fileUrl ?? '';
-                                    final media = fileUrl ?? thumb ?? '';
+                                    final preview = previewUrl ?? fileUrl ?? '';
+                                    final media = fileUrl ?? mediaUrl ?? '';
                                     if (media.isNotEmpty) {
                                       groupMedia.add(GroupMediaItem(
                                         previewUrl: preview,
@@ -4452,11 +4451,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
   }
 
-  void _rebuildFromStore({bool resetVisibleIfEmpty = false}) {
-    _updateNotifier(isInitialLoad: resetVisibleIfEmpty);
-    _scheduleSaveMessages();
-  }
-
   Map<String, dynamic>? resolveRepliedMessage({
     required Map<String, dynamic> message,
     required List<Map<String, dynamic>> allMessages,
@@ -4489,305 +4483,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     } catch (_) {
       return null;
     }
-  }
-
-  Widget _buildReplyPreview(Map<String, dynamic> message) {
-    log("dddddddddddddddddddd $message");
-    return StatefulBuilder(builder: (ctx, setLocalState) {
-      // --- normalize reply map (defend if it's a JSON string) ---
-      if (message['reply'] is String) {
-        try {
-          message['reply'] = jsonDecode(message['reply']);
-        } catch (e) {
-          debugPrint('Could not jsonDecode reply string: $e');
-          message['reply'] = <String, dynamic>{};
-        }
-      }
-      final replyMap = (message['repliedMessage'] is Map)
-          ? Map<String, dynamic>.from(message['repliedMessage'])
-          : <String, dynamic>{};
-
-      // --- keys & initial values ---
-      final replyId = (replyMap['id'] ??
-                  replyMap['message_id'] ??
-                  replyMap['messageId'] ??
-                  replyMap['reply_message_id'] ??
-                  message['reply_message_id'])
-              ?.toString() ??
-          '';
-
-      String replyContent = (replyMap['replyContent'] ??
-              replyMap['content'] ??
-              replyMap['message'] ??
-              '')
-          .toString();
-
-      String fileType = (replyMap['fileType'] ??
-              replyMap['mimeType'] ??
-              replyMap['mimetype'] ??
-              '')
-          .toString()
-          .toLowerCase();
-
-      String imageOrVideoUrl = (replyMap['originalUrl'] ??
-              replyMap['replyUrl'] ??
-              replyMap['reply_url'] ??
-              replyMap['thumbnailUrl'] ??
-              replyMap['fileUrl'] ??
-              replyMap['imageUrl'] ??
-              '')
-          .toString();
-
-      print("imageOrVideoUrl $imageOrVideoUrl");
-      final senderName = (replyMap['senderName'] ??
-              replyMap['sender']?['name'] ??
-              replyMap['fromName'] ??
-              '')
-          .toString();
-
-      final dynamic durRaw = replyMap['videoDuration'] ?? replyMap['duration'];
-      int durationSec =
-          durRaw is int ? durRaw : int.tryParse(durRaw?.toString() ?? '') ?? 0;
-
-      bool looksLikeNetwork(String s) =>
-          s.startsWith('http://') || s.startsWith('https://');
-
-      // Fast path: try to resolve from combined messages if missing
-      if (imageOrVideoUrl.isEmpty && replyId.isNotEmpty) {
-        try {
-          final all = _getCombinedMessages();
-          final original = all.firstWhere(
-            (m) {
-              final mid = (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '')
-                  .toString();
-              return mid == replyId;
-            },
-            orElse: () => <String, dynamic>{},
-          );
-
-          if (original.isNotEmpty) {
-            imageOrVideoUrl = (original['originalUrl'] ??
-                    original['thumbnailUrl'] ??
-                    original['fileUrl'] ??
-                    original['imageUrl'] ??
-                    '')
-                .toString();
-            if (fileType.isEmpty) {
-              fileType = (original['fileType'] ??
-                      original['mimeType'] ??
-                      original['mimetype'] ??
-                      '')
-                  .toString()
-                  .toLowerCase();
-            }
-
-            // persist into message['reply'] so future builds will find it
-            message['reply'] = (message['reply'] is Map)
-                ? Map<String, dynamic>.from(message['reply'])
-                : <String, dynamic>{};
-            message['reply']['originalUrl'] = imageOrVideoUrl;
-            message['reply']['fileType'] = fileType;
-          }
-        } catch (e) {
-          debugPrint('reply quick lookup failed: $e');
-        }
-      }
-
-      // If still missing, schedule async fetch once
-      if (imageOrVideoUrl.isEmpty && replyId.isNotEmpty) {
-        Future.microtask(() async {
-          try {
-            message['group_message_id']?.toString();
-
-            final fetched = await _scrollToMessageById(
-              replyId,
-              fetchIfMissing: true,
-            );
-
-            if (fetched) {
-              final all2 = _getCombinedMessages();
-              final original2 = all2.firstWhere(
-                (m) {
-                  final mid =
-                      (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '')
-                          .toString();
-                  return mid == replyId;
-                },
-                orElse: () => <String, dynamic>{},
-              );
-
-              if (original2.isNotEmpty) {
-                final foundUrl = (original2['originalUrl'] ??
-                        original2['thumbnailUrl'] ??
-                        original2['fileUrl'] ??
-                        original2['imageUrl'] ??
-                        '')
-                    .toString();
-                final foundType = (original2['fileType'] ??
-                        original2['mimeType'] ??
-                        original2['mimetype'] ??
-                        '')
-                    .toString()
-                    .toLowerCase();
-                if (foundUrl.isNotEmpty) {
-                  imageOrVideoUrl = foundUrl;
-                  fileType = foundType;
-
-                  // write back into message.reply
-                  message['reply'] = (message['reply'] is Map)
-                      ? Map<String, dynamic>.from(message['reply'])
-                      : <String, dynamic>{};
-                  message['reply']['originalUrl'] = foundUrl;
-                  message['reply']['fileType'] = foundType;
-
-                  setLocalState(() {}); // re-render
-                }
-              }
-            }
-          } catch (e) {
-            debugPrint('reply async fetch error: $e');
-          }
-        });
-      }
-
-      final bool isVideo = fileType.startsWith('video/') ||
-          ['mp4', 'mov', 'mkv', 'avi', 'webm']
-              .any((ext) => imageOrVideoUrl.toLowerCase().endsWith(ext));
-      final bool isImage = fileType.startsWith('image/') ||
-          ['jpg', 'jpeg', 'png', 'gif', 'webp']
-              .any((ext) => imageOrVideoUrl.toLowerCase().endsWith(ext));
-
-      // if nothing at all, hide
-      if (replyId.isEmpty && replyContent.isEmpty && imageOrVideoUrl.isEmpty) {
-        return const SizedBox.shrink();
-      }
-
-      String formatDuration(int sec) {
-        if (sec <= 0) return '';
-        final d = Duration(seconds: sec);
-        final m = d.inMinutes;
-        final s = d.inSeconds % 60;
-        return '$m:${s.toString().padLeft(2, '0')}';
-      }
-
-      Widget buildThumbNow(String url, bool video) {
-        if (video) {
-          return FutureBuilder<File?>(
-            future: VideoThumbUtil.generateFromUrl(url),
-            builder: (context, snap) {
-              if (snap.connectionState == ConnectionState.waiting) {
-                return Container(color: Colors.grey.shade300);
-              }
-              if (!snap.hasData || snap.data == null) {
-                return Container(
-                    color: Colors.black,
-                    child: const Icon(Icons.videocam,
-                        color: Colors.white, size: 18));
-              }
-              return Image.file(snap.data!, fit: BoxFit.cover);
-            },
-          );
-        } else {
-          if (looksLikeNetwork(url)) {
-            return CachedNetworkImage(
-                imageUrl: url,
-                fit: BoxFit.cover,
-                placeholder: (c, _) => Container(color: Colors.grey.shade300));
-          } else {
-            final f = File(url);
-            if (f.existsSync()) return Image.file(f, fit: BoxFit.cover);
-            return Container(color: Colors.grey.shade300);
-          }
-        }
-      }
-
-      return GestureDetector(
-        onTap: () async {
-          if (isVideo && imageOrVideoUrl.isNotEmpty) {
-            final isNet = looksLikeNetwork(imageOrVideoUrl);
-            Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => VideoPlayerScreen(
-                        path: imageOrVideoUrl, isNetwork: isNet)));
-          } else if (isImage && imageOrVideoUrl.isNotEmpty) {
-            ImageViewer.show(context, imageOrVideoUrl);
-          } else if (replyContent.isNotEmpty) {
-            message['group_message_id']?.toString();
-            final found =
-                await _scrollToMessageById(replyId, fetchIfMissing: true);
-            if (!found) {
-              Messenger.alert(
-                  msg:
-                      "Original message not loaded. Scroll up to load older messages.");
-            }
-          }
-        },
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 6),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(
-              color: Colors.grey.shade200,
-              borderRadius: BorderRadius.circular(10)),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                  width: 3,
-                  height: 40,
-                  decoration: BoxDecoration(
-                      color: Colors.grey.shade600,
-                      borderRadius: BorderRadius.circular(4))),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (senderName.isNotEmpty)
-                        Text(senderName,
-                            style: const TextStyle(
-                                fontSize: 12, fontWeight: FontWeight.w600)),
-                      if (isVideo)
-                        Row(children: [
-                          const Icon(Icons.videocam, size: 14),
-                          const SizedBox(width: 4),
-                          Text(
-                              'Video${durationSec > 0 ? ' (${formatDuration(durationSec)})' : ''}',
-                              style: const TextStyle(fontSize: 12))
-                        ])
-                      else if (isImage)
-                        Row(mainAxisSize: MainAxisSize.min, children: const [
-                          Icon(Icons.image, size: 14),
-                          SizedBox(width: 4),
-                          Text('Photo', style: TextStyle(fontSize: 12))
-                        ])
-                      else if (replyContent.isNotEmpty)
-                        Text(replyContent,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                fontSize: 11, color: Colors.black87)),
-                      if (replyContent.isNotEmpty && (isVideo || isImage))
-                        Text(replyContent,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                fontSize: 10, color: Colors.black54)),
-                    ]),
-              ),
-              const SizedBox(width: 8),
-              if ((isImage || isVideo) && imageOrVideoUrl.isNotEmpty)
-                ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: SizedBox(
-                        width: 42,
-                        height: 42,
-                        child: buildThumbNow(imageOrVideoUrl, isVideo))),
-            ],
-          ),
-        ),
-      );
-    });
   }
 
   Widget _buildMessageInputField(bool isKeyboardVisible, bool isSentByMe) {
