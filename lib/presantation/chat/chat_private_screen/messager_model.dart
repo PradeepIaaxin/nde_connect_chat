@@ -80,11 +80,11 @@ class Message {
   final String? fileName;
   final String? fileUrl;
   final String? fileType;
-
   final bool? isTemporary;
   final File? localImagePath;
   final bool? isGroupMessage;
   final String? groupMessageId;
+    final String? conversationId;
 
   Message({
     required this.messageId,
@@ -101,6 +101,7 @@ class Message {
     this.localImagePath,
     this.isGroupMessage,
     this.groupMessageId,
+    this.conversationId,
   });
 
   // Factory constructor to create a Message from a Map
