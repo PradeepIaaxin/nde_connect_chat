@@ -31,7 +31,7 @@ class CommonAppBarBuilder {
     String? firstname,
     String? lastname,
     String? lastSeen,
-     required bool hasLeftGroup, 
+    required bool hasLeftGroup,
     required String grpId,
     required String resvID,
     required bool grpChat,
@@ -52,10 +52,10 @@ class CommonAppBarBuilder {
       return LongPressAppBar(
         title: '${selectedMessages.length} selected',
         onBackPressed: hasLeftGroup == true ? null : toggleSelectionMode,
-        onDeletePressed: hasLeftGroup == true ? null :   deleteSelectedMessages,
-        onForwardPressed: hasLeftGroup == true ? null :  forwardSelectedMessages,
-        onStarPressed: hasLeftGroup == true ? null :  starSelectedMessages,
-        onReplayPressed:  selectedMessages.length == 1
+        onDeletePressed: hasLeftGroup == true ? null : deleteSelectedMessages,
+        onForwardPressed: hasLeftGroup == true ? null : forwardSelectedMessages,
+        onStarPressed: hasLeftGroup == true ? null : starSelectedMessages,
+        onReplayPressed: selectedMessages.length == 1
             ? () => replyToMessage(selectedMessages.first)
             : null,
         additionalMenuItems: [
@@ -63,28 +63,16 @@ class CommonAppBarBuilder {
             value: 'Share',
             child: const Text('Share'),
             onTap: () async {
-              await Future.delayed(
-                  const Duration(milliseconds: 300));
+              await Future.delayed(const Duration(milliseconds: 300));
               log("All selected messages:\n${jsonEncode(selectedMessages)}");
 
-              final textToShare =
-              selectedMessages.map((message) {
-                if (message['content']
-                    ?.toString()
-                    .trim()
-                    .isNotEmpty ??
-                    false) {
+              final textToShare = selectedMessages.map((message) {
+                if (message['content']?.toString().trim().isNotEmpty ?? false) {
                   return message['content'];
-                } else if (message['imageUrl']
-                    ?.toString()
-                    .trim()
-                    .isNotEmpty ??
+                } else if (message['imageUrl']?.toString().trim().isNotEmpty ??
                     false) {
                   return message['imageUrl'];
-                } else if (message['fileUrl']
-                    ?.toString()
-                    .trim()
-                    .isNotEmpty ??
+                } else if (message['fileUrl']?.toString().trim().isNotEmpty ??
                     false) {
                   return "${message['fileName'] ?? 'Document'}:\n${message['fileUrl']}";
                 } else {
@@ -103,13 +91,11 @@ class CommonAppBarBuilder {
       );
     }
 
-    final initials = (userName != null &&
-        userName.isNotEmpty)
+    final initials = (userName != null && userName.isNotEmpty)
         ? userName[0].toUpperCase()
         : 'U';
 
-    final avatarColor =
-    ColorUtil.getColorFromAlphabet(userName ?? "");
+    final avatarColor = ColorUtil.getColorFromAlphabet(userName ?? "");
 
     return AppBar(
       backgroundColor: Colors.white,
@@ -120,13 +106,22 @@ class CommonAppBarBuilder {
       leading: Row(
         children: [
           IconButton(
-            onPressed: (){
+            onPressed: () {
               if (Navigator.canPop(context)) {
-  Navigator.pop(context);
-}
+                Navigator.pop(context, true);
+              }
             },
             icon: const Icon(Icons.arrow_back),
           ),
+
+          // IconButton(
+          //   onPressed: () {
+          //     if (Navigator.canPop(context)) {
+          //       Navigator.pop(context);
+          //     }
+          //   },
+          //   icon: const Icon(Icons.arrow_back),
+          // ),
           GestureDetector(
             onTap: () {
               MyRouter.push(
@@ -148,15 +143,33 @@ class CommonAppBarBuilder {
               backgroundColor: Colors.grey[300],
               child: profileAvatarUrl.isNotEmpty
                   ? ClipOval(
-                child: Image.network(
-                  profileAvatarUrl,
-                  width: 40,
-                  height: 40,
-                  fit: BoxFit.cover,
-                  errorBuilder:
-                      (context, error, stackTrace) {
-                    return Container(
-                      color: avatarColor,
+                      child: Image.network(
+                        profileAvatarUrl,
+                        width: 40,
+                        height: 40,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: avatarColor,
+                            alignment: Alignment.center,
+                            child: Text(
+                              initials,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    )
+                  : Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: avatarColor,
+                        shape: BoxShape.circle,
+                      ),
                       alignment: Alignment.center,
                       child: Text(
                         initials,
@@ -165,26 +178,7 @@ class CommonAppBarBuilder {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                    );
-                  },
-                ),
-              )
-                  : Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: avatarColor,
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  initials,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
+                    ),
             ),
           ),
         ],
@@ -219,25 +213,31 @@ class CommonAppBarBuilder {
             vSpace4,
 
             // 🔥 Presence + typing logic
-            StreamBuilder<Map<String, dynamic>>(
-              // we only care about rebuilds, not the data
-              stream: SocketService().userStatusStream,
-              builder: (context, statusSnapshot) {
-                // Is this specific user online?
-                final isUserOnline = SocketService().onlineUsers.contains(resvID);
-
-             
-
+            // 🔥 Presence + typing logic (CLEAN & CORRECT)
+            ValueListenableBuilder<Set<String>>(
+              valueListenable: SocketService().onlineUsersNotifier,
+              builder: (_, onlineSet, __) {
+                final bool isUserOnline = onlineSet.contains(resvID);
 
                 return StreamBuilder<Map<String, dynamic>>(
                   stream: SocketService().typingStream,
-                  builder: (context, typingSnapshot) {
-                    final typingMessage = typingSnapshot.data?['message'] as String? ?? '';
-                    final isTyping = typingMessage.isNotEmpty;
+                  builder: (_, snapshot) {
+                    final data = snapshot.data;
 
+                    // 🔑 NEW: conversation-scoped typing
+                    final typingMessage = data?['message'] as String? ?? '';
+                    final typingConvoId = data?['convoId'];
+                    final typingUser = data?['userName'];
+
+                    final bool isTyping = typingMessage.isNotEmpty &&
+                        typingConvoId == convertionId;
+
+                    // 1️⃣ TYPING (highest priority)
                     if (isTyping) {
                       return Text(
-                        typingMessage,
+                        grpChat && typingUser != null
+                            ? "$typingUser is typing..."
+                            : typingMessage,
                         style: const TextStyle(
                           fontSize: 12,
                           color: chatColor,
@@ -246,33 +246,30 @@ class CommonAppBarBuilder {
                       );
                     }
 
-                    // Group Chat Online Status
+                    // 2️⃣ GROUP CHAT ONLINE COUNT
                     if (grpChat) {
-                      final onlineCount = groupMembers
-                          .where(
-                              (id) => SocketService().onlineUsers.contains(id))
-                          .length;
-                      if (onlineCount > 0) {
-                        return Text(
-                          "$onlineCount online",
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.green,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        );
-                      } else {
-                        return const Text(
-                          "Tap here for group info",
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
-                          ),
-                        );
-                      }
+                      final onlineCount =
+                          groupMembers.where(onlineSet.contains).length;
+
+                      return onlineCount > 0
+                          ? Text(
+                              "$onlineCount online",
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.green,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            )
+                          : const Text(
+                              "Tap here for group info",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            );
                     }
 
-                    // Private Chat Online Status
+                    // 3️⃣ PRIVATE CHAT ONLINE
                     if (isUserOnline) {
                       return const Text(
                         "Online",
@@ -282,28 +279,30 @@ class CommonAppBarBuilder {
                           fontWeight: FontWeight.bold,
                         ),
                       );
-                    } else if ((lastSeen ?? '')
-                        .isNotEmpty) {
+                    }
+
+                    // 4️⃣ LAST SEEN
+                    if ((lastSeen ?? '').isNotEmpty) {
                       return Text(
-                     //   "Last seen: $lastSeen",
-                        "Offline",
+                        "Last seen $lastSeen",
                         style: const TextStyle(
                           fontSize: 12,
                           color: Colors.grey,
                         ),
                       );
-                    } else {
-                      return const Text(
-                        "No activity",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
-                      );
                     }
+
+                    // 5️⃣ OFFLINE
+                    return const Text(
+                      "Offline",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey,
+                      ),
+                    );
                   },
                 );
-              }
+              },
             ),
           ],
         ),
@@ -311,7 +310,10 @@ class CommonAppBarBuilder {
       actions: [
         IconButton(
           onPressed: () => MyRouter.pop(context),
-          icon: Icon(Icons.videocam_outlined,size: 28,),
+          icon: Icon(
+            Icons.videocam_outlined,
+            size: 28,
+          ),
         ),
         IconButton(
           onPressed: () => MyRouter.pop(context),
@@ -332,8 +334,6 @@ class CommonAppBarBuilder {
               grpChat: grpChat,
               favouite: favouitre,
               onSearchTap: onSearchTap,
-
-              
             );
           },
         ),

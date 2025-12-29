@@ -1446,9 +1446,6 @@ class SocketService {
   int _socketCreationCount = 0;
   String? _lastSocketId;
 
-  // ========================
-  // Stream Controllers (unchanged)
-  // ========================
   final StreamController<Map<String, dynamic>> _typingController =
       StreamController<Map<String, dynamic>>.broadcast();
 
@@ -1474,6 +1471,9 @@ class SocketService {
 
   final StreamController<String> _messageDeletedController =
       StreamController<String>.broadcast();
+
+  final ValueNotifier<Set<String>> onlineUsersNotifier =
+      ValueNotifier<Set<String>>({});
 
   final StreamController<Map<String, dynamic>> _favoriteUpdateController =
       StreamController<Map<String, dynamic>>.broadcast();
@@ -1966,30 +1966,56 @@ class SocketService {
   }
 
   void _handleUserPresence(dynamic data, {required bool online}) {
-    try {
-      final rawId = (data is List && data.isNotEmpty) ? data[0] : data;
-      if (rawId == null) return;
-      final String userId = rawId.toString().trim();
-      if (userId.isEmpty) return;
+    String? userId;
 
-      if (online) {
-        if (!onlineUsers.contains(userId)) onlineUsers.add(userId);
-      } else {
-        onlineUsers.remove(userId);
-      }
-
-      final statusMap = {
-        "userId": userId,
-        "status": online ? "online" : "offline"
-      };
-      userStatusNotifier.value = statusMap;
-      _userStatusController.add(statusMap);
-
-      _slog("Presence: $userId → ${online ? 'online' : 'offline'}");
-    } catch (e) {
-      _slog("Presence error: $e");
+    if (data is List && data.isNotEmpty) {
+      userId = data.first.toString();
+    } else if (data is Map) {
+      userId = data['userId']?.toString();
+    } else if (data is String) {
+      userId = data;
     }
+
+    if (userId == null || userId.isEmpty) return;
+
+    final current = Set<String>.from(onlineUsersNotifier.value);
+
+    if (online) {
+      current.add(userId);
+    } else {
+      current.remove(userId);
+    }
+
+    onlineUsersNotifier.value = current; // 🔥 THIS TRIGGERS UI
+
+    _slog("Presence: $userId → ${online ? 'online' : 'offline'}");
   }
+
+  // void _handleUserPresence(dynamic data, {required bool online}) {
+  //   try {
+  //     final rawId = (data is List && data.isNotEmpty) ? data[0] : data;
+  //     if (rawId == null) return;
+  //     final String userId = rawId.toString().trim();
+  //     if (userId.isEmpty) return;
+
+  //     if (online) {
+  //       if (!onlineUsers.contains(userId)) onlineUsers.add(userId);
+  //     } else {
+  //       onlineUsers.remove(userId);
+  //     }
+
+  //     final statusMap = {
+  //       "userId": userId,
+  //       "status": online ? "online" : "offline"
+  //     };
+  //     userStatusNotifier.value = statusMap;
+  //     _userStatusController.add(statusMap);
+
+  //     _slog("Presence: $userId → ${online ? 'online' : 'offline'}");
+  //   } catch (e) {
+  //     _slog("Presence error: $e");
+  //   }
+  // }
 
   void _handleMessageListUpdate(dynamic payload) {
     scheduleMicrotask(() async {
@@ -2168,11 +2194,20 @@ class SocketService {
     }
   }
 
-  void sendTyping({required String roomId, required String userName}) {
+  void sendTyping({
+    required String roomId,
+    required String convoId,
+    required String userName,
+  }) {
     if (!isConnected) return;
-    final typingData = {"roomId": roomId, "userName": userName};
+
+    final typingData = {
+      "roomId": roomId,
+      "convoId": convoId,
+      "userName": userName,
+    };
+    print("typing data : $typingData");
     socket!.emit('get_typing', typingData);
-    socket!.emit('typing', typingData);
   }
 
   void setUserOffline(String userId, String workspaceId) {
@@ -2497,17 +2532,98 @@ class SocketService {
           "isGroupedMessage": reply["is_grouped_message"] == true,
         },
     };
+    log("sending message payload : $messagePayload");
 
-    socket!.emitWithAck('send_message', messagePayload, ack: (data) {
-      try {
-        if (ackCallback != null && data is Map<String, dynamic>) {
-          ackCallback(data);
+    // socket!.emitWithAck('send_message', messagePayload, ack: (data) {
+    //   try {
+    //     if (ackCallback != null && data is Map<String, dynamic>) {
+    //       ackCallback(data);
+    //       log(data.toString());
+    //     }
+    //   } catch (e) {
+    //     _slog('sendMessage ack error: $e');
+    //   }
+    // });
+
+    socket!.emitWithAck(
+      'send_message',
+      messagePayload,
+      ack: (data) {
+        log('🟢 SEND_MESSAGE ACK RECEIVED');
+        log('🕒 Time: ${DateTime.now().toIso8601String()}');
+        log('📦 ACK Payload: $data');
+
+        if (data is! Map) {
+          log('⚠ ACK is not a Map: ${data.runtimeType}');
+          return;
         }
-      } catch (e) {
-        _slog('sendMessage ack error: $e');
-      }
-    });
+
+        // 🔑 1️⃣ conversation id (MOST IMPORTANT)
+        final String? convoId = data['convoId']?.toString();
+
+        // 🔑 2️⃣ message object
+        final Map<String, dynamic>? msg =
+            data['msg'] is Map ? Map<String, dynamic>.from(data['msg']) : null;
+
+        // 🔑 3️⃣ real message id
+        final String? serverMessageId =
+            msg?['message_id'] ?? msg?['id'] ?? data['messageId'];
+
+        // 🔑 4️⃣ status
+        final String status = msg?['messageStatus'] ?? data['status'] ?? 'sent';
+
+        log('✅ convoId: $convoId');
+        log('✅ serverMessageId: $serverMessageId');
+        log('✅ status: $status');
+
+        // 🔥 FIRST MESSAGE → SET ACTIVE CONVERSATION
+        if (convoId != null && convoId.isNotEmpty) {
+          setActiveConversation(convoId);
+        }
+
+        // 🔥 SEND CLEAN ACK TO BLoC / UI
+        if (ackCallback != null) {
+          ackCallback({
+            'convoId': convoId,
+            'messageId': serverMessageId,
+            'status': status,
+            'msg': msg,
+            'raw': data,
+          });
+        }
+      },
+    );
   }
+
+  //   socket!.emitWithAck(
+  //     'send_message',
+  //     messagePayload,
+  //     ack: (data) {
+  //       // ✅ ALWAYS PRINT ACK (NO CONDITIONS)
+  //       log('🟢 SEND_MESSAGE ACK RECEIVED');
+  //       log('🕒 Time: ${DateTime.now().toIso8601String()}');
+  //       log('📦 ACK Payload: $data');
+
+  //       // ✅ Normalize ACK
+  //       if (data is Map<String, dynamic>) {
+  //         final serverMessageId =
+  //             data['messageId'] ?? data['message_id'] ?? data['id'];
+
+  //         final status = data['messageStatus'] ?? data['status'] ?? 'unknown';
+
+  //         log('✅ ServerMessageId: $serverMessageId');
+  //         log('✅ Status: $status');
+
+  //         // ✅ Notify caller if needed
+  //         if (ackCallback != null) {
+  //           ackCallback(data);
+  //         }
+  //       } else {
+  //         log('⚠ ACK received but not a Map: ${data.runtimeType}');
+  //       }
+  //     },
+  //   );
+  // }
 
   String generateRoomId(String a, String b) {
     final ids = [a, b]..sort();

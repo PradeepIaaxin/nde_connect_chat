@@ -4741,6 +4741,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Widget _buildMessageInputField(bool isKeyboardVisible, bool thereORleft) {
     return MessageInputField(
       messageController: _messageController,
+      conversionId: widget.conversationId,
       reciverID: widget.datumId,
       focusNode: _focusNode,
       onSendPressed: _sendMessage,
@@ -4754,12 +4755,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         onOptionSelected: _sendMessageImage,
         onFilesSelected: _sendMultipleFiles,
       ),
-
-      //     (List<Map<String, dynamic>> localMessages) {
-      //   setState(() {
-      //     socketMessages.addAll(localMessages);
-      //   });
-      // }),
       onCameraPressed: _openCamera,
       onRecordPressed: _isRecording ? _stopRecordingFs : _startRecordingFs,
       isRecording: _isRecording,
