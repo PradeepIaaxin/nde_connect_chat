@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:nde_email/bridge_generated.dart/frb_generated.dart';
+import 'package:nde_email/convo_list_crdt.dart';
 import 'package:nde_email/presantation/login/login_screen.dart';
 import 'package:nde_email/presantation/network/connectivity_servicer.dart';
 import 'package:nde_email/presantation/update_screen/update_bloc/update_bloc.dart';
@@ -19,6 +20,10 @@ void main() async {
   SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
   ));
+
+  if (!Hive.isAdapterRegistered(50)) {
+    Hive.registerAdapter(ConvoListCrdtAdapter());
+  }
 
   // await RustLib.init();
   // await RustLib.init(
@@ -176,7 +181,6 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      // showPerformanceOverlay: true,
       navigatorKey: MyRouter.navigatorKey,
       scaffoldMessengerKey: Messenger.rootScaffoldMessengerKey,
       debugShowCheckedModeBanner: false,
@@ -204,3 +208,21 @@ Future<void> initializeStorage() async {
   ]);
   await FlutterDownloader.initialize(debug: false);
 }
+
+
+
+// reply -- ithu 
+// forwarded. --> 
+// copy --> 
+// react --> 
+// delete -->  delete_messgae
+// mess pin 
+// stared message 
+// archive 
+// delete 
+// 
+
+
+// save in local -> conersionId , snapshot, frontiers,worspaceid
+//  lorodoc -> snacpshot + frontiers => if new converiosn is there no data there 
+//  

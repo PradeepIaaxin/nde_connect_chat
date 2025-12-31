@@ -35,38 +35,51 @@ pub fn reset_global_doc() {
 
 
 #[frb]
-pub fn decode_message_snapshot(snapshot_base64: String) -> String {
-    use base64::engine::general_purpose::STANDARD;
-    use base64::Engine;
-    use loro::{LoroDoc, ToJson};
-    use serde_json::{json, Value};
+pub fn export_chat_snapshot() -> Vec<u8> {
+    let doc = GLOBAL_DOC.lock().unwrap();
+    doc.export(loro::ExportMode::Snapshot)
+        .expect("Snapshot export failed")
+}
 
+
+#[frb]
+pub fn export_chat_frontiers() -> Vec<u8> {
+    let doc = GLOBAL_DOC.lock().unwrap();
+
+    // ✅ THIS EXISTS IN LORO 1.10.3
+    let frontiers = doc.state_frontiers();
+
+    // Frontiers implements Encode
+    frontiers.encode()
+}
+
+
+
+#[frb]
+pub fn decode_message_snapshot(snapshot_base64: String) -> String {
     let bytes = STANDARD
         .decode(snapshot_base64)
         .expect("Invalid base64 snapshot");
 
-    let snapshot_doc =
-        LoroDoc::from_snapshot(&bytes).expect("Invalid Loro snapshot");
-
     let mut global = GLOBAL_DOC.lock().unwrap();
-    *global = snapshot_doc;
 
-    // ✅ Convert FULL document → JSON
+    global.import(&bytes).expect("CRDT import failed");
+
     let root_json = global
         .get_deep_value()
         .to_json_value();
 
-    // ✅ Extract only messages
     let messages_json = match &root_json {
-        Value::Object(map) => map.get("messages").cloned().unwrap_or(Value::Null),
-        _ => Value::Null,
+        serde_json::Value::Object(map) => {
+            map.get("messages").cloned().unwrap_or(serde_json::Value::Null)
+        }
+        _ => serde_json::Value::Null,
     };
 
-    json!({
-        "messages": messages_json
-    })
-    .to_string()
+    json!({ "messages": messages_json }).to_string()
 }
+
+
 
 
 #[frb]
@@ -103,20 +116,15 @@ pub fn import_message_update(update_bytes: Vec<u8>) -> String {
 //  - Snapshot becomes BASE STATE
 // --------------------------------------------------
 fn decode_chat_snapshot_internal(snapshot_base64: String) -> String {
-    // Decode Base64 → bytes
     let bytes = STANDARD
         .decode(snapshot_base64)
         .expect("Invalid base64 snapshot");
 
-    // Create document from snapshot
-    let snapshot_doc =
-        LoroDoc::from_snapshot(&bytes).expect("Invalid Loro snapshot");
-
-    // 🔥 Replace GLOBAL_DOC with snapshot state
     let mut global = GLOBAL_DOC.lock().unwrap();
-    *global = snapshot_doc;
 
-    // Read movable list from GLOBAL_DOC
+    // ✅ SAFE: merge snapshot into existing doc
+    global.import(&bytes).expect("CRDT import failed");
+
     let list = global.get_movable_list("chatDataList");
     let mut chat_data_list = Vec::<Value>::new();
 
@@ -133,6 +141,7 @@ fn decode_chat_snapshot_internal(snapshot_base64: String) -> String {
     })
     .to_string()
 }
+
 
 #[frb]
 pub fn decode_chat_snapshot(snapshot_base64: String) -> String {

@@ -4,9 +4,7 @@ import 'dart:developer';
 import 'package:http/http.dart' as http;
 import 'package:nde_email/bridge_generated.dart/api.dart';
 import 'package:nde_email/data/respiratory.dart';
-import 'package:nde_email/presantation/chat/chat_list/chat_session_storage/chat_session.dart';
 import 'package:nde_email/presantation/login/login_screen.dart';
-
 import 'package:nde_email/utils/router/router.dart';
 import 'chat_response_model.dart';
 
@@ -127,216 +125,77 @@ class ChatListApiService {
           aItem?.isPinned != bItem.isPinned ||
           aItem?.isArchived != bItem.isArchived ||
           aItem?.groupName != bItem.groupName ||
-          aItem?.name != bItem.name) return false;
+          aItem?.name != bItem.name) {
+        return false;
+      }
     }
     return true;
   }
 
-Future<List<Datu>> fetchChats({
-  required int page,
-  required int limit,
-  String? filter,
-}) async {
-  final accessToken = await UserPreferences.getAccessToken();
-  final workspace = await UserPreferences.getDefaultWorkspace();
+  Future<List<Datu>> fetchChats({
+    required int page,
+    required int limit,
+    String? filter,
+  }) async {
+    final accessToken = await UserPreferences.getAccessToken();
+    final workspace = await UserPreferences.getDefaultWorkspace();
 
-  if (accessToken == null || workspace == null) {
-    throw Exception("User authentication missing");
-  }
-
-  final Map<String, String> queryParams = {
-    'page': page.toString(),
-    'limit': limit.toString(),
-  };
-
-  if (filter != null && filter.isNotEmpty && filter.toLowerCase() != "all") {
-    queryParams['filter'] = filter.toLowerCase();
-  }
-
-  final uri = Uri.parse(baseUrl).replace(queryParameters: queryParams);
-
-  final headers = {
-    'Authorization': 'Bearer $accessToken',
-    'x-workspace': workspace,
-    'Content-Type': 'application/json',
-  };
-
-  final response = await http.get(uri, headers: headers);
-
-  if (response.statusCode == 200) {
-    final jsonData = jsonDecode(response.body);
-
-    /// ✅ USE SNAPSHOT ONLY IF IT IS A VALID STRING
-    final snapshot = jsonData["snapshot"];
-    if (snapshot is String && snapshot.isNotEmpty) {
-      log("📥 Received valid Loro Snapshot");
-
-      // 🔥 reset Rust doc ONLY for snapshot
-      await resetGlobalDoc();
-
-      final chats = await decodeChatsFromLoro(snapshot);
-      return chats;
+    if (accessToken == null || workspace == null) {
+      throw Exception("User authentication missing");
     }
 
-    /// 🚫 snapshot == null OR empty → NORMAL JSON FLOW
-    final List<dynamic> chatJson = jsonData["data"] ?? [];
-    return chatJson.map((e) => Datu.fromJson(e)).toList();
-  }
+    final Map<String, String> queryParams = {
+      'page': page.toString(),
+      'limit': limit.toString(),
+    };
 
-  // ===================== TOKEN REFRESH =====================
-  if (response.statusCode == 401) {
-    final refreshed = await _onRefreshToken();
-    if (refreshed) {
-      return fetchChats(page: page, limit: limit, filter: filter);
+    if (filter != null && filter.isNotEmpty && filter.toLowerCase() != "all") {
+      queryParams['filter'] = filter.toLowerCase();
     }
-    throw Exception("Authentication failed");
+
+    final uri = Uri.parse(baseUrl).replace(queryParameters: queryParams);
+
+    final headers = {
+      'Authorization': 'Bearer $accessToken',
+      'x-workspace': workspace,
+      'Content-Type': 'application/json',
+    };
+
+    final response = await http.get(uri, headers: headers);
+
+    if (response.statusCode == 200) {
+      final jsonData = jsonDecode(response.body);
+
+      /// ✅ USE SNAPSHOT ONLY IF IT IS A VALID STRING
+      final snapshot = jsonData["snapshot"];
+      if (snapshot is String && snapshot.isNotEmpty) {
+        log("📥 Received valid Loro Snapshot");
+
+        // 🔥 reset Rust doc ONLY for snapshot
+        await resetGlobalDoc();
+
+        final chats = await decodeChatsFromLoro(snapshot);
+        return chats;
+      }
+
+      /// 🚫 snapshot == null OR empty → NORMAL JSON FLOW
+      final List<dynamic> chatJson = jsonData["data"] ?? [];
+      log(chatJson.toString());
+      
+      return chatJson.map((e) => Datu.fromJson(e)).toList();
+    }
+
+    // ===================== TOKEN REFRESH =====================
+    if (response.statusCode == 401) {
+      final refreshed = await _onRefreshToken();
+      if (refreshed) {
+        return fetchChats(page: page, limit: limit, filter: filter);
+      }
+      throw Exception("Authentication failed");
+    }
+
+    throw Exception("Failed to fetch chats");
   }
-
-  throw Exception("Failed to fetch chats");
-}
-
-//   Future<List<Datu>> fetchChats({
-//   required int page,
-//   required int limit,
-//   String? filter,
-// }) async {
-//   final accessToken = await UserPreferences.getAccessToken();
-//   final workspace = await UserPreferences.getDefaultWorkspace();
-
-//   if (accessToken == null || workspace == null) {
-//     throw Exception("User authentication missing");
-//   }
-
-//   final Map<String, String> queryParams = {
-//     'page': page.toString(),
-//     'limit': limit.toString(),
-//   };
-
-//   if (filter != null && filter.isNotEmpty && filter.toLowerCase() != "all") {
-//     queryParams['filter'] = filter.toLowerCase();
-//   }
-
-//   final uri = Uri.parse(baseUrl).replace(queryParameters: queryParams);
-
-//   final headers = {
-//     'Authorization': 'Bearer $accessToken',
-//     'x-workspace': workspace,
-//     'Content-Type': 'application/json',
-//   };
-
-//   final response = await http.get(uri, headers: headers);
-
-//   if (response.statusCode == 200) {
-//     final jsonData = jsonDecode(response.body);
-
-//     // ===================== LORO SNAPSHOT FLOW =====================
-//     if (jsonData["snapshot"] != null) {
-//       final snapshotBase64 = jsonData["snapshot"];
-//       log("📥 Received Loro Snapshot");
-
-//       // Reset Rust doc ONLY for decoding
-//       await resetGlobalDoc();
-
-//       final chats = await decodeChatsFromLoro(snapshotBase64);
-
-//       // ✅ JUST RETURN — NO LOCAL SAVE
-//       return chats;
-//     }
-
-//     // ===================== NORMAL JSON FLOW =====================
-//     final List<dynamic> chatJson = jsonData["data"] ?? [];
-//     return chatJson.map((e) => Datu.fromJson(e)).toList();
-//   }
-
-//   // ===================== TOKEN REFRESH =====================
-//   if (response.statusCode == 401) {
-//     final refreshed = await _onRefreshToken();
-//     if (refreshed) {
-//       return fetchChats(page: page, limit: limit, filter: filter);
-//     }
-//     throw Exception("Authentication failed");
-//   }
-
-//   throw Exception("Failed to fetch chats");
-// }
-
-
-  // Future<List<Datu>> fetchChats({
-  //   required int page,
-  //   required int limit,
-  //   String? filter,
-  // }) async {
-  //   final accessToken = await UserPreferences.getAccessToken();
-  //   final workspace = await UserPreferences.getDefaultWorkspace();
-
-  //   if (accessToken == null || workspace == null) {
-  //     throw Exception("User authentication missing");
-  //   }
-
-  //   final Map<String, String> queryParams = {
-  //     'page': page.toString(),
-  //     'limit': limit.toString(),
-  //   };
-
-  //   if (filter != null && filter.isNotEmpty && filter.toLowerCase() != "all") {
-  //     queryParams['filter'] = filter.toLowerCase();
-  //   }
-
-  //   final uri = Uri.parse(baseUrl).replace(queryParameters: queryParams);
-
-  //   final headers = {
-  //     'Authorization': 'Bearer $accessToken',
-  //     'x-workspace': workspace,
-  //     'Content-Type': 'application/json',
-  //   };
-
-  //   final response = await http.get(uri, headers: headers);
-
-  //   if (response.statusCode == 200) {
-  //     final jsonData = jsonDecode(response.body);
-  //     // log(jsonData.toString());
-
-  //     // ===================== LORO SNAPSHOT FLOW =====================
-  //     if (jsonData["snapshot"] != null) {
-  //       final snapshotBase64 = jsonData["snapshot"];
-  //       log("📥 Received Loro Snapshot. Decoding using Rust...");
-
-  //       // 🔥 VERY IMPORTANT: reset Rust global doc first
-  //       await resetGlobalDoc();
-
-  //       final chats = await decodeChatsFromLoro(snapshotBase64);
-  //       // log(chats.toString());
-
-  //       // ⚠️ SAFETY: don't clear existing chats if snapshot is empty
-  //       if (chats.isEmpty) {
-  //         log("⚠️ Snapshot decoded but chat list is empty. Keeping existing chats.");
-  //         return ChatSessionStorage.getChatList();
-  //       }
-
-  //       ChatSessionStorage.clear();
-  //       ChatSessionStorage.saveChatList(chats);
-
-  //       log("📦 Chat count after fetch: ${chats.length}");
-  //       return chats;
-  //     }
-
-  //     // ===================== BACKUP NORMAL JSON FLOW =====================
-  //     final List<dynamic> chatJson = jsonData["data"] ?? [];
-  //     final chats = chatJson.map((e) => Datu.fromJson(e)).toList();
-  //     return chats;
-  //   }
-
-  //   // ===================== TOKEN REFRESH =====================
-  //   if (response.statusCode == 401) {
-  //     final refreshed = await _onRefreshToken();
-  //     if (refreshed) {
-  //       return fetchChats(page: page, limit: limit, filter: filter);
-  //     }
-  //     throw Exception("Authentication failed");
-  //   }
-
-  //   throw Exception("Failed to fetch chats");
-  // }
 
   void dispose() {
     _chatRefreshTimer?.cancel();

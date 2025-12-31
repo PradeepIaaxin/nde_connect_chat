@@ -162,6 +162,7 @@ class DeleteMessagesEvent extends GroupChatEvent {
   final String senderId;
   final String receiverId;
   final String message;
+  final String deleteFor;
 
   const DeleteMessagesEvent({
     required this.messageIds,
@@ -169,11 +170,12 @@ class DeleteMessagesEvent extends GroupChatEvent {
     required this.senderId,
     required this.receiverId,
     required this.message,
+    required this.deleteFor,
   });
 
   @override
   List<Object> get props =>
-      [messageIds, convoId, senderId, receiverId, message];
+      [messageIds, convoId, senderId, receiverId, message, deleteFor];
 }
 
 class StarMessagesEvent extends GroupChatEvent {

@@ -1,5 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:hive/hive.dart';
+import 'package:nde_email/bridge_generated.dart/api.dart';
+import 'package:nde_email/convo_list_crdt.dart';
+import 'package:nde_email/data/respiratory.dart';
 import 'package:nde_email/presantation/chat/Socket/socket_service.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/localstorage/local_storage.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/local_strorage.dart';
@@ -37,24 +42,64 @@ class ChatListBloc extends Bloc<ChatListEvent, ChatListState> {
 
       emit(ChatListLoaded(
         chats: updatedList,
-        paginationData: PaginationData(
-          totalDocs: updatedList.length,
-          page: 1,
-          limit: updatedList.length,
-          totalPages: 1,
-        ),
-        page: 1,
+        //   paginationData: PaginationData(
+        //     totalDocs: updatedList.length,
+        //     page: 1,
+        //     limit: updatedList.length,
+        //     totalPages: 1,
+        //   ),
+        //   page: 1,
       ));
     });
 
     _setupSocketListeners();
   }
 
+  // void _setupSocketListeners() {
+  //   socketService.setChatListUpdateCallback((socketChats) {
+  //     ChatSessionStorage.clear();
+  //     add(ChatListUpdated(chats: socketChats));
+  //   });
+  // }
+
   void _setupSocketListeners() {
-    socketService.setChatListUpdateCallback((socketChats) {
-      ChatSessionStorage.clear();
-      add(ChatListUpdated(chats: socketChats));
+    socketService.setChatListUpdateCallback((chats) {
+      add(ChatListUpdated(chats: chats));
     });
+  }
+
+  // void _setupSocketListeners() {
+  //   socketService.setChatListUpdateCallback((chats) {
+  //     final updated = List<Datu>.from(chats);
+  //     _applyDrafts(updated);
+  //     _sortChats(updated);
+  //     add(ChatListUpdated(chats: updated));
+  //   });
+  // }
+
+  void _sortChats(List<Datu> chats) {
+    chats.sort((a, b) {
+      if ((a.isPinned ?? false) && !(b.isPinned ?? false)) return -1;
+      if (!(a.isPinned ?? false) && (b.isPinned ?? false)) return 1;
+
+      final aTime = a.lastMessageTime ?? DateTime(2000);
+      final bTime = b.lastMessageTime ?? DateTime(2000);
+      return bTime.compareTo(aTime);
+    });
+  }
+
+  void _applyDrafts(List<Datu> chats) {
+    for (final chat in chats) {
+      String? draft;
+
+      if (chat.isGroupChat == true && chat.conversationId != null) {
+        draft = GrpLocalChatStorage.getDraftMessage(chat.conversationId!);
+      } else if (chat.id != null) {
+        draft = LocalChatStorage.getDraftMessage(chat.id!);
+      }
+
+      chat.draftMessage = (draft?.isNotEmpty == true) ? draft : null;
+    }
   }
 
   /// ⚡ Show cached chats instantly (no loading UI)
@@ -81,8 +126,8 @@ class ChatListBloc extends Bloc<ChatListEvent, ChatListState> {
 
     emit(ChatListLoaded(
       chats: event.chats,
-      paginationData: pagination,
-      page: 1,
+      // paginationData: pagination,
+      // page: 1,
     ));
   }
 
@@ -90,81 +135,102 @@ class ChatListBloc extends Bloc<ChatListEvent, ChatListState> {
     FetchChatList event,
     Emitter<ChatListState> emit,
   ) async {
-    // Show shimmer only when no cached data and no previous state loaded
-    if (state is! ChatListLoaded && ChatSessionStorage.getChatList().isEmpty) {
+    if (state is! ChatListLoaded) {
       emit(ChatListLoading());
     }
 
     try {
-      // Normal fetch
-      final initialChats = await apiService.fetchChats(
-        page: event.page,
-        limit: event.limit,
-        filter: event.filter,
-      );
+      final userId = await UserPreferences.getUserId();
+      if (userId == null) {
+        emit(ChatListError("User not found"));
+        return;
+      }
 
-      // Update state
-      add(ChatListUpdated(chats: initialChats));
+      // ======================================================
+      // 1️⃣ OFFLINE-FIRST → LOAD FROM HIVE (CRDT SNAPSHOT)
+      // ======================================================
+      final box = await Hive.openBox<ConvoListCrdt>('convo_crdt');
+      final local = box.get(userId);
+
+      bool loadedFromCrdt = false;
+
+      if (local != null && local.snapshot.isNotEmpty) {
+        final jsonString = await importChatUpdate(
+          updateBytes: local.snapshot,
+        );
+
+        final decoded = jsonDecode(jsonString);
+        final List list = decoded['chatDataList'] ?? [];
+
+        final chats = list.map<Datu>((e) => Datu.fromJson(e)).toList();
+
+        emit(ChatListLoaded(chats: chats));
+        loadedFromCrdt = true;
+      }
+
+      // ======================================================
+      // 2️⃣ INITIALIZE SOCKET
+      // 👉 convoList:sync WILL HAPPEN INSIDE SocketService
+      // ======================================================
+      await SocketService().initialize();
+
+      // ======================================================
+      // 3️⃣ FALLBACK → REST API (ONLY FIRST TIME, NO CRDT)
+      // ======================================================
+      if (!loadedFromCrdt) {
+        final chats = await apiService.fetchChats(
+          page: event.page,
+          limit: event.limit,
+          filter: event.filter,
+        );
+
+        emit(ChatListLoaded(chats: chats));
+      }
     } catch (e) {
-      emit(ChatListError('Failed to fetch chats: $e'));
+      emit(ChatListError("Failed to load chats"));
     }
   }
 
   /// 🔁 When new chats come from stream/API updates
-  void _onChatListUpdated(ChatListUpdated event, Emitter<ChatListState> emit) {
-    if (event.chats.isEmpty) {
-      emit(ChatListEmpty());
-      return;
-    }
-
-    // 🔥 IMPORTANT: clear before saving API/snapshot data
-    ChatSessionStorage.clear();
-    ChatSessionStorage.saveChatList(event.chats);
-
-    _applyDrafts(ChatSessionStorage.getChatList());
-
-    final chats = List<Datu>.from(ChatSessionStorage.getChatList());
-
-    emit(ChatListLoaded(
-      chats: chats,
-      paginationData: PaginationData(
-        totalDocs: chats.length,
-        page: 1,
-        limit: chats.length,
-        totalPages: 1,
-      ),
-      page: 1,
-    ));
-  }
-
   // void _onChatListUpdated(ChatListUpdated event, Emitter<ChatListState> emit) {
   //   if (event.chats.isEmpty) {
   //     emit(ChatListEmpty());
   //     return;
   //   }
 
-  //   // Merge drafts
-  //   // Merge drafts
-  //   _applyDrafts(event.chats);
-
-  //   // Save to local cache
+  //   // 🔥 IMPORTANT: clear before saving API/snapshot data
+  //   // ChatSessionStorage.clear();
   //   ChatSessionStorage.saveChatList(event.chats);
 
-  //   final pagination = PaginationData(
-  //     totalDocs: event.chats.length,
-  //     page: 1,
-  //     limit: event.chats.length,
-  //     totalPages: 1,
-  //     nextPage: null,
-  //     prevPage: null,
-  //   );
+  //   _applyDrafts(ChatSessionStorage.getChatList());
+
+  //   final chats = List<Datu>.from(ChatSessionStorage.getChatList());
 
   //   emit(ChatListLoaded(
-  //     chats: event.chats,
-  //     paginationData: pagination,
-  //     page: pagination.nextPage ?? 1,
+  //     chats: chats,
+  //     //   paginationData: PaginationData(
+  //     //     totalDocs: chats.length,
+  //     //     page: 1,
+  //     //     limit: chats.length,
+  //     //     totalPages: 1,
+  //     //   ),
+  //     //   page: 1,
+  //     // )
   //   ));
   // }
+
+  void _onChatListUpdated(ChatListUpdated event, Emitter<ChatListState> emit) {
+    if (event.chats.isEmpty) return;
+
+    ChatSessionStorage.mergeChatList(event.chats);
+
+    final chats = List<Datu>.from(ChatSessionStorage.getChatList());
+
+    _applyDrafts(chats);
+    _sortChats(chats);
+
+    emit(ChatListLoaded(chats: chats));
+  }
 
   /// 🧹 Clear
   void _onClearChatList(
@@ -178,29 +244,5 @@ class ChatListBloc extends Bloc<ChatListEvent, ChatListState> {
     await _chatStreamSubscription?.cancel();
     apiService.dispose();
     return super.close();
-  }
-
-  /// 📝 Helper to apply drafts from local storage
-  void _applyDrafts(List<Datu> chats) {
-    for (var chat in chats) {
-      String? draft;
-
-      if (chat.isGroupChat == true) {
-        // For group chats, use conversationId with GrpLocalChatStorage
-        if (chat.conversationId != null && chat.conversationId!.isNotEmpty) {
-          draft = GrpLocalChatStorage.getDraftMessage(chat.conversationId!);
-        }
-      } else {
-        if (chat.id != null) {
-          draft = LocalChatStorage.getDraftMessage(chat.id!);
-        }
-      }
-
-      if (draft != null && draft.isNotEmpty) {
-        chat.draftMessage = draft;
-      } else {
-        chat.draftMessage = null;
-      }
-    }
   }
 }

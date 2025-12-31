@@ -164,8 +164,10 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
 
     try {
       socketService.deleteMessage(
-        messageId: event.messageIds.first,
         conversationId: event.convoId,
+        messageIds: event.messageIds,
+        roomId: roomId,
+        deleteFor: event.deleteFor ?? "",
       );
     } catch (e) {
       log("Failed to emit delete_message: $e");
@@ -423,10 +425,11 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
       final msgId = ObjectId().toString();
       log("isGroupMessage ${event.replyIsGroupMessage}");
       log("isGroupMessage ${event.replyGroupMessageId}");
+      final String? convoId = event.convoId!.isEmpty ? null : event.convoId;
       socketService.sendMessage(
         isGroupMessage: event.replyIsGroupMessage ?? false,
         messageId: msgId,
-        conversationId: event.convoId,
+        conversationId: convoId,
         senderId: event.senderId,
         receiverId: event.receiverId,
         message: event.message,

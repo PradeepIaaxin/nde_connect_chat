@@ -65,18 +65,26 @@ class MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final String content = message['content']?.toString() ?? '';
-    final String? imageUrl = message['imageUrl'];
-    final String? originalUrl = message['originalUrl']?.toString();
-    final String? displayImageUrl = originalUrl ?? imageUrl;
-    final String? replycontent = message['replyContent'];
     final String? fileUrl = message['fileUrl'];
     final String? fileName = message['fileName'];
     final String? fileTypeRaw = message['fileType']?.toString();
+    final String fileType = fileTypeRaw?.toLowerCase() ?? '';
+
+    final bool isFileImage = fileType.startsWith('image/') ||
+        (fileName != null &&
+            ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic', 'heif', 'svg']
+                .any((ext) => fileName.toLowerCase().endsWith('.$ext')));
+
+    final String? imageUrl = message['imageUrl'];
+    final String? originalUrl = message['originalUrl']?.toString();
+    final String? displayImageUrl =
+        originalUrl ?? imageUrl ?? (isFileImage ? fileUrl : null);
+    final String? replycontent = message['replyContent'];
 
     final bool? isForwarded = message['isForwarded'] ?? false;
     final bool? isReplyMessage = message['isReplyMessage'];
     final String messageStatus = message['messageStatus']?.toString() ?? 'sent';
-    final String fileType = fileTypeRaw?.toLowerCase() ?? '';
+
     final bool isVideo = fileType.startsWith('video/') ||
         (message['isVideo'] == true) ||
         ((fileUrl ?? originalUrl ?? '')
@@ -96,7 +104,8 @@ class MessageBubble extends StatelessWidget {
         (replyContent != null && replyContent.toString().isNotEmpty);
 
     final bool hasFile = fileUrl != null && fileUrl.isNotEmpty;
-    final bool hasImage = imageUrl != null && imageUrl.isNotEmpty;
+    final bool hasImage = (imageUrl != null && imageUrl.isNotEmpty) ||
+        (isFileImage && fileUrl != null && fileUrl.isNotEmpty);
     // If nothing to show (no text, no image, no file) -> shimmer placeholder
     if (content.isEmpty && !hasImage && !hasFile) {
       return Align(
@@ -111,10 +120,9 @@ class MessageBubble extends StatelessWidget {
         ),
       );
     }
-    //log("properties ${message['reply']}");
 
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: emojpicker != null ? 8.0 : 0),
+      padding: EdgeInsets.symmetric(vertical: emojpicker != null ? 6.0 : 0),
       child: GestureDetector(
         onTap: onTap,
         onLongPress: () {
@@ -171,9 +179,10 @@ class MessageBubble extends StatelessWidget {
                     children: [
                       if (hasReply)
                         RepliedMessagePreview(
-                          key: ValueKey(message['isReplyMessage']?.hashCode ??
-                              message['reply']),
-                          replied: message['reply'] ?? {},
+                          key: ValueKey(
+                              '${message['message_id']}_${message['replyContent']}'),
+                          replied:
+                              message['reply'] ?? _buildSyntheticReply(message),
                           receiver: message['receiver'] is Map
                               ? Map<String, dynamic>.from(message['receiver'])
                               : {},
@@ -204,7 +213,8 @@ class MessageBubble extends StatelessWidget {
 
                       // Image preview (only if not video)
                       if (!isVideo && hasImage)
-                        _buildImage(context, content, displayImageUrl!, fileName,
+                        _buildImage(
+                            context, content, displayImageUrl!, fileName,
                             isSentByMe: isSentByMe),
 
                       // File preview (if file exists)
@@ -287,6 +297,31 @@ class MessageBubble extends StatelessWidget {
     );
   }
 
+  Map<String, dynamic> _buildSyntheticReply(Map<String, dynamic> message) {
+    // Extract the message ID being replied to (if available)
+    final replyToMsgId = message['replyToMessageId'] ??
+        message['reply_message_id'] ??
+        message['replyMessageId'] ??
+        '';
+    return {
+      'id': replyToMsgId,
+      'message_id': replyToMsgId,
+      'reply_message_id': replyToMsgId,
+      'replyContent': message['replyContent'] ?? '',
+      'content': message['replyContent'] ?? '',
+      'ContentType': message['ContentType'] ?? 'text',
+      'fileName': message['fileName'] ?? '',
+      'originalUrl': message['originalUrl'] ?? '',
+      'thumbnailUrl': message['thumbnailUrl'] ?? '',
+      'fileUrl': message['fileUrl'],
+      'imageUrl': message['imageUrl'],
+      'first_name': message['receiver']?['first_name'] ?? '',
+      'last_name': message['receiver']?['last_name'] ?? '',
+      'group_message_id': message['group_message_id'],
+      'is_grouped_message': message['is_grouped_message'] ?? false,
+    };
+  }
+
   void _openConversationViewer(BuildContext context, String tappedUrl) {
     final media = buildConversationMedia(
       allMessages,
@@ -352,7 +387,7 @@ class MessageBubble extends StatelessWidget {
     final String name = fileName ?? 'Unknown file';
     final String extension =
         name.split('.').isNotEmpty ? name.split('.').last.toLowerCase() : '';
-    final String? fileSize = message['fileSize']?.toString();
+    message['fileSize']?.toString();
 
     // List of image extensions
     final Set<String> imageExtensions = {
@@ -520,8 +555,7 @@ class MessageBubble extends StatelessWidget {
             // openSingleMediaViewer(context);
           },
           onTap: () async {
-            //    debugPrint('MessageBubble: image tapped => $imageUrl');
-            // if it's an actual image, open viewer; otherwise, try to download/open file
+          
             if (looksImage) {
               _openConversationViewer(context, imageUrl);
             } else {
@@ -573,43 +607,6 @@ class MessageBubble extends StatelessWidget {
             ),
           ),
         ),
-
-        // forward button
-        //     Positioned(
-        //   top: 0,
-        //   bottom: 0,
-        //   left: isSentByMe ? -60 : null,
-        //   right: isSentByMe ? null : -60,
-        //   child: IgnorePointer(
-        // ignoring: false, // 🔥 FORCE pointer
-        // child: Material(
-        //   color: Colors.transparent,
-        //   child: InkWell(
-        //     borderRadius: BorderRadius.circular(20),
-        //     onTap: () {
-        //       log("FORWARD ICON TAP"); // ✅ WILL PRINT
-        //       MyRouter.push(
-        //         screen: ForwardMessageScreen(
-        //           messages: [message],
-        //           currentUserId: message['senderId'] ?? '',
-        //           conversionalid: "",
-        //           username: message['senderName'] ?? '',
-        //         ),
-        //       );
-        //     },
-        //     child: CircleAvatar(
-        //       maxRadius: 16,
-        //       backgroundColor: Colors.white,
-        //       child: Image.asset(
-        //         "assets/images/forward.png",
-        //         height: 20,
-        //         width: 20,
-        //       ),
-        //     ),
-        //   ),
-        // ),
-        //   ),
-        // )
       ],
     );
   }
@@ -641,11 +638,6 @@ class MessageBubble extends StatelessWidget {
   }
 
   Future<String?> fetchFreshPresignedUrlFromServer(String imageKeyOrUrl) async {
-    // If you store objectKey in message, pass that. If you only have URL, you may need the server
-    // to map from object key extracted from URL to a new presigned URL.
-    // Example pseudo:
-    // final resp = await Api.get('/presign?key=$imageKey');
-    // return resp?.data?.url;
     return null;
   }
 
@@ -672,7 +664,7 @@ class MessageBubble extends StatelessWidget {
         if (fresh != null && fresh.isNotEmpty) {
           debugPrint('openImageSmart: got fresh presigned url.');
           // download and cache fresh file
-          final fetched = await cacheManager.getSingleFile(fresh);
+          await cacheManager.getSingleFile(fresh);
           openSingleMediaViewer(context);
           return;
         } else {
@@ -1177,30 +1169,6 @@ class MessageBubble extends StatelessWidget {
     );
   }
 
-  Future<File?> _generateVideoThumbnail(String videoUrl) async {
-    try {
-      final tempDir = await getTemporaryDirectory();
-
-      // ✅ CREATE UNIQUE FILE NAME PER VIDEO (CRITICAL FIX)
-      final uniqueName = videoUrl.hashCode.toString();
-      final thumbPath = '${tempDir.path}/thumb_$uniqueName.png';
-
-      final generatedPath = await VideoThumbnail.thumbnailFile(
-        video: videoUrl,
-        thumbnailPath: thumbPath, // ✅ UNIQUE FILE
-        imageFormat: ImageFormat.PNG,
-        maxHeight: 300,
-        quality: 75,
-      );
-
-      if (generatedPath == null) return null;
-      return File(generatedPath);
-    } catch (e, st) {
-      debugPrint('❌ Thumbnail error for $videoUrl: $e\n$st');
-      return null;
-    }
-  }
-
   Widget _buildVideoPreviewTile(
     BuildContext context,
     String videoUrl,
@@ -1375,45 +1343,6 @@ class MessageBubble extends StatelessWidget {
         child: CircularProgressIndicator(
           strokeWidth: 2,
         ),
-      ),
-    );
-  }
-
-  Future<String> _getVideoDuration(String path, bool isNetwork) async {
-    final controller = VideoPlayerController.networkUrl(Uri.parse(path));
-
-    try {
-      await controller.initialize();
-      final duration = controller.value.duration;
-
-      final minutes =
-          duration.inMinutes.remainder(60).toString().padLeft(2, '0');
-      final seconds =
-          duration.inSeconds.remainder(60).toString().padLeft(2, '0');
-
-      return '$minutes:$seconds';
-    } catch (e) {
-      return "00:00";
-    } finally {
-      await controller.dispose();
-    }
-  }
-
-  Widget _buildTimeRow(String messageStatus) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 6),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          Text(
-            TimeUtils.formatUtcToIst(message['time']),
-            style: const TextStyle(fontSize: 10, color: Colors.black54),
-          ),
-          const SizedBox(width: 4),
-          if (isSentByMe)
-            buildStatusIcon?.call(messageStatus) ?? const SizedBox(),
-        ],
       ),
     );
   }
