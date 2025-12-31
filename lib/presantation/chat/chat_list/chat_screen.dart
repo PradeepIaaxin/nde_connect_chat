@@ -62,7 +62,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
   String? profilePicUrl;
   String? userName;
   bool _showAdBanner = true;
-  Map<String, String> _typingByConvo = {};
+  final Map<String, String> _typingByConvo = {};
   StreamSubscription? _typingSub;
 
   // Track the original full list for "Select All"
@@ -533,8 +533,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
     // Refresh the list
     context.read<ChatListBloc>().add(UpdateLocalChatList());
   }
-
-
 
   @override
   Widget build(BuildContext context) {

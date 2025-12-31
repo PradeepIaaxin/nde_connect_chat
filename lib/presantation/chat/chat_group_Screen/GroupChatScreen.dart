@@ -225,7 +225,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     SocketService().joinChatRoom(
       senderId: currentUserId,
       receiverId: widget.datumId,
-      isGroupChat: false,
+      isGroupChat: true,
     );
 
     _checkingPersmmion();
@@ -541,6 +541,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         // Add as new message
         socketMessages.add(newMessage);
         _scrollToBottom();
+        if (_visibleCount > 0) _visibleCount++;
         log("➕ ADDED new message to socketMessages: $messageId");
       }
 
@@ -1390,6 +1391,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     setState(() {
       socketMessages.add(message);
       _scrollToBottom();
+      if (_visibleCount > 0) _visibleCount++;
 
       final combined = [...dbMessages, ...messages, ...socketMessages];
       GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
@@ -1487,7 +1489,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     setState(() {
       socketMessages.add(message);
       _scrollToBottom();
-
+      if (_visibleCount > 0) _visibleCount++;
       final combined = [...dbMessages, ...messages, ...socketMessages];
       GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
       _updateNotifier();
@@ -1535,11 +1537,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       // 1. Optimistic Update
       setState(() {
         socketMessages.add(message);
+        if (_visibleCount > 0) _visibleCount++;
         _updateNotifier();
       });
-
-      // 2. Send Event via BLoC
-      // Note: We replicate the logic from GrpShowAltDialog's legacy path here
       context.read<GroupChatBloc>().add(
             GrpUploadFileEvent(
               file: localFile,
