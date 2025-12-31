@@ -7,7 +7,6 @@ import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/wi
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/date_separate.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/double_tick_ui.dart';
 import 'package:nde_email/presantation/chat/widget/delete_dialogue.dart';
-import 'package:nde_email/presantation/chat/widget/image_viewer.dart';
 import 'package:nde_email/presantation/chat/widget/reation_bottom.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/ForwardMessageScreen_widget.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/buildMessageInputField_widgets.dart';
@@ -20,7 +19,6 @@ import 'messager_Bloc/MessagerEvent.dart';
 import 'messager_Bloc/MessagerState.dart';
 import 'messager_Bloc/widget/MixedMediaViewer.dart';
 import 'messager_Bloc/widget/VideoPlayerScreen.dart';
-import 'messager_Bloc/widget/VideoThumbUtil.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/whatsapp_swipe_to_reply.dart';
 
 class PrivateChatScreen extends StatefulWidget {
@@ -76,6 +74,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   late MessagerBloc _messagerBloc;
   MessageHandler? _messageHandler;
   StreamSubscription<Map<String, dynamic>>? _statusSubscription;
+  StreamSubscription? _messageDeletedSubscription;
 
   // Message storage (in-memory)
   final List<Map<String, dynamic>> socketMessages = [];
@@ -211,8 +210,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   @override
   void dispose() {
     SocketService().clearActiveConversation();
-    // socketService.clearActiveConversation(widget.convoId);
     _reactionSubscription?.cancel();
+    _messageDeletedSubscription?.cancel();
     _scrollController.removeListener(_scrollListener);
     _connSub?.cancel();
 
@@ -380,10 +379,12 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             completer.complete(state.sentMessage);
           }
         });
+        final String? newConversationId =
+            _currentConversationId.isEmpty ? null : _currentConversationId;
 
         _messagerBloc.add(
           SendMessageEvent(
-            convoId: _currentConversationId,
+            convoId: newConversationId,
             message: text,
             senderId: currentUserId,
             receiverId: widget.receiverId!,
@@ -493,9 +494,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       return;
     }
 
-    debugPrint('📊 _updateNotifierFromAll: total=$total');
-
-    final visibleSlice = List<Map<String, dynamic>>.from(_allMessages);
+    final visibleSlice =
+        _allMessages.map((msg) => Map<String, dynamic>.from(msg)).toList();
 
     // ✅ immutable list
     _messagesNotifier.value =
@@ -717,39 +717,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     return false;
   }
 
-  Map<String, dynamic> _mergeReplyInfoIfMissing(
-    Map<String, dynamic> fresh,
-    Map<String, dynamic> existing,
-  ) {
-    final merged = Map<String, dynamic>.from(fresh);
-
-    final hadReplyBefore = _hasReplyForMessage(existing);
-    final hasReplyNow = _hasReplyForMessage(fresh);
-
-    if (hadReplyBefore && !hasReplyNow) {
-      if (existing['isReplyMessage'] == true) {
-        merged['isReplyMessage'] = true;
-      }
-
-      if (existing['reply_message_id'] != null) {
-        merged['reply_message_id'] ??= existing['reply_message_id'];
-      }
-
-      if (existing['reply'] is Map) {
-        merged['reply'] ??= Map<String, dynamic>.from(existing['reply']);
-      }
-    }
-
-    final oldStatus = (existing['messageStatus'] ?? '').toString();
-    final newStatus = (fresh['messageStatus'] ?? '').toString();
-
-    if (oldStatus == 'read' && newStatus != 'read') {
-      merged['messageStatus'] = 'read';
-    }
-
-    return merged;
-  }
-
   /// Collect reactions for a message id from all local lists and merge them
   List<Map<String, dynamic>> _collectMergedReactionsForMessage(
       String messageId) {
@@ -842,7 +809,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           orElse: () => {},
         );
 
-        final senderId = (local != null && local.isNotEmpty)
+        final senderId = (local.isNotEmpty)
             ? (local['senderId'] ?? local['sender']?['_id'] ?? local['sender'])
                 ?.toString()
             : null;
@@ -856,6 +823,13 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         // apply update normally
         _updateMessageStatus(id, status);
       }
+    });
+
+    //messgae deleted listener
+    _messageDeletedSubscription =
+        socketService.messageDeletedStream.listen((messageId) {
+      log("🗑️ Received message_deleted event for: $messageId");
+      _markMessagesAsDeleted([messageId], deleteFor: 'everyone');
     });
   }
 
@@ -987,6 +961,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             'sent')
         .toString();
 
+    // ================= DELETED STATUS =================
+    m['is_deleted'] = rawMsg['is_deleted'] == true;
+
     // ================= MEDIA =================
     String? imageUrl = rawMsg['imageUrl'];
     if (imageUrl == null || imageUrl.toString().isEmpty) {
@@ -1020,7 +997,36 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     m['fileName'] = rawMsg['fileName'];
     m['fileType'] = rawMsg['mimeType'] ?? rawMsg['fileType'];
 
-    //log('✅ Normalized message: ID=${m['message_id']}, Content="${m['content']?.toString().substring(0, (m['content']?.toString().length ?? 0))}..."');
+// ================= EXTRACT REPLY DATA =================
+    // Ensure reply fields are set on snapshot load
+    final rawReply = rawMsg['reply'];
+    final rawReplyId = rawMsg['reply_message_id'] ?? rawMsg['replyMessageId'];
+    final rawReplyContent = rawMsg['replyContent'];
+    final rawIsReplyMessage = rawMsg['isReplyMessage'];
+
+    // Set isReplyMessage flag
+    if (rawIsReplyMessage == true ||
+        rawReply != null ||
+        rawReplyId != null ||
+        rawReplyContent != null) {
+      m['isReplyMessage'] = true;
+    }
+
+    // Set reply object if present
+    if (rawReply is Map) {
+      m['reply'] = Map<String, dynamic>.from(rawReply);
+    }
+
+    // Set reply_message_id if present
+    if (rawReplyId != null) {
+      m['reply_message_id'] = rawReplyId;
+      m['replyMessageId'] = rawReplyId;
+    }
+
+    // Set replyContent if present
+    if (rawReplyContent != null) {
+      m['replyContent'] = rawReplyContent.toString();
+    }
 
     return m;
   }
@@ -1184,6 +1190,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     // ---------- RESET INPUT ----------
     _messageController.clear();
+    setState(() {});
     _clearDraft();
     _replyMessage = null;
     _replyPreview = null;
@@ -2177,16 +2184,31 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     isSentByMe = correctIsSentByMe;
 
+    // 🔥 FIX: Create unique key that includes reply data to force rebuilds
+    final messageId = (message['message_id'] ?? message['id'] ?? '').toString();
+    final replyContent = (message['replyContent'] ?? '').toString();
+    final keyString = '$messageId-$replyContent-${message.hashCode}';
+
+    // Handle deleted message display
+    Map<String, dynamic> displayMessage = message;
+    if (message['is_deleted'] == true) {
+      displayMessage = Map<String, dynamic>.from(message);
+      displayMessage['content'] = "🚫 This message was deleted";
+      displayMessage['imageUrl'] = "";
+      displayMessage['fileUrl'] = "";
+      displayMessage['fileName'] = "";
+      displayMessage['originalUrl'] = "";
+      displayMessage['messageStatus'] = 'deleted';
+    }
+
     return MessageBubble(
-      message: message,
+      message: displayMessage,
       isSentByMe: correctIsSentByMe,
       isSelected: _selectedMessageKeys.contains(_generateMessageKey(message)),
       onTap: () => _onMessageTap(message),
       onLongPress: () => _onMessageLongPress(message),
       onRightSwipe: () => _replyToMessage(message),
       onFileTap: (url, type) => _openFile(url, type),
-
-      //   onImageTap: (url) => ImageViewer.show(context, url),
       buildStatusIcon: (status) => MessageStatusIcon(status: status ?? 'sent'),
       buildReactionsBar: (msg, sentByMe) => _buildReactionsBar(msg, sentByMe),
       sentMessageColor: senderColor,
@@ -3061,23 +3083,34 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     });
   }
 
-  void _markMessagesAsDeleted(List<String> messageIds) {
+  void _markMessagesAsDeleted(List<String> messageIds,
+      {String deleteFor = 'everyone'}) {
     if (messageIds.isEmpty) return;
 
     bool changed = false;
 
     void markInList(List<Map<String, dynamic>> list) {
-      for (var i = 0; i < list.length; i++) {
-        final msg = list[i];
-        final id = (msg['message_id'] ?? msg['messageId'] ?? '').toString();
-        if (id.isNotEmpty && messageIds.contains(id)) {
-          msg['content'] = "Message Deleted";
-          msg['imageUrl'] = "";
-          msg['fileUrl'] = "";
-          msg['fileName'] = "";
-          msg['mimeType'] = msg['mimeType'] ?? msg['fileType'] ?? "";
-          msg['messageStatus'] = 'deleted';
-          changed = true;
+      if (deleteFor == 'me') {
+        final initialLen = list.length;
+        list.removeWhere((msg) {
+          final id = (msg['message_id'] ?? msg['messageId'] ?? '').toString();
+          return id.isNotEmpty && messageIds.contains(id);
+        });
+        if (list.length != initialLen) changed = true;
+      } else {
+        for (var i = 0; i < list.length; i++) {
+          final msg = list[i];
+          final id = (msg['message_id'] ?? msg['messageId'] ?? '').toString();
+          if (id.isNotEmpty && messageIds.contains(id)) {
+            msg['content'] = "🚫 This message was deleted";
+            msg['imageUrl'] = "";
+            msg['fileUrl'] = "";
+            msg['fileName'] = "";
+            msg['mimeType'] = msg['mimeType'] ?? msg['fileType'] ?? "";
+            msg['messageStatus'] = 'deleted';
+            msg['is_deleted'] = true;
+            changed = true;
+          }
         }
       }
     }
@@ -3121,19 +3154,19 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     });
   }
 
-  void _deleteSelectedMessages() {
+  void _deleteSelectedMessages(String deleteFor) {
     if (_selectedMessageIds.isEmpty) return;
 
-    _markMessagesAsDeleted(_selectedMessageIds.toList());
+    _markMessagesAsDeleted(_selectedMessageIds.toList(), deleteFor: deleteFor);
 
     _messagerBloc.add(DeleteMessagesEvent(
-      messageIds: _selectedMessageIds.toList(),
-      convoId: widget.convoId,
-      senderId: currentUserId,
-      receiverId: widget.datumId ?? "",
-      message:
-          _selectedMessageKeys.isNotEmpty ? _selectedMessageKeys.first : "",
-    ));
+        messageIds: _selectedMessageIds.toList(),
+        convoId: widget.convoId,
+        senderId: currentUserId,
+        receiverId: widget.datumId ?? "",
+        message:
+            _selectedMessageKeys.isNotEmpty ? _selectedMessageKeys.first : "",
+        deleteFor: deleteFor));
 
     setState(() {
       _selectedMessages.clear();
@@ -3279,8 +3312,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       deleteSelectedMessages: () {
         DeleteMessageDialog.show(
           context: context,
-          onDeleteForEveryone: () {},
-          onDeleteForMe: () => _deleteSelectedMessages(),
+          onDeleteForEveryone: () => _deleteSelectedMessages('everyone'),
+          onDeleteForMe: () => _deleteSelectedMessages('me'),
         );
       },
       forwardSelectedMessages: _forwardSelectedMessages,
@@ -3303,9 +3336,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     );
   }
 
-// 🔥 ADD THIS NEW HELPER METHOD
   String? _getMessageSenderId(Map<String, dynamic> message) {
-    if (message == null || message.isEmpty) return null;
+    if (message.isEmpty) return null;
 
     // Try multiple fields in order of priority
     String? senderId;
@@ -3519,8 +3551,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     return {
       ...m,
-
-      // 🔥 REQUIRED FOR UI + FORWARD
       'imageUrl': imageUrl,
       'fileUrl': fileUrl,
       'fileType': fileType,
@@ -3531,10 +3561,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   Map<String, dynamic> _resolveReplySource(Map<String, dynamic> message) {
-    // If message is itself a reply, reply to the original message
-    if (message['isReplyMessage'] == true) {
-      return message['_localReply'] ?? message['reply'] ?? message;
-    }
     return message;
   }
 
@@ -4193,8 +4219,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                     margin: EdgeInsets.only(
                                       top: hasReply ? 4 : 0,
                                       bottom: hasReaction
-                                          ? (hasReply ? 14 : 5)
-                                          : (hasReply ? 15 : 0),
+                                          ? (hasReply ? 20 : 5)
+                                          : (hasReply ? 10 : 0),
                                     ),
                                     color: isHighlighted
                                         ? Colors.blueAccent
@@ -4224,8 +4250,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                                     margin: const EdgeInsets
                                                         .symmetric(
                                                         horizontal: 5,
-                                                        vertical: 6),
-                                                    // padding: const EdgeInsets.all(7),
+                                                        vertical: 0),
                                                     constraints:
                                                         const BoxConstraints(
                                                             maxWidth: 160),
@@ -4524,7 +4549,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       onCancelReply: () {
         recorderHelper.cancelReply();
         _replyPreview = null;
-        _messageController.clear();
+        _replyMessage = null;
+        //  _messageController.clear();
         setState(() {});
       },
       reciverID: widget.datumId ?? "",
