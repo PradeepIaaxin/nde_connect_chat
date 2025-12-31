@@ -1423,7 +1423,10 @@
 // }
 
 import 'dart:convert';
+import 'package:hive/hive.dart';
 import 'package:nde_email/bridge_generated.dart/api.dart';
+import 'package:nde_email/convo_list_crdt.dart';
+import 'dart:typed_data';
 import 'package:nde_email/data/respiratory.dart';
 import 'package:nde_email/presantation/chat/chat_list/chat_response_model.dart';
 import 'package:nde_email/presantation/chat/model/emoj_model.dart';
@@ -1517,7 +1520,7 @@ class SocketService {
   bool _isConnecting = false;
   bool _isInitialized = false;
 
-  final Set<String> _joinedRooms = <String>{}; // Prevent duplicate joins
+  final Set<String> _joinedRooms = <String>{};
 
   Function(List<Datu>)? _onChatListUpdatedCallback;
   void setChatListUpdateCallback(Function(List<Datu>) callback) {
@@ -1652,22 +1655,23 @@ class SocketService {
               _slog('🟢 join_workspace ACK: $response');
 
               if (response is Map && response['success'] == true) {
-                _onlineStatusController.add(true);
+                // _onlineStatusController.add(true);
               } else {
                 _slog('🔴 join_workspace rejected');
               }
             },
           );
 
-          // socket!.emit('join_workspace', {
-          //   'workspaceId': currentWorkspaceId!,
-          //   'userId': _currentUserId!,
-          // });
+          syncConvoList();
+
           _slog('join_workspace emitted');
         }
       });
 
-      _onlineStatusController.add(true);
+      if (!_onlineStatusController.isClosed) {
+        // _onlineStatusController.add(true);
+      }
+
       print("soxket id : ${socket!.id}");
       print("socket : ${socket!.connected}");
       socket!.onAny((event, data) {
@@ -1698,7 +1702,7 @@ class SocketService {
   void _registerAllEventHandlers() {
     final Map<String, Function(dynamic)> events = {
       'roomJoined': _handleRoomJoined,
-      'workspaceRoomJoined': (_) => _onlineStatusController.add(true),
+      'workspaceRoomJoined': _handleRoomJoined,
       'system_message': (data) => _systemMessageController.add(data),
       'get_typing': _handleTyping,
       'messagesRead': _handleMessagesRead,
@@ -1720,7 +1724,7 @@ class SocketService {
 
     // Message events (multiple names)
     final messageEvents = [
-      'receive_message',
+      // 'receive_message',
       'new_message',
       'message',
       'newMessage',
@@ -1809,7 +1813,7 @@ class SocketService {
         saveRoomId(roommId!);
         _slog('Saved roomId $roommId');
       }
-      _onlineStatusController.add(true);
+      // _onlineStatusController.add(true);
     });
   }
 
@@ -1986,12 +1990,10 @@ class SocketService {
       current.remove(userId);
     }
 
-    onlineUsersNotifier.value = current; 
+    onlineUsersNotifier.value = current;
 
     _slog("Presence: $userId → ${online ? 'online' : 'offline'}");
   }
-
-
 
   void _handleMessageListUpdate(dynamic payload) {
     scheduleMicrotask(() async {
@@ -2033,7 +2035,6 @@ class SocketService {
 
   void _handleChatListUpdate(dynamic payload) {
     scheduleMicrotask(() async {
-      _slog('chatlistUpdate received');
       try {
         final bytes = _decodeToBytes(payload);
         if (bytes == null || bytes.isEmpty) return;
@@ -2042,20 +2043,55 @@ class SocketService {
         final decoded = jsonDecode(jsonString);
         final List list = decoded["chatDataList"] ?? [];
 
-        if (list.isEmpty) {
-          _slog('chatlistUpdate empty – skipping');
-          return;
-        }
+        if (list.isEmpty) return;
 
         final datuList = list.map<Datu>((e) => Datu.fromJson(e)).toList();
-        _onChatListUpdatedCallback?.call(datuList);
 
-        _slog('chatlistUpdate applied → ${datuList.length} chats');
-      } catch (e, st) {
-        _slog('chatlistUpdate error: $e\n$st');
+        // 🔥 SAVE CRDT SNAPSHOT + FRONTIERS
+        final snapshot = await exportChatSnapshot();
+        final frontiers = await exportChatFrontiers();
+        final box = await Hive.openBox<ConvoListCrdt>('convo_crdt');
+        await box.put(
+          _currentUserId!,
+          ConvoListCrdt(
+            snapshot: snapshot,
+            frontiers: frontiers,
+            savedAt: DateTime.now().millisecondsSinceEpoch,
+          ),
+        );
+
+        _onChatListUpdatedCallback?.call(datuList);
+      } catch (e) {
+        _slog('chatlistUpdate error: $e');
       }
     });
   }
+
+  // void _handleChatListUpdate(dynamic payload) {
+  //   scheduleMicrotask(() async {
+  //     _slog('chatlistUpdate received');
+  //     try {
+  //       final bytes = _decodeToBytes(payload);
+  //       if (bytes == null || bytes.isEmpty) return;
+
+  //       final jsonString = await importChatUpdate(updateBytes: bytes);
+  //       final decoded = jsonDecode(jsonString);
+  //       final List list = decoded["chatDataList"] ?? [];
+
+  //       if (list.isEmpty) {
+  //         _slog('chatlistUpdate empty – skipping');
+  //         return;
+  //       }
+
+  //       final datuList = list.map<Datu>((e) => Datu.fromJson(e)).toList();
+  //       _onChatListUpdatedCallback?.call(datuList);
+
+  //       _slog('chatlistUpdate applied → ${datuList.length} chats');
+  //     } catch (e, st) {
+  //       _slog('chatlistUpdate error: $e\n$st');
+  //     }
+  //   });
+  // }
 
   void _handleMessageDeleted(dynamic data) {
     scheduleMicrotask(() {
@@ -2170,6 +2206,28 @@ class SocketService {
     }
   }
 
+  Future<void> syncConvoList() async {
+    if (!isConnected || _currentUserId == null) return;
+
+    final box = await Hive.openBox<ConvoListCrdt>('convo_crdt');
+    final local = box.get(_currentUserId!);
+
+    if (local == null) {
+      // ❌ No CRDT → snapshot bootstrap
+      socket!.emit('convoList:sync', {
+        'userId': _currentUserId,
+        'mode': 'snapshot',
+      });
+      return;
+    }
+
+    // ✅ Delta sync (NORMAL CASE)
+    socket!.emit('convoList:sync', {
+      'userId': _currentUserId,
+      'frontiers': local.frontiers,
+    });
+  }
+
   void sendTyping({
     required String roomId,
     required String convoId,
@@ -2214,6 +2272,120 @@ class SocketService {
         .emit('make_delivered', {'messageIds': messageIds, 'roomId': roomId});
   }
 
+  // Future<List<Map<String, dynamic>>> forwardMessage({
+  //   required String senderId,
+  //   required List<String> receiverIds,
+  //   required String originalMessageId,
+  //   required String messageContent,
+  //   required String conversationId,
+  //   required String workspaceId,
+  //   required bool isGroupChat,
+  //   required Map<String, String> currentUserInfo,
+  //   dynamic file,
+  //   String? fileName,
+  //   String? image,
+  //   String contentType = 'text',
+  //   Duration ackTimeout = const Duration(seconds: 8),
+  // }) async {
+  //   final results = <Map<String, dynamic>>[];
+
+  //   if (senderId.isEmpty ||
+  //       receiverIds.isEmpty ||
+  //       originalMessageId.isEmpty ||
+  //       workspaceId.isEmpty ||
+  //       !isConnected) {
+  //     return receiverIds
+  //         .map((r) => {
+  //               'receiverId': r,
+  //               'success': false,
+  //               'error': 'Missing fields or not connected'
+  //             })
+  //         .toList();
+  //   }
+
+  //   for (final receiverId in receiverIds) {
+  //     final roomId = generateRoomId(senderId, receiverId);
+  //     final forwardPayload = {
+  //       "forward": [
+  //         {
+  //           "sender": senderId,
+  //           "receiver": receiverId,
+  //           "conversationId": conversationId,
+  //           "workspaceId": workspaceId,
+  //           "roomId": roomId,
+  //           "isGroupChat": isGroupChat,
+  //           "UserData": {"first_name": currentUserInfo['name'] ?? ""}
+  //         }
+  //       ],
+  //       "messageIds": [
+  //         {"messageId": originalMessageId, "forwardUserId": receiverId}
+  //       ],
+  //       "isForwarded": true,
+  //       "isOwnConvo": true,
+  //       "contentType": contentType,
+  //       "fileName": fileName,
+  //       "image": image,
+  //     };
+
+  //     log(forwardPayload.toString());
+  //     final completer = Completer<Map<String, dynamic>>();
+  //     var completed = false;
+  //     final timer = Timer(ackTimeout, () {
+  //       if (!completed) {
+  //         completed = true;
+  //         completer.complete({
+  //           'receiverId': receiverId,
+  //           'success': false,
+  //           'error': 'ACK timeout'
+  //         });
+  //       }
+  //     });
+
+  //     socket!.emitWithAck('forward_message', forwardPayload,
+  //         ack: (ackResponse) {
+  //       if (completed) return;
+  //       completed = true;
+  //       timer.cancel();
+  //       try {
+  //         final Map<String, dynamic> entry = {
+  //           'receiverId': receiverId,
+  //           'success': false,
+  //           'response': ackResponse
+  //         };
+  //         String? serverMessageId;
+  //         if (ackResponse is Map) {
+  //           if (ackResponse['data'] is Map) {
+  //             serverMessageId = ackResponse['data']['messageId']?.toString() ??
+  //                 ackResponse['data']['message_id']?.toString();
+  //           }
+  //           serverMessageId ??= ackResponse['messageId']?.toString() ??
+  //               ackResponse['message_id']?.toString() ??
+  //               ackResponse['id']?.toString();
+  //           entry['success'] = (ackResponse['success'] == true ||
+  //               ackResponse['status'] == 'success');
+  //           if (serverMessageId != null) {
+  //             entry['serverMessageId'] = serverMessageId;
+  //           }
+  //         }
+  //         completer.complete(entry);
+  //       } catch (e) {
+  //         completer.complete({
+  //           'receiverId': receiverId,
+  //           'success': false,
+  //           'error': 'Parse error: $e'
+  //         });
+  //       }
+  //     });
+
+  //     final result = await completer.future;
+  //     results.add(result);
+
+  //     await Future.delayed(const Duration(milliseconds: 40));
+  //   }
+
+  //   return results;
+  // }
+
   Future<List<Map<String, dynamic>>> forwardMessage({
     required String senderId,
     required List<String> receiverIds,
@@ -2236,6 +2408,7 @@ class SocketService {
         originalMessageId.isEmpty ||
         workspaceId.isEmpty ||
         !isConnected) {
+      log("❌ ForwardMessage failed: Missing fields or socket not connected");
       return receiverIds
           .map((r) => {
                 'receiverId': r,
@@ -2247,6 +2420,7 @@ class SocketService {
 
     for (final receiverId in receiverIds) {
       final roomId = generateRoomId(senderId, receiverId);
+
       final forwardPayload = {
         "forward": [
           {
@@ -2269,11 +2443,17 @@ class SocketService {
         "image": image,
       };
 
+      /// 🔵 LOG → PAYLOAD
+      log("📤 FORWARD PAYLOAD → receiver=$receiverId");
+      log(forwardPayload.toString());
+
       final completer = Completer<Map<String, dynamic>>();
-      var completed = false;
+      bool completed = false;
+
       final timer = Timer(ackTimeout, () {
         if (!completed) {
           completed = true;
+          log("⏰ ACK TIMEOUT → receiver=$receiverId");
           completer.complete({
             'receiverId': receiverId,
             'success': false,
@@ -2282,46 +2462,75 @@ class SocketService {
         }
       });
 
-      socket!.emitWithAck('forward_message', forwardPayload,
-          ack: (ackResponse) {
-        if (completed) return;
-        completed = true;
-        timer.cancel();
-        try {
-          final Map<String, dynamic> entry = {
-            'receiverId': receiverId,
-            'success': false,
-            'response': ackResponse
-          };
-          String? serverMessageId;
-          if (ackResponse is Map) {
-            if (ackResponse['data'] is Map) {
-              serverMessageId = ackResponse['data']['messageId']?.toString() ??
-                  ackResponse['data']['message_id']?.toString();
+      socket!.emitWithAck(
+        'forward_message',
+        forwardPayload,
+        ack: (ackResponse) {
+          if (completed) return;
+
+          completed = true;
+          timer.cancel();
+
+          /// 🔵 LOG → RAW ACK
+          log("📥 RAW ACK → receiver=$receiverId");
+          log(ackResponse.toString());
+
+          try {
+            final entry = <String, dynamic>{
+              'receiverId': receiverId,
+              'success': false,
+              'response': ackResponse,
+            };
+
+            String? serverMessageId;
+
+            if (ackResponse is Map) {
+              if (ackResponse['data'] is Map) {
+                serverMessageId =
+                    ackResponse['data']['messageId']?.toString() ??
+                        ackResponse['data']['message_id']?.toString();
+              }
+
+              serverMessageId ??= ackResponse['messageId']?.toString() ??
+                  ackResponse['message_id']?.toString() ??
+                  ackResponse['id']?.toString();
+
+              entry['success'] = ackResponse['success'] == true ||
+                  ackResponse['status'] == 'success';
+
+              if (serverMessageId != null) {
+                entry['serverMessageId'] = serverMessageId;
+              }
             }
-            serverMessageId ??= ackResponse['messageId']?.toString() ??
-                ackResponse['message_id']?.toString() ??
-                ackResponse['id']?.toString();
-            entry['success'] = (ackResponse['success'] == true ||
-                ackResponse['status'] == 'success');
-            if (serverMessageId != null)
-              entry['serverMessageId'] = serverMessageId;
+
+            /// 🟢 LOG → PARSED ACK
+            log("✅ PARSED ACK → receiver=$receiverId");
+            log(entry.toString());
+
+            completer.complete(entry);
+          } catch (e, st) {
+            log("❌ ACK PARSE ERROR → receiver=$receiverId");
+            log(e.toString());
+            log(st.toString());
+
+            completer.complete({
+              'receiverId': receiverId,
+              'success': false,
+              'error': 'Parse error: $e'
+            });
           }
-          completer.complete(entry);
-        } catch (e) {
-          completer.complete({
-            'receiverId': receiverId,
-            'success': false,
-            'error': 'Parse error: $e'
-          });
-        }
-      });
+        },
+      );
 
       final result = await completer.future;
       results.add(result);
 
       await Future.delayed(const Duration(milliseconds: 40));
     }
+
+    /// 🧾 FINAL RESULT LOG
+    log("📊 FORWARD MESSAGE RESULTS");
+    log(results.toString());
 
     return results;
   }
@@ -2340,12 +2549,18 @@ class SocketService {
     });
   }
 
-  void deleteMessage(
-      {required String messageId, required String conversationId}) {
+  void deleteMessage({
+    required List<String> messageIds,
+    required String conversationId,
+    required String roomId,
+    required String deleteFor,
+  }) {
     if (!isConnected) return;
     socket!.emit('delete_message', {
-      "messageId": messageId,
+      "messageIds": messageIds,
       "conversationId": conversationId,
+      "roomId": roomId,
+      "deleteFor": deleteFor,
     });
   }
 
@@ -2438,7 +2653,7 @@ class SocketService {
 
   void sendMessage({
     required String messageId,
-    required String conversationId,
+    String? conversationId,
     required String senderId,
     required String receiverId,
     required String message,
@@ -2495,31 +2710,20 @@ class SocketService {
       "isReplyMessage": reply != null || isReplyMessage,
       if (reply != null)
         "reply": {
-          "userId": reply["sender"]?["_id"],
-          "id": reply["message_id"],
-          "mimeType": reply["mimeType"],
-          "ContentType": reply["ContentType"],
-          "replyContent": reply["content"],
-          "replyToUSer": reply["sender"]?["_id"],
-          "fileName": reply["fileName"] ?? "",
-          "first_name": reply["sender"]?["first_name"],
-          "last_name": reply["sender"]?["last_name"],
+          "replyToUser": reply["sender"]?["_id"],
+          "replyToMessage": reply["message_id"] ?? reply["_id"] ?? reply["id"],
+          "replyContent": reply["content"] ?? reply["replyContent"] ?? "",
+          "ContentType": reply["ContentType"] ?? "text",
+          "fileName": reply["fileName"],
+          "first_name": reply["sender"]?["first_name"] ?? "",
+          "last_name": reply["sender"]?["last_name"] ?? "",
+          "originalUrl": reply["originalUrl"],
+          "thumbnailUrl": reply["thumbnailUrl"],
           "isGroupedMessageId": reply["group_message_id"],
           "isGroupedMessage": reply["is_grouped_message"] == true,
         },
     };
     log("sending message payload : $messagePayload");
-
-    // socket!.emitWithAck('send_message', messagePayload, ack: (data) {
-    //   try {
-    //     if (ackCallback != null && data is Map<String, dynamic>) {
-    //       ackCallback(data);
-    //       log(data.toString());
-    //     }
-    //   } catch (e) {
-    //     _slog('sendMessage ack error: $e');
-    //   }
-    // });
 
     socket!.emitWithAck(
       'send_message',
@@ -2571,36 +2775,6 @@ class SocketService {
     );
   }
 
-  //   socket!.emitWithAck(
-  //     'send_message',
-  //     messagePayload,
-  //     ack: (data) {
-  //       // ✅ ALWAYS PRINT ACK (NO CONDITIONS)
-  //       log('🟢 SEND_MESSAGE ACK RECEIVED');
-  //       log('🕒 Time: ${DateTime.now().toIso8601String()}');
-  //       log('📦 ACK Payload: $data');
-
-  //       // ✅ Normalize ACK
-  //       if (data is Map<String, dynamic>) {
-  //         final serverMessageId =
-  //             data['messageId'] ?? data['message_id'] ?? data['id'];
-
-  //         final status = data['messageStatus'] ?? data['status'] ?? 'unknown';
-
-  //         log('✅ ServerMessageId: $serverMessageId');
-  //         log('✅ Status: $status');
-
-  //         // ✅ Notify caller if needed
-  //         if (ackCallback != null) {
-  //           ackCallback(data);
-  //         }
-  //       } else {
-  //         log('⚠ ACK received but not a Map: ${data.runtimeType}');
-  //       }
-  //     },
-  //   );
-  // }
-
   String generateRoomId(String a, String b) {
     final ids = [a, b]..sort();
     return ids.join('_');
@@ -2623,18 +2797,24 @@ class SocketService {
   void dispose() {
     _typingTimeout?.cancel();
 
-    _typingController.close();
-    _reactionController.close();
-    _onlineStatusController.close();
-    _statusUpdateController.close();
-    _chatListRefreshController.close();
-    _systemMessageController.close();
-    _userStatusController.close();
-    _messageDeletedController.close();
-    _favoriteUpdateController.close();
-    _groupUpdateController.close();
-    _messageController.close();
-    _crdtMessageController.close();
+    void safeClose(StreamController c) {
+      if (!c.isClosed) {
+        c.close();
+      }
+    }
+
+    safeClose(_typingController);
+    safeClose(_reactionController);
+    safeClose(_onlineStatusController);
+    safeClose(_statusUpdateController);
+    safeClose(_chatListRefreshController);
+    safeClose(_systemMessageController);
+    safeClose(_userStatusController);
+    safeClose(_messageDeletedController);
+    safeClose(_favoriteUpdateController);
+    safeClose(_groupUpdateController);
+    safeClose(_messageController);
+    safeClose(_crdtMessageController);
 
     socket?.clearListeners();
     socket?.disconnect();
@@ -2643,12 +2823,15 @@ class SocketService {
 
     _joinedRooms.clear();
     _isInitialized = false;
+
+    _slog('SocketService disposed safely');
   }
 
   void disconnect() {
     _typingTimeout?.cancel();
     socket?.clearListeners();
     socket?.disconnect();
+
     _slog('SocketService disconnected');
   }
 }

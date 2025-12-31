@@ -68,7 +68,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 237387192;
+  int get rustContentHash => 736947045;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -83,6 +83,10 @@ abstract class RustLibApi extends BaseApi {
 
   Future<String> crateApiDecodeMessageSnapshot(
       {required String snapshotBase64});
+
+  Future<Uint8List> crateApiExportChatFrontiers();
+
+  Future<Uint8List> crateApiExportChatSnapshot();
 
   Future<String> crateApiImportChatUpdate({required List<int> updateBytes});
 
@@ -150,13 +154,60 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<Uint8List> crateApiExportChatFrontiers() {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 3, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_list_prim_u_8_strict,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiExportChatFrontiersConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiExportChatFrontiersConstMeta =>
+      const TaskConstMeta(
+        debugName: "export_chat_frontiers",
+        argNames: [],
+      );
+
+  @override
+  Future<Uint8List> crateApiExportChatSnapshot() {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 4, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_list_prim_u_8_strict,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiExportChatSnapshotConstMeta,
+      argValues: [],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiExportChatSnapshotConstMeta => const TaskConstMeta(
+        debugName: "export_chat_snapshot",
+        argNames: [],
+      );
+
+  @override
   Future<String> crateApiImportChatUpdate({required List<int> updateBytes}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_list_prim_u_8_loose(updateBytes, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 3, port: port_);
+            funcId: 5, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_String,
@@ -180,7 +231,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_list_prim_u_8_loose(updateBytes, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 4, port: port_);
+            funcId: 6, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_String,
@@ -204,7 +255,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 5, port: port_);
+            funcId: 7, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,

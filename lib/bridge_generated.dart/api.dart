@@ -12,6 +12,12 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 Future<void> resetGlobalDoc() => RustLib.instance.api.crateApiResetGlobalDoc();
 
+Future<Uint8List> exportChatSnapshot() =>
+    RustLib.instance.api.crateApiExportChatSnapshot();
+
+Future<Uint8List> exportChatFrontiers() =>
+    RustLib.instance.api.crateApiExportChatFrontiers();
+
 Future<String> decodeMessageSnapshot({required String snapshotBase64}) =>
     RustLib.instance.api
         .crateApiDecodeMessageSnapshot(snapshotBase64: snapshotBase64);

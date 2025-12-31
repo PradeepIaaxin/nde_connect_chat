@@ -7,6 +7,23 @@ class ChatSessionStorage {
   static Set<String> processedMessageIds = {};
 
   static Map<String, dynamic> _paginationData = {};
+  static void mergeChatList(List<Datu> incoming) {
+    String chatKey(Datu chat) {
+      if (chat.isGroupChat == true) {
+        return chat.conversationId!;
+      }
+      return chat.id!;
+    }
+
+    final Map<String, Datu> map = {for (final c in chatList) chatKey(c): c};
+
+    for (final chat in incoming) {
+      final key = chatKey(chat);
+      map[key] = chat;
+    }
+
+    chatList = map.values.toList();
+  }
 
   static void saveChatList(List<Datu> newChats) {
     chatList = newChats

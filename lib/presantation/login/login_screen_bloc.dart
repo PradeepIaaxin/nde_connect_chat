@@ -161,7 +161,10 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
     emit(state.copyWith(status: LoginStatus.initial));
   }
 
-  Future<void> _onLogout(LoginLoggedOut event, Emitter<LoginState> emit) async {
+  Future<void> _onLogout(
+    LoginLoggedOut event,
+    Emitter<LoginState> emit,
+  ) async {
     await performCleanLogout();
     emit(const LoginState());
   }
@@ -175,10 +178,13 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
       socketService.setUserOffline(userId, workspaceId);
     }
 
+    socketService.dispose();
+
+    // 2️⃣ Clear SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
 
-    // 2️⃣ Stop refresh
+    // 3️⃣ Stop refresh
     _refreshTimer?.cancel();
     _refreshTimer = null;
     _isRefreshing = false;
@@ -196,8 +202,6 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
       clearHiveBoxSafe(LocalSharredStorage.boxName),
     ]);
 
-    // 6️⃣ Clear prefs
-
     log("✅ FULL logout cleanup completed");
   }
 
@@ -206,43 +210,6 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
       await Hive.box(boxName).clear();
     }
   }
-
-  // Future<void> performCleanLogout() async {
-  //   // 👉 Take user data before clear & disconnect
-  //   final userId = await UserPreferences.getUserId();
-  //   final workspaceId = await UserPreferences.getDefaultWorkspace();
-
-  //   // 📢 Emit user_offline FIRST
-  //   if (userId != null && workspaceId != null) {
-  //     socketService.setUserOffline(userId, workspaceId);
-  //   }
-
-  //   // 🛑 THEN stop token refresh timer
-  //   _refreshTimer?.cancel();
-  //   _refreshTimer = null;
-
-  //   // 🔌 Disconnect WebSocket
-  //   try {
-  //     socketService.disconnect();
-  //     log("🔌 Socket disconnected on logout");
-  //   } catch (e) {
-  //     log("⚠ Error disconnecting socket: $e");
-  //   }
-
-  //   // 🧹 Clear local data
-  //   final prefs = await SharedPreferences.getInstance();
-  //   await prefs.clear();
-
-  //   await Future.wait([
-  //     Hive.box(LocalChatStorage.boxName).clear(),
-  //     Hive.box(LocalDriveStorage.boxName).clear(),
-  //     Hive.box(GrpLocalChatStorage.boxName).clear(),
-  //     Hive.box(LocalStarredStorage.boxName).clear(),
-  //     Hive.box(LocalSharredStorage.boxName).clear(),
-  //   ]);
-
-  //   log("🧹 Local storage cleared successfully");
-  // }
 
   Future<bool> refreshTokenOnStartup(String refreshToken) async {
     if (_isRefreshing) return false;

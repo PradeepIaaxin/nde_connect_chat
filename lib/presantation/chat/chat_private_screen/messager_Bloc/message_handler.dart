@@ -1,5 +1,3 @@
-
-
 import 'package:intl/intl.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_model.dart';
 
@@ -28,8 +26,7 @@ class MessageHandler {
 
     /// 🔹 FORWARDED (STRICT — WEB LOGIC)
     /// ❌ Never trust `isForwarded` boolean
-    final bool isForwarded =
-        message['original_message_id'] != null ||
+    final bool isForwarded = message['original_message_id'] != null ||
         message['parent_message_id'] != null ||
         message['originalMessageId'] != null ||
         message['parentMessageId'] != null;
@@ -72,9 +69,7 @@ class MessageHandler {
 
     /// 🔹 REACTIONS
     final reactions = (message['reactions'] is List)
-        ? (message['reactions'] as List)
-            .whereType<Map>()
-            .map((reaction) {
+        ? (message['reactions'] as List).whereType<Map>().map((reaction) {
             final user = reaction['user'] ?? {};
             return {
               'emoji': reaction['emoji'] ?? '',
@@ -113,6 +108,7 @@ class MessageHandler {
 
       /// flags
       'isForwarded': isForwarded,
+      'is_deleted': message['is_deleted'] == true,
       'isReplyMessage': isReplyMessage,
       'is_grouped_message': message['is_grouped_message'] == true ||
           message['is_grouped_message'] == 'true' ||
@@ -123,11 +119,7 @@ class MessageHandler {
       if (normalizedReply != null) 'repliedMessage': normalizedReply,
       'replyContent': replyContent,
       'replyToUser': replyToUser,
-
-      /// reactions
       'reactions': reactions,
-
-      /// local
       'localImagePath': message['localImagePath'],
       'isSelected': false,
     };
@@ -136,9 +128,8 @@ class MessageHandler {
   // ================= HELPERS =================
 
   bool isMessageFromMe(Map<String, dynamic> msg) {
-    final sender = msg['sender'] is Map
-        ? Map<String, dynamic>.from(msg['sender'])
-        : {};
+    final sender =
+        msg['sender'] is Map ? Map<String, dynamic>.from(msg['sender']) : {};
     return sender['_id'] == currentUserId;
   }
 
