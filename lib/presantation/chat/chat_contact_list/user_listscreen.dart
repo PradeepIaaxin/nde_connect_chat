@@ -167,7 +167,7 @@ class _UserListScreenState extends State<UserListScreen> {
                     leadingIcon: const Icon(Icons.people, color: Colors.white),
                     title: 'Create Group chat',
                     onTap: () {
-                      MyRouter.push(
+                      MyRouter.pushReplacement(
                           screen: NewGroup(
                         isCreating: false,
                       ));
@@ -196,7 +196,7 @@ class _UserListScreenState extends State<UserListScreen> {
                           onTap: () {
                             print(
                                 "Initializing chat for conversationId: ${user.conversationId}");
-                            MyRouter.push(
+                            MyRouter.pushReplacement(
                               screen: PrivateChatScreen(
                                 convoId: user.conversationId ?? "",
                                 profileAvatarUrl: "",

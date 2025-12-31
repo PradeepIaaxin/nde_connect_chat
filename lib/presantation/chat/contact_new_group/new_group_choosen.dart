@@ -66,15 +66,6 @@ class _NewGroupChoosenState extends State<NewGroupChoosen> {
     token = await UserPreferences.getAccessToken();
     wrkspacetoken = await UserPreferences.getDefaultWorkspace();
     await SocketService().initialize();
-
-    // socketService.grpCreatSocket(
-    //     token ?? "",
-    //     currentUserId ?? "",
-    //     wrkspacetoken ?? "",
-    //     currentUserId ?? "",
-    //     wrkspacetoken ?? "",
-    //     (p0) => "",
-    //     false);
   }
 
   void removeRoomId() async {
@@ -86,7 +77,7 @@ class _NewGroupChoosenState extends State<NewGroupChoosen> {
   void dispose() {
     // socket?.dispose();
     removeRoomId();
-    SocketService().disconnect();
+    // SocketService().disconnect();
     _groupNameController.dispose();
     super.dispose();
   }
@@ -165,7 +156,6 @@ class _NewGroupChoosenState extends State<NewGroupChoosen> {
         title: const Text("New group"),
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
-    
         foregroundColor: Colors.black,
         actions: [
           IconButton(
