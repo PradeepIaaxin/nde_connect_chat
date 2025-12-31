@@ -664,12 +664,12 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
   Future<void> _onDeleteMessage(
       DeleteMessagesEvent event, Emitter<GroupChatState> emit) async {
     try {
-      for (var id in event.messageIds) {
-        grpSocket.deleteMessage(
-          messageId: id,
-          conversationId: event.convoId,
-        );
-      }
+      grpSocket.deleteMessage(
+        conversationId: event.convoId,
+        messageIds: event.messageIds,
+        roomId: event.receiverId,
+        deleteFor: event.deleteFor,
+      );
 
       emit(GroupChatMessageDeletedSuccessfully(
           deletedMessageIds: event.messageIds));

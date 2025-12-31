@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:nde_email/data/respiratory.dart';
 import 'dart:async';
-
 import 'package:nde_email/presantation/chat/Socket/socket_service.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_listscreen.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_bloc.dart';
@@ -535,11 +534,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
     context.read<ChatListBloc>().add(UpdateLocalChatList());
   }
 
-  // Check if all visible chats are selected (for UI feedback)
-  bool get _allVisibleSelected {
-    if (_visibleChats.isEmpty) return false;
-    return _visibleChats.every(_isSelected);
-  }
+
 
   @override
   Widget build(BuildContext context) {

@@ -193,9 +193,10 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
                   _hasMoreItems = false;
                 }
                 // Append new chats or replace if it's first page
-                if (state.page == 1) {
-                  _allChats = state.chats;
-                } else {
+                // if (state.page == 1) {
+                //   _allChats = state.chats;
+                // } 
+                else {
                   _allChats.addAll(state.chats);
                 }
               });

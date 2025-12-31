@@ -67,7 +67,7 @@ class UploadFileEvent extends MessagerEvent {
 
   @override
   List<Object?> get props => [
-        file.path,      // better than File object
+        file.path, // better than File object
         convoId,
         senderId,
         receiverId,
@@ -79,12 +79,11 @@ class UploadFileEvent extends MessagerEvent {
       ];
 }
 
-
 class SendMessageEvent extends MessagerEvent {
   final String senderId;
   final String receiverId;
   final String message;
-  final String convoId;
+  final String? convoId;
   final String contentType;
   final String? mediaUrl;
   final Map<String, dynamic>? replyTo;
@@ -93,16 +92,18 @@ class SendMessageEvent extends MessagerEvent {
   final String? replyGroupMessageId;
   final bool? replyIsGroupMessage;
 
-  const SendMessageEvent({
-    required this.senderId,
-    required this.receiverId,
-    required this.message,
-    required this.convoId,
-    this.contentType = 'text',
-    this.mediaUrl,         
-
-    this.replyTo, this.clientTempId, this.replyMessageId,this.replyIsGroupMessage,this.replyGroupMessageId
-  });
+  const SendMessageEvent(
+      {required this.senderId,
+      required this.receiverId,
+      required this.message,
+      this.convoId,
+      this.contentType = 'text',
+      this.mediaUrl,
+      this.replyTo,
+      this.clientTempId,
+      this.replyMessageId,
+      this.replyIsGroupMessage,
+      this.replyGroupMessageId});
 
   @override
   List<Object?> get props =>
@@ -115,6 +116,7 @@ class DeleteMessagesEvent extends MessagerEvent {
   final String senderId;
   final String receiverId;
   final String message;
+  final String? deleteFor;
 
   const DeleteMessagesEvent({
     required this.senderId,
@@ -122,6 +124,7 @@ class DeleteMessagesEvent extends MessagerEvent {
     required this.message,
     required this.messageIds,
     required this.convoId,
+    required this.deleteFor,
   });
 
   @override
@@ -131,6 +134,7 @@ class DeleteMessagesEvent extends MessagerEvent {
         senderId,
         receiverId,
         message,
+        deleteFor
       ];
 }
 
