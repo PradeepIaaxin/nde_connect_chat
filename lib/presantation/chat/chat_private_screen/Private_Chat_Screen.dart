@@ -150,7 +150,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   void initState() {
     super.initState();
 
-    // 🔥 If convo already exists → use it
     _currentConversationId = widget.convoId;
     print('🔐 private chat screen : $_currentConversationId');
     socketService.setActiveConversation(widget.convoId);
