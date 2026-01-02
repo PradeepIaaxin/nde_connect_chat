@@ -81,9 +81,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   final List<Map<String, dynamic>> dbMessages = [];
   final List<Map<String, dynamic>> messages = [];
 
-  final Map<String, Map<String, dynamic>> _messageMap = {}; // ID -> Message
-
-  // Keep this for optimistic updates
+  // ignore: unused_field
   final List<Map<String, dynamic>> _optimisticMessages = [];
   // Seen IDs to dedupe
   final Set<String> _seenMessageIds = <String>{};
@@ -110,7 +108,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   // Pagination / client-side windowing
   int _currentPage = 1;
   final int _initialLimit = 40;
-  final int _pageSize = 40;
 
   bool _isLoadingMore = false;
   bool _hasNextPage = false;
@@ -137,8 +134,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   final int _initialVisible = 40;
 
   // Media
-  File? _imageFile;
-  File? _fileUrl;
   final List<Map<String, dynamic>> _offlineQueue = [];
 
   // Recorder helper
@@ -1194,7 +1189,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     _clearDraft();
     _replyMessage = null;
     _replyPreview = null;
-    _imageFile = null;
 
     // ---------- OFFLINE ----------
     if (!canSendNow) {
