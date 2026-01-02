@@ -209,20 +209,3 @@ Future<void> initializeStorage() async {
   await FlutterDownloader.initialize(debug: false);
 }
 
-
-
-// reply -- ithu 
-// forwarded. --> 
-// copy --> 
-// react --> 
-// delete -->  delete_messgae
-// mess pin 
-// stared message 
-// archive 
-// delete 
-// 
-
-
-// save in local -> conersionId , snapshot, frontiers,worspaceid
-//  lorodoc -> snacpshot + frontiers => if new converiosn is there no data there 
-//  
