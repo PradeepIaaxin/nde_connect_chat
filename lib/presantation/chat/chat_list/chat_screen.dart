@@ -55,9 +55,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
   final baseURL = "https://api.nowdigitaleasy.com/wschat/v1";
 
-  final int _currentPage = 1;
-  final int _itemsPerPage = 30;
-
   String? gmail;
   String? profilePicUrl;
   String? userName;
@@ -137,14 +134,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
     });
   }
 
-  void _updateLocalPin(String convoId, bool newStatus) {
-    final chat = ChatSessionStorage.getChatList()
-        .firstWhere((c) => c.id == convoId || c.conversationId == convoId);
-
-    chat.isPinned = newStatus;
-
-    context.read<ChatListBloc>().add(UpdateLocalChatList());
-  }
 
   void _updateLocalArchive(String convoId, bool newStatus) {
     final chat = ChatSessionStorage.getChatList()
