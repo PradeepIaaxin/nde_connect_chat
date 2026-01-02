@@ -61,6 +61,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
   bool _showAdBanner = true;
   final Map<String, String> _typingByConvo = {};
   StreamSubscription? _typingSub;
+  String? currentUserId;
 
   // Track the original full list for "Select All"
   List<Datu> _allChats = [];
@@ -68,10 +69,12 @@ class _ChatListScreenState extends State<ChatListScreen> {
   Future<void> _loadUserData() async {
     final name = await UserPreferences.getUsername();
     final picUrl = await UserPreferences.getProfilePicKey();
+    final currentuserId = await UserPreferences.getUserId();
     final gamil = await UserPreferences.getEmail();
     setState(() {
       userName = name ?? "Unknown";
       profilePicUrl = picUrl;
+      currentUserId = currentuserId;
       gmail = gamil;
     });
   }
@@ -133,7 +136,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
       }
     });
   }
-
 
   void _updateLocalArchive(String convoId, bool newStatus) {
     final chat = ChatSessionStorage.getChatList()
@@ -876,7 +878,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                                           .participants
                                                           ?.cast<String>() ??
                                                       [],
-                                                  currentUserId: '',
+                                                  currentUserId:
+                                                      currentUserId ?? "",
                                                   conversationId: chat.id ?? "",
                                                   datumId: chat.datumId ?? "",
                                                   grpChat: true,

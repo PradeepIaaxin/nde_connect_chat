@@ -94,12 +94,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   final SocketService socketService = SocketService();
 
   StreamSubscription<String>? _messageDeletedSubscription;
-  final Duration _audioDuration = Duration.zero;
-  final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioRecorder _audioRecorder = AudioRecorder();
-  final Duration _currentDuration = Duration.zero;
   bool _hasLeftGroup = false;
-  Map<String, dynamic>? _permissionResponse;
   int _currentPage = 1;
 
   File? _fileUrl;
@@ -108,17 +104,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   bool _hasNextPage = false;
 
   File? _imageFile;
-  String? _sessionMessageId;
-  final bool _initialScrollDone = false;
-  final bool _isCompleted = false;
-  bool _isDeletingMessages = false;
   bool _isLoadingMore = false;
   bool _isPaused = false;
-  final bool _isPlaying = false;
   bool _isRecording = false;
   bool _isSelectionMode = false;
 
-  final bool _isTyping = false;
   final int _limit = 40;
 
   final TextEditingController _messageController = TextEditingController();
@@ -126,10 +116,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   final FlutterSoundPlayer _player = FlutterSoundPlayer();
   int _recordDuration = 0;
   Timer? _recordTimer;
-  File? _recordedFile;
   String? _recordedFilePath;
   final FlutterSoundRecorder _recorder = FlutterSoundRecorder();
-  late final RecorderController _recorderController = RecorderController();
   Timer? _recordingTimer;
   Map<String, dynamic>? _replyMessage;
   Map<String, dynamic>? _replyPreview;
@@ -143,7 +131,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   bool _showEmoji = false;
   bool _showSearchAppBar = false;
   Timer? _timer;
-  final Duration _totalDuration = Duration.zero;
   bool _permissionChecked = false;
 
   // Pagination / Windowing
@@ -172,8 +159,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   @override
   void dispose() {
-    // socketService.clearActiveConversation(widget.conversationId);
-    SocketService().setActiveConversation(widget.conversationId);
+    // SocketService().clearActiveConversation();
     _messageDeletedSubscription?.cancel();
     final unsentText = _messageController.text.trim();
     if (unsentText.isNotEmpty) {
@@ -220,8 +206,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   @override
   void initState() {
     super.initState();
+
+    SocketService().setActiveConversation(widget.conversationId);
     currentUserId = widget.currentUserId;
-    socketService.setActiveConversation(widget.conversationId);
     SocketService().joinChatRoom(
       senderId: currentUserId,
       receiverId: widget.datumId,
@@ -260,7 +247,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       _permissionChecked = true;
     }
 
-    _fetchMessages2();
+    // _fetchMessages2();
 
     _scrollController.addListener(_scrollListener);
     _setupReactionListener();
@@ -287,9 +274,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     _groupBloc.stream.listen((state) {
       if (state is GrpMessageSentSuccessfully) {
         final serverMessageId = state.sentMessage.messageId;
-        final serverStatus = state.sentMessage.messageStatus ?? 'sent';
+        final serverStatus = state.sentMessage.messageStatus;
 
-        if (serverMessageId != null && serverMessageId.isNotEmpty) {
+        if (serverMessageId.isNotEmpty) {
           debugPrint(
               '📤 Message sent successfully: $serverMessageId with status: $serverStatus');
           _updateMessageStatus(serverMessageId, serverStatus);
@@ -514,17 +501,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     };
 
     if (!mounted) return;
-
-    /// 7️⃣ Update UI + local storage
-    // setState(() {
-    //   socketMessages.add(newMessage);
-    //   _scrollToBottom();
-
-    //   final combined = _getCombinedMessages();
-    //   GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
-
-    //   _updateNotifier();
-    // });
 
     setState(() {
       // Check if message already exists in socketMessages (optimistic update)
@@ -1165,22 +1141,69 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
   }
 
+  // Future<void> _initMessages() async {
+  //   final savedMessages =
+  //       await GrpLocalChatStorage.loadMessages(widget.conversationId);
+
+  //   setState(() {
+  //     dbMessages = savedMessages
+  //         .map<Map<String, dynamic>>((msg) => normalizeMessage(msg))
+  //         .where((m) => m.isNotEmpty)
+  //         .toList();
+
+  //     for (var m in dbMessages) {
+  //       final id = (m['message_id'] ?? m['id'])?.toString();
+  //       if (id != null && id.isNotEmpty) _seenMessageIds.add(id);
+  //     }
+  //   });
+  //   _updateNotifier();
+  // }
   Future<void> _initMessages() async {
+    // Clear current messages first
+    setState(() {
+      dbMessages.clear();
+      messages.clear();
+      socketMessages.clear();
+      _seenMessageIds.clear();
+    });
+
+    // Load from local storage
     final savedMessages =
         await GrpLocalChatStorage.loadMessages(widget.conversationId);
 
-    setState(() {
-      dbMessages = savedMessages
-          .map<Map<String, dynamic>>((msg) => normalizeMessage(msg))
-          .where((m) => m.isNotEmpty)
-          .toList();
+    if (savedMessages.isNotEmpty) {
+      setState(() {
+        dbMessages = savedMessages
+            .map<Map<String, dynamic>>((msg) => normalizeMessage(msg))
+            .where((m) => m.isNotEmpty)
+            .toList();
 
-      for (var m in dbMessages) {
-        final id = (m['message_id'] ?? m['id'])?.toString();
-        if (id != null && id.isNotEmpty) _seenMessageIds.add(id);
-      }
-    });
-    _updateNotifier();
+        for (var m in dbMessages) {
+          final id = (m['message_id'] ?? m['id'])?.toString();
+          if (id != null && id.isNotEmpty) _seenMessageIds.add(id);
+        }
+      });
+
+      _updateNotifier();
+
+      // Also fetch fresh messages from server
+      _groupBloc.add(
+        FetchGroupMessages(
+          convoId: widget.conversationId,
+          page: 1,
+          limit: _limit,
+        ),
+      );
+    } else {
+      // If no local messages, fetch from server
+      _groupBloc.add(
+        FetchGroupMessages(
+          convoId: widget.conversationId,
+          page: 1,
+          limit: _limit,
+        ),
+      );
+    }
   }
 
 // ------------------ Draft Methods ------------------
@@ -1243,27 +1266,27 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
   }
 
-  void _fetchMessages2() {
-    _groupBloc.add(
-      FetchGroupMessages(
-        convoId: widget.conversationId,
-        page: _currentPage,
-        limit: _limit,
-      ),
-    );
-  }
+  // void _fetchMessages2() {
+  //   _groupBloc.add(
+  //     FetchGroupMessages(
+  //       convoId: widget.conversationId,
+  //       page: _currentPage,
+  //       limit: _limit,
+  //     ),
+  //   );
+  // }
 
-  void _fetchMessages() {
-    _groupBloc.add(
-      FetchGroupMessages(
-        convoId: widget.conversationId,
-        page: _currentPage,
-        limit: _limit,
-      ),
-    );
+  // void _fetchMessages() {
+  //   _groupBloc.add(
+  //     FetchGroupMessages(
+  //       convoId: widget.conversationId,
+  //       page: _currentPage,
+  //       limit: _limit,
+  //     ),
+  //   );
 
-    // _checkingPersmmion();
-  }
+  //   // _checkingPersmmion();
+  // }
 
   void _checkingPersmmion() {
     context.read<GroupChatBloc>().add(
@@ -1279,7 +1302,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       if (mounted) {
         setState(() {
           _hasLeftGroup = true;
-          _permissionResponse = response;
         });
       }
 
@@ -1305,7 +1327,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       if (mounted) {
         setState(() {
           _hasLeftGroup = false;
-          _permissionResponse = null;
         });
       }
 
@@ -1485,7 +1506,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       'fileUrl': _fileUrl?.path,
     };
 
-    log(message.toString());
+  
     setState(() {
       socketMessages.add(message);
       _scrollToBottom();
@@ -1745,7 +1766,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
 
     setState(() {
-      _isDeletingMessages = true;
     });
 
     _markMessagesAsDeleted(_selectedMessageIds.toList(), deleteFor: deleteFor);
@@ -1763,7 +1783,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       _selectedMessageIds.clear();
       _selectedMessageKeys.clear();
       _isSelectionMode = false;
-      _isDeletingMessages = false;
     });
   }
 
@@ -2603,7 +2622,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           // Handled by _sendMessage completer
         } else if (state is GroupChatError) {
           setState(() {
-            _isDeletingMessages = false;
             _isLoadingMore = false;
           });
         } else if (state is GroupChatLoaded) {
@@ -3356,7 +3374,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   Widget _buildMessageBubble(Map<String, dynamic> message, bool isSentByMe) {
-    log(message.toString());
     final String content = message['content']?.toString() ?? '';
     final String? imageUrl = message['imageUrl'] ?? _imageFile;
     final String? fileUrl = message['fileUrl'] ?? _fileUrl;
