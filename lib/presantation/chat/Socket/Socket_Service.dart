@@ -1447,7 +1447,6 @@ class SocketService {
 
   final List<String> onlineUsers = [];
   int _socketCreationCount = 0;
-  String? _lastSocketId;
 
   final StreamController<Map<String, dynamic>> _typingController =
       StreamController<Map<String, dynamic>>.broadcast();
@@ -1633,7 +1632,6 @@ class SocketService {
   void _registerGlobalHandlers() {
     socket!.onConnect((_) {
       _socketCreationCount++;
-      _lastSocketId = socket!.id;
       _slog('✅ Socket connected: ${socket!.id} (total: $_socketCreationCount)');
       if (_connectCompleter != null && !_connectCompleter!.isCompleted) {
         _connectCompleter!.complete();
