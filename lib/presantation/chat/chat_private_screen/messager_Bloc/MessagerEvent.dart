@@ -331,16 +331,18 @@ class SendAudioMessageEvent extends MessagerEvent {
   final String receiverId;
   final String audioPath;
   final String convoId;
+  final String duration;
 
   const SendAudioMessageEvent({
     required this.senderId,
     required this.receiverId,
     required this.audioPath,
     required this.convoId,
+    required this.duration
   });
 
   @override
-  List<Object?> get props => [senderId, receiverId, audioPath, convoId];
+  List<Object?> get props => [senderId, receiverId, audioPath, convoId, duration];
 }
 
 class AudioMessageSentSuccessfully extends MessagerEvent {

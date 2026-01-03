@@ -84,7 +84,9 @@ class Message {
   final File? localImagePath;
   final bool? isGroupMessage;
   final String? groupMessageId;
-    final String? conversationId;
+  final String? duration;
+  final String? contentType;
+  final String? conversationId;
 
   Message({
     required this.messageId,
@@ -102,6 +104,8 @@ class Message {
     this.isGroupMessage,
     this.groupMessageId,
     this.conversationId,
+    this.duration, // Added
+    this.contentType, // Added
   });
 
   // Factory constructor to create a Message from a Map
@@ -123,6 +127,8 @@ class Message {
           : null, // Optional
       isGroupMessage: json['is_grouped_message'] ?? json['isGroupMessage'],
       groupMessageId: json['group_message_id'] ?? json['groupMessageId'],
+      duration: json['duration'] as String?,
+      contentType: json['ContentType'] as String?,
     );
   }
 
@@ -141,8 +147,10 @@ class Message {
       'fileType': fileType,
       'isTemporary': isTemporary,
       'localImagePath': localImagePath?.path,
-      '': isGroupMessage,
+      'is_grouped_message': isGroupMessage,
       'group_message_id': groupMessageId,
+      'duration': duration,
+      'ContentType': contentType,
     };
   }
 }
@@ -212,6 +220,7 @@ class Datum {
   final bool? isGroupMessage;
   final String? groupMessageId;
   final String created_at;
+  final String? duration; // Added
 
   Datum({
     this.id,
@@ -243,6 +252,7 @@ class Datum {
     this.isGroupMessage,
     this.groupMessageId,
     required this.created_at,
+    this.duration, // Added
   });
 
   Datum copyWith({
@@ -275,6 +285,7 @@ class Datum {
     bool? isGroupMessage,
     String? groupMessageId,
     String? created_at,
+    String? duration,
   }) =>
       Datum(
           id: id ?? this.id,
@@ -305,7 +316,8 @@ class Datum {
           reactions: reactions ?? this.reactions,
           isGroupMessage: isGroupMessage ?? this.isGroupMessage,
           groupMessageId: groupMessageId ?? this.groupMessageId,
-          created_at: created_at ?? this.created_at);
+          created_at: created_at ?? this.created_at,
+          duration: duration ?? this.duration);
 
   factory Datum.fromRawJson(String str) => Datum.fromJson(json.decode(str));
 
@@ -383,6 +395,7 @@ class Datum {
                   (x) => Reaction.fromJson(Map<String, dynamic>.from(x as Map)))
               .toList()
           : null,
+      duration: json["duration"]?.toString(),
     );
   }
 
@@ -420,6 +433,7 @@ class Datum {
         "reactions": reactions != null
             ? List<dynamic>.from(reactions!.map((x) => x.toJson()))
             : null,
+        "duration": duration,
       };
 }
 

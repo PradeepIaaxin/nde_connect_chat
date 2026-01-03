@@ -1,4 +1,5 @@
 import 'dart:developer';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:nde_email/utils/snackbar/snackbar.dart';
@@ -40,7 +41,14 @@ Widget buildMessageContent(
         case 'video':
           return _buildVideoMessage(fileUrl, messageTime, thumbnailUrl);
         case 'audio':
-          return _buildAudioMessage(fileUrl, message?.sender, currentUserId);
+          return _buildAudioMessage(
+            fileUrl,
+            message?.sender,
+            currentUserId,
+            message?.duration?.toString(),
+            messageTime,
+            message?.messageStatus,
+          );
         case 'document':
           return _buildDocumentMessage(fileUrl, fileName, context);
         default:
@@ -118,14 +126,28 @@ Widget _buildVideoMessage(
 }
 
 Widget _buildAudioMessage(
-    String fileUrl, dynamic sender, String currentUserId) {
+  String fileUrl,
+  dynamic sender,
+  String currentUserId,
+  String? duration,
+  DateTime? messageTime, // Changed to DateTime?
+  String? status,
+) {
   if (fileUrl.isEmpty || !_isValidUrl(fileUrl)) {
     return _buildErrorWidget("Invalid audio URL");
   }
+
+  // Format time for bubble
+  final timeString =
+      messageTime != null ? DateFormat('h:mm a').format(messageTime) : '';
+
   return AudioMessageWidget(
     audioUrl: fileUrl,
     profileAvatarUrl: sender?.profilePicPath ?? '',
     isSender: sender?.id == currentUserId,
+    duration: duration,
+    timestamp: timeString,
+    status: status,
   );
 }
 
@@ -231,7 +253,9 @@ Future<void> _launchUrl(String url, BuildContext context) async {
 
 bool _isValidUrl(String url) {
   try {
-    return Uri.parse(url).isAbsolute;
+    if (Uri.parse(url).isAbsolute) return true;
+    // Allow local file paths (for optimistic UI)
+    return File(url).existsSync();
   } catch (_) {
     return false;
   }
