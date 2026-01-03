@@ -13,7 +13,7 @@ import 'package:nde_email/presantation/chat/chat_list/chat_event.dart';
 import 'package:nde_email/presantation/chat/chat_list/chat_response_model.dart';
 import 'package:nde_email/presantation/chat/chat_list/chat_session_storage/chat_session.dart';
 import 'package:nde_email/presantation/chat/chat_list/chat_state.dart';
-import 'package:nde_email/presantation/chat/chat_private_screen/Private_Chat_Screen.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/private_chat_screen.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/MessagerBloc.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/MessagerEvent.dart';
 import 'package:nde_email/presantation/chat/widget/profile_dialog.dart';
@@ -193,9 +193,10 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
                   _hasMoreItems = false;
                 }
                 // Append new chats or replace if it's first page
-                if (state.page == 1) {
-                  _allChats = state.chats;
-                } else {
+                // if (state.page == 1) {
+                //   _allChats = state.chats;
+                // } 
+                else {
                   _allChats.addAll(state.chats);
                 }
               });

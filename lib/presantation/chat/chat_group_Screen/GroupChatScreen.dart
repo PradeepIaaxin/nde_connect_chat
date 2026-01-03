@@ -20,6 +20,8 @@ import 'package:nde_email/presantation/chat/chat_group_Screen/group_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_event.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_model.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_state.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/MixedMediaViewer.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/commonfuntion.dart';
 import 'package:nde_email/presantation/chat/widget/custom_appbar.dart';
 import 'package:nde_email/presantation/chat/widget/delete_dialogue.dart';
 import 'package:nde_email/presantation/chat/widget/scaffold.dart';
@@ -43,8 +45,7 @@ import '../../../data/respiratory.dart';
 import '../../../utils/simmer_effect.dart/chat_simmerefect.dart';
 import '../../widgets/chat_widgets/messager_Wifgets/ForwardMessageScreen_widget.dart';
 import '../../widgets/chat_widgets/messager_Wifgets/buildMessageInputField_widgets.dart';
-import '../Socket/Socket_Service.dart';
-import 'group_media_viewer.dart';
+import '../Socket/socket_service.dart';
 import '../chat_private_screen/messager_Bloc/widget/VideoPlayerScreen.dart';
 import '../chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
 import '../chat_private_screen/messager_Bloc/widget/double_tick_ui.dart';
@@ -92,12 +93,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   List<Map<String, dynamic>> socketMessages = [];
   final SocketService socketService = SocketService();
 
-  Duration _audioDuration = Duration.zero;
-  final AudioPlayer _audioPlayer = AudioPlayer();
+  StreamSubscription<String>? _messageDeletedSubscription;
   final AudioRecorder _audioRecorder = AudioRecorder();
-  Duration _currentDuration = Duration.zero;
   bool _hasLeftGroup = false;
-  Map<String, dynamic>? _permissionResponse;
   int _currentPage = 1;
 
   File? _fileUrl;
@@ -106,28 +104,20 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   bool _hasNextPage = false;
 
   File? _imageFile;
-
-  bool _initialScrollDone = false;
-  bool _isCompleted = false;
-  bool _isDeletingMessages = false;
   bool _isLoadingMore = false;
   bool _isPaused = false;
-  bool _isPlaying = false;
   bool _isRecording = false;
   bool _isSelectionMode = false;
 
-  bool _isTyping = false;
-  int _limit = 40;
+  final int _limit = 40;
 
   final TextEditingController _messageController = TextEditingController();
 
   final FlutterSoundPlayer _player = FlutterSoundPlayer();
   int _recordDuration = 0;
   Timer? _recordTimer;
-  File? _recordedFile;
   String? _recordedFilePath;
   final FlutterSoundRecorder _recorder = FlutterSoundRecorder();
-  late final RecorderController _recorderController = RecorderController();
   Timer? _recordingTimer;
   Map<String, dynamic>? _replyMessage;
   Map<String, dynamic>? _replyPreview;
@@ -137,18 +127,17 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Timer? _highlightTimer;
   final Set<String> _selectedMessageIds = {};
   final Set<String> _selectedMessageKeys = {};
-  List<dynamic> _selectedMessages = [];
+  final List<dynamic> _selectedMessages = [];
   bool _showEmoji = false;
   bool _showSearchAppBar = false;
   Timer? _timer;
-  Duration _totalDuration = Duration.zero;
   bool _permissionChecked = false;
 
   // Pagination / Windowing
-  List<Map<String, dynamic>> _allMessages = [];
+  final List<Map<String, dynamic>> _allMessages = [];
   int _visibleCount = 0;
-  final int _pageStep = 20;
-  final int _initialVisible = 20;
+  final int _pageStep = 40;
+  final int _initialVisible = 40;
   final ValueNotifier<List<Map<String, dynamic>>> _messagesNotifier =
       ValueNotifier([]);
 
@@ -167,10 +156,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       {}; // Buffer for race conditions
 
   // Track last loaded data to prevent overwrite
-  List<dynamic>? _lastLoadedData;
 
   @override
   void dispose() {
+    // SocketService().clearActiveConversation();
+    _messageDeletedSubscription?.cancel();
     final unsentText = _messageController.text.trim();
     if (unsentText.isNotEmpty) {
       GrpLocalChatStorage.saveDraftMessage(widget.conversationId, unsentText);
@@ -216,7 +206,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   @override
   void initState() {
     super.initState();
+
+    SocketService().setActiveConversation(widget.conversationId);
     currentUserId = widget.currentUserId;
+    SocketService().joinChatRoom(
+      senderId: currentUserId,
+      receiverId: widget.datumId,
+      isGroupChat: true,
+    );
 
     _checkingPersmmion();
     _initMessages();
@@ -250,7 +247,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       _permissionChecked = true;
     }
 
-    _fetchMessages2();
+    // _fetchMessages2();
 
     _scrollController.addListener(_scrollListener);
     _setupReactionListener();
@@ -268,8 +265,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     // Load draft after initialization
     _loadDraft();
     groupMembers = widget.groupMembers ?? [];
-    print("Group Members: $groupMembers");
-// Fetch fresh group details to ensure we have all members
+
+    // Fetch fresh group details to ensure we have all members
     _groupBloc.add(FetchGroupDetails(groupId: widget.datumId));
     _loadCurrentUserName();
 
@@ -277,9 +274,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     _groupBloc.stream.listen((state) {
       if (state is GrpMessageSentSuccessfully) {
         final serverMessageId = state.sentMessage.messageId;
-        final serverStatus = state.sentMessage.messageStatus ?? 'sent';
+        final serverStatus = state.sentMessage.messageStatus;
 
-        if (serverMessageId != null && serverMessageId.isNotEmpty) {
+        if (serverMessageId.isNotEmpty) {
           debugPrint(
               '📤 Message sent successfully: $serverMessageId with status: $serverStatus');
           _updateMessageStatus(serverMessageId, serverStatus);
@@ -330,8 +327,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             receiverId: widget.datumId,
             isGroupChat: true,
             onOptionSelected: _sendMessageImage);
+        final messageId = ObjectId().toString();
 
         final message = {
+          'message_id': messageId,
           'content': '',
           'sender': {'_id': currentUserId},
           'receiver': {'_id': widget.datumId},
@@ -357,6 +356,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 senderId: currentUserId,
                 receiverId: widget.datumId,
                 groupId: widget.datumId,
+                messageId: messageId,
                 message: "",
                 isGroupMessage: false,
                 groupMessageId: null,
@@ -411,80 +411,125 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     });
   }
 
-  /// 🔁 SOCKET CALLBACK – now also understands reaction events, like private chat
   void onMessageReceived(Map<String, dynamic> rawData) {
-    // Step 1: Extract the actual message from the weird wrapper
-    Map<String, dynamic> messageData;
-
-    if (rawData['data'] != null) {
-      // Case 1: { "data": { ...message... } } → your log shows this
-      messageData = rawData['data'] as Map<String, dynamic>;
-    } else if (rawData is Map && rawData.values.isNotEmpty) {
-      // Case 2: The message is directly in rawData (fallback)
-      messageData = rawData;
+    /// 1️⃣ Extract message safely
+    Map<String, dynamic> msg;
+    if (rawData['data'] is Map) {
+      msg = Map<String, dynamic>.from(rawData['data']);
     } else {
-      log("Invalid message format: $rawData");
+      msg = Map<String, dynamic>.from(rawData);
+    }
+
+    print(widget.conversationId);
+    log("log message daa ${widget.conversationId}");
+
+    // ✅ Filter by conversationId (GROUP SAFETY)
+    final String? incomingConvoId =
+        (msg['conversationId'] ?? msg['convoId'] ?? msg['roomId'])?.toString();
+
+    if (incomingConvoId == null || incomingConvoId != widget.conversationId) {
+      return; // ❌ Message NOT for this open group
+    }
+
+    // ✅ Ensure GROUP CHAT ONLY
+    if (msg['isGroupChat'] != true) {
+      return; // ❌ Private chat message → IGNORE
+    }
+
+    /// 2️⃣ Reaction-only event
+    if (msg['event'] == 'updated_reaction') {
+      _handleReactionUpdate(msg['data']);
       return;
     }
 
-    // Step 2: Handle reactions (if backend sends event separately)
-    if (messageData['event'] == 'updated_reaction') {
-      _handleReactionUpdate(messageData['data']);
-      return;
+    /// 3️⃣ Message ID (dedupe)
+    final String? messageId =
+        (msg['message_id'] ?? msg['messageId'] ?? msg['_id'])?.toString();
+
+    if (messageId == null || _seenMessageIds.contains(messageId)) return;
+    _seenMessageIds.add(messageId);
+
+    /// 4️⃣ Resolve REAL sender (GROUP SAFE)
+    Map<String, dynamic> sender = {};
+
+    if (msg['properties'] is List) {
+      for (final p in msg['properties']) {
+        if (p is Map && p['type_of_user'] == 'sender' && p['user'] is Map) {
+          sender = Map<String, dynamic>.from(p['user']);
+          break;
+        }
+      }
     }
 
-    // Step 3: Extract fields safely
-    final content = (messageData['content'] ?? '').toString().trim();
-    final imageUrl = messageData['thumbnailUrl'] ?? messageData['originalUrl'];
-    final fileUrl = messageData['originalUrl'] ?? messageData['fileUrl'];
-    final fileName = messageData['fileName'];
-    final userName = messageData['userName'] ?? 'Unknown';
-
-    if (content.isEmpty && imageUrl == null && fileUrl == null) return;
-
-    final messageId =
-        (messageData['message_id'] ?? messageData['id'])?.toString();
-    if (messageId != null && _seenMessageIds.contains(messageId)) {
-      log("Duplicate group message ignored: $messageId");
-      return;
+    // Fallback only if properties missing
+    if (sender.isEmpty && msg['sender'] is Map) {
+      sender = Map<String, dynamic>.from(msg['sender']);
     }
-    if (messageId != null) _seenMessageIds.add(messageId);
 
-    final newMessage = {
+    /// 5️⃣ Normalize sender name
+    final String normalizedUserName = [
+      sender['first_name'],
+      sender['last_name'],
+      sender['name'],
+    ]
+        .where((e) => e != null && e.toString().trim().isNotEmpty)
+        .join(' ')
+        .trim();
+
+    /// 6️⃣ Normalize message for UI
+    final Map<String, dynamic> newMessage = {
       'message_id': messageId,
-      'content': content,
-      'sender': messageData['sender'] ?? {},
-      'receiver': messageData['receiver'] ?? {},
-      'messageStatus': messageData['messageStatus'] ?? 'delivered',
-      'time': messageData['time'],
-      'imageUrl': imageUrl,
-      'fileName': fileName,
-      'userName': userName,
-      'fileUrl': fileUrl,
-      'fileType': messageData['mimeType'] ?? messageData['fileType'],
-      'isForwarded': messageData['isForwarded'] ?? false,
-      'ContentType': messageData['ContentType'] ?? 'text',
-      'isReplyMessage': messageData['isReplyMessage'] ?? false,
-      'repliedMessage': messageData['reply'] ?? messageData['repliedMessage'],
-      'reactions': messageData['reactions'] ?? [],
+      'content': (msg['content'] ?? '').toString(),
+      'sender': sender,
+      'senderId': sender['_id']?.toString(),
+      'receiver': msg['receiver'] is Map
+          ? Map<String, dynamic>.from(msg['receiver'])
+          : {},
+      'userName':
+          normalizedUserName.isNotEmpty ? normalizedUserName : 'Unknown',
+      'messageStatus': msg['messageStatus'] ?? 'delivered',
+      'time':
+          DateTime.tryParse(msg['time']?.toString() ?? '') ?? DateTime.now(),
+      'imageUrl': msg['thumbnailUrl'] ?? msg['originalUrl'],
+      'fileUrl': msg['originalUrl'] ?? msg['fileUrl'],
+      'fileName': msg['fileName'],
+      'fileType': msg['mimeType'] ?? msg['fileType'],
+      'ContentType': msg['ContentType'] ?? 'text',
+      'isForwarded': msg['isForwarded'] ?? false,
+      'reactions': msg['reactions'] ?? [],
+      'repliedMessage': msg['reply'] ?? msg['repliedMessage'],
     };
 
     if (!mounted) return;
 
     setState(() {
-      final exists = socketMessages.any((msg) =>
-          (msg['message_id'] ?? msg['id']) == newMessage['message_id']);
+      // Check if message already exists in socketMessages (optimistic update)
+      int existingIndex = socketMessages.indexWhere((m) {
+        final mid = (m['message_id'] ?? m['messageId'] ?? m['_id'])?.toString();
+        return mid == messageId;
+      });
 
-      if (!exists) {
+      if (existingIndex != -1) {
+        // Update existing message with server data
+        socketMessages[existingIndex] = newMessage;
+        log("🔄 UPDATED existing message in socketMessages: $messageId");
+      } else {
+        // Add as new message
         socketMessages.add(newMessage);
         _scrollToBottom();
-        log("NEW GROUP MESSAGE ADDED: $content - $userName");
+        if (_visibleCount > 0) _visibleCount++;
+        log("➕ ADDED new message to socketMessages: $messageId");
       }
 
-      final combined = [...dbMessages, ...messages, ...socketMessages];
+      final combined = _getCombinedMessages();
       GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
+
       _updateNotifier();
     });
+
+    log(
+      "✅ GROUP MESSAGE SHOWN → ${newMessage['content']} | sender=${newMessage['userName']}",
+    );
   }
 
   void _handleReactionUpdate(dynamic reactionData) {
@@ -514,13 +559,19 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     });
   }
 
-  /// 🔁 Listen to Message Stream
   void _setupMessageListener() {
     _messageSubscription?.cancel();
     _messageSubscription =
         socketService.messageStream.listen((Map<String, dynamic> data) {
-      log("📩 Stream received message update: $data");
       onMessageReceived(data);
+    });
+
+    // delete message listner
+    _messageDeletedSubscription?.cancel();
+    _messageDeletedSubscription =
+        socketService.messageDeletedStream.listen((messageId) {
+      log("🗑️ Received message_deleted event for: $messageId");
+      _markMessagesAsDeleted([messageId], deleteFor: 'everyone');
     });
   }
 
@@ -755,7 +806,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         // add new reaction if not null/empty
         if (newEmoji != null && newEmoji.isNotEmpty) {
           final nameParts = currentUserName.split(" ");
-          final firstName = nameParts.length > 0 ? nameParts.first : "";
+          final firstName = nameParts.isNotEmpty ? nameParts.first : "";
           final lastName =
               nameParts.length > 1 ? nameParts.sublist(1).join(" ") : "";
 
@@ -1003,26 +1054,33 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             'sent')
         .toString();
 
+    final bool isDeleted =
+        message['is_deleted'] == true || message['isDeleted'] == true;
+
     return {
       'message_id': messageId,
       'messageId': messageId,
-      'content': content,
+      'content': isDeleted ? '🚫 This message was deleted' : content,
       'userName': userName,
       'sender': message['sender'],
       'receiver': message['receiver'],
-      'messageStatus': messageStatus.isEmpty ? 'sent' : messageStatus,
+      'messageStatus': isDeleted
+          ? 'deleted'
+          : (messageStatus.isEmpty ? 'sent' : messageStatus),
       'time': message['time'],
-      'imageUrl': imageUrl,
-      'fileName': fileName,
+      'imageUrl': isDeleted ? null : imageUrl,
+      'fileName': isDeleted ? null : fileName,
       'ContentType': contentType,
       'contentType': contentType,
-      'fileUrl': fileUrl,
-      'fileType': fileType,
+      'fileUrl': isDeleted ? null : fileUrl,
+      'fileType': isDeleted ? null : fileType,
       'isForwarded': isForwarded,
       'isReplyMessage': isReplyMessage,
       'repliedMessage': normalizedReply,
       'reactions': normalizedReactions,
       'profile_pic_path': profilePic,
+      'isDeleted': isDeleted,
+      'is_deleted': isDeleted,
     };
   }
 
@@ -1031,8 +1089,24 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   void _showFullImage(BuildContext context, String imageUrl) {
-    log(imageUrl);
-    ImageViewer.show(context, imageUrl);
+    final media = buildConversationMedia(
+      _allMessages,
+      currentUserId: currentUserId,
+    );
+    final index = media.indexWhere((m) => m.mediaUrl == imageUrl);
+    if (index != -1) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => MixedMediaViewer(
+            items: media,
+            initialIndex: index,
+          ),
+        ),
+      );
+    } else {
+      ImageViewer.show(context, imageUrl);
+    }
   }
 
   IconData _getFileIcon(String? fileType) {
@@ -1067,22 +1141,69 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
   }
 
+  // Future<void> _initMessages() async {
+  //   final savedMessages =
+  //       await GrpLocalChatStorage.loadMessages(widget.conversationId);
+
+  //   setState(() {
+  //     dbMessages = savedMessages
+  //         .map<Map<String, dynamic>>((msg) => normalizeMessage(msg))
+  //         .where((m) => m.isNotEmpty)
+  //         .toList();
+
+  //     for (var m in dbMessages) {
+  //       final id = (m['message_id'] ?? m['id'])?.toString();
+  //       if (id != null && id.isNotEmpty) _seenMessageIds.add(id);
+  //     }
+  //   });
+  //   _updateNotifier();
+  // }
   Future<void> _initMessages() async {
+    // Clear current messages first
+    setState(() {
+      dbMessages.clear();
+      messages.clear();
+      socketMessages.clear();
+      _seenMessageIds.clear();
+    });
+
+    // Load from local storage
     final savedMessages =
         await GrpLocalChatStorage.loadMessages(widget.conversationId);
 
-    setState(() {
-      dbMessages = savedMessages
-          .map<Map<String, dynamic>>((msg) => normalizeMessage(msg))
-          .where((m) => m.isNotEmpty)
-          .toList();
+    if (savedMessages.isNotEmpty) {
+      setState(() {
+        dbMessages = savedMessages
+            .map<Map<String, dynamic>>((msg) => normalizeMessage(msg))
+            .where((m) => m.isNotEmpty)
+            .toList();
 
-      for (var m in dbMessages) {
-        final id = (m['message_id'] ?? m['id'])?.toString();
-        if (id != null && id.isNotEmpty) _seenMessageIds.add(id);
-      }
-    });
-    _updateNotifier();
+        for (var m in dbMessages) {
+          final id = (m['message_id'] ?? m['id'])?.toString();
+          if (id != null && id.isNotEmpty) _seenMessageIds.add(id);
+        }
+      });
+
+      _updateNotifier();
+
+      // Also fetch fresh messages from server
+      _groupBloc.add(
+        FetchGroupMessages(
+          convoId: widget.conversationId,
+          page: 1,
+          limit: _limit,
+        ),
+      );
+    } else {
+      // If no local messages, fetch from server
+      _groupBloc.add(
+        FetchGroupMessages(
+          convoId: widget.conversationId,
+          page: 1,
+          limit: _limit,
+        ),
+      );
+    }
   }
 
 // ------------------ Draft Methods ------------------
@@ -1145,27 +1266,27 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
   }
 
-  void _fetchMessages2() {
-    _groupBloc.add(
-      FetchGroupMessages(
-        convoId: widget.conversationId,
-        page: _currentPage,
-        limit: _limit,
-      ),
-    );
-  }
+  // void _fetchMessages2() {
+  //   _groupBloc.add(
+  //     FetchGroupMessages(
+  //       convoId: widget.conversationId,
+  //       page: _currentPage,
+  //       limit: _limit,
+  //     ),
+  //   );
+  // }
 
-  void _fetchMessages() {
-    _groupBloc.add(
-      FetchGroupMessages(
-        convoId: widget.conversationId,
-        page: _currentPage,
-        limit: _limit,
-      ),
-    );
+  // void _fetchMessages() {
+  //   _groupBloc.add(
+  //     FetchGroupMessages(
+  //       convoId: widget.conversationId,
+  //       page: _currentPage,
+  //       limit: _limit,
+  //     ),
+  //   );
 
-    // _checkingPersmmion();
-  }
+  //   // _checkingPersmmion();
+  // }
 
   void _checkingPersmmion() {
     context.read<GroupChatBloc>().add(
@@ -1181,7 +1302,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       if (mounted) {
         setState(() {
           _hasLeftGroup = true;
-          _permissionResponse = response;
         });
       }
 
@@ -1207,7 +1327,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       if (mounted) {
         setState(() {
           _hasLeftGroup = false;
-          _permissionResponse = null;
         });
       }
 
@@ -1293,6 +1412,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     setState(() {
       socketMessages.add(message);
       _scrollToBottom();
+      if (_visibleCount > 0) _visibleCount++;
 
       final combined = [...dbMessages, ...messages, ...socketMessages];
       GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
@@ -1386,11 +1506,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       'fileUrl': _fileUrl?.path,
     };
 
-    log(message.toString());
+  
     setState(() {
       socketMessages.add(message);
       _scrollToBottom();
-
+      if (_visibleCount > 0) _visibleCount++;
       final combined = [...dbMessages, ...messages, ...socketMessages];
       GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
       _updateNotifier();
@@ -1438,11 +1558,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       // 1. Optimistic Update
       setState(() {
         socketMessages.add(message);
+        if (_visibleCount > 0) _visibleCount++;
         _updateNotifier();
       });
-
-      // 2. Send Event via BLoC
-      // Note: We replicate the logic from GrpShowAltDialog's legacy path here
       context.read<GroupChatBloc>().add(
             GrpUploadFileEvent(
               file: localFile,
@@ -1450,6 +1568,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               senderId: currentUserId,
               receiverId: widget.datumId,
               groupId: widget.datumId,
+              messageId: messageId,
               message: "",
               isGroupMessage: isGrouped,
               groupMessageId: groupMessageId,
@@ -1479,48 +1598,104 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   void _scrollListener() {
     if (!_scrollController.hasClients) return;
 
-    // 1. Check if scrolled near the TOP (maxScrollExtent in reverse list)
-    //    We use a threshold (e.g. 50-100 pixels) to trigger loading
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 150) {
+    if (_scrollController.position.pixels <=
+        _scrollController.position.minScrollExtent + 50) {
       final total = _allMessages.length;
 
-      // Case A: We have more local messages hidden (client-side windowing)
-      if (_visibleCount < total && !_isLoadingMore) {
-        setState(() => _isLoadingMore = true);
+      log('🔍 Scroll at top - total: $total, visible: $_visibleCount, hasNextPage: $_hasNextPage, isLoading: $_isLoadingMore');
 
-        // Add small delay to simulate load (and allow UI to show spinner if desired)
+      // 1. Client-side pagination: Show more from local cache
+      if (_visibleCount < total && !_isLoadingMore) {
+        setState(() {
+          _isLoadingMore = true;
+        });
+
+        // Increase visible window locally first for snappier UI
         Future.delayed(const Duration(milliseconds: 300), () {
           if (!mounted) return;
+
+          final newVisibleCount = (_visibleCount + _pageStep).clamp(0, total);
+
           setState(() {
-            _visibleCount = (_visibleCount + _pageStep).clamp(0, total);
+            _visibleCount = newVisibleCount;
             _isLoadingMore = false;
           });
+
           _updateNotifierFromAll();
+          log('📜 Client Pagination: Loaded more messages. Now showing $_visibleCount of $total (local cache)');
+
+          // ✅ AUTO-FETCH: If we just showed ALL local messages AND there's more on server
+          if (_visibleCount >= total && _hasNextPage) {
+            log('🔄 Auto-triggering server fetch after client pagination');
+            Future.delayed(const Duration(milliseconds: 200), () {
+              if (!mounted || _isLoadingMore) return;
+
+              setState(() => _isLoadingMore = true);
+              _currentPage++;
+              log('📡 Server Pagination: Fetching page $_currentPage from server... (hasNextPage: $_hasNextPage)');
+
+              _groupBloc.add(
+                FetchGroupMessages(
+                  convoId: widget.conversationId,
+                  page: _currentPage,
+                  limit: _limit,
+                ),
+              );
+            });
+          }
         });
       }
-      // Case B: We showed all local messages, check if server has more
-      else if (_hasNextPage && !_isLoadingMore) {
-        _loadMoreMessages();
+      // 2. Server-side pagination: User scrolled with all local messages already shown
+      else if (_visibleCount >= total && _hasNextPage && !_isLoadingMore) {
+        setState(() {
+          _isLoadingMore = true;
+        });
+
+        _currentPage++;
+        log('📡 Server Pagination: Fetching page $_currentPage from server... (hasNextPage: $_hasNextPage)');
+
+        _groupBloc.add(
+          FetchGroupMessages(
+            convoId: widget.conversationId,
+            page: _currentPage,
+            limit: _limit,
+          ),
+        );
+      } else {
+        log('🛑 Pagination stopped - visibleCount: $_visibleCount, total: $total, hasNextPage: $_hasNextPage, isLoading: $_isLoadingMore');
       }
     }
   }
 
-  void _loadMoreMessages() {
-    if (!_hasNextPage || _isLoadingMore) return;
+  // void _scrollListener() {
+  //   if (!_scrollController.hasClients) return;
 
-    setState(() => _isLoadingMore = true);
+  //   // 1. Check if scrolled near the TOP (maxScrollExtent in reverse list)
+  //   //    We use a threshold (e.g. 50-100 pixels) to trigger loading
+  //   if (_scrollController.position.pixels >=
+  //       _scrollController.position.maxScrollExtent - 150) {
+  //     final total = _allMessages.length;
 
-    _currentPage++;
-    _fetchMessages();
-  }
+  //     // Case A: We have more local messages hidden (client-side windowing)
+  //     if (_visibleCount < total && !_isLoadingMore) {
+  //       setState(() => _isLoadingMore = true);
 
-  void _appendMessage(Map<String, dynamic> message) {
-    setState(() {
-      messages.add(message);
-      _updateNotifier();
-    });
-  }
+  //       // Add small delay to simulate load (and allow UI to show spinner if desired)
+  //       Future.delayed(const Duration(milliseconds: 300), () {
+  //         if (!mounted) return;
+  //         setState(() {
+  //           _visibleCount = (_visibleCount + _pageStep).clamp(0, total);
+  //           _isLoadingMore = false;
+  //         });
+  //         _updateNotifierFromAll();
+  //       });
+  //     }
+  //     // Case B: We showed all local messages, check if server has more
+  //     else if (_hasNextPage && !_isLoadingMore) {
+  //       _loadMoreMessages();
+  //     }
+  //   }
+  // }
 
   String _formatDateTime(DateTime? dateTime) {
     if (dateTime == null) return '';
@@ -1534,34 +1709,44 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
   }
 
-  void _toggleSelectionMode() {
-    setState(() {
-      _isSelectionMode = false;
-      _selectedMessages.clear();
-      _selectedMessageKeys.clear();
-    });
-  }
-
-  void _markMessagesAsDeleted(List<String> messageIds) {
-    log("Marking messages as deleted: $messageIds");
+  void _markMessagesAsDeleted(List<String> messageIds,
+      {String deleteFor = 'everyone'}) {
+    log("Marking messages as deleted: $messageIds (for $deleteFor)");
 
     setState(() {
       List<Map<String, dynamic>> updateMessages(
           List<Map<String, dynamic>> list) {
-        return list.map((msg) {
-          if (messageIds.contains(msg['message_id']?.toString())) {
-            return {
-              ...msg,
-              'content': 'Message Deleted',
-              'imageUrl': null,
-              'fileUrl': null,
-              'fileName': null,
-              'fileType': null,
-              'isDeleted': true,
-            };
-          }
-          return msg;
-        }).toList();
+        String? getMessageId(Map<String, dynamic> msg) {
+          return msg['message_id']?.toString() ??
+              msg['messageId']?.toString() ??
+              msg['_id']?.toString() ??
+              msg['id']?.toString();
+        }
+
+        if (deleteFor == 'me') {
+          return list.where((msg) {
+            final id = getMessageId(msg);
+            return id == null || !messageIds.contains(id);
+          }).toList();
+        } else {
+          return list.map((msg) {
+            final id = getMessageId(msg);
+            if (id != null && messageIds.contains(id)) {
+              return {
+                ...msg,
+                'content': '🚫 This message was deleted',
+                'imageUrl': null,
+                'fileUrl': null,
+                'fileName': null,
+                'fileType': null,
+                'isDeleted': true,
+                'messageStatus': 'deleted',
+                'is_deleted': true,
+              };
+            }
+            return msg;
+          }).toList();
+        }
       }
 
       messages = updateMessages(messages);
@@ -1574,32 +1759,30 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     });
   }
 
-  void _deleteSelectedMessages() {
+  void _deleteSelectedMessages(String deleteFor) {
     if (_selectedMessageIds.isEmpty) {
       log("No messages selected to delete");
       return;
     }
 
     setState(() {
-      _isDeletingMessages = true;
     });
 
-    _markMessagesAsDeleted(_selectedMessageIds.toList());
+    _markMessagesAsDeleted(_selectedMessageIds.toList(), deleteFor: deleteFor);
 
     _groupBloc.add(DeleteMessagesEvent(
-      messageIds: _selectedMessageIds.toList(),
-      convoId: widget.conversationId,
-      senderId: currentUserId,
-      receiverId: widget.datumId,
-      message: _selectedMessageKeys.first,
-    ));
+        messageIds: _selectedMessageIds.toList(),
+        convoId: widget.conversationId,
+        senderId: currentUserId,
+        receiverId: widget.datumId,
+        message: _selectedMessageKeys.first,
+        deleteFor: deleteFor));
 
     setState(() {
       _selectedMessages.clear();
       _selectedMessageIds.clear();
       _selectedMessageKeys.clear();
       _isSelectionMode = false;
-      _isDeletingMessages = false;
     });
   }
 
@@ -1943,9 +2126,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
 
     // Prioritize LIVE messages (socket) > Fetched (messages) > Local (dbMessages)
-    for (var m in socketMessages) addUnique(m);
-    for (var m in messages) addUnique(m);
-    for (var m in dbMessages) addUnique(m);
+    for (var m in socketMessages) {
+      addUnique(m);
+    }
+    for (var m in messages) {
+      addUnique(m);
+    }
+    for (var m in dbMessages) {
+      addUnique(m);
+    }
 
     combined.sort(
       (a, b) => _parseTime(a['time']).compareTo(_parseTime(b['time'])),
@@ -2424,6 +2613,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   Widget _buildChatBody() {
     return BlocListener<GroupChatBloc, GroupChatState>(
+      bloc: _groupBloc,
       listener: (context, state) {
         if (state is PermissionState) {
           _handlePermissionResponse(state.response);
@@ -2432,79 +2622,89 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           // Handled by _sendMessage completer
         } else if (state is GroupChatError) {
           setState(() {
-            _isDeletingMessages = false;
             _isLoadingMore = false;
           });
         } else if (state is GroupChatLoaded) {
+          // 🔍 Track every GroupChatLoaded emission
+          log('\ud83d\udea8 GroupChatLoaded RECEIVED - Page: $_currentPage, isLoadingMore: $_isLoadingMore, total on server: ${state.response.total}');
+
           // ALWAYS update these flags when state arrives, even if data is same
           _hasNextPage = state.response.hasNextPage;
           if (_isLoadingMore) {
             setState(() => _isLoadingMore = false);
           }
 
-          if (_lastLoadedData != state.response.data) {
-            _lastLoadedData = state.response.data;
-            final incomingLoaded = flattenGroupedMessages(state.response.data);
+          final incomingLoaded = flattenGroupedMessages(state.response.data);
 
-            final incomingNormalized = incomingLoaded
-                .map<Map<String, dynamic>>((msg) => normalizeMessage(msg))
-                .where((m) => m.isNotEmpty)
-                .toList();
+          final incomingNormalized = incomingLoaded
+              .map<Map<String, dynamic>>((msg) => normalizeMessage(msg))
+              .where((m) => m.isNotEmpty)
+              .toList();
 
-            debugPrint('🔍 PAGINATION DEBUG:');
-            debugPrint('   - Current page: $_currentPage');
-            debugPrint('   - Incoming messages: ${incomingNormalized.length}');
-            debugPrint('   - Current dbMessages count: ${dbMessages.length}');
+          // Calculate total pages for debugging
+          final totalPages = (state.response.total / _limit).ceil();
 
-            setState(() {
-              // --- ROBUST MERGE STRATEGY ---
-              // Overlays incoming messages on top of existing ones by ID
-              // This preserves older history when Page 1 is refreshed
-              final Map<String, Map<String, dynamic>> messagesMap = {};
+          log('📊 PAGINATION INFO:');
+          log('   📄 Current page: $_currentPage of $totalPages');
+          log('   📥 Total messages on server: ${state.response.total}');
+          log('   📦 Incoming messages this page: ${incomingNormalized.length}');
+          log('   💾 Current local messages: ${dbMessages.length}');
+          log('   ⏭️  Has next page: ${state.response.hasNextPage}');
+          log('   ⏮️  Has previous page: ${state.response.hasPreviousPage}');
 
-              // 1. Put existing messages into map
-              for (var m in dbMessages) {
-                final id = (m['message_id'] ?? m['id'] ?? '').toString();
-                if (id.isNotEmpty) messagesMap[id] = m;
-              }
+          setState(() {
+            // --- ROBUST MERGE STRATEGY ---
+            // Overlays incoming messages on top of existing ones by ID
+            // This preserves older history when Page 1 is refreshed
+            final Map<String, Map<String, dynamic>> messagesMap = {};
 
-              // 2. Overlay incoming messages (may override existing or add new)
-              for (var m in incomingNormalized) {
-                final id = (m['message_id'] ?? m['id'] ?? '').toString();
-                if (id.isNotEmpty) messagesMap[id] = m;
-              }
+            log('🔀 MERGE STRATEGY:');
+            log('   📝 Existing dbMessages: ${dbMessages.length}');
+            log('   📥 Incoming messages: ${incomingNormalized.length}');
 
-              // 3. Rebuild dbMessages from merged map
-              dbMessages = messagesMap.values.toList();
-              debugPrint(
-                  '   - After merge, dbMessages count: ${dbMessages.length}');
-            });
+            // 1. Put existing messages into map
+            for (var m in dbMessages) {
+              final id = (m['message_id'] ?? m['id'] ?? '').toString();
+              if (id.isNotEmpty) messagesMap[id] = m;
+            }
+            log('   🗄️  Messages in map after existing: ${messagesMap.length}');
 
-            // Save merged list to local storage
-            GrpLocalChatStorage.saveMessages(widget.conversationId, dbMessages);
-
+            // 2. Overlay incoming messages (may override existing or add new)
             for (var m in incomingNormalized) {
-              final id = (m['message_id'] ?? m['id'])?.toString();
-              if (id != null && id.isNotEmpty) _seenMessageIds.add(id);
+              final id = (m['message_id'] ?? m['id'] ?? '').toString();
+              if (id.isNotEmpty) {
+                messagesMap[id] = m;
+                log('   ➕ Added/Updated message: $id');
+              }
             }
+            log('   🗄️  Messages in map after incoming: ${messagesMap.length}');
 
-            // Sync notifier
-            _updateNotifier();
+            // 3. Rebuild dbMessages from merged map
+            dbMessages = messagesMap.values.toList();
+            log('   ✅ After merge, dbMessages count: ${dbMessages.length}');
+          });
 
-            // After _updateNotifier(), if this is pagination (page > 1),
-            // ensure _visibleCount shows all messages available so far
-            if (_currentPage > 1) {
-              setState(() {
-                _visibleCount = _allMessages.length;
-              });
-              _updateNotifierFromAll();
-              debugPrint(
-                  '   - Page $_currentPage: Set _visibleCount to ${_visibleCount} to show all messages');
-            }
-
-            debugPrint(
-                '✅ GroupChatLoaded processed: total=${_allMessages.length}, visible=$_visibleCount');
+          for (var m in incomingNormalized) {
+            final id = (m['message_id'] ?? m['id'])?.toString();
+            if (id != null && id.isNotEmpty) _seenMessageIds.add(id);
           }
+
+          // Sync notifier
+          _updateNotifier();
+
+          // After _updateNotifier(), if this is pagination (page > 1),
+          // ensure _visibleCount shows all messages available so far
+          if (_currentPage > 1) {
+            setState(() {
+              _visibleCount = _allMessages.length;
+            });
+            _updateNotifierFromAll();
+            debugPrint(
+                '   - Page $_currentPage: Set _visibleCount to $_visibleCount to show all messages');
+          }
+
+          debugPrint(
+              '✅ GroupChatLoaded processed: total=${_allMessages.length}, visible=$_visibleCount');
         } else if (state is GroupDetailsLoaded) {
           debugPrint(
               'ℹ️ GroupDetailsLoaded emitted. Ignoring for message list.');
@@ -2523,6 +2723,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           }
 
           return BlocBuilder<GroupChatBloc, GroupChatState>(
+            bloc: _groupBloc,
             builder: (context, state) {
               debugPrint('🏗️ BlocBuilder state: ${state.runtimeType}');
               final bool showShimmer = state is GroupChatLoading &&
@@ -2547,58 +2748,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                   children: [
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 220),
-                      child: _isLoadingMore
-                          ? Padding(
-                              key: const ValueKey('top_loader'),
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 8.0),
-                              child: Center(
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: const [
-                                    SizedBox(
-                                      width: 15,
-                                      height: 15,
-                                      child: CircularProgressIndicator(
-                                          strokeWidth: 1.5),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            )
-                          : (!_hasNextPage &&
-                                  _allMessages.isNotEmpty &&
-                                  _visibleCount >= _allMessages.length)
-                              ? Padding(
-                                  key: const ValueKey('all_loaded'),
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 8.0),
-                                  child: Center(
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 12, vertical: 6),
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey.shade100,
-                                        borderRadius: BorderRadius.circular(16),
-                                        border: Border.all(
-                                            color: Colors.grey.shade300),
-                                      ),
-                                      child: const Text('All messages loaded',
-                                          style: TextStyle(fontSize: 13)),
-                                    ),
-                                  ),
-                                )
-                              : const SizedBox.shrink(),
+                      child:
+                          _isLoadingMore ? SizedBox() : const SizedBox.shrink(),
                     ),
                     Expanded(
                       child: ListView.builder(
                         controller: _scrollController,
                         itemCount: combinedMessages.length,
-                        reverse: true, // Start from bottom
+                        reverse: true,
                         itemBuilder: (context, index) {
-                          // Calculate real index for [Oldest ... Newest] list
-                          // combinedMessages is [Oldest ... Newest]
-                          // ListView index 0 is at Bottom (Newest)
                           final int realIndex =
                               combinedMessages.length - 1 - index;
 
@@ -2670,7 +2828,29 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                             }
 
                             if (groupImages.isNotEmpty) {
-                              final String userName = message['userName'] ?? "";
+                              final String userName = (message['userName']
+                                          ?.toString()
+                                          .trim()
+                                          .isNotEmpty ==
+                                      true)
+                                  ? message['userName']
+                                  : (() {
+                                      final s = message['sender'];
+                                      if (s is Map) {
+                                        return [
+                                          s['first_name'],
+                                          s['last_name'],
+                                          s['name'],
+                                        ]
+                                            .where((e) =>
+                                                e != null &&
+                                                e.toString().trim().isNotEmpty)
+                                            .join(' ')
+                                            .trim();
+                                      }
+                                      return '';
+                                    })();
+
                               final senderData = message['sender'] is Map
                                   ? message['sender']
                                   : {};
@@ -2788,22 +2968,60 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                     groupImages,
                                                                 onMediaTap:
                                                                     (index) {
-                                                                  Navigator
-                                                                      .push(
-                                                                    context,
-                                                                    MaterialPageRoute(
-                                                                      builder:
-                                                                          (_) =>
-                                                                              GroupedMediaViewer(
-                                                                        mediaUrls:
-                                                                            groupImages,
-                                                                        initialIndex:
-                                                                            index,
-                                                                      ),
-                                                                    ),
+                                                                  final media =
+                                                                      buildConversationMedia(
+                                                                    combinedMessages,
+                                                                    currentUserId:
+                                                                        currentUserId,
                                                                   );
+                                                                  final tappedUrl =
+                                                                      groupImages[
+                                                                          index];
+                                                                  final startIndex =
+                                                                      media.indexWhere((m) =>
+                                                                          m.mediaUrl ==
+                                                                          tappedUrl);
+
+                                                                  if (startIndex !=
+                                                                      -1) {
+                                                                    Navigator
+                                                                        .push(
+                                                                      context,
+                                                                      MaterialPageRoute(
+                                                                        builder:
+                                                                            (_) =>
+                                                                                MixedMediaViewer(
+                                                                          items:
+                                                                              media,
+                                                                          initialIndex:
+                                                                              startIndex,
+                                                                        ),
+                                                                      ),
+                                                                    );
+                                                                  }
                                                                 },
                                                               ),
+                                                              // GroupedMediaWidget(
+                                                              //   mediaUrls:
+                                                              //       groupImages,
+                                                              //   onMediaTap:
+                                                              //       (index) {
+                                                              //     Navigator
+                                                              //         .push(
+                                                              //       context,
+                                                              //       MaterialPageRoute(
+                                                              //         builder:
+                                                              //             (_) =>
+                                                              //                 GroupedMediaViewer(
+                                                              //           mediaUrls:
+                                                              //               groupImages,
+                                                              //           initialIndex:
+                                                              //               index,
+                                                              //         ),
+                                                              //       ),
+                                                              //     );
+                                                              //   },
+                                                              // ),
                                                               Positioned(
                                                                 bottom: 5,
                                                                 right: 5,
@@ -2899,48 +3117,52 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                         ),
                                                       ),
                                                     ),
-                                                  // Positioned(
-                                                  //   top: 0,
-                                                  //   bottom: 0,
-                                                  //   left: isSentByMe ? -60 : null,
-                                                  //   right:
-                                                  //       isSentByMe ? null : -60,
-                                                  //   child: Center(
-                                                  //     child: Material(
-                                                  //       color: Colors.transparent,
-                                                  //       child: InkWell(
-                                                  //         borderRadius:
-                                                  //             BorderRadius
-                                                  //                 .circular(20),
-                                                  //         onTap: () {
-                                                  //           MyRouter.pushReplace(
-                                                  //             screen:
-                                                  //                 ForwardMessageScreen(
-                                                  //               messages:
-                                                  //                   groupMessagesList,
-                                                  //               currentUserId:
-                                                  //                   currentUserId,
-                                                  //               conversionalid: widget
-                                                  //                   .conversationId,
-                                                  //               username: widget
-                                                  //                   .groupName,
-                                                  //             ),
-                                                  //           );
-                                                  //         },
-                                                  //         child: CircleAvatar(
-                                                  //           maxRadius: 16,
-                                                  //           backgroundColor:
-                                                  //               Colors.white,
-                                                  //           child: Image.asset(
-                                                  //             "assets/images/forward.png",
-                                                  //             height: 20,
-                                                  //             width: 20,
-                                                  //           ),
-                                                  //         ),
-                                                  //       ),
-                                                  //     ),
-                                                  //   ),
-                                                  // ),
+                                                  Positioned(
+                                                    top: 0,
+                                                    bottom: 0,
+                                                    left:
+                                                        isSentByMe ? -60 : null,
+                                                    right:
+                                                        isSentByMe ? null : -50,
+                                                    child: Center(
+                                                      child: Material(
+                                                        color:
+                                                            Colors.transparent,
+                                                        child: InkWell(
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(20),
+                                                          onTap: () {
+                                                            MyRouter
+                                                                .pushReplace(
+                                                              screen:
+                                                                  ForwardMessageScreen(
+                                                                messages:
+                                                                    groupMessagesList,
+                                                                currentUserId:
+                                                                    currentUserId,
+                                                                conversionalid:
+                                                                    widget
+                                                                        .conversationId,
+                                                                username: widget
+                                                                    .groupName,
+                                                              ),
+                                                            );
+                                                          },
+                                                          child: CircleAvatar(
+                                                            maxRadius: 16,
+                                                            backgroundColor:
+                                                                Colors.white,
+                                                            child: Image.asset(
+                                                              "assets/images/forward.png",
+                                                              height: 20,
+                                                              width: 20,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
                                                 ],
                                               ),
                                             ),
@@ -3157,8 +3379,25 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final String? fileUrl = message['fileUrl'] ?? _fileUrl;
     final String? fileName = message['fileName'];
     final String? fileType = message['fileType'];
-    final bool? isForwarded = message['isForwarded'];
-    final String userName = message['userName'] ?? "";
+    final bool? isForwarded = message['isForwarded'] ?? false;
+    final String userName =
+        (message['userName']?.toString().trim().isNotEmpty == true)
+            ? message['userName']
+            : (() {
+                final s = message['sender'];
+                if (s is Map) {
+                  return [
+                    s['first_name'],
+                    s['last_name'],
+                    s['name'],
+                  ]
+                      .where((e) => e != null && e.toString().trim().isNotEmpty)
+                      .join(' ')
+                      .trim();
+                }
+                return '';
+              })();
+
     final String contentType = message['ContentType'] ?? "";
     final senderData = message['sender'] is Map ? message['sender'] : {};
     final String profileImageUrl = senderData['profile_pic_path']?.toString() ??
@@ -3179,21 +3418,21 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 RegExp(r'\.(mp4|mov|avi|mkv|webm)$', caseSensitive: false)
                     .hasMatch(fileName));
 
-    if (message['isDeleted'] == true ||
-        message['content'] == 'Message Deleted') {
-      return Container(
-        margin: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.grey[200],
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: const Text(
-          "This message was deleted",
-          style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
-        ),
-      );
-    }
+    // if (message['isDeleted'] == true ||
+    //     message['content'] == 'Message Deleted') {
+    //   return Container(
+    //     margin: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+    //     padding: const EdgeInsets.all(8),
+    //     decoration: BoxDecoration(
+    //       color: Colors.grey[200],
+    //       borderRadius: BorderRadius.circular(16),
+    //     ),
+    //     child: const Text(
+    //       "This message was deleted",
+    //       style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+    //     ),
+    //   );
+    // }
 
     final String messageStatus =
         message['messageStatus']?.toString() ?? 'delivered';
@@ -3673,8 +3912,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                     false)
                                                             .firstMatch(
                                                                 content);
-                                                        if (match == null)
+                                                        if (match == null) {
                                                           return '';
+                                                        }
                                                         String url =
                                                             match.group(0)!;
                                                         try {
@@ -4023,6 +4263,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                     mainAxisSize:
                                                         MainAxisSize.min,
                                                     children: [
+                                                      // time: 2025-12-29T17:44:21.347773,
                                                       Text(
                                                         TimeUtils
                                                             .formatUtcToIst(
@@ -4416,6 +4657,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Widget _buildMessageInputField(bool isKeyboardVisible, bool thereORleft) {
     return MessageInputField(
       messageController: _messageController,
+      conversionId: widget.conversationId,
       reciverID: widget.datumId,
       focusNode: _focusNode,
       onSendPressed: _sendMessage,
@@ -4429,12 +4671,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         onOptionSelected: _sendMessageImage,
         onFilesSelected: _sendMultipleFiles,
       ),
-
-      //     (List<Map<String, dynamic>> localMessages) {
-      //   setState(() {
-      //     socketMessages.addAll(localMessages);
-      //   });
-      // }),
       onCameraPressed: _openCamera,
       onRecordPressed: _isRecording ? _stopRecordingFs : _startRecordingFs,
       isRecording: _isRecording,
@@ -4517,7 +4753,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       toggleSelectionMode: _hasLeftGroup
           ? () {}
           : () {
-              print(_hasLeftGroup);
               if (_hasLeftGroup) return;
 
               setState(() {
@@ -4532,12 +4767,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       deleteSelectedMessages: _hasLeftGroup
           ? () {}
           : () {
-              print(_hasLeftGroup);
               if (_hasLeftGroup) return;
               DeleteMessageDialog.show(
                 context: context,
-                onDeleteForEveryone: () {},
-                onDeleteForMe: () => _deleteSelectedMessages(),
+                onDeleteForEveryone: () => _deleteSelectedMessages("everyone"),
+                onDeleteForMe: () => _deleteSelectedMessages('me'),
               );
             },
       forwardSelectedMessages: _hasLeftGroup ? () {} : _forwardSelectedMessages,
@@ -4632,15 +4866,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   Widget _buildAvatarWithInitial(String name) {
-    final String initial = name.isNotEmpty ? name[0].toUpperCase() : "?";
+    final String initial = name.isNotEmpty ? name[0].toUpperCase() : "U";
     return Container(
       width: 32,
       height: 32,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: name.isNotEmpty
-            ? ColorUtil.getColorFromAlphabet(name)
-            : Colors.grey.shade400,
+        color:
+            name.isNotEmpty ? ColorUtil.getColorFromAlphabet(name) : Colors.red,
       ),
       alignment: Alignment.center,
       child: Text(
@@ -5201,7 +5434,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       if (!_seenMessageIds.contains(realId)) _seenMessageIds.add(realId);
       final combined = _getCombinedMessages();
       GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
-      setState(() {}); // Trigger rebuild
+      setState(() {});
       _refreshMessages();
     }
   }
@@ -5296,3 +5529,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
   }
 }
+
+
+
+
+// when the application is  offline mode 
+// wheneever ia m getting converiosn list - >  forntired , snaptop , userId  - > save in hive -> user went to ofline mode -> online back we need to emit event -> 'convoList:sync', 

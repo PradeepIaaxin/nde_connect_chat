@@ -3,6 +3,7 @@ import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hive/hive.dart';
+import 'package:nde_email/convo_list_crdt.dart';
 import 'package:nde_email/main.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/local_strorage.dart';
 import 'package:nde_email/presantation/chat/chat_list/chat_session_storage/chat_session.dart';
@@ -10,7 +11,7 @@ import 'package:nde_email/presantation/chat/chat_private_screen/localstorage/loc
 import 'package:nde_email/presantation/drive/Bloc/file_bloc/drive_local_storage.dart';
 import 'package:nde_email/presantation/drive/Bloc/sharred_bloc/sharred_local.dart';
 import 'package:nde_email/presantation/drive/Bloc/starred_bloc/stared_local.dart';
-import 'package:nde_email/presantation/login/login_api.dart';
+import 'package:nde_email/utils/reusbale/common_import.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:nde_email/presantation/login/login_screen.dart';
 import 'package:nde_email/presantation/login/login_screen_bloc.dart';
@@ -115,70 +116,63 @@ class UserPreferences {
   }
 
   static Future<void> clearUser() async {
-    // Clear SharedPreferences
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
-    log("✅ SharedPreferences cleared.");
+    log("✅ SharedPreferences cleared");
 
-    // Clear Hive boxes safely
-    await _clearHiveBox(LocalChatStorage.boxName);
-    await _clearHiveBox(LocalDriveStorage.boxName);
-    await _clearHiveBox(GrpLocalChatStorage.boxName);
-    await _clearHiveBox(LocalStarredStorage.boxName);
-    await _clearHiveBox(LocalSharredStorage.boxName);
-    await prefs.remove(userKey);
-    await prefs.remove(tokenKey);
-    await prefs.remove(workspaceKey);
-    await prefs.remove(usernameKey);
-    await prefs.remove(emailKey);
-    await prefs.remove(profilePicKey);
-    log("✅ Hive boxes cleared.");
+    await _clearNormalBox(LocalChatStorage.boxName);
+    await _clearNormalBox(LocalDriveStorage.boxName);
+    await _clearNormalBox(GrpLocalChatStorage.boxName);
+    await _clearNormalBox(LocalStarredStorage.boxName);
+    await _clearNormalBox(LocalSharredStorage.boxName);
 
-    // Clear chat session storage if any
+    // ✅ CRDT — TYPED CLEAR ONLY
+    await _clearConvoCrdtBox();
+
     ChatSessionStorage.clear();
-
-    // Remove additional custom data if needed
-    await prefs.remove('callHistory');
+    log("✅ All Hive + session data cleared safely");
   }
 
-  static Future<void> _clearHiveBox(String boxName) async {
+  static Future<void> _clearNormalBox(String boxName) async {
     if (Hive.isBoxOpen(boxName)) {
       await Hive.box(boxName).clear();
-    } else {
-      var box = await Hive.openBox(boxName);
+      log("🧹 Cleared Hive box: $boxName");
+    }
+  }
+
+  static Future<void> _clearConvoCrdtBox() async {
+    const boxName = 'convo_crdt';
+
+    if (Hive.isBoxOpen(boxName)) {
+      final Box<ConvoListCrdt> box = Hive.box<ConvoListCrdt>(boxName);
+
       await box.clear();
+      log("🧹 Cleared CRDT box safely: $boxName");
     }
   }
 
   static Future<void> logout(BuildContext context) async {
-    final userId = await UserPreferences.getUserId();
-    final workspaceId = await UserPreferences.getDefaultWorkspace();
+    final userId = await getUserId();
+    final workspaceId = await getDefaultWorkspace();
 
-    // 1️⃣ Emit offline BEFORE disconnect
+    // 1️⃣ Send offline event
     if (userId != null && workspaceId != null) {
       socketService.setUserOffline(userId, workspaceId);
     }
 
-    // 2️⃣ WAIT to ensure server receives it
-    await Future.delayed(const Duration(milliseconds: 300));
-
-    // 3️⃣ Now trigger logout event in Bloc
-    context.read<LoginBloc>().add(LoginLoggedOut());
-
-    // 4️⃣ Wait again to clear data completely
+    // 2️⃣ Allow socket flush
     await Future.delayed(const Duration(milliseconds: 200));
 
-    // 5️⃣ Navigate to Login
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(
-        builder: (_) => BlocProvider(
-          create: (context) => LoginBloc(authRepository: Auth()),
-          child: const LoginScreen(),
-        ),
-      ),
-      (route) => false,
-    );
-    log("✅ User logged out and offline status synced!");
+    // 3️⃣ Clear local storage
+    await clearUser();
+
+    // 4️⃣ Bloc logout
+    context.read<LoginBloc>().add(LoginLoggedOut());
+
+    // 5️⃣ Navigate to login
+    await Future.delayed(const Duration(milliseconds: 100));
+    MyRouter.pushRemoveUntil(screen: const LoginScreen());
+
+    log("✅ Logout completed safely");
   }
 }

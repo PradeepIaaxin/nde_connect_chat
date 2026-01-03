@@ -25,17 +25,17 @@ class ChatListError extends ChatListState {
 
 class ChatListLoaded extends ChatListState {
   final List<Datu> chats;
-  final PaginationData paginationData;
-  final int page;
+  // final PaginationData paginationData;
+  // final int page;
 
   const ChatListLoaded({
     required this.chats,
-    required this.paginationData,
-    required this.page,
+    // required this.paginationData,
+    // required this.page,
   });
 
   @override
-  List<Object?> get props => [chats, paginationData, page];
+  List<Object?> get props => [chats, ];
 }
 
 class ArchiveListLoaded extends ChatListState {

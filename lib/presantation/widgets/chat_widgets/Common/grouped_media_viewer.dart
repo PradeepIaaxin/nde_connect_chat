@@ -2,10 +2,8 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/VideoCacheService.dart';
-import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/const/consts.dart';
-import 'package:swipe_to/swipe_to.dart';
-import '../../../chat/chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
+import 'package:nde_email/presantation/widgets/chat_widgets/Common/whatsapp_swipe_to_reply.dart';
 
 class GroupedMediaWidget extends StatelessWidget {
   final List<GroupMediaItem> media;
@@ -18,6 +16,7 @@ class GroupedMediaWidget extends StatelessWidget {
   final GestureDragUpdateCallback? onRightSwipe;
   final bool? isHighlighted;
   final String? messageId;
+  final bool? isForwarded;
 
   const GroupedMediaWidget(
       {super.key,
@@ -27,13 +26,12 @@ class GroupedMediaWidget extends StatelessWidget {
       this.onImageTap,
       required this.messageStatus,
       this.buildStatusIcon,
-      this.onForwardTap, // ✅ ADD
+      this.onForwardTap,
       this.onRightSwipe,
       this.messageId,
-      this.isHighlighted = false});
+      this.isHighlighted = false,  this.isForwarded=false});
 
   static const double _statusBarHeight = 20;
-  static const double _radius = 14;
 
   @override
   Widget build(BuildContext context) {
@@ -46,17 +44,12 @@ class GroupedMediaWidget extends StatelessWidget {
         screenWidth < 600 ? screenWidth * 0.72 : screenWidth * 0.5;
 
     final visibleCount = media.length > 4 ? 4 : media.length;
-       print("isHighlighted $isHighlighted");
-    return SwipeTo(
-      animationDuration: const Duration(milliseconds: 650),
-      iconOnRightSwipe: Icons.reply,
-      iconColor: Colors.grey.shade600,
-      iconSize: 24.0,
-      offsetDx: 0.3,
-      swipeSensitivity: 5,
-      onRightSwipe: onRightSwipe,
+
+    return SwipeToReply(
+      onReply: () =>
+          onRightSwipe?.call(DragUpdateDetails(globalPosition: Offset.zero)),
       child: AnimatedContainer(
-      key: ValueKey(messageId),
+        key: ValueKey(messageId),
         duration: const Duration(milliseconds: 600),
         curve: Curves.easeOut,
         margin: const EdgeInsets.symmetric(vertical: 2),
@@ -77,12 +70,8 @@ class GroupedMediaWidget extends StatelessWidget {
                 width: bubbleWidth,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.only(
-                    topLeft: isSentByMe
-                        ? const Radius.circular(18)
-                        : const Radius.circular(18),
-                    topRight: isSentByMe
-                        ? const Radius.circular(18)
-                        : const Radius.circular(18),
+                    topLeft: const Radius.circular(18),
+                    topRight: const Radius.circular(18),
                     bottomLeft:
                         isSentByMe ? const Radius.circular(18) : Radius.zero,
                     bottomRight:
@@ -96,36 +85,63 @@ class GroupedMediaWidget extends StatelessWidget {
                 clipBehavior: Clip.antiAlias,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // 🔹 MEDIA AREA
+                    
+                      if ( isForwarded!=true)
+                        Padding(
+                          padding: const EdgeInsets.all(2.0),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Image.asset(
+                                "assets/images/forward.png",
+                                height: 14,
+                                width: 14,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                "Forwarded",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[700],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                     AspectRatio(
                       aspectRatio: _aspectRatio(visibleCount),
                       child: _buildMediaLayout(context, visibleCount),
                     ),
-
-                    // 🔹 STATUS BAR
-                    
                   ],
                 ),
               ),
               Positioned(
-                      height: _statusBarHeight,
-                      top: 260,
-                      left: 265,
-                      child: Row(
-                        children: [
-                          Text(
-                            time,
-                            style: const TextStyle(
-                                fontSize: 11, color: Colors.white),
-                          ),
-                          if (isSentByMe && buildStatusIcon != null) ...[
-                            const SizedBox(width: 4),
-                            buildStatusIcon!(messageStatus),
-                          ],
-                        ],
+                height: _statusBarHeight,
+                bottom: 18,
+                right: 10,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.45),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                  child: Row(
+                    children: [
+                      Text(
+                        time,
+                        style: const TextStyle(fontSize: 11, color: Colors.white),
                       ),
-                    ),
+                      if (isSentByMe && buildStatusIcon != null) ...[
+                        const SizedBox(width: 4),
+                        buildStatusIcon!(messageStatus),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
               Positioned(
                 top: 0,
                 bottom: 0,
@@ -245,20 +261,21 @@ class GroupedMediaWidget extends StatelessWidget {
                 color: isSentByMe ? senderColor : receiverColor, // divider line
               ),
               Expanded(
-                child: ClipRRect(      borderRadius: BorderRadius.all(Radius.circular(10)),
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.all(Radius.circular(10)),
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
                       _tile(context, 3),
                       if (media.length > 4)
                         GestureDetector(
-                          onTap: () => onImageTap?.call(0),
+                          onTap: () => onImageTap?.call(3),
                           child: Container(
                             color: Colors.black54,
                             alignment: Alignment.center,
                             child: Text(
-                              '+${4}',
-                              style: const TextStyle(
+                              '+${media.length - 3}',
+                              style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
@@ -283,14 +300,14 @@ class GroupedMediaWidget extends StatelessWidget {
     final item = media[index];
 
     return ClipRRect(
-      borderRadius: BorderRadius.all(Radius.circular(10)),
+      borderRadius: const BorderRadius.all(Radius.circular(10)),
       child: GestureDetector(
         onTap: () => onImageTap?.call(index),
         child: Stack(
           fit: StackFit.expand,
           children: [
             Hero(
-        tag: '${item.mediaUrl}_${messageId}_$index',
+              tag: '${item.mediaUrl}_${messageId}_$index',
               child: _thumb(item),
             ),
             if (item.isVideo)
@@ -318,10 +335,18 @@ class GroupedMediaWidget extends StatelessWidget {
 
       // ✅ LOCAL IMAGE
       if (_isLocalPath(url)) {
-        return Image.file(
-          File(url.replaceFirst('file://', '')),
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.file(
+              File(url.replaceFirst('file://', '')),
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
+            ),
+            // Show loader if status is 'sending'
+            if (messageStatus.toLowerCase() == 'sending')
+              Center(child: _buildWhatsAppLoader()),
+          ],
         );
       }
 
@@ -330,8 +355,18 @@ class GroupedMediaWidget extends StatelessWidget {
         child: CachedNetworkImage(
           imageUrl: url,
           fit: BoxFit.cover,
-          placeholder: (_, __) => Container(color: Colors.grey.shade300),
-          errorWidget: (_, __, ___) => const Icon(Icons.broken_image),
+          progressIndicatorBuilder: (_, __, downloadProgress) => Container(
+            color: Colors.grey.shade200,
+            child: Center(
+              child: _buildWhatsAppLoader(progress: downloadProgress.progress),
+            ),
+          ),
+          errorWidget: (_, __, ___) => Container(
+            color: Colors.grey.shade200,
+            child: const Center(
+              child: Icon(Icons.broken_image, color: Colors.grey),
+            ),
+          ),
         ),
       );
     }
@@ -343,9 +378,17 @@ class GroupedMediaWidget extends StatelessWidget {
         if (snap.connectionState == ConnectionState.done &&
             snap.hasData &&
             snap.data!.existsSync()) {
-          return Image.file(
-            snap.data!,
-            fit: BoxFit.cover,
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.file(
+                snap.data!,
+                fit: BoxFit.cover,
+              ),
+              // Show loader if status is 'sending'
+              if (messageStatus.toLowerCase() == 'sending')
+                Center(child: _buildWhatsAppLoader()),
+            ],
           );
         }
 
@@ -357,16 +400,49 @@ class GroupedMediaWidget extends StatelessWidget {
       },
     );
   }
+
+  Widget _buildWhatsAppLoader({double? progress}) {
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: Colors.black38,
+        shape: BoxShape.circle,
+      ),
+      padding: const EdgeInsets.all(4),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          CircularProgressIndicator(
+            value: progress,
+            strokeWidth: 3,
+            valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+          ),
+          const Icon(
+            Icons.stop,
+            color: Colors.white,
+            size: 18,
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class GroupMediaItem {
   final String previewUrl;
   final String mediaUrl;
   final bool isVideo;
+  final String? senderName;
+  final String? senderId;
+  final String? time;
 
   GroupMediaItem({
     required this.previewUrl,
     required this.mediaUrl,
     required this.isVideo,
+    this.senderName,
+    this.senderId,
+    this.time,
   });
 }

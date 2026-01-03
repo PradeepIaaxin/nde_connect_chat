@@ -5,8 +5,8 @@ import 'package:nde_email/data/respiratory.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/localstorage/local_storage.dart';
 import 'package:objectid/objectid.dart';
 
-import '../../Socket/Socket_Service.dart';
-import '../MessagerApiService.dart';
+import '../../Socket/socket_service.dart';
+import '../messager_api_service.dart';
 import '../messager_model.dart';
 import 'MessagerEvent.dart';
 import 'MessagerState.dart';
@@ -28,32 +28,25 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
     on<RemoveReaction>(_onRemoveReaction);
   }
 
-  // =====================================================
-  // FETCH MESSAGES (LOCAL FIRST → SERVER)
-  // =====================================================
   Future<void> _onFetchMessages(
     FetchMessagesEvent event,
     Emitter<MessagerState> emit,
   ) async {
-    // ----------- PAGE 1: Load local messages instantly -----------
+    // -------- PAGE 1: LOAD LOCAL --------
     if (event.page == 1) {
-      final rawLocal = LocalChatStorage.loadMessages(event.convoId);
+      final localRaw = LocalChatStorage.loadMessages(event.convoId);
 
-      final fixedLocal = rawLocal.whereType<Map<String, dynamic>>().map((m) {
-        if (m.containsKey('message_id')) m['_id'] = m['message_id'];
-        return m;
-      }).toList();
+      final localFlat = localRaw
+          .whereType<Map<String, dynamic>>() // 🔥 FIX
+          .map((e) => Datum.fromJson(e))
+          .toList();
 
-      final localMessages = fixedLocal.map((m) => Datum.fromJson(m)).toList();
-
-      if (localMessages.isNotEmpty) {
-        final groupedLocal = _convertFlatToGroups(localMessages);
-
+      if (localFlat.isNotEmpty) {
         emit(
           MessagerLoaded(
             MessageListResponse(
-              data: groupedLocal,
-              total: localMessages.length,
+              data: _convertFlatToGroups(localFlat),
+              total: localFlat.length,
               page: 1,
               limit: event.limit,
               hasNextPage: true,
@@ -62,113 +55,98 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
             ),
           ),
         );
-
-        log("📌 Loaded LOCAL messages");
       } else {
         emit(MessagerLoading());
-        log("📌 No local → show loader");
       }
-    } else {
-      emit(MessagerLoadingMore());
     }
 
     try {
-      // ---------------- FETCH SERVER DATA ----------------
-      final response = await apiService.fetchMessages(
+      // -------- FETCH SERVER --------
+      final newFlat = await apiService.fetchMessages(
         convoId: event.convoId,
         page: event.page,
         limit: event.limit,
       );
 
-      log("📥 API RESPONSE PAGE ${event.page} → ${response.data.length} groups");
-
-      final newGroups = response.data;
-      final newFlat = newGroups.expand((g) => g.messages).toList();
-
-      final currentState = state;
-
-      // ----------- PAGE 1: Replace All Data, BUT PRESERVE LOCAL REACTIONS -----------
+      // -------- PAGE 1: REPLACE --------
       if (event.page == 1) {
-        // 1) Server messages as JSON
-        final serverJsonList = newFlat.map((m) => m.toJson()).toList();
+        final serverJsonList = newFlat.map((e) => e.toJson()).toList();
 
-        // 2) Merge local reactions in
+        // Merge local reactions
         final mergedJsonList = _mergeLocalReactionsIntoServerJson(
           convoId: event.convoId,
           serverJsonList: serverJsonList,
         );
 
-        // 3) Convert back to Datum list with reactions inside
         final mergedFlat =
             mergedJsonList.map((j) => Datum.fromJson(j)).toList();
 
-        // 4) Regroup into MessageGroup list
-        final mergedGroups = _convertFlatToGroups(mergedFlat);
-
-        // 5) Build a new response object with merged groups
-        final mergedResponse = MessageListResponse(
-          data: mergedGroups,
-          total: response.total,
-          page: response.page,
-          limit: response.limit,
-          hasNextPage: response.hasNextPage,
-          hasPreviousPage: response.hasPreviousPage,
-          onlineParticipants: response.onlineParticipants,
-        );
-
-        // 6) Save merged (with reactions) to local storage
         await LocalChatStorage.saveMessages(
           event.convoId,
-          mergedFlat.map((m) => m.toJson()).toList(),
+          mergedJsonList,
         );
 
-        // 7) Emit merged response to UI
-        emit(MessagerLoaded(mergedResponse));
-
-        log("🚀 Fresh server messages (page 1) with local reactions merged");
+        emit(
+          MessagerLoaded(
+            MessageListResponse(
+              data: _convertFlatToGroups(mergedFlat),
+              total: mergedFlat.length,
+              page: 1,
+              limit: event.limit,
+              hasNextPage: newFlat.length >= event.limit,
+              hasPreviousPage: false,
+              onlineParticipants: [],
+            ),
+          ),
+        );
         return;
       }
 
-      // ----------- PAGINATION (page > 1) -----------
-      if (currentState is MessagerLoaded) {
-        final oldGroups = currentState.response.data;
-        final oldFlat = oldGroups.expand((g) => g.messages).toList();
+      // -------- PAGINATION (page > 1) --------
+      final current = state;
+      if (current is MessagerLoaded) {
+        final oldFlat =
+            current.response.data.expand((g) => g.messages).toList();
 
-        final oldIds = oldFlat.map((m) => m.id).toSet();
-        final uniqueNew = newFlat.where((m) => !oldIds.contains(m.id)).toList();
+        final ids = oldFlat.map((m) => m.id).toSet();
+        final unique = newFlat.where((m) => !ids.contains(m.id)).toList();
 
-        final combinedFlat = [...oldFlat, ...uniqueNew];
+        // Prepend older messages for Oldest -> Newest list
+        final combinedFlat = [...unique, ...oldFlat];
 
-        final combinedGroups = _convertFlatToGroups(combinedFlat);
+        final combinedJsonList = combinedFlat.map((e) => e.toJson()).toList();
 
-        final mergedResponse = MessageListResponse(
-          data: combinedGroups,
-          total: response.total,
-          page: response.page,
-          limit: response.limit,
-          hasNextPage: response.hasNextPage,
-          hasPreviousPage: response.hasPreviousPage,
-          onlineParticipants: response.onlineParticipants,
+        // Merge local reactions for the combined list
+        final mergedJsonList = _mergeLocalReactionsIntoServerJson(
+          convoId: event.convoId,
+          serverJsonList: combinedJsonList,
         );
 
-        emit(MessagerLoaded(mergedResponse));
+        final mergedFlat =
+            mergedJsonList.map((j) => Datum.fromJson(j)).toList();
 
         await LocalChatStorage.saveMessages(
           event.convoId,
-          combinedFlat.map((m) => m.toJson()).toList(),
+          mergedJsonList,
         );
 
-        log("📥 Pagination loaded → ${uniqueNew.length} new messages");
-        return;
+        emit(
+          MessagerLoaded(
+            MessageListResponse(
+              data: _convertFlatToGroups(mergedFlat),
+              total: mergedFlat.length,
+              page: event.page,
+              limit: event.limit,
+              hasNextPage: unique.length >= event.limit,
+              hasPreviousPage: true,
+              onlineParticipants: current.response.onlineParticipants,
+            ),
+          ),
+        );
       }
-
-      // fallback
-      emit(MessagerLoaded(response));
     } catch (e) {
-      log("❌ Fetch error: $e");
-      if (event.page > 1 && state is MessagerLoaded) {
-        emit(state);
-      } else {
+      log("❌ Message fetch error: $e");
+      if (state is! MessagerLoaded) {
         emit(MessagerError(e.toString()));
       }
     }
@@ -186,8 +164,10 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
 
     try {
       socketService.deleteMessage(
-        messageId: event.messageIds.first,
         conversationId: event.convoId,
+        messageIds: event.messageIds,
+        roomId: roomId,
+        deleteFor: event.deleteFor ?? "",
       );
     } catch (e) {
       log("Failed to emit delete_message: $e");
@@ -363,65 +343,66 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
   ) async {
     emit(UploadInProgress(0));
 
+    final tempMessageId = event.messageId ?? ObjectId().toString();
+
     try {
       await apiService.uploadFile(
         file: event.file,
         onProgress: (p) => emit(UploadInProgress(p)),
         onSuccess: (data) async {
           emit(UploadSuccess(data));
-log("datasssss $data");
-          String? workspaceID = await UserPreferences.getDefaultWorkspace();
-          final roomId =
-              socketService.generateRoomId(event.senderId, event.receiverId);
 
-          final msgId = ObjectId().toString();
-print("iiiiiiiiiiiiiiii${event.contentType}");
-print("iiiiiiiiiiiiiiii${data["ContentType"]}");
-log("groupMesageIdss ${event.isGroupMessage}");
-log("isGroupMessage ${event.groupMesageId}");
+          final workspaceID = await UserPreferences.getDefaultWorkspace();
 
-         socketService.sendMessage(
-  isGroupMessage: event.isGroupMessage,
-  groupMessageId: event.groupMesageId,
-  messageId: event.messageId.toString(), // tempId
-  conversationId: event.convoId,
-  senderId: event.senderId,
-  receiverId: event.receiverId,
-  message: event.message,
-  roomId: roomId,
-  workspaceId: workspaceID!,
-  isGroupChat: false,
-  contentType: data["ContentType"],
-  mimeType: data["mimetype"],
-  fileWithText: data["file_with_text"] != "",
-  fileName: data["fileName"] ?? "",
-  size: data["size"] ?? 0,
-  thumbnailKey: data["thumbnail_key"] ?? "",
-  thumbnailUrl: data["thumbnailUrl"] ?? "",
-  originalKey: data["originalKey"] ?? "",
-  originalUrl: data["originalUrl"] ?? "",
+          if (workspaceID == null) {
+            emit(UploadFailure("Workspace not found"));
+            return;
+          }
 
-  // 🔥🔥 ADD THIS 🔥🔥
- ackCallback: (ack) {
-  final tempId = ack['tempId'] ?? ack['messageId'];
-  final realId =
-      ack['realId'] ??
-      ack['data']?['messageId'] ??
-      ack['message_id'];
+          final roomId = event.isGroupMessage
+              ? event.convoId
+              : socketService.generateRoomId(
+                  event.senderId,
+                  event.receiverId,
+                );
 
-  if (tempId == null || realId == null) return;
+          socketService.sendMessage(
+            isGroupMessage: event.isGroupMessage,
+            groupMessageId: event.groupMesageId,
+            messageId: tempMessageId,
+            conversationId: event.convoId,
+            senderId: event.senderId,
+            receiverId: event.receiverId,
+            message: event.message,
+            roomId: roomId,
+            workspaceId: workspaceID,
+            isGroupChat:false,
+            contentType: data["ContentType"],
+            mimeType: data["mimetype"],
+            fileWithText: data["file_with_text"] != "",
+            fileName: data["fileName"] ?? "",
+            size: data["size"] ?? 0,
+            thumbnailKey: data["thumbnail_key"] ?? "",
+            thumbnailUrl: data["thumbnailUrl"] ?? "",
+            originalKey: data["originalKey"] ?? "",
+            originalUrl: data["originalUrl"] ?? "",
+            ackCallback: (ack) {
+              final tempId = ack['tempId'] ?? tempMessageId;
+              final realId = ack['realId'] ??
+                  ack['data']?['messageId'] ??
+                  ack['message_id'];
 
-  emit(
-    MessageAckReceived(
-      tempId: tempId.toString(),
-      realId: realId.toString(),
-      status: 'sent',
-    ),
-  );
-},
+              if (realId == null) return;
 
-);
-
+              emit(
+                MessageAckReceived(
+                  tempId: tempId.toString(),
+                  realId: realId.toString(),
+                  status: 'sent',
+                ),
+              );
+            },
+          );
         },
         onError: (err) => emit(UploadFailure(err)),
       );
@@ -442,21 +423,22 @@ log("isGroupMessage ${event.groupMesageId}");
       final roomId =
           socketService.generateRoomId(event.senderId, event.receiverId);
       final msgId = ObjectId().toString();
-log("isGroupMessage ${event.replyIsGroupMessage}");
-log("isGroupMessage ${event.replyGroupMessageId}");
+      log("isGroupMessage ${event.replyIsGroupMessage}");
+      log("isGroupMessage ${event.replyGroupMessageId}");
+      final String? convoId = event.convoId!.isEmpty ? null : event.convoId;
       socketService.sendMessage(
-        isGroupMessage: event.replyIsGroupMessage??false,
+        isGroupMessage: event.replyIsGroupMessage ?? false,
         messageId: msgId,
-        conversationId: event.convoId,
+        conversationId: convoId,
         senderId: event.senderId,
         receiverId: event.receiverId,
         message: event.message,
         roomId: roomId,
         workspaceId: workspaceID!,
         isGroupChat: false,
-        contentType: event.contentType ?? "text",
+        contentType: event.contentType,
         reply: event.replyTo,
-        groupMessageId: event.replyGroupMessageId??null,
+        groupMessageId: event.replyGroupMessageId,
       );
 
       final localMessage = Message(
@@ -466,13 +448,13 @@ log("isGroupMessage ${event.replyGroupMessageId}");
         time: DateTime.now(),
         messageId: msgId,
         messageStatus: "sent",
+        conversationId: event.convoId,
         isGroupMessage: false,
-        groupMessageId: null, // ✅ single tick
+        groupMessageId: null,
       );
 
       emit(MessageSentSuccessfully(localMessage));
-
-      emit(MessageSentSuccessfully(localMessage));
+      print("localMessage ${localMessage}");
     } catch (e) {
       log("❌ Error sending message: $e");
     }
@@ -517,20 +499,6 @@ List<MessageGroup> _convertFlatToGroups(List<Datum> messages) {
       .toList();
 }
 
-String _normalizeMessageIdForApi(String messageId) {
-  if (messageId.isEmpty) return messageId;
-
-  // For forwarded messages like: forward_<realId>_<timestamp>
-  if (messageId.startsWith('forward_')) {
-    final parts = messageId.split('_');
-    if (parts.length >= 3) {
-      return parts[1]; // the realId in the middle
-    }
-  }
-
-  return messageId;
-}
-
 String _extractDateLabel(DateTime? time) {
   if (time == null) return "Unknown";
 
@@ -556,7 +524,6 @@ List<Map<String, dynamic>> _mergeLocalReactionsIntoServerJson({
   final Map<String, List<Map<String, dynamic>>> localReactionsById = {};
 
   for (final raw in localRaw) {
-    if (raw is! Map) continue;
     final msg = Map<String, dynamic>.from(raw);
 
     final id = (msg['message_id'] ?? msg['_id'] ?? msg['id'])?.toString();

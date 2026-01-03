@@ -1,9 +1,12 @@
 import 'package:flutter/services.dart';
+import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'package:nde_email/bridge_generated.dart/frb_generated.dart';
+import 'package:nde_email/convo_list_crdt.dart';
 import 'package:nde_email/presantation/login/login_screen.dart';
 import 'package:nde_email/presantation/network/connectivity_servicer.dart';
 import 'package:nde_email/presantation/update_screen/update_bloc/update_bloc.dart';
 import 'package:nde_email/presantation/update_screen/update_repo/update_repo.dart';
-import 'package:nde_email/rust/api.dart/frb_generated.dart';
+
 import 'package:nde_email/utils/imports/common_imports.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
 
@@ -18,16 +21,34 @@ void main() async {
     statusBarColor: Colors.transparent,
   ));
 
-  await RustLib.init();
+  if (!Hive.isAdapterRegistered(50)) {
+    Hive.registerAdapter(ConvoListCrdtAdapter());
+  }
+
+  // await RustLib.init();
+  // await RustLib.init(
+  //   externalLibrary: ExternalLibrary.open('libbridge.so'),
+  // );
+
+  if (Platform.isAndroid) {
+    await RustLib.init(
+      externalLibrary: ExternalLibrary.open('libbridge.so'),
+    );
+  } else if (Platform.isIOS) {
+    /// 🔥 THIS IS THE KEY FIX
+    await RustLib.init(
+      externalLibrary: ExternalLibrary.process(iKnowHowToUseIt: true),
+    );
+  }
   // PARALLEL INIT — MAX SPEED
   await initializeStorage();
-await NotificationService.init();
-
+  await NotificationService.init();
+  await NotificationService.requestPermission();
 // ✅ check first
-final status = await Permission.storage.status;
-if (!status.isGranted) {
-  await Permission.storage.request();
-}
+  final status = await Permission.storage.status;
+  if (!status.isGranted) {
+    await Permission.storage.request();
+  }
 
   socketService = SocketService();
 
@@ -57,7 +78,8 @@ Future<void> _connectSocketOnStartup(String refreshToken) async {
 
     if (success) {
       log("SOCKET CONNECTED AT TOP LEVEL — PERSISTENT & LIGHTNING FAST");
-      await socketService.ensureConnected();
+      // await socketService.ensureConnected();
+      await socketService.initialize();
     }
   } catch (e) {
     log("Background token/socket failed: $e");
@@ -159,7 +181,6 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      // showPerformanceOverlay: true,
       navigatorKey: MyRouter.navigatorKey,
       scaffoldMessengerKey: Messenger.rootScaffoldMessengerKey,
       debugShowCheckedModeBanner: false,
@@ -187,3 +208,4 @@ Future<void> initializeStorage() async {
   ]);
   await FlutterDownloader.initialize(debug: false);
 }
+

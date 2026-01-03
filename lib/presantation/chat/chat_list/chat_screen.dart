@@ -2,9 +2,7 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:nde_email/data/respiratory.dart';
-import 'dart:async';
-
-import 'package:nde_email/presantation/chat/Socket/Socket_Service.dart';
+import 'package:nde_email/presantation/chat/Socket/socket_service.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_listscreen.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_event.dart';
@@ -23,7 +21,7 @@ import 'package:nde_email/utils/reusbale/whatsapp_banner.dart';
 import 'package:nde_email/utils/reusbale/whatsapp_offline_banner.dart';
 import 'package:nde_email/utils/simmer_effect.dart/chat_list_item.dart';
 import '../chat_group_Screen/GroupChatScreen.dart';
-import '../chat_private_screen/Private_Chat_Screen.dart';
+import '../chat_private_screen/private_chat_screen.dart';
 import 'chat_bloc.dart';
 import 'chat_event.dart';
 import 'chat_state.dart';
@@ -32,6 +30,7 @@ class ChatListScreen extends StatefulWidget {
   const ChatListScreen({super.key});
 
   @override
+ 
   _ChatListScreenState createState() => _ChatListScreenState();
 }
 
@@ -55,15 +54,13 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
   final baseURL = "https://api.nowdigitaleasy.com/wschat/v1";
 
-  final int _currentPage = 1;
-  final int _itemsPerPage = 30;
-
   String? gmail;
   String? profilePicUrl;
   String? userName;
   bool _showAdBanner = true;
-  Map<String, String> _typingByConvo = {};
+  final Map<String, String> _typingByConvo = {};
   StreamSubscription? _typingSub;
+  String? currentUserId;
 
   // Track the original full list for "Select All"
   List<Datu> _allChats = [];
@@ -71,10 +68,12 @@ class _ChatListScreenState extends State<ChatListScreen> {
   Future<void> _loadUserData() async {
     final name = await UserPreferences.getUsername();
     final picUrl = await UserPreferences.getProfilePicKey();
+    final currentuserId = await UserPreferences.getUserId();
     final gamil = await UserPreferences.getEmail();
     setState(() {
       userName = name ?? "Unknown";
       profilePicUrl = picUrl;
+      currentUserId = currentuserId;
       gmail = gamil;
     });
   }
@@ -82,15 +81,16 @@ class _ChatListScreenState extends State<ChatListScreen> {
   @override
   void initState() {
     super.initState();
+
     _loadUserData();
     _scrollController.addListener(_scrollListener);
+
+    /// 🔤 Typing listener
     _typingSub = SocketService().typingStream.listen((data) {
       if (!mounted) return;
 
       if (data.isEmpty) {
-        setState(() {
-          _typingByConvo.clear();
-        });
+        setState(() => _typingByConvo.clear());
         return;
       }
 
@@ -104,28 +104,20 @@ class _ChatListScreenState extends State<ChatListScreen> {
       }
     });
 
-    final initialChats = ChatSessionStorage.getChatList();
-    _allChats = List.from(initialChats);
-    _showFilterChips = initialChats.length < 12;
+    /// 🌐 Internet status listener
     _internetSub =
         InternetService.connectionStreams.listen((hasInternet) async {
       if (!mounted) return;
 
       setState(() {
         _hasInternet = hasInternet;
+        _networkStatus = hasInternet
+            ? NetworkStatus.reconnecting
+            : NetworkStatus.disconnected;
       });
 
-      if (!hasInternet) {
-        setState(() {
-          _networkStatus = NetworkStatus.disconnected;
-        });
-      } else {
-        setState(() {
-          _networkStatus = NetworkStatus.reconnecting;
-        });
-
+      if (hasInternet) {
         await Future.delayed(const Duration(seconds: 1));
-
         if (mounted) {
           setState(() {
             _networkStatus = NetworkStatus.connected;
@@ -134,27 +126,14 @@ class _ChatListScreenState extends State<ChatListScreen> {
       }
     });
 
+    /// 📡 Initial API fetch (NO LOCAL STORAGE)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        final cached = ChatSessionStorage.getChatList();
-        if (cached.isNotEmpty) {
-          _allChats = List.from(cached);
-          // context.read<ChatListBloc>().add(SetLocalChatList(chats: cached));
-          context.read<ChatListBloc>().add(FetchChatList(page: 1, limit: 20));
-        } else {
-          context.read<ChatListBloc>().add(FetchChatList(page: 1, limit: 20));
-        }
+        context.read<ChatListBloc>().add(
+              FetchChatList(page: 1, limit: 80),
+            );
       }
     });
-  }
-
-  void _updateLocalPin(String convoId, bool newStatus) {
-    final chat = ChatSessionStorage.getChatList()
-        .firstWhere((c) => c.id == convoId || c.conversationId == convoId);
-
-    chat.isPinned = newStatus;
-
-    context.read<ChatListBloc>().add(UpdateLocalChatList());
   }
 
   void _updateLocalArchive(String convoId, bool newStatus) {
@@ -172,16 +151,15 @@ class _ChatListScreenState extends State<ChatListScreen> {
     final offset = _scrollController.offset;
     final bool atTop = offset <= 0;
 
-    // Get total chat count from storage
-    final totalChats = ChatSessionStorage.getChatList().length;
+    /// ✅ Use UI source of truth (NOT local storage)
+    final totalChats = _allChats.length;
 
+    // Filter chips behavior
     if (totalChats < 12) {
-      // Always show chips when less than 12 chats
       if (!_showFilterChips) {
         setState(() => _showFilterChips = true);
       }
     } else {
-      // WhatsApp behavior for 12+ chats
       if (atTop && !_showFilterChips) {
         setState(() => _showFilterChips = true);
       } else if (!atTop && _showFilterChips) {
@@ -189,7 +167,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
       }
     }
 
-    /// ✅ SEARCH BAR (optional – keep your logic)
+    /// 🔍 SEARCH BAR behavior (unchanged)
     final isScrollingDown = offset > _lastScrollOffset;
 
     if (!isScrollingDown && offset > 100) {
@@ -232,26 +210,15 @@ class _ChatListScreenState extends State<ChatListScreen> {
     });
   }
 
-  Future<void> handlePinChat(String messageId, bool isPinned) async {
-    _updateLocalPin(messageId, isPinned);
-    accessToken = await UserPreferences.getAccessToken();
-    defaultWorkspace = await UserPreferences.getDefaultWorkspace();
-    final url = Uri.parse('$baseURL/chats/pin');
-    final body = jsonEncode({
-      'action': isPinned,
-      'convoIds': [messageId]
-    });
-    final headers = {
-      'Authorization': 'Bearer $accessToken',
-      'x-workspace': defaultWorkspace ?? '',
-      'Content-Type': 'application/json',
-    };
-    try {
-      final response = await http.put(url, headers: headers, body: body);
-      if (response.statusCode == 200) log("Chat pinned");
-    } catch (e) {
-      log("Error pinning chat: $e");
-    }
+  Future<void> handlePinChat(String convoId, bool newPinState) async {
+    // ✅ 1️⃣ UPDATE UI IMMEDIATELY
+    // _updateLocalPin(convoId, newPinState);
+
+    // ✅ 2️⃣ FIRE SOCKET IN BACKGROUND
+    SocketService().pinUnpinChat(
+      conversationId: convoId,
+      nextPinnedState: newPinState,
+    );
   }
 
   Future<void> handleArchiveChat(String messageId, bool isArchived) async {
@@ -557,12 +524,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
     context.read<ChatListBloc>().add(UpdateLocalChatList());
   }
 
-  // Check if all visible chats are selected (for UI feedback)
-  bool get _allVisibleSelected {
-    if (_visibleChats.isEmpty) return false;
-    return _visibleChats.every(_isSelected);
-  }
-
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
@@ -603,16 +564,35 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   final allPinned = selectedUsers.isNotEmpty &&
                       selectedUsers.every((chat) => chat.isPinned ?? false);
 
-                  for (var chat in selectedUsers) {
-                    final newPinStatus = !allPinned;
-                    await handlePinChat(chat.id ?? '', newPinStatus);
-                  }
+                  // ✅ 1️⃣ COPY selection (because we clear immediately)
+                  final chatsToPin = List<Datu>.from(selectedUsers);
 
+                  // ✅ 2️⃣ EXIT SELECTION MODE IMMEDIATELY (THIS WAS MISSING)
                   setState(() {
                     selectedUsers.clear();
                     longPressed = false;
                   });
+
+                  // ✅ 3️⃣ APPLY PIN (background)
+                  for (final chat in chatsToPin) {
+                    await handlePinChat(chat.id ?? '', !allPinned);
+                  }
                 },
+
+                // onPressed: () async {
+                //   final allPinned = selectedUsers.isNotEmpty &&
+                //       selectedUsers.every((chat) => chat.isPinned ?? false);
+
+                //   for (var chat in selectedUsers) {
+                //     final newPinStatus = !allPinned;
+                //     await handlePinChat(chat.id ?? '', newPinStatus);
+                //   }
+
+                //   setState(() {
+                //     selectedUsers.clear();
+                //     longPressed = false;
+                //   });
+                // },
               ),
             if (selectedUsers.isNotEmpty)
               IconButton(
@@ -651,7 +631,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
           ],
           bottom: PreferredSize(
             preferredSize: Size.fromHeight(
-              (_showAdBanner ? 80 : 0) + (!_hasInternet ? 70 : 0) + 56,
+              (_showAdBanner ? 99 : 0) + (!_hasInternet ? 70 : 0) + 56,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -857,11 +837,12 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
                             return ValueListenableBuilder(
                                 valueListenable:
-                                    SocketService().userStatusNotifier,
-                                builder: (context, onlineUsers, _) {
-                                  final isOnline = SocketService()
-                                      .onlineUsers
-                                      .contains(chat.datumId);
+                                    SocketService().onlineUsersNotifier,
+                                builder: (_, onlineSet, __) {
+                                  final bool isOnline =
+                                      !(chat.isGroupChat ?? false) &&
+                                          onlineSet.contains(chat.reciverId);
+
                                   return GestureDetector(
                                     onTap: () {
                                       if (longPressed) {
@@ -896,7 +877,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                                           .participants
                                                           ?.cast<String>() ??
                                                       [],
-                                                  currentUserId: '',
+                                                  currentUserId:
+                                                      currentUserId ?? "",
                                                   conversationId: chat.id ?? "",
                                                   datumId: chat.datumId ?? "",
                                                   grpChat: true,
@@ -918,12 +900,14 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                                   convoId: chat.id ?? "",
                                                   datumId: chat.datumId,
                                                   firstname: chat.firstName,
+                                                  receiverId: chat.reciverId,
                                                   grpChat: false,
                                                   lastname: chat.lastName,
                                                   favourite:
                                                       chat.isFavorites ?? false,
                                                 ),
                                         ).then((_) {
+                                          log(chat.toJson().toString());
                                           if (mounted) {
                                             context
                                                 .read<ChatListBloc>()

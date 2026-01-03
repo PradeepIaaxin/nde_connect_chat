@@ -1,12 +1,5 @@
-import 'dart:developer';
-import 'dart:io';
-
-import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
-
 import '../../../../../utils/reusbale/common_import.dart';
-import 'VideoCacheService.dart';
 
 class RepliedMessagePreview extends StatefulWidget {
   final Map<String, dynamic> replied;
@@ -15,42 +8,34 @@ class RepliedMessagePreview extends StatefulWidget {
   final bool isSender;
   final int? groupMediaLength;
 
-  const RepliedMessagePreview({
-    super.key,
-    required this.replied,
-    this.onTap,
-    required this.receiver,
-    required this.isSender,this.groupMediaLength
-  });
+  const RepliedMessagePreview(
+      {super.key,
+      required this.replied,
+      this.onTap,
+      required this.receiver,
+      required this.isSender,
+      this.groupMediaLength});
 
   @override
   State<RepliedMessagePreview> createState() => _RepliedMessagePreviewState();
 }
 
 class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
-  late Map<String, dynamic> _replied;
-
-  @override
-  void initState() {
-    super.initState();
-    _replied = Map<String, dynamic>.from(widget.replied);
-  }
-
   Widget? trailingThumb;
   @override
   Widget build(BuildContext context) {
     const double thumbSize = 70;
     final replyContent =
-        (_replied['replyContent'] ?? _replied['content'] ?? '').toString();
+        (widget.replied['replyContent'] ?? widget.replied['content'] ?? '')
+            .toString();
 
-    final fileName = (_replied['fileName'] ?? '').toString().toLowerCase();
+    final fileName =
+        (widget.replied['fileName'] ?? '').toString().toLowerCase();
 
-   final mediaUrl =
-    _replied['originalUrl'] ??
-    _replied['imageUrl'] ??
-    _replied['fileUrl'] ??
-    '';
-
+    final mediaUrl = widget.replied['originalUrl'] ??
+        widget.replied['imageUrl'] ??
+        widget.replied['fileUrl'] ??
+        '';
 
     final bool isVideo =
         fileName.endsWith('.mp4') || mediaUrl.toLowerCase().contains('.mp4');
@@ -67,12 +52,12 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
 
     print("urrrrrrrrrrrrrr $mediaUrl");
     Widget? buildThumb() {
-       if (mediaUrl.startsWith('/')) {
-    return Image.file(
-      File(mediaUrl),
-      fit: BoxFit.cover,
-    );
-  }
+      if (mediaUrl.startsWith('/')) {
+        return Image.file(
+          File(mediaUrl),
+          fit: BoxFit.cover,
+        );
+      }
 
       /// ✅ IMAGE
       if (isImage) {
@@ -105,7 +90,7 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
                   ),
                 );
               }
-              print("thummmm $trailingThumb");
+
               if (thumbFile != null && thumbFile.existsSync()) {
                 return Stack(
                   alignment: Alignment.center,
@@ -140,21 +125,22 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
       onTap: widget.onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.only(right: 20, top: 5, bottom: 5),
         decoration: BoxDecoration(
-          color: Colors.grey.shade200,
+          color: const Color.fromARGB(255, 231, 235, 249),
+          border: Border(left: BorderSide(color: Colors.blueAccent, width: 5)),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Row(
           children: [
-            Container(
-              width: 3,
-              height: 42,
-              decoration: BoxDecoration(
-                color: Colors.blueAccent,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
+            // Container(
+            //   width: 3,
+            //   height: 42,
+            //   decoration: BoxDecoration(
+            //     color: Colors.blueAccent,
+            //     borderRadius: BorderRadius.circular(4),
+            //   ),
+            // ),
             const SizedBox(width: 8),
             Expanded(
               child: Column(
@@ -186,7 +172,9 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
                       replyContent,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 11),
+                      style: const TextStyle(
+                        fontSize: 11,
+                      ),
                     ),
                 ],
               ),

@@ -14,20 +14,21 @@ import 'package:nde_email/presantation/drive/Bloc/file_bloc/drive_local_storage.
 import 'package:nde_email/presantation/drive/Bloc/sharred_bloc/sharred_local.dart';
 import 'package:nde_email/presantation/drive/Bloc/starred_bloc/stared_local.dart';
 import 'package:nde_email/presantation/login/login_api.dart';
+import 'package:nde_email/presantation/login/loro_cleanup.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:nde_email/presantation/login/login_screen_event.dart';
 import 'package:nde_email/presantation/login/login_screen_state.dart';
 import 'package:nde_email/presantation/login/login_req.dart';
 
 class LoginBloc extends Bloc<LoginEvent, LoginState> {
-  
   final Auth authRepository;
   Timer? _refreshTimer;
   bool _isRefreshing = false;
   Completer<void>? _refreshCompleter;
 
-  LoginBloc({required this.authRepository,})
-      : super(const LoginState()) {
+  LoginBloc({
+    required this.authRepository,
+  }) : super(const LoginState()) {
     on<EmailChanged>(_onEmailChanged);
     on<PasswordChanged>(_onPasswordChanged);
     on<LoginApi>(_onLoginSubmitted);
@@ -45,25 +46,25 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
     emit(state.copyWith(password: event.password));
   }
 
+  Future<void> _onEmailSubmit(
+      EmailSubmit event, Emitter<LoginState> emit) async {
+    emit(state.copyWith(status: LoginStatus.loading));
 
-  Future<void> _onEmailSubmit(EmailSubmit event, Emitter<LoginState> emit) async {
-  emit(state.copyWith(status: LoginStatus.loading));
-
-  try {
-    await authRepository.checkUserEmail(event.email); // call your API
-    emit(state.copyWith(status: LoginStatus.success));
-  } catch (e) {
-    emit(state.copyWith(
-      status: LoginStatus.errorScreen,
-      message: "Please enter a valid email address",
-    ));
+    try {
+      await authRepository.checkUserEmail(event.email); // call your API
+      emit(state.copyWith(status: LoginStatus.success));
+    } catch (e) {
+      emit(state.copyWith(
+        status: LoginStatus.errorScreen,
+        message: "Please enter a valid email address",
+      ));
+    }
   }
-}
 
   Future<void> _onLoginSubmitted(
-      LoginApi event,
-      Emitter<LoginState> emit,
-      ) async {
+    LoginApi event,
+    Emitter<LoginState> emit,
+  ) async {
     emit(state.copyWith(
       status: LoginStatus.loading,
       message: "",
@@ -75,20 +76,23 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
         password: event.password,
       );
 
-      final response = await authRepository.login(loginRequest);
-
-      // 🟢 WAIT A LITTLE for SharedPreferences to finish writing
-      // await Future.delayed(const Duration(milliseconds: 300));
+      await Future.delayed(const Duration(milliseconds: 40));
 
       final userId = await UserPreferences.getUserId();
       final workspaceId = await UserPreferences.getDefaultWorkspace();
       final token = await UserPreferences.getAccessToken();
 
       if (token != null && userId != null && workspaceId != null) {
-        await socketService.ensureConnected();
+        await socketService.initialize();
       }
+      await authRepository.login(loginRequest);
 
-      // 🟢 Start periodic token refresh AFTER socket
+      // ✅ Initialize socket ONCE
+      await socketService.initialize();
+
+      // ✅ WAIT until socket is REALLY connected
+      await socketService.waitUntilConnected();
+
       _startRefreshTimer();
 
       emit(state.copyWith(
@@ -96,7 +100,8 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
         message: "Login successful!",
       ));
     } catch (e, stackTrace) {
-      log("  Login error: $e", stackTrace: stackTrace);
+      log("Login error: $e", stackTrace: stackTrace);
+
       emit(state.copyWith(
         status: LoginStatus.errorScreen,
         message: _getErrorMessage(e),
@@ -105,50 +110,105 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
     }
   }
 
+  // Future<void> _onLoginSubmitted(
+  //   LoginApi event,
+  //   Emitter<LoginState> emit,
+  // ) async {
+  //   emit(state.copyWith(
+  //     status: LoginStatus.loading,
+  //     message: "",
+  //   ));
+
+  //   try {
+  //     final loginRequest = LoginRequestModel(
+  //       email: event.email,
+  //       password: event.password,
+  //     );
+
+  //     final response = await authRepository.login(loginRequest);
+
+  //     // 🟢 WAIT A LITTLE for SharedPreferences to finish writing
+  //     // await Future.delayed(const Duration(milliseconds: 300));
+
+  //     final userId = await UserPreferences.getUserId();
+  //     final workspaceId = await UserPreferences.getDefaultWorkspace();
+  //     final token = await UserPreferences.getAccessToken();
+
+  //     if (token != null && userId != null && workspaceId != null) {
+  //       //  await socketService.ensureConnected();
+  //     }
+  //     await socketService.initialize();
+  //     log("Socket initialized successfully after login – ready for instant messaging");
+  //     // 🟢 Start periodic token refresh AFTER socket
+  //     _startRefreshTimer();
+
+  //     emit(state.copyWith(
+  //       status: LoginStatus.success,
+  //       message: "Login successful!",
+  //     ));
+  //   } catch (e, stackTrace) {
+  //           await socketService.initialize();
+  //     log("  Login error: $e", stackTrace: stackTrace);
+  //     emit(state.copyWith(
+  //       status: LoginStatus.errorScreen,
+  //       message: _getErrorMessage(e),
+  //       hasSubmitted: true,
+  //     ));
+  //   }
+  // }
+
   void _onStatusReset(LoginStatusReset event, Emitter<LoginState> emit) {
     emit(state.copyWith(status: LoginStatus.initial));
   }
 
-  Future<void> _onLogout(LoginLoggedOut event, Emitter<LoginState> emit) async {
+  Future<void> _onLogout(
+    LoginLoggedOut event,
+    Emitter<LoginState> emit,
+  ) async {
     await performCleanLogout();
     emit(const LoginState());
   }
 
   Future<void> performCleanLogout() async {
-    // 👉 Take user data before clear & disconnect
     final userId = await UserPreferences.getUserId();
     final workspaceId = await UserPreferences.getDefaultWorkspace();
 
-    // 📢 Emit user_offline FIRST
+    // 1️⃣ Notify offline
     if (userId != null && workspaceId != null) {
       socketService.setUserOffline(userId, workspaceId);
     }
 
-    // 🛑 THEN stop token refresh timer
-    _refreshTimer?.cancel();
-    _refreshTimer = null;
+    socketService.dispose();
 
-    // 🔌 Disconnect WebSocket
-    try {
-      socketService.disconnect();
-      log("🔌 Socket disconnected on logout");
-    } catch (e) {
-      log("⚠ Error disconnecting socket: $e");
-    }
-
-    // 🧹 Clear local data
+    // 2️⃣ Clear SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
 
+    // 3️⃣ Stop refresh
+    _refreshTimer?.cancel();
+    _refreshTimer = null;
+    _isRefreshing = false;
+    _refreshCompleter = null;
+
+    // 4️⃣ Clear Loro (CRDT)
+    await clearLoroState();
+
+    // 5️⃣ Clear Hive safely
     await Future.wait([
-      Hive.box(LocalChatStorage.boxName).clear(),
-      Hive.box(LocalDriveStorage.boxName).clear(),
-      Hive.box(GrpLocalChatStorage.boxName).clear(),
-      Hive.box(LocalStarredStorage.boxName).clear(),
-      Hive.box(LocalSharredStorage.boxName).clear(),
+      clearHiveBoxSafe(LocalChatStorage.boxName),
+      clearHiveBoxSafe(LocalDriveStorage.boxName),
+      clearHiveBoxSafe(GrpLocalChatStorage.boxName),
+      clearHiveBoxSafe(LocalStarredStorage.boxName),
+      clearHiveBoxSafe(LocalSharredStorage.boxName),
     ]);
 
-    log("🧹 Local storage cleared successfully");
+    log("✅ FULL logout cleanup completed");
+  }
+
+  Future<void> clearHiveBoxSafe(String boxName) async {
+    if (Hive.isBoxOpen(boxName)) {
+      await Hive.box(boxName).clear();
+    }
   }
 
   Future<bool> refreshTokenOnStartup(String refreshToken) async {
@@ -187,9 +247,9 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
   }
 
   Future<void> _onRefreshToken(
-      LoginRefresh event,
-      Emitter<LoginState> emit,
-      ) async {
+    LoginRefresh event,
+    Emitter<LoginState> emit,
+  ) async {
     if (_isRefreshing) {
       await _refreshCompleter?.future;
       return;
@@ -244,7 +304,7 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
     _refreshTimer?.cancel();
     _refreshTimer = Timer.periodic(
       const Duration(minutes: 4, seconds: 20),
-          (_) {
+      (_) {
         if (!_isRefreshing) {
           log('Periodic token refresh triggered');
           add(LoginRefresh());

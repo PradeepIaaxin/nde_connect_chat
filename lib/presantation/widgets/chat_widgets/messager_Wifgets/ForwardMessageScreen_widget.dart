@@ -14,15 +14,13 @@ import 'package:nde_email/presantation/chat/chat_list/chat_event.dart';
 import 'package:nde_email/presantation/chat/chat_list/chat_session_storage/chat_session.dart';
 
 import 'package:nde_email/presantation/chat/chat_list/chat_state.dart';
-import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/MessagerBloc.dart';
-import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/MessagerEvent.dart';
 import 'package:nde_email/presantation/chat/chat_list/chat_response_model.dart';
 import 'package:nde_email/utils/const/consts.dart';
 import 'package:nde_email/utils/reusbale/colour_utlis.dart';
 import 'package:nde_email/utils/router/router.dart';
 
-import '../../../chat/chat_private_screen/Private_Chat_Screen.dart';
-import 'package:nde_email/presantation/chat/Socket/Socket_Service.dart';
+import '../../../chat/chat_private_screen/private_chat_screen.dart';
+import 'package:nde_email/presantation/chat/Socket/socket_service.dart';
 
 import '../../../chat/chat_private_screen/localstorage/local_storage.dart';
 
@@ -258,7 +256,7 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
                         const Center(child: CircularProgressIndicator()),
                   );
 
-                  final socket = SocketService();
+                  final socket = socketService;
                   final failures = <String>[];
                   final successes = <String>[];
                   final defaultWorkspace =
@@ -276,7 +274,7 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
                         failures.add(receiverId ?? 'unknown');
                         continue;
                       }
-
+                     log("receiverIdssss $receiverId");
                       // For each message to forward
                       for (final message in widget.messages) {
                         final originalMessageId =
@@ -305,6 +303,7 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
                           'isForwarded': true,
                           'original_message_id':
                               originalMessageId, // ⬅️ keep link to original
+                              
                         };
 
                         // Save optimistic message first so recipient screen shows it immediately

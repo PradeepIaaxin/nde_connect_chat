@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:nde_email/data/respiratory.dart';
-import 'package:nde_email/presantation/chat/Socket/Socket_Service.dart'
+import 'package:nde_email/presantation/chat/Socket/socket_service.dart'
     show SocketService;
 import 'package:nde_email/presantation/chat/chat_contact_list/user_data_model.dart';
 import 'package:nde_email/utils/const/consts.dart';
@@ -65,16 +65,7 @@ class _NewGroupChoosenState extends State<NewGroupChoosen> {
     currentUserId = await UserPreferences.getUserId();
     token = await UserPreferences.getAccessToken();
     wrkspacetoken = await UserPreferences.getDefaultWorkspace();
-    await SocketService().ensureConnected();
-
-    // socketService.grpCreatSocket(
-    //     token ?? "",
-    //     currentUserId ?? "",
-    //     wrkspacetoken ?? "",
-    //     currentUserId ?? "",
-    //     wrkspacetoken ?? "",
-    //     (p0) => "",
-    //     false);
+    await SocketService().initialize();
   }
 
   void removeRoomId() async {
@@ -86,7 +77,7 @@ class _NewGroupChoosenState extends State<NewGroupChoosen> {
   void dispose() {
     // socket?.dispose();
     removeRoomId();
-    SocketService().disconnect();
+    // SocketService().disconnect();
     _groupNameController.dispose();
     super.dispose();
   }
@@ -165,7 +156,6 @@ class _NewGroupChoosenState extends State<NewGroupChoosen> {
         title: const Text("New group"),
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
-    
         foregroundColor: Colors.black,
         actions: [
           IconButton(

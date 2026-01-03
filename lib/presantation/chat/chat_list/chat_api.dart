@@ -2,15 +2,16 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:developer';
 import 'package:http/http.dart' as http;
+import 'package:nde_email/bridge_generated.dart/api.dart';
 import 'package:nde_email/data/respiratory.dart';
-import 'package:nde_email/presantation/chat/chat_list/chat_session_storage/chat_session.dart';
 import 'package:nde_email/presantation/login/login_screen.dart';
-import 'package:nde_email/rust/api.dart/api.dart';
 import 'package:nde_email/utils/router/router.dart';
 import 'chat_response_model.dart';
 
 class ChatListApiService {
-  final String baseUrl = 'https://api.nowdigitaleasy.com/wschat/v1/chats';
+  final String baseUrl =
+      //"https://945067be4009.ngrok-free.app/v1/chats";
+      'https://api.nowdigitaleasy.com/wschat/v1/chats';
   List<Datu> _lastData = [];
   final StreamController<List<Datu>> _chatStreamController =
       StreamController<List<Datu>>.broadcast();
@@ -124,7 +125,9 @@ class ChatListApiService {
           aItem?.isPinned != bItem.isPinned ||
           aItem?.isArchived != bItem.isArchived ||
           aItem?.groupName != bItem.groupName ||
-          aItem?.name != bItem.name) return false;
+          aItem?.name != bItem.name) {
+        return false;
+      }
     }
     return true;
   }
@@ -141,7 +144,7 @@ class ChatListApiService {
       throw Exception("User authentication missing");
     }
 
-    Map<String, String> queryParams = {
+    final Map<String, String> queryParams = {
       'page': page.toString(),
       'limit': limit.toString(),
     };
@@ -163,33 +166,35 @@ class ChatListApiService {
     if (response.statusCode == 200) {
       final jsonData = jsonDecode(response.body);
 
-      // NEW: Check for Loro snapshot
-      if (jsonData["snapshot"] != null) {
-        final snapshotBase64 = jsonData["snapshot"];
-        log("📥 Received Loro Snapshot. Decoding using Rust...");
+      /// ✅ USE SNAPSHOT ONLY IF IT IS A VALID STRING
+      final snapshot = jsonData["snapshot"];
+      if (snapshot is String && snapshot.isNotEmpty) {
+        log("📥 Received valid Loro Snapshot");
 
-        final chats = await decodeChatsFromLoro(snapshotBase64);
-        ChatSessionStorage.clear();
-        ChatSessionStorage.saveChatList(chats);
-        log("📦 Chat count after fetch: ${ChatSessionStorage.getChatList().length}");
+        // 🔥 reset Rust doc ONLY for snapshot
+        await resetGlobalDoc();
 
+        final chats = await decodeChatsFromLoro(snapshot);
         return chats;
       }
 
-      // BACKUP: If normal JSON array is sent instead of snapshot
+      /// 🚫 snapshot == null OR empty → NORMAL JSON FLOW
       final List<dynamic> chatJson = jsonData["data"] ?? [];
-      final chats = chatJson.map((e) => Datu.fromJson(e)).toList();
+      log(chatJson.toString());
+      
+      return chatJson.map((e) => Datu.fromJson(e)).toList();
+    }
 
-      return chats;
-    } else if (response.statusCode == 401) {
+    // ===================== TOKEN REFRESH =====================
+    if (response.statusCode == 401) {
       final refreshed = await _onRefreshToken();
       if (refreshed) {
         return fetchChats(page: page, limit: limit, filter: filter);
       }
       throw Exception("Authentication failed");
-    } else {
-      throw Exception("Failed to fetch chats");
     }
+
+    throw Exception("Failed to fetch chats");
   }
 
   void dispose() {

@@ -7,26 +7,23 @@ class ChatSessionStorage {
   static Set<String> processedMessageIds = {};
 
   static Map<String, dynamic> _paginationData = {};
+  static void mergeChatList(List<Datu> incoming) {
+    String chatKey(Datu chat) {
+      if (chat.isGroupChat == true) {
+        return chat.conversationId!;
+      }
+      return chat.id!;
+    }
 
-  // static void saveChatList(List<Datu> newChats) {
-  //   final Map<String, Datu> uniqueChats = {};
+    final Map<String, Datu> map = {for (final c in chatList) chatKey(c): c};
 
-  //   for (final chat in chatList) {
-  //     if (chat.conversationId != null) {
-  //       uniqueChats[chat.conversationId!] = chat;
-  //     }
-  //   }
+    for (final chat in incoming) {
+      final key = chatKey(chat);
+      map[key] = chat;
+    }
 
-  //   for (final chat in newChats) {
-  //     if (chat.conversationId == null) {
-  //       log("⛔ Dropping chat without conversationId");
-  //       continue;
-  //     }
-  //     uniqueChats[chat.conversationId!] = chat;
-  //   }
-
-  //   chatList = uniqueChats.values.toList();
-  // }
+    chatList = map.values.toList();
+  }
 
   static void saveChatList(List<Datu> newChats) {
     chatList = newChats
@@ -34,6 +31,7 @@ class ChatSessionStorage {
               id: chatReq.id,
               name: chatReq.name,
               firstName: chatReq.firstName,
+              reciverId: chatReq.reciverId,
               lastName: chatReq.lastName,
               profilePic: chatReq.profilePic,
               lastMessage: chatReq.lastMessage,

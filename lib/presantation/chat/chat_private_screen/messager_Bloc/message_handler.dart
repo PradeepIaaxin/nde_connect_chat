@@ -10,19 +10,29 @@ class MessageHandler {
     required this.convoId,
   });
 
-  /// 🔹 MAIN NORMALIZER
+  /// 🔹 MAIN NORMALIZER (CRDT + SOCKET SAFE)
   Map<String, dynamic> normalizeMessage(dynamic rawMsg) {
     final Map<String, dynamic> message = rawMsg is Datum
         ? rawMsg.toJson()
         : rawMsg is Map
-        ? Map<String, dynamic>.from(rawMsg)
-        : {};
+            ? Map<String, dynamic>.from(rawMsg)
+            : {};
 
     if (message.isEmpty) return {};
 
+    /// 🔹 IDS (CANONICAL)
+    final messageId =
+        message['message_id'] ?? message['messageId'] ?? message['_id'];
+
+    /// 🔹 FORWARDED (STRICT — WEB LOGIC)
+    /// ❌ Never trust `isForwarded` boolean
+    final bool isForwarded = message['original_message_id'] != null ||
+        message['parent_message_id'] != null ||
+        message['originalMessageId'] != null ||
+        message['parentMessageId'] != null;
+
     /// 🔹 BASIC CONTENT
     final content = message['content']?.toString().trim() ?? '';
-    final isForwarded = message['isForwarded'] ?? false;
 
     /// 🔹 MEDIA
     final originalUrl = message['originalUrl'];
@@ -31,13 +41,8 @@ class MessageHandler {
     final fileName = message['fileName'];
     final fileType = message['mimeType'] ?? message['fileType'];
 
-    /// 🔹 IDS
-    final messageId =
-        message['message_id'] ?? message['messageId'] ?? message['_id'];
-
-    final isReplyMessage = message['isReplyMessage'] == true;
-
-    /// 🔹 REPLY (UPDATED – SAFE)
+    /// 🔹 REPLY
+    final bool isReplyMessage = message['isReplyMessage'] == true;
     Map<String, dynamic>? normalizedReply;
     String replyContent = '';
     String replyToUser = '';
@@ -45,17 +50,15 @@ class MessageHandler {
     if (isReplyMessage && message['reply'] is Map) {
       final reply = Map<String, dynamic>.from(message['reply']);
 
-      replyContent = reply['replyContent'] ??
-          reply['content'] ??
-          reply['fileName'] ??
-          '';
+      replyContent =
+          reply['replyContent'] ?? reply['content'] ?? reply['fileName'] ?? '';
 
       replyToUser =
           '${reply['first_name'] ?? ''} ${reply['last_name'] ?? ''}'.trim();
 
       normalizedReply = {
         'reply_message_id':
-        reply['id'] ?? reply['messageId'] ?? reply['message_id'],
+            reply['id'] ?? reply['messageId'] ?? reply['message_id'],
         'replyContent': replyContent,
         'replyToUser': replyToUser,
         'replyUrl': reply['replyUrl'],
@@ -66,20 +69,18 @@ class MessageHandler {
 
     /// 🔹 REACTIONS
     final reactions = (message['reactions'] is List)
-        ? (message['reactions'] as List)
-        .whereType<Map>()
-        .map((reaction) {
-      final user = reaction['user'] ?? {};
-      return {
-        'emoji': reaction['emoji'] ?? '',
-        'reacted_at': reaction['reacted_at'],
-        'user': {
-          '_id': user['_id'] ?? '',
-          'first_name': user['first_name'] ?? '',
-          'last_name': user['last_name'] ?? '',
-        },
-      };
-    }).toList()
+        ? (message['reactions'] as List).whereType<Map>().map((reaction) {
+            final user = reaction['user'] ?? {};
+            return {
+              'emoji': reaction['emoji'] ?? '',
+              'reacted_at': reaction['reacted_at'],
+              'user': {
+                '_id': user['_id'] ?? '',
+                'first_name': user['first_name'] ?? '',
+                'last_name': user['last_name'] ?? '',
+              },
+            };
+          }).toList()
         : <Map<String, dynamic>>[];
 
     /// 🔹 TIME + STATUS
@@ -90,7 +91,7 @@ class MessageHandler {
     final sender = message['sender'] ?? {'_id': currentUserId};
     final receiver = message['receiver'] ?? {'_id': ''};
 
-    /// 🔹 FINAL NORMALIZED MESSAGE
+    /// 🔹 FINAL NORMALIZED MESSAGE (UI SAFE)
     return {
       'message_id': messageId?.toString() ?? '',
       'content': content,
@@ -107,6 +108,7 @@ class MessageHandler {
 
       /// flags
       'isForwarded': isForwarded,
+      'is_deleted': message['is_deleted'] == true,
       'isReplyMessage': isReplyMessage,
       'is_grouped_message': message['is_grouped_message'] == true ||
           message['is_grouped_message'] == 'true' ||
@@ -117,22 +119,17 @@ class MessageHandler {
       if (normalizedReply != null) 'repliedMessage': normalizedReply,
       'replyContent': replyContent,
       'replyToUser': replyToUser,
-
-      /// reactions
       'reactions': reactions,
-
-      /// local
       'localImagePath': message['localImagePath'],
       'isSelected': false,
     };
   }
 
-  /// 🔹 HELPERS
+  // ================= HELPERS =================
 
   bool isMessageFromMe(Map<String, dynamic> msg) {
-    final sender = msg['sender'] is Map
-        ? Map<String, dynamic>.from(msg['sender'])
-        : {};
+    final sender =
+        msg['sender'] is Map ? Map<String, dynamic>.from(msg['sender']) : {};
     return sender['_id'] == currentUserId;
   }
 
