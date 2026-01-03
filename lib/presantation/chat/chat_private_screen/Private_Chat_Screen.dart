@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/message_handler.dart';
-import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/MediaPreviewScreen.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/audio_reuable.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/commonfuntion.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/date_separate.dart';
@@ -77,6 +76,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   late ChatListBloc _chatListBloc;
   StreamSubscription<Map<String, dynamic>>? _statusSubscription;
   StreamSubscription? _messageDeletedSubscription;
+  bool _isRecordingLocked = false;
 
   // Message storage (in-memory)
   final List<Map<String, dynamic>> socketMessages = [];
@@ -102,10 +102,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   bool _showSearchAppBar = false;
   late String _currentConversationId;
   bool _isRecording = false;
-  bool _isPaused = false;
-  int _recordDuration = 0;
-  Timer? _timer;
-  String? _recordedFilePath;
+
   bool isSentByMe = false;
   // Pagination / client-side windowing
   int _currentPage = 1;
@@ -144,8 +141,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   bool _screenActive = false;
 
   // Inline emoji overlay
-  OverlayEntry? _reactionOverlayEntry;
-  Timer? _reactionOverlayTimer;
   final List<String> _quickReactions = ['👍', '❤️', '😂', '😮', '😢', '👏'];
 
   @override
@@ -964,8 +959,30 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     m['imageUrl'] = imageUrl;
     m['originalUrl'] = originalUrl;
     m['fileUrl'] = rawMsg['fileUrl'] ?? originalUrl;
-    m['fileName'] = rawMsg['fileName'];
-    m['fileType'] = rawMsg['mimeType'] ?? rawMsg['fileType'];
+    m['fileName'] = rawMsg['fileName'] ?? rawMsg['filename'] ?? rawMsg['name'];
+    if (m['fileName'] == null && rawMsg is Map) {
+      final v = rawMsg['v'];
+      if (v is Map) {
+        m['fileName'] = v['fileName'] ?? v['filename'] ?? v['name'];
+      }
+    }
+
+    // 🔥 Fix: Preserve ContentType and duration for Audio
+    m['ContentType'] = rawMsg['ContentType'] ?? rawMsg['contentType'];
+    if (m['ContentType'] == null && rawMsg is Map) {
+      final v = rawMsg['v'];
+      if (v is Map) {
+        m['ContentType'] = v['ContentType'] ?? v['contentType'];
+      }
+    }
+
+    m['duration'] = rawMsg['duration'] ?? rawMsg['audioDuration'];
+    if (m['duration'] == null && rawMsg is Map) {
+      final v = rawMsg['v'];
+      if (v is Map) {
+        m['duration'] = v['duration'] ?? v['audioDuration'];
+      }
+    }
 
 // ================= EXTRACT REPLY DATA =================
     // Ensure reply fields are set on snapshot load
@@ -3459,6 +3476,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                     }
                   }
                 }
+
                 if (state is MessageAckReceived) {
                   _replaceTempMessageWithReal(
                     tempId: state.tempId,
@@ -4184,36 +4202,29 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             );
           },
         ),
-        voiceRecordingUI: _buildVoiceRecordingUI(),
+        voiceRecordingUI: const SizedBox(),
         messageInputBuilder: (isKeyboardVisible) =>
             _buildMessageInputField(isKeyboardVisible, isSentByMe),
-        isRecording: _isRecording,
+        isRecording: false,
         bloc: _messagerBloc,
       ),
     );
   }
 
-  Widget _buildVoiceRecordingUI() {
-    return VoiceRecordingWidget(
-      isRecording: _isRecording,
-      isPaused: _isPaused,
-      recordDuration: Duration(seconds: _recordDuration),
-      formatDuration: (duration) => _formatDuration(duration.inSeconds),
-      onStartRecording: recorderHelper.startRecording,
-      onPauseRecording: recorderHelper.pauseRecording,
-      onResumeRecording: recorderHelper.resumeRecording,
-      onStopRecording: recorderHelper.stopRecording,
-      onPlayRecording: recorderHelper.playRecording,
-      onSendRecording: recorderHelper.sendRecording,
-      recordedFilePath: _recordedFilePath,
-      onCancel: () {
-        _timer?.cancel();
-        setState(() {
-          _isRecording = false;
-          _isPaused = false;
-          _recordedFilePath = null;
-        });
-      },
+  void _sendAudioMessage(String path, int duration) {
+    debugPrint("Sending audio message: $path, duration: $duration");
+
+    final localId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
+
+    // Ensure SendAudioMessageEvent exists in your BLoC events
+    _messagerBloc.add(
+      SendAudioMessageEvent(
+        senderId: currentUserId,
+        receiverId: widget.datumId ?? '',
+        audioPath: path,
+        duration: duration.toString(),
+        convoId: widget.convoId,
+      ),
     );
   }
 
@@ -4425,12 +4436,32 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           _clearDraft();
         }
       },
+      isRecordingLocked: _isRecordingLocked,
+      onLockRecording: () {
+        // Attempt to stop the initial recording to release mic
+        recorderHelper.stopRecording();
+        setState(() {
+          _isRecordingLocked = true;
+          // Ensure _isRecording is true so the widget renders
+          _isRecording = true;
+        });
+      },
+      onCancelRecording: () {
+        setState(() {
+          _isRecordingLocked = false;
+          _isRecording = false; // reset state
+        });
+        // Stop actual recording if needed
+        recorderHelper.stopRecording(); // or cancel
+      },
+      onSendRecording: (path, duration) {
+        setState(() {
+          _isRecordingLocked = false;
+          _isRecording = false;
+        });
+        // Send the file
+        _sendAudioMessage(path, duration);
+      },
     );
-  }
-
-  String _formatDuration(int seconds) {
-    final minutes = (seconds ~/ 60).toString().padLeft(2, '0');
-    final secs = (seconds % 60).toString().padLeft(2, '0');
-    return '$minutes:$secs';
   }
 }

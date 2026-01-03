@@ -1,19 +1,27 @@
-import 'dart:developer';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:nde_email/utils/snackbar/snackbar.dart';
+import 'package:nde_email/utils/const/consts.dart';
 
 class AudioMessageWidget extends StatefulWidget {
   final String audioUrl;
-  final String profileAvatarUrl;
+  final String profileAvatarUrl; 
   final bool isSender;
+  final String? duration;
+  final String? timestamp;
+  final String? status;
+  final bool showContainer;
 
   const AudioMessageWidget({
     super.key,
     required this.audioUrl,
     required this.profileAvatarUrl,
     required this.isSender,
+    this.duration,
+    this.timestamp,
+    this.status,
+    this.showContainer = true,
   });
 
   @override
@@ -21,65 +29,74 @@ class AudioMessageWidget extends StatefulWidget {
 }
 
 class _AudioMessageWidgetState extends State<AudioMessageWidget> {
-  final AudioPlayer _audioPlayer = AudioPlayer();
-  bool isPlaying = false;
-  bool isLoading = false;
+  late AudioPlayer _audioPlayer;
+  bool _isPlaying = false;
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
+  bool _isPlayerInitialized = false;
 
   @override
   void initState() {
     super.initState();
-
-    _audioPlayer.playerStateStream.listen((playerState) {
-      if (mounted) {
-        setState(() {
-          isPlaying = playerState.playing;
-        });
-
-        if (playerState.processingState == ProcessingState.completed) {
-          setState(() {
-            isPlaying = false;
-            _position = Duration.zero;
-          });
-          _audioPlayer.seek(Duration.zero);
-        }
-      }
-    });
-
-    _audioPlayer.durationStream.listen((duration) {
-      if (mounted) {
-        setState(() {
-          _duration = duration ?? Duration.zero;
-        });
-      }
-    });
-
-    _audioPlayer.positionStream.listen((position) {
-      if (mounted) {
-        setState(() {
-          _position = position;
-        });
-      }
-    });
+    _audioPlayer = AudioPlayer();
+    _initPlayer();
   }
 
-  Future<void> _togglePlayPause() async {
-    if (isPlaying) {
-      await _audioPlayer.pause();
-    } else {
-      setState(() => isLoading = true);
-      try {
-        if (_audioPlayer.processingState == ProcessingState.idle) {
-          await _audioPlayer.setUrl(widget.audioUrl);
-        }
-        await _audioPlayer.play();
-      } catch (e) {
-        log("Error playing audio: $e");
-        Messenger.alert(msg: "Error playing audio");
-      } finally {
-        if (mounted) setState(() => isLoading = false);
+  Future<void> _initPlayer() async {
+    try {
+      if (widget.audioUrl.startsWith('http')) {
+        await _audioPlayer.setUrl(widget.audioUrl);
+      } else {
+        await _audioPlayer.setFilePath(widget.audioUrl);
       }
+
+      _duration = _audioPlayer.duration ?? Duration.zero;
+
+      // If duration was passed in widget, use it as fallback or initial
+      if (_duration.inSeconds == 0 && widget.duration != null) {
+        final secs = int.tryParse(widget.duration!) ?? 0;
+        if (secs > 0) {
+          _duration = Duration(seconds: secs);
+        }
+      }
+
+      _audioPlayer.playerStateStream.listen((state) {
+        if (mounted) {
+          setState(() {
+            _isPlaying = state.playing;
+            if (state.processingState == ProcessingState.completed) {
+              _isPlaying = false;
+              _position = Duration.zero;
+              _audioPlayer.stop();
+              _audioPlayer.seek(Duration.zero);
+            }
+          });
+        }
+      });
+
+      _audioPlayer.positionStream.listen((position) {
+        if (mounted) {
+          setState(() {
+            _position = position;
+          });
+        }
+      });
+
+      _audioPlayer.durationStream.listen((duration) {
+        if (duration != null && mounted) {
+          setState(() {
+            _duration = duration;
+          });
+        }
+      });
+
+      if (mounted) {
+        setState(() {
+          _isPlayerInitialized = true;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error initializing audio player: $e");
     }
   }
 
@@ -89,122 +106,160 @@ class _AudioMessageWidgetState extends State<AudioMessageWidget> {
     super.dispose();
   }
 
-  String _formatDuration(Duration duration) {
+  String _formatDuration(Duration d) {
     String twoDigits(int n) => n.toString().padLeft(2, "0");
-    final minutes = twoDigits(duration.inMinutes.remainder(60));
-    final seconds = twoDigits(duration.inSeconds.remainder(60));
-    return "$minutes:$seconds";
+    String twoDigitMinutes = twoDigits(d.inMinutes.remainder(60));
+    String twoDigitSeconds = twoDigits(d.inSeconds.remainder(60));
+    if (d.inHours > 0) {
+      return "${twoDigits(d.inHours)}:$twoDigitMinutes:$twoDigitSeconds";
+    }
+    return "$twoDigitMinutes:$twoDigitSeconds";
+  }
+
+  Widget _buildStatusIcon() {
+    if (!widget.isSender) return const SizedBox.shrink();
+
+    IconData icon = Icons.access_time;
+    Color color = Colors.grey[600]!;
+
+    switch (widget.status?.toLowerCase()) {
+      case 'read':
+      case 'seen':
+        icon = Icons.done_all;
+        color = Colors.blue;
+        break;
+      case 'delivered':
+        icon = Icons.done_all;
+        color = Colors.grey[600]!;
+        break;
+      case 'sent':
+        icon = Icons.check;
+        color = Colors.grey[600]!;
+        break;
+      default:
+        icon = Icons.access_time;
+        color = Colors.grey[600]!;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Icon(icon, size: 16, color: color),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment:
-          widget.isSender ? MainAxisAlignment.end : MainAxisAlignment.start,
-      crossAxisAlignment: CrossAxisAlignment.end,
+    final senderColor = Color.fromARGB(255, 226, 242, 249); // Light Blue
+    final receiverColor = Colors.white;
+
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        if (!widget.isSender)
-          CircleAvatar(
-            backgroundImage: NetworkImage(widget.profileAvatarUrl),
-            radius: 20,
-          ),
-        const SizedBox(width: 6),
-
-        /// **Audio Bubble**
-        Container(
-          padding: const EdgeInsets.all(10),
-          constraints: const BoxConstraints(maxWidth: 250),
-          decoration: BoxDecoration(
-            color: widget.isSender ? Colors.green[100] : Colors.white,
-            borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(16),
-              topRight: const Radius.circular(16),
-              bottomLeft:
-                  widget.isSender ? const Radius.circular(16) : Radius.zero,
-              bottomRight:
-                  widget.isSender ? Radius.zero : const Radius.circular(16),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 2,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              //  Play Button
-              IconButton(
-                iconSize: 30,
-                icon: isLoading
-                    ? const CircularProgressIndicator()
-                    : Icon(
-                        isPlaying ? Icons.pause : Icons.play_arrow,
-                        color: Colors.green,
-                      ),
-                onPressed: isLoading ? null : _togglePlayPause,
-              ),
-              const SizedBox(width: 4),
-
-              //  Audio Progress + Time
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SliderTheme(
-                      data: SliderTheme.of(context).copyWith(
-                        trackHeight: 2,
-                        thumbShape: const RoundSliderThumbShape(
-                          enabledThumbRadius: 6,
-                        ),
-                      ),
-                      child: Slider(
-                        value: _position.inSeconds.toDouble(),
-                        min: 0,
-                        max: _duration.inSeconds.toDouble(),
-                        activeColor: Colors.green,
-                        inactiveColor: Colors.grey[300],
-                        onChanged: (value) {
-                          _audioPlayer.seek(Duration(seconds: value.toInt()));
-                        },
-                      ),
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          _formatDuration(_position),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.black54,
-                          ),
-                        ),
-                        Text(
-                          _formatDuration(_duration),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.black54,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+        Row(
+          children: [
+            GestureDetector(
+              onTap: () {
+                if (_isPlaying) {
+                  _audioPlayer.pause();
+                } else {
+                  _audioPlayer.play();
+                }
+              },
+              child: CircleAvatar(
+                radius: 20,
+                backgroundColor: widget.isSender
+                    ? chatColor.withOpacity(0.2)
+                    : Colors.grey[200],
+                child: Icon(
+                  _isPlaying ? Icons.pause : Icons.play_arrow,
+                  color: widget.isSender ? chatColor : Colors.grey[700],
+                  size: 24,
                 ),
+              ),
+            ),
+            Expanded(
+              child: SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  trackHeight: 3,
+                  thumbShape:
+                      const RoundSliderThumbShape(enabledThumbRadius: 6),
+                  overlayShape:
+                      const RoundSliderOverlayShape(overlayRadius: 14),
+                  activeTrackColor:
+                      widget.isSender ? chatColor : Colors.grey[700],
+                  inactiveTrackColor: widget.isSender
+                      ? chatColor.withOpacity(0.2)
+                      : Colors.grey[300],
+                  thumbColor: widget.isSender ? chatColor : Colors.grey[700],
+                ),
+                child: Slider(
+                  value: _position.inSeconds
+                      .toDouble()
+                      .clamp(0.0, _duration.inSeconds.toDouble()),
+                  min: 0,
+                  max: _duration.inSeconds.toDouble() > 0
+                      ? _duration.inSeconds.toDouble()
+                      : 1.0,
+                  onChanged: (value) {
+                    _audioPlayer.seek(Duration(seconds: value.toInt()));
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: 8, right: 8, bottom: 2),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _formatDuration(_duration.inSeconds > 0
+                    ? _duration
+                    : Duration(
+                        seconds: int.tryParse(widget.duration ?? "0") ?? 0)),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey[600],
+                ),
+              ),
+              Row(
+                children: [
+                  Text(
+                    widget.timestamp ?? "",
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  if (widget.isSender) _buildStatusIcon(),
+                ],
               ),
             ],
           ),
         ),
-
-        if (widget.isSender) const SizedBox(width: 6),
-
-        if (widget.isSender)
-          CircleAvatar(
-            backgroundImage: NetworkImage(widget.profileAvatarUrl),
-            radius: 20,
-          ),
       ],
+    );
+
+    if (!widget.showContainer) return content;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: widget.isSender ? senderColor : receiverColor,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 2,
+            offset: const Offset(0, 1),
+          )
+        ],
+      ),
+      constraints: const BoxConstraints(maxWidth: 280),
+      child: content,
     );
   }
 }

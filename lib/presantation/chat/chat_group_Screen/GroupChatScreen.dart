@@ -18,7 +18,6 @@ import 'package:nde_email/presantation/chat/chat_group_Screen/group_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_event.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_model.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_state.dart';
-import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/MediaPreviewScreen.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/MixedMediaViewer.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/commonfuntion.dart';
 import 'package:nde_email/presantation/chat/widget/custom_appbar.dart';
@@ -108,6 +107,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   bool _isPaused = false;
   bool _isRecording = false;
   bool _isSelectionMode = false;
+  Timer? _timer;
+
+  // Locked Recording State
+  bool _isRecordingLocked = false;
 
   final int _limit = 40;
 
@@ -130,7 +133,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   final List<dynamic> _selectedMessages = [];
   bool _showEmoji = false;
   bool _showSearchAppBar = false;
-  Timer? _timer;
   bool _permissionChecked = false;
 
   // Pagination / Windowing
@@ -140,8 +142,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   final int _initialVisible = 40;
   final ValueNotifier<List<Map<String, dynamic>>> _messagesNotifier =
       ValueNotifier([]);
-
-  // 👇 NEW: reaction stream + seen ids (for dedupe)
   StreamSubscription<MessageReaction>? _reactionSubscription;
   StreamSubscription<Map<String, dynamic>>? _messageSubscription;
   StreamSubscription<GroupChatState>? _blocStateSubscription;
@@ -156,8 +156,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   final Map<String, String> _pendingStatusUpdates =
       {}; // Buffer for race conditions
 
-  // Track last loaded data to prevent overwrite
-
   @override
   void dispose() {
     // SocketService().clearActiveConversation();
@@ -168,6 +166,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     } else {
       _clearDraft();
     }
+    _recorder.closeRecorder();
     _messageController.dispose();
     _focusNode.dispose();
     _scrollController.removeListener(_scrollListener);

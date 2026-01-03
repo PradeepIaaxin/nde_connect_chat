@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:developer';
+import 'dart:io' as io;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nde_email/data/respiratory.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/localstorage/local_storage.dart';
@@ -26,6 +27,7 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
     on<ForwardMessageEvent>(_forwardMessage);
     on<AddReaction>(_onAddReaction);
     on<RemoveReaction>(_onRemoveReaction);
+    on<SendAudioMessageEvent>(_onSendAudioMessage);
   }
 
   Future<void> _onFetchMessages(
@@ -37,7 +39,7 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
       final localRaw = LocalChatStorage.loadMessages(event.convoId);
 
       final localFlat = localRaw
-          .whereType<Map<String, dynamic>>() // 🔥 FIX
+          .whereType<Map<String, dynamic>>() 
           .map((e) => Datum.fromJson(e))
           .toList();
 
@@ -149,6 +151,81 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
       if (state is! MessagerLoaded) {
         emit(MessagerError(e.toString()));
       }
+    }
+  }
+
+  Future<void> _onSendAudioMessage(
+    SendAudioMessageEvent event,
+    Emitter<MessagerState> emit,
+  ) async {
+    // 1. Validate file
+    final io.File audioFile = io.File(event.audioPath);
+    if (!audioFile.existsSync()) {
+      emit(MessagerError("Audio file not found at ${event.audioPath}"));
+      return;
+    }
+
+    emit(UploadInProgress(0));
+
+    final Completer<void> completer = Completer<void>();
+
+    try {
+      // 2. Upload File (Reusable API)
+      apiService.uploadFile(
+        file: audioFile,
+        onProgress: (p) {
+          if (!emit.isDone) emit(UploadInProgress(p));
+        },
+        onSuccess: (data) async {
+          if (emit.isDone) {
+            if (!completer.isCompleted) completer.complete();
+            return;
+          }
+
+          emit(UploadSuccess(data));
+
+          final workspaceID = await UserPreferences.getDefaultWorkspace();
+          if (workspaceID == null) {
+            emit(UploadFailure("Workspace not found"));
+            if (!completer.isCompleted) completer.complete();
+            return;
+          }
+
+          final roomId =
+              socketService.generateRoomId(event.senderId, event.receiverId);
+          final tempMessageId = ObjectId().toString();
+
+          // 3. Send via Socket
+          socketService.sendMessage(
+            isGroupMessage: false,
+            messageId: tempMessageId,
+            conversationId: event.convoId,
+            senderId: event.senderId,
+            receiverId: event.receiverId,
+            message: "",
+            roomId: roomId,
+            workspaceId: workspaceID,
+            isGroupChat: false,
+            contentType: data["fieldname"] ?? "file",
+            mimeType: data["mimetype"],
+            fileName: data["fileName"] ?? "audio.m4a",
+            size: data["size"] ?? 0,
+            fileWithText: false,
+            audioDuration: event.duration,
+            originalUrl: data["originalUrl"] ?? data["location"] ?? "",
+          );
+
+          if (!completer.isCompleted) completer.complete();
+        },
+        onError: (err) {
+          if (!emit.isDone) emit(UploadFailure(err));
+          if (!completer.isCompleted) completer.complete();
+        },
+      );
+
+      await completer.future;
+    } catch (e) {
+      if (!emit.isDone) emit(UploadFailure(e.toString()));
     }
   }
 

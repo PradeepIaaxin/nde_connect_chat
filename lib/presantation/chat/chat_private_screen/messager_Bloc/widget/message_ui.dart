@@ -4,6 +4,7 @@ import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/wi
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/commonfuntion.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/replymessgae.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/grouped_media_viewer.dart';
+import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/AudioMessageWidget.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/ForwardMessageScreen_widget.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
 import 'package:shimmer/shimmer.dart';
@@ -92,6 +93,14 @@ class MessageBubble extends StatelessWidget {
                 .toString()
                 .toLowerCase()
                 .endsWith('.mov'));
+
+    final bool isAudio = (message['ContentType'] == 'audio') ||
+        (fileTypeRaw != null && fileTypeRaw.startsWith('audio')) ||
+        (fileName != null &&
+            (RegExp(r'\.(mp3|wav|aac|m4a|flac|ogg|opus)$', caseSensitive: false)
+                    .hasMatch(fileName) ||
+                fileName.toLowerCase().contains('audio_')));
+
     final replyData = message['reply'];
     final replyId = message['reply_message_id'] ?? message['replyMessageId'];
     final replyContent = message['replyContent'];
@@ -212,17 +221,34 @@ class MessageBubble extends StatelessWidget {
                           ],
                         ),
 
-                      // Image preview (only if not video)
-                      if (!isVideo && hasImage)
+                      // Image preview (only if not video and not audio)
+                      if (!isVideo && !isAudio && hasImage)
                         _buildImage(
                             context, content, displayImageUrl!, fileName,
                             isSentByMe: isSentByMe),
 
-                      // File preview (if file exists)
-                      if (hasFile)
-                        _buildFile(
-                            context, fileUrl!, fileName, fileType, content,
-                            isSentByMe: isSentByMe),
+                      // Audio Message
+                      if (isAudio && hasFile)
+                        AudioMessageWidget(
+                          audioUrl: fileUrl,
+                          profileAvatarUrl: message['sender']
+                                  ?['profile_pic_path'] ??
+                              message['sender']?['profilePic'] ??
+                              message['profile_pic_path'] ??
+                              '',
+                          isSender: isSentByMe,
+                          duration: message['duration']?.toString(),
+                          timestamp: TimeUtils.formatUtcToIst(message['time']),
+                          status:
+                              message['messageStatus']?.toString() ?? 'sent',
+                          showContainer: false,
+                        ),
+
+                      // File preview (if file exists and NOT audio)
+                      if (hasFile && !isAudio)
+                          _buildFile(
+                              context, fileUrl, fileName, fileType, content,
+                              isSentByMe: isSentByMe),
 
                       // Text content
                       if (content.isNotEmpty)

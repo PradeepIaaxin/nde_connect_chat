@@ -1200,6 +1200,7 @@ class SocketService {
     String? userName,
     required bool isGroupMessage,
     String? groupMessageId,
+    String? audioDuration,
   }) {
     if (!isConnected) {
       _slog('sendMessage aborted: not connected');
@@ -1231,6 +1232,7 @@ class SocketService {
       "messageType": "sent",
       "is_grouped_message": isGroupMessage,
       "group_message_id": groupMessageId,
+      "duration": audioDuration,
       "isReplyMessage": reply != null || isReplyMessage,
       if (reply != null)
         "reply": {
