@@ -30,7 +30,6 @@ class ChatListScreen extends StatefulWidget {
   const ChatListScreen({super.key});
 
   @override
- 
   _ChatListScreenState createState() => _ChatListScreenState();
 }
 
@@ -104,7 +103,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
       }
     });
 
-    /// 🌐 Internet status listener
+    /// 🌐 Internet status listenerkj
     _internetSub =
         InternetService.connectionStreams.listen((hasInternet) async {
       if (!mounted) return;
@@ -211,10 +210,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
   }
 
   Future<void> handlePinChat(String convoId, bool newPinState) async {
-    // ✅ 1️⃣ UPDATE UI IMMEDIATELY
-    // _updateLocalPin(convoId, newPinState);
-
-    // ✅ 2️⃣ FIRE SOCKET IN BACKGROUND
     SocketService().pinUnpinChat(
       conversationId: convoId,
       nextPinnedState: newPinState,
@@ -578,21 +573,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     await handlePinChat(chat.id ?? '', !allPinned);
                   }
                 },
-
-                // onPressed: () async {
-                //   final allPinned = selectedUsers.isNotEmpty &&
-                //       selectedUsers.every((chat) => chat.isPinned ?? false);
-
-                //   for (var chat in selectedUsers) {
-                //     final newPinStatus = !allPinned;
-                //     await handlePinChat(chat.id ?? '', newPinStatus);
-                //   }
-
-                //   setState(() {
-                //     selectedUsers.clear();
-                //     longPressed = false;
-                //   });
-                // },
               ),
             if (selectedUsers.isNotEmpty)
               IconButton(

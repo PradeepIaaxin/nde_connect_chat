@@ -8,8 +8,6 @@ import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/For
 import 'package:nde_email/utils/reusbale/common_import.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:linkify/linkify.dart';
-import 'package:video_player/video_player.dart';
-import 'package:video_thumbnail/video_thumbnail.dart';
 import 'VideoCacheService.dart';
 import 'VideoPlayerScreen.dart';
 
@@ -79,7 +77,6 @@ class MessageBubble extends StatelessWidget {
     final String? originalUrl = message['originalUrl']?.toString();
     final String? displayImageUrl =
         originalUrl ?? imageUrl ?? (isFileImage ? fileUrl : null);
-    final String? replycontent = message['replyContent'];
 
     final bool? isForwarded = message['isForwarded'] ?? false;
     final bool? isReplyMessage = message['isReplyMessage'];
@@ -99,9 +96,13 @@ class MessageBubble extends StatelessWidget {
     final replyId = message['reply_message_id'] ?? message['replyMessageId'];
     final replyContent = message['replyContent'];
 
-    bool hasReply = (replyData is Map && replyData.isNotEmpty) ||
-        (replyId != null && replyId.toString().isNotEmpty) ||
-        (replyContent != null && replyContent.toString().isNotEmpty);
+    final bool isDeleted =
+        message['is_deleted'] == true || message['messageStatus'] == 'deleted';
+
+    bool hasReply = ((replyData is Map && replyData.isNotEmpty) ||
+            (replyId != null && replyId.toString().isNotEmpty) ||
+            (replyContent != null && replyContent.toString().isNotEmpty)) &&
+        !isDeleted;
 
     final bool hasFile = fileUrl != null && fileUrl.isNotEmpty;
     final bool hasImage = (imageUrl != null && imageUrl.isNotEmpty) ||
@@ -555,7 +556,6 @@ class MessageBubble extends StatelessWidget {
             // openSingleMediaViewer(context);
           },
           onTap: () async {
-          
             if (looksImage) {
               _openConversationViewer(context, imageUrl);
             } else {

@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:developer';
 import 'dart:io';
 import 'package:any_link_preview/any_link_preview.dart';
-import 'package:audio_waveforms/audio_waveforms.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
@@ -12,7 +11,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_sound/public/flutter_sound_player.dart';
 import 'package:flutter_sound/public/flutter_sound_recorder.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:just_audio/just_audio.dart';
 import 'package:mime/mime.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/local_strorage.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/api_servicer.dart';
@@ -20,6 +18,7 @@ import 'package:nde_email/presantation/chat/chat_group_Screen/group_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_event.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_model.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_state.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/MediaPreviewScreen.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/MixedMediaViewer.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/commonfuntion.dart';
 import 'package:nde_email/presantation/chat/widget/custom_appbar.dart';
@@ -101,6 +100,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   File? _fileUrl;
   final FocusNode _focusNode = FocusNode();
   late final GroupChatBloc _groupBloc;
+  late final ChatListBloc _chatListBloc;
   bool _hasNextPage = false;
 
   File? _imageFile;
@@ -144,6 +144,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   // 👇 NEW: reaction stream + seen ids (for dedupe)
   StreamSubscription<MessageReaction>? _reactionSubscription;
   StreamSubscription<Map<String, dynamic>>? _messageSubscription;
+  StreamSubscription<GroupChatState>? _blocStateSubscription;
   StreamSubscription<Map<String, dynamic>>? _statusSubscription;
   final Set<String> _seenMessageIds = {};
 
@@ -163,9 +164,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     _messageDeletedSubscription?.cancel();
     final unsentText = _messageController.text.trim();
     if (unsentText.isNotEmpty) {
-      GrpLocalChatStorage.saveDraftMessage(widget.conversationId, unsentText);
+      _saveDraft(unsentText);
     } else {
-      GrpLocalChatStorage.clearDraftMessage(widget.conversationId);
+      _clearDraft();
     }
     _messageController.dispose();
     _focusNode.dispose();
@@ -179,11 +180,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     _reactionSubscription?.cancel();
     _messageSubscription?.cancel();
     _statusSubscription?.cancel();
+    _blocStateSubscription?.cancel();
     _connSub?.cancel();
 
     _clearSessionImagePath();
-    // SocketService().disconnect();
-
     super.dispose();
   }
 
@@ -238,6 +238,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     });
 
     _groupBloc = GroupChatBloc(socketService, GrpMessagerApiService());
+    _chatListBloc = context.read<ChatListBloc>();
     _initializeSocket();
 
     _loadCurrentUserId();
@@ -1207,31 +1208,26 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
 // ------------------ Draft Methods ------------------
-
-  void _saveDraft(String draft) {
+  Future<void> _saveDraft(String draft) async {
     if (widget.conversationId.isEmpty) return;
-    GrpLocalChatStorage.saveDraftMessage(widget.conversationId, draft);
+    await GrpLocalChatStorage.saveDraftMessage(widget.conversationId, draft);
     ChatSessionStorage.updateDraftMessage(
       convoId: widget.conversationId,
       draftMessage: draft.isEmpty ? null : draft,
     );
     // Trigger UI refresh in chat list
-    if (mounted) {
-      context.read<ChatListBloc>().add(UpdateLocalChatList());
-    }
+    _chatListBloc.add(UpdateLocalChatList());
   }
 
-  void _clearDraft() {
+  Future<void> _clearDraft() async {
     if (widget.conversationId.isEmpty) return;
-    GrpLocalChatStorage.clearDraftMessage(widget.conversationId);
+    await GrpLocalChatStorage.clearDraftMessage(widget.conversationId);
     ChatSessionStorage.updateDraftMessage(
       convoId: widget.conversationId,
       draftMessage: null,
     );
     // Trigger UI refresh in chat list
-    if (mounted) {
-      context.read<ChatListBloc>().add(UpdateLocalChatList());
-    }
+    _chatListBloc.add(UpdateLocalChatList());
   }
 
   Future<void> _loadDraft() async {
@@ -1427,7 +1423,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       _replyPreview = null;
       _imageFile = null;
     });
-    _clearDraft();
+    await _clearDraft();
 
     if (!(_isOnline && socketService.isConnected)) {
       // Offline: Add to queue
@@ -1498,7 +1494,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       'content': _messageController.text.trim(),
       'sender': {'_id': currentUserId},
       'receiver': {'_id': widget.datumId},
-      'messageStatus': 'sending',
+      'messageStatus': 'sent',
       'time': nowIso,
       'fileName': _fileUrl?.path.split('/').last,
       'fileType': mimeType,
@@ -1506,7 +1502,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       'fileUrl': _fileUrl?.path,
     };
 
-  
     setState(() {
       socketMessages.add(message);
       _scrollToBottom();
@@ -1522,7 +1517,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     });
 
     await _clearSessionPaths();
-    _clearDraft();
+    await _clearDraft();
   }
 
   void _sendMultipleFiles(List<XFile> files) async {
@@ -1543,11 +1538,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       final message = {
         'message_id': messageId,
         'localImagePath': isImage ? file.path : null,
-        'content': '', // No caption for bulk upload
+        'content': '',
         'sender': {'_id': currentUserId},
         'receiver': {'_id': widget.datumId},
-        'messageStatus':
-            'sending', // Optimistic status (marked sending until synced)
+        'messageStatus': 'sent',
         'time': nowIso,
         'fileName': file.name,
         'fileType': mimeType,
@@ -1667,36 +1661,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
   }
 
-  // void _scrollListener() {
-  //   if (!_scrollController.hasClients) return;
-
-  //   // 1. Check if scrolled near the TOP (maxScrollExtent in reverse list)
-  //   //    We use a threshold (e.g. 50-100 pixels) to trigger loading
-  //   if (_scrollController.position.pixels >=
-  //       _scrollController.position.maxScrollExtent - 150) {
-  //     final total = _allMessages.length;
-
-  //     // Case A: We have more local messages hidden (client-side windowing)
-  //     if (_visibleCount < total && !_isLoadingMore) {
-  //       setState(() => _isLoadingMore = true);
-
-  //       // Add small delay to simulate load (and allow UI to show spinner if desired)
-  //       Future.delayed(const Duration(milliseconds: 300), () {
-  //         if (!mounted) return;
-  //         setState(() {
-  //           _visibleCount = (_visibleCount + _pageStep).clamp(0, total);
-  //           _isLoadingMore = false;
-  //         });
-  //         _updateNotifierFromAll();
-  //       });
-  //     }
-  //     // Case B: We showed all local messages, check if server has more
-  //     else if (_hasNextPage && !_isLoadingMore) {
-  //       _loadMoreMessages();
-  //     }
-  //   }
-  // }
-
   String _formatDateTime(DateTime? dateTime) {
     if (dateTime == null) return '';
     final now = DateTime.now();
@@ -1765,8 +1729,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       return;
     }
 
-    setState(() {
-    });
+    setState(() {});
 
     _markMessagesAsDeleted(_selectedMessageIds.toList(), deleteFor: deleteFor);
 
@@ -2674,7 +2637,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               final id = (m['message_id'] ?? m['id'] ?? '').toString();
               if (id.isNotEmpty) {
                 messagesMap[id] = m;
-                log('   ➕ Added/Updated message: $id');
+                //  log('   ➕ Added/Updated message: $id');
               }
             }
             log('   🗄️  Messages in map after incoming: ${messagesMap.length}');
@@ -2773,6 +2736,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                           final isSentByMe = senderMap['_id'] == currentUserId;
                           final isSystem = message['ContentType'] == "system";
                           final content = message['content']?.toString() ?? '';
+                          final bool isDeleted =
+                              message['is_deleted'] == true ||
+                                  message['messageStatus'] == 'deleted' ||
+                                  content == ' This message was deleted';
 
                           final currentTime = _parseTime(message['time']);
                           final prevTime = realIndex > 0
@@ -2874,8 +2841,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                           padding: const EdgeInsets.symmetric(
                                               horizontal: 8.0, vertical: 4.0),
                                           child: SwipeToReply(
-                                            onReply: () =>
-                                                _replyToMessage(message),
+                                            onReply: isDeleted
+                                                ? null
+                                                : () =>
+                                                    _replyToMessage(message),
                                             child: Align(
                                               alignment: isSentByMe
                                                   ? Alignment.centerRight
@@ -3380,6 +3349,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final String? fileName = message['fileName'];
     final String? fileType = message['fileType'];
     final bool? isForwarded = message['isForwarded'] ?? false;
+
     final String userName =
         (message['userName']?.toString().trim().isNotEmpty == true)
             ? message['userName']
@@ -3445,13 +3415,17 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     final isSelected =
         _selectedMessageKeys.contains(_generateMessageKey(message));
+    final bool isDeleted = message['is_deleted'] == true ||
+        message['isDeleted'] == true ||
+        message['messageStatus'] == 'deleted' ||
+        message['content'] == '🚫 This message was deleted';
 
-    // reply detection – don't depend only on isReplyMessage flagvered status io
-    final bool hasReply = (message['repliedMessage'] is Map &&
-            (message['repliedMessage']['id'] ??
-                    message['repliedMessage']['message_id'] ??
-                    message['repliedMessage']['messageId']) !=
-                null) ||
+    final bool hasReply = !isDeleted &&
+            (message['repliedMessage'] is Map &&
+                (message['repliedMessage']['id'] ??
+                        message['repliedMessage']['message_id'] ??
+                        message['repliedMessage']['messageId']) !=
+                    null) ||
         (message['reply'] is Map &&
             (message['reply']['id'] ??
                     message['reply']['message_id'] ??
@@ -3466,9 +3440,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             : SwipeToReply(
                 icon: Icons.reply,
                 iconColor: Colors.grey.shade600,
-                onReply: () {
-                  _replyToMessage(message);
-                },
+                onReply: isDeleted
+                    ? null
+                    : () {
+                        _replyToMessage(message);
+                      },
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                       vertical: 5.0, horizontal: 4.0),
@@ -3477,10 +3453,16 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                     onLongPress: () {
                       if (_isSelectionMode) {
                         _toggleMessageSelection(message);
-                      } else {
+                      } else if (!isDeleted) {
                         _showReactionPicker(context, message);
 
                         // Enter selection mode
+                        setState(() {
+                          _isSelectionMode = true;
+                        });
+                        _toggleMessageSelection(message);
+                      } else {
+                        // If deleted, only enter selection mode
                         setState(() {
                           _isSelectionMode = true;
                         });
@@ -3503,7 +3485,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                 top: 0,
                                 bottom: (message['reactions'] != null &&
                                         message['reactions'].isNotEmpty)
-                                    ? 20 // WHEN REACTION EXISTS
+                                    ? 20
                                     : 0,
                               ),
                               padding: const EdgeInsets.only(
@@ -4682,6 +4664,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   void _showReactionPicker(BuildContext context, Map<String, dynamic> message) {
+    final bool isDeleted = message['is_deleted'] == true ||
+        message['isDeleted'] == true ||
+        message['messageStatus'] == 'deleted' ||
+        message['content'] == '🚫 This message was deleted';
+
+    if (isDeleted) return;
     final List<String> emojis = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
     showModalBottomSheet(
       context: context,
@@ -4711,39 +4699,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     );
   }
 
-  // PreferredSizeWidget _buildAppBar() {
-  //   return CommonAppBarBuilder.build(
-  //       context: context,
-  //       showSearchAppBar: _showSearchAppBar,
-  //       isSelectionMode: _isSelectionMode,
-  //       selectedMessages: _selectedMessages,
-  //       toggleSelectionMode: _toggleSelectionMode,
-  //       deleteSelectedMessages: _deleteSelectedMessages,
-  //       forwardSelectedMessages: _forwardSelectedMessages,
-  //       starSelectedMessages: _starSelectedMessages,
-  //       replyToMessage: _replyToMessage,
-  //       profileAvatarUrl: widget.groupAvatarUrl,
-  //       convertionId: widget.conversationId,
-  //       userName: widget.groupName,
-  //       firstname: widget.groupName,
-  //       grpId: widget.datumId,
-  //       grpChat: widget.grpChat,
-  //       resvID: widget.datumId,
-  //       favouitre: widget.favorite,
-  //       onSearchTap: () {
-  //         setState(() {
-  //           _showSearchAppBar = !_showSearchAppBar;
-  //         });
-  //       },
-  //       onCloseSearch: () {
-  //         setState(() {
-  //           _showSearchAppBar = false;
-  //         });
-  //       });
-  // }
-
   PreferredSizeWidget _buildAppBar() {
-    print(_hasLeftGroup);
     return CommonAppBarBuilder.build(
       context: context,
       showSearchAppBar: _showSearchAppBar,

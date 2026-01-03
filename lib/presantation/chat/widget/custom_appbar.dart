@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:nde_email/presantation/chat/Socket/socket_service.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/user_profile_screen.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/ChateHomeMoreOptionsButton.dart';
@@ -49,15 +50,66 @@ class CommonAppBarBuilder {
     }
 
     if (isSelectionMode) {
+      final bool hasDeletedMessage = selectedMessages.any((msg) =>
+          msg['is_deleted'] == true ||
+          msg['isDeleted'] == true ||
+          msg['messageStatus'] == 'deleted' ||
+          msg['content'] == '🚫 This message was deleted');
+
       return LongPressAppBar(
         title: '${selectedMessages.length} selected',
         onBackPressed: hasLeftGroup == true ? null : toggleSelectionMode,
         onDeletePressed: hasLeftGroup == true ? null : deleteSelectedMessages,
-        onForwardPressed: hasLeftGroup == true ? null : forwardSelectedMessages,
-        onStarPressed: hasLeftGroup == true ? null : starSelectedMessages,
-        onReplayPressed: selectedMessages.length == 1
+        onForwardPressed: (hasLeftGroup == true || hasDeletedMessage)
+            ? null
+            : forwardSelectedMessages,
+        onStarPressed: (hasLeftGroup == true || hasDeletedMessage)
+            ? null
+            : starSelectedMessages,
+        onReplayPressed: (selectedMessages.length == 1 && !hasDeletedMessage)
             ? () => replyToMessage(selectedMessages.first)
             : null,
+        onCopyPressed: hasDeletedMessage
+            ? null
+            : () {
+                final textToCopy = selectedMessages
+                    .map((message) {
+                      if (message['content']?.toString().trim().isNotEmpty ??
+                          false) {
+                        return message['content'];
+                      } else if (message['imageUrl']
+                              ?.toString()
+                              .trim()
+                              .isNotEmpty ??
+                          false) {
+                        return message['imageUrl'];
+                      } else if (message['fileUrl']
+                              ?.toString()
+                              .trim()
+                              .isNotEmpty ??
+                          false) {
+                        return "${message['fileName'] ?? 'Document'}:\n${message['fileUrl']}";
+                      } else {
+                        return '';
+                      }
+                    })
+                    .where((text) => text.toString().isNotEmpty)
+                    .join('\n\n');
+
+                if (textToCopy.trim().isNotEmpty) {
+                  Clipboard.setData(ClipboardData(text: textToCopy)).then((_) {
+                    // if (context.mounted) {
+                    //   ScaffoldMessenger.of(context).showSnackBar(
+                    //     const SnackBar(
+                    //       content: Text('Message copied'),
+                    //       duration: Duration(seconds: 2),
+                    //     ),
+                    //   );
+                    // }
+                  });
+                }
+                toggleSelectionMode();
+              },
         additionalMenuItems: [
           PopupMenuItem(
             value: 'Share',

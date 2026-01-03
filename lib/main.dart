@@ -2,11 +2,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:nde_email/bridge_generated.dart/frb_generated.dart';
 import 'package:nde_email/convo_list_crdt.dart';
+import 'package:nde_email/message_list_crdt.dart';
 import 'package:nde_email/presantation/login/login_screen.dart';
 import 'package:nde_email/presantation/network/connectivity_servicer.dart';
 import 'package:nde_email/presantation/update_screen/update_bloc/update_bloc.dart';
 import 'package:nde_email/presantation/update_screen/update_repo/update_repo.dart';
-
+import 'package:nde_email/utils/app_state/app_lifecycle_service.dart';
 import 'package:nde_email/utils/imports/common_imports.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
 
@@ -16,7 +17,9 @@ late final WebSocketService webSocketService;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  AppLifecycleService().init();
   await InternetService.initialize();
+
   SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
   ));
@@ -25,6 +28,9 @@ void main() async {
     Hive.registerAdapter(ConvoListCrdtAdapter());
   }
 
+  if (!Hive.isAdapterRegistered(51)) {
+    Hive.registerAdapter(MessageListCrdtAdapter());
+  }
   // await RustLib.init();
   // await RustLib.init(
   //   externalLibrary: ExternalLibrary.open('libbridge.so'),
@@ -209,3 +215,7 @@ Future<void> initializeStorage() async {
   await FlutterDownloader.initialize(debug: false);
 }
 
+
+
+//1.already in group not able to choose that guys 
+//2.messgae info 

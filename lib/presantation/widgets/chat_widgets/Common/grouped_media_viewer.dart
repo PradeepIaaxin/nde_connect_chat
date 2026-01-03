@@ -45,8 +45,10 @@ class GroupedMediaWidget extends StatelessWidget {
     final visibleCount = media.length > 4 ? 4 : media.length;
 
     return SwipeToReply(
-      onReply: () =>
-          onRightSwipe?.call(DragUpdateDetails(globalPosition: Offset.zero)),
+      onReply: messageStatus.toLowerCase == "deleted"
+          ? null
+          : () => onRightSwipe
+              ?.call(DragUpdateDetails(globalPosition: Offset.zero)),
       child: AnimatedContainer(
         key: ValueKey(messageId),
         duration: const Duration(milliseconds: 600),
