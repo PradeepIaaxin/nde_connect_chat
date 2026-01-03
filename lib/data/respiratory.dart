@@ -1,7 +1,4 @@
 import 'dart:convert';
-import 'dart:developer';
-import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hive/hive.dart';
 import 'package:nde_email/convo_list_crdt.dart';
 import 'package:nde_email/main.dart';
@@ -12,11 +9,12 @@ import 'package:nde_email/presantation/drive/Bloc/file_bloc/drive_local_storage.
 import 'package:nde_email/presantation/drive/Bloc/sharred_bloc/sharred_local.dart';
 import 'package:nde_email/presantation/drive/Bloc/starred_bloc/stared_local.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:nde_email/presantation/login/login_screen.dart';
 import 'package:nde_email/presantation/login/login_screen_bloc.dart';
 import 'package:nde_email/presantation/login/login_screen_event.dart';
 import 'package:nde_email/presantation/login/login_model.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:uuid/uuid.dart';
 
 class UserPreferences {
   static const String userKey = 'user_data';
@@ -29,6 +27,7 @@ class UserPreferences {
   static const String isLoggedInKey = 'isLoggedIn';
   static const String meiliTenantTokenKey = 'meili_tenant_token';
   static const String userIdKey = 'user_id';
+  static const String deviceIdKey = 'device_id';
 
   /// **Save user data in SharedPreferences**
   static Future<void> saveUser(UserModel user) async {
@@ -51,6 +50,43 @@ class UserPreferences {
   static Future<String?> getAccessToken() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString(tokenKey);
+  }
+
+  static Future<String> getDeviceId() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // 1️⃣ Already exists → return it
+    final stored = prefs.getString(deviceIdKey);
+    if (stored != null && stored.isNotEmpty) {
+      return stored;
+    }
+
+    String deviceId;
+
+    try {
+      final deviceInfo = DeviceInfoPlugin();
+
+      if (Platform.isAndroid) {
+        final android = await deviceInfo.androidInfo;
+        deviceId = android.id; // ANDROID_ID
+        log("📱 Android deviceId: $deviceId");
+      } else if (Platform.isIOS) {
+        final ios = await deviceInfo.iosInfo;
+        deviceId = ios.identifierForVendor ?? const Uuid().v4();
+        log("📱 iOS deviceId: $deviceId");
+      } else {
+        deviceId = const Uuid().v4();
+      }
+    } catch (e) {
+      // Fallback
+      deviceId = const Uuid().v4();
+      log("⚠️ Device ID fallback used: $e");
+    }
+
+    // 2️⃣ Persist forever
+    await prefs.setString(deviceIdKey, deviceId);
+
+    return deviceId;
   }
 
   static Future<void> updateTokens(
@@ -113,6 +149,17 @@ class UserPreferences {
       }
     }
     return null;
+  }
+
+  static Future<void> clearUserButKeepDevice() async {
+    final prefs = await SharedPreferences.getInstance();
+    final deviceId = prefs.getString(deviceIdKey);
+
+    await prefs.clear();
+
+    if (deviceId != null) {
+      await prefs.setString(deviceIdKey, deviceId);
+    }
   }
 
   static Future<void> clearUser() async {

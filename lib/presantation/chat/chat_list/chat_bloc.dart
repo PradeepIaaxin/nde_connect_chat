@@ -28,7 +28,9 @@ class ChatListBloc extends Bloc<ChatListEvent, ChatListState> {
     on<SetLocalChatList>(_onSetLocalChatList);
     on<UpdateLocalChatList>((event, emit) {
       //final updatedList = ChatSessionStorage.getChatList();
-      final updatedList = List<Datu>.from(ChatSessionStorage.getChatList());
+      final updatedList =
+          ChatSessionStorage.getChatList().map((c) => c.copyWith()).toList();
+      _applyDrafts(updatedList);
 
       /// WhatsApp sorting: pinned first, then latest message
       updatedList.sort((a, b) {
@@ -107,27 +109,15 @@ class ChatListBloc extends Bloc<ChatListEvent, ChatListState> {
       SetLocalChatList event, Emitter<ChatListState> emit) {
     if (event.chats.isEmpty) return;
 
-    // Merge drafts
-    // Merge drafts
-    _applyDrafts(event.chats);
+    final chats = event.chats.map((c) => c.copyWith()).toList();
+    _applyDrafts(chats);
 
     // Save cache again (optional)
     ChatSessionStorage.clear();
     ChatSessionStorage.saveChatList(event.chats);
 
-    final pagination = PaginationData(
-      totalDocs: event.chats.length,
-      page: 1,
-      limit: event.chats.length,
-      totalPages: 1,
-      nextPage: null,
-      prevPage: null,
-    );
-
     emit(ChatListLoaded(
-      chats: event.chats,
-      // paginationData: pagination,
-      // page: 1,
+      chats: chats,
     ));
   }
 
@@ -163,6 +153,8 @@ class ChatListBloc extends Bloc<ChatListEvent, ChatListState> {
         final List list = decoded['chatDataList'] ?? [];
 
         final chats = list.map<Datu>((e) => Datu.fromJson(e)).toList();
+        _applyDrafts(chats);
+        ChatSessionStorage.saveChatList(chats);
 
         emit(ChatListLoaded(chats: chats));
         loadedFromCrdt = true;
@@ -183,6 +175,8 @@ class ChatListBloc extends Bloc<ChatListEvent, ChatListState> {
           limit: event.limit,
           filter: event.filter,
         );
+        _applyDrafts(chats);
+        ChatSessionStorage.saveChatList(chats);
 
         emit(ChatListLoaded(chats: chats));
       }
@@ -191,40 +185,14 @@ class ChatListBloc extends Bloc<ChatListEvent, ChatListState> {
     }
   }
 
-  /// 🔁 When new chats come from stream/API updates
-  // void _onChatListUpdated(ChatListUpdated event, Emitter<ChatListState> emit) {
-  //   if (event.chats.isEmpty) {
-  //     emit(ChatListEmpty());
-  //     return;
-  //   }
-
-  //   // 🔥 IMPORTANT: clear before saving API/snapshot data
-  //   // ChatSessionStorage.clear();
-  //   ChatSessionStorage.saveChatList(event.chats);
-
-  //   _applyDrafts(ChatSessionStorage.getChatList());
-
-  //   final chats = List<Datu>.from(ChatSessionStorage.getChatList());
-
-  //   emit(ChatListLoaded(
-  //     chats: chats,
-  //     //   paginationData: PaginationData(
-  //     //     totalDocs: chats.length,
-  //     //     page: 1,
-  //     //     limit: chats.length,
-  //     //     totalPages: 1,
-  //     //   ),
-  //     //   page: 1,
-  //     // )
-  //   ));
-  // }
-
   void _onChatListUpdated(ChatListUpdated event, Emitter<ChatListState> emit) {
     if (event.chats.isEmpty) return;
 
     ChatSessionStorage.mergeChatList(event.chats);
 
-    final chats = List<Datu>.from(ChatSessionStorage.getChatList());
+    // final chats = List<Datu>.from(ChatSessionStorage.getChatList());
+    final chats =
+        ChatSessionStorage.getChatList().map((c) => c.copyWith()).toList();
 
     _applyDrafts(chats);
     _sortChats(chats);

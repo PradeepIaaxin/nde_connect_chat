@@ -8,6 +8,7 @@ class LongPressAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback? onStarPressed;
   final VoidCallback? onDeletePressed;
   final VoidCallback? onForwardPressed;
+  final VoidCallback? onCopyPressed;
   final List<PopupMenuEntry<String>>? additionalMenuItems;
 
   const LongPressAppBar({
@@ -18,6 +19,7 @@ class LongPressAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.onStarPressed,
     this.onDeletePressed,
     this.onForwardPressed,
+    this.onCopyPressed,
     this.additionalMenuItems,
   });
 
@@ -67,6 +69,7 @@ class LongPressAppBar extends StatelessWidget implements PreferredSizeWidget {
           onSelected: (String value) {
             switch (value) {
               case 'Copy':
+                onCopyPressed?.call();
                 break;
               case 'Pin':
                 break;
@@ -76,10 +79,11 @@ class LongPressAppBar extends StatelessWidget implements PreferredSizeWidget {
           },
           itemBuilder: (BuildContext context) {
             return [
-              const PopupMenuItem(
-                value: 'Copy',
-                child: Text('Copy'),
-              ),
+              if (onCopyPressed != null)
+                const PopupMenuItem(
+                  value: 'Copy',
+                  child: Text('Copy'),
+                ),
               const PopupMenuItem(
                 value: 'Pin',
                 child: Text('Pin'),

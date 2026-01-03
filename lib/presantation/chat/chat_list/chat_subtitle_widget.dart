@@ -38,42 +38,42 @@ class ChatSubtitle extends StatelessWidget {
     }
 
     // Image
-    if (chat.contentType == "image") {
-      return _iconText(
-        Icons.image,
-        'Image',
-      );
-    }
+    // if (chat.contentType == "image") {
+    //   return _iconText(
+    //     Icons.image,
+    //     'Image',
+    //   );
+    // }
 
-    // File / PDF
-    if (chat.contentType == "file" ||
-        (chat.mimeType?.contains("pdf") ?? false)) {
-      return Row(
-        children: [
-          Icon(Icons.insert_drive_file, size: 16, color: textColor),
-          const SizedBox(width: 4),
-          Expanded(
-            child: Text(
-              chat.fileName?.isNotEmpty == true
-                  ? chat.fileName!
-                  : "Document",
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 14, color: textColor),
-            ),
-          ),
-        ],
-      );
-    }
+    // // File / PDF
+    // if (chat.contentType == "file" ||
+    //     (chat.mimeType?.contains("pdf") ?? false)) {
+    //   return Row(
+    //     children: [
+    //       Icon(Icons.insert_drive_file, size: 16, color: textColor),
+    //       const SizedBox(width: 4),
+    //       Expanded(
+    //         child: Text(
+    //           chat.fileName?.isNotEmpty == true
+    //               ? chat.fileName!
+    //               : "Document",
+    //           overflow: TextOverflow.ellipsis,
+    //           style: TextStyle(fontSize: 14, color: textColor),
+    //         ),
+    //       ),
+    //     ],
+    //   );
+    // }
 
-    // Audio
-    if (chat.contentType == "audio") {
-      return _iconText(Icons.mic, 'Audio');
-    }
+    // // Audio
+    // if (chat.contentType == "audio") {
+    //   return _iconText(Icons.mic, 'Audio');
+    // }
 
-    // Video
-    if (chat.contentType == "video") {
-      return _iconText(Icons.videocam, 'Video');
-    }
+    // // Video
+    // if (chat.contentType == "video") {
+    //   return _iconText(Icons.videocam, 'Video');
+    // }
 
     // Text message
     return Text(

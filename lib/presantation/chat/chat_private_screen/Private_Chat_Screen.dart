@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/message_handler.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/MediaPreviewScreen.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/audio_reuable.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/commonfuntion.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/date_separate.dart';
@@ -73,6 +74,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   final SocketService socketService = SocketService();
   late MessagerBloc _messagerBloc;
   MessageHandler? _messageHandler;
+  late ChatListBloc _chatListBloc;
   StreamSubscription<Map<String, dynamic>>? _statusSubscription;
   StreamSubscription? _messageDeletedSubscription;
 
@@ -156,6 +158,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     print('🔐 private chat screen : ${widget.convoId}');
 
     _messagerBloc = context.read<MessagerBloc>();
+    _chatListBloc = context.read<ChatListBloc>();
     _scrollController.addListener(_scrollListener);
     _initializeChat();
     _screenActive = true;
@@ -222,9 +225,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     _screenActive = false;
     final unsentText = _messageController.text.trim();
     if (unsentText.isNotEmpty) {
-      _saveDraftToStorage(unsentText);
+      _saveDraft(unsentText);
     } else {
-      _clearDraftFromStorage();
+      _clearDraft();
     }
     super.dispose();
   }
@@ -402,53 +405,26 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
   }
 
-  void _sendReadForNewOutgoing(String serverMessageId) {
-    // Do NOT add to _alreadyRead, this is not "unread from other user"
-    _sendReadReceipts([serverMessageId]);
-  }
-
-  void _saveDraft(String draft) {
+  Future<void> _saveDraft(String draft) async {
     if (widget.convoId.isEmpty) return;
-    LocalChatStorage.saveDraftMessage(widget.convoId, draft);
+    await LocalChatStorage.saveDraftMessage(widget.convoId, draft);
     ChatSessionStorage.updateDraftMessage(
       convoId: widget.convoId,
       draftMessage: draft.isEmpty ? null : draft,
     );
     // Trigger UI refresh in chat list
-    if (mounted) {
-      context.read<ChatListBloc>().add(UpdateLocalChatList());
-    }
+    _chatListBloc.add(UpdateLocalChatList());
   }
 
-  void _clearDraft() {
+  Future<void> _clearDraft() async {
     if (widget.convoId.isEmpty) return;
-    LocalChatStorage.clearDraftMessage(widget.convoId);
+    await LocalChatStorage.clearDraftMessage(widget.convoId);
     ChatSessionStorage.updateDraftMessage(
       convoId: widget.convoId,
       draftMessage: null,
     );
     // Trigger UI refresh in chat list
-    if (mounted) {
-      context.read<ChatListBloc>().add(UpdateLocalChatList());
-    }
-  }
-
-  void _saveDraftToStorage(String draft) {
-    if (widget.convoId.isEmpty) return;
-    LocalChatStorage.saveDraftMessage(widget.convoId, draft);
-    ChatSessionStorage.updateDraftMessage(
-      convoId: widget.convoId,
-      draftMessage: draft.isEmpty ? null : draft,
-    );
-  }
-
-  void _clearDraftFromStorage() {
-    if (widget.convoId.isEmpty) return;
-    LocalChatStorage.clearDraftMessage(widget.convoId);
-    ChatSessionStorage.updateDraftMessage(
-      convoId: widget.convoId,
-      draftMessage: null,
-    );
+    _chatListBloc.add(UpdateLocalChatList());
   }
 
   void _markVisibleMessagesAsRead(List<Map<String, dynamic>> combined) {
@@ -1185,7 +1161,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     // ---------- RESET INPUT ----------
     _messageController.clear();
     setState(() {});
-    _clearDraft();
+    await _clearDraft();
     _replyMessage = null;
     _replyPreview = null;
 
@@ -1228,8 +1204,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
       _replaceTempMessageWithReal(
         tempId: localId,
-        realId: sent.messageId ?? '',
-        status: sent.messageStatus ?? 'sent',
+        realId: sent.messageId,
+        status: sent.messageStatus,
       );
     } catch (e, st) {
       log('❌ send message error: $e\n$st');
@@ -1371,64 +1347,26 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     );
   }
 
-  // Future<bool> _scrollToMessageById(
-  //   String messageId, {
-  //   bool fetchIfMissing = false,
-  // }) async {
-  //   final targetId = messageId.trim();
-  //   if (targetId.isEmpty) return false;
-
-  //   final ctx = _messageContexts[targetId];
-
-  //   if (ctx != null && ctx.mounted) {
-  //     // 🧠 ensure after frame build
-  //     WidgetsBinding.instance.addPostFrameCallback((_) {
-  //       if (!ctx.mounted) return;
-
-  //       Scrollable.ensureVisible(
-  //         ctx,
-  //         duration: const Duration(milliseconds: 150),
-  //         curve: Curves.easeInOut,
-  //         alignment: 0.5, // center
-  //       );
-
-  //       _highlightMessage(targetId);
-  //     });
-
-  //     return true;
-  //   }
-
-  //   // 🔁 Try loading older messages if not found
-  //   if (fetchIfMissing) {
-  //     await _loadMoreMessages();
-
-  //     // wait for rebuild
-  //     await Future.delayed(const Duration(milliseconds: 150));
-
-  //     return _scrollToMessageById(
-  //       messageId,
-  //       fetchIfMissing: false,
-  //     );
-  //   }
-
-  //   return false;
-  // }
-
   // ------------------ Send image (optimistic) ------------------
 
   Future<void> _openCamera() async {
     try {
       final XFile? file =
           await ImagePicker().pickImage(source: ImageSource.camera);
+
       if (file != null) {
         final localFile = File(file.path);
+
         if (!localFile.existsSync()) {
           Messenger.alert(msg: "Selected image is missing.");
           return;
         }
+
         final mimeType = lookupMimeType(file.path);
         final isImage = mimeType != null && mimeType.startsWith('image/');
+
         final prefs = await SharedPreferences.getInstance();
+
         if (isImage) {
           await prefs.setString('chat_image_path', localFile.path);
         }
@@ -1490,6 +1428,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         Navigator.pop(context);
       }
     } catch (e) {
+      log('❌ Error opening camera: $e');
       Messenger.alert(msg: "Could not open camera.");
     }
   }
@@ -2200,7 +2139,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       isSelected: _selectedMessageKeys.contains(_generateMessageKey(message)),
       onTap: () => _onMessageTap(message),
       onLongPress: () => _onMessageLongPress(message),
-      onRightSwipe: () => _replyToMessage(message),
+      onRightSwipe:
+          message['is_deleted'] == true ? null : () => _replyToMessage(message),
+      // onRightSwipe: () => _replyToMessage(message),
       onFileTap: (url, type) => _openFile(url, type),
       buildStatusIcon: (status) => MessageStatusIcon(status: status ?? 'sent'),
       buildReactionsBar: (msg, sentByMe) => _buildReactionsBar(msg, sentByMe),
@@ -2326,95 +2267,22 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   void _onMessageLongPress(Map<String, dynamic> message) {
-    log("replyIdsss ${message}");
-
-    final msgId = message['message_id']?.toString();
-    if (msgId == null || msgId.isEmpty) {
-      _toggleMessageSelection(message);
-    } else {
+    if (message['is_deleted'] == true) {
       if (!_isSelectionMode) {
         setState(() {
           _isSelectionMode = true;
         });
       }
-      if (!_selectedMessageIds.contains(msgId)) {
-        _selectedMessageIds.add(msgId);
-        _selectedMessageKeys.add(_generateMessageKey(message));
-        _selectedMessages.add(message);
-      }
+      _toggleMessageSelection(message);
+      return;
     }
-  }
 
-  void _removeInlineReactionPicker() {
-    try {
-      _reactionOverlayTimer?.cancel();
-      _reactionOverlayTimer = null;
-      _reactionOverlayEntry?.remove();
-      _reactionOverlayEntry = null;
-    } catch (_) {}
-  }
-
-  void _showInlineReactionPicker(Map<String, dynamic> message) {
-    if (_reactionOverlayEntry != null) return;
-
-    final overlay = Overlay.of(context);
-    if (overlay == null) return;
-
-    _reactionOverlayEntry = OverlayEntry(builder: (context) {
-      final media = MediaQuery.of(context);
-      final bottomPadding = media.viewInsets.bottom;
-      final top = media.size.height - 180 - bottomPadding;
-
-      return Positioned(
-        top: top,
-        left: 16,
-        right: 16,
-        child: Material(
-          color: Colors.transparent,
-          child: Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black26, blurRadius: 8)
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: _quickReactions.map((emoji) {
-                  return GestureDetector(
-                    onTap: () {
-                      try {
-                        _handleReactionTap(message, emoji);
-                      } catch (e) {
-                        log("Error applying reaction: $e");
-                      } finally {
-                        _removeInlineReactionPicker();
-                      }
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                      child: Text(emoji, style: const TextStyle(fontSize: 22)),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-        ),
-      );
-    });
-
-    overlay.insert(_reactionOverlayEntry!);
-
-    _reactionOverlayTimer?.cancel();
-    _reactionOverlayTimer = Timer(const Duration(seconds: 6), () {
-      _removeInlineReactionPicker();
-    });
-
-    Future.delayed(const Duration(milliseconds: 250), () {});
+    if (!_isSelectionMode) {
+      setState(() {
+        _isSelectionMode = true;
+      });
+    }
+    _toggleMessageSelection(message);
   }
 
   String _normalizeMessageIdForApi(String messageId) {
@@ -4043,18 +3911,16 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                 // Render grouped media if we have any
                                 if (groupMedia.isNotEmpty) {
                                   return Builder(builder: (ctx) {
-                                    final groupId =
-                                        message['group_message_id']?.toString();
+                                    message['group_message_id']?.toString();
                                     final messageId =
-                                        _anyId(message)?.toString();
+                                        _anyId(message).toString();
                                     final String groupAnchorMessageId =
                                         message['message_id'] ?? message['id'];
 
                                     if (groupAnchorMessageId.isNotEmpty) {
                                       _messageContexts[groupAnchorMessageId] =
                                           ctx; // 🔥 IMPORTANT
-                                    } else if (messageId != null &&
-                                        messageId.isNotEmpty) {
+                                    } else if (messageId.isNotEmpty) {
                                       _messageContexts[messageId] = ctx;
                                     }
                                     return Column(
@@ -4198,13 +4064,18 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                 if (messageId.isNotEmpty) {
                                   _messageContexts[messageId] = ctx;
                                 }
+                                final bool isDeleted =
+                                    message['is_deleted'] == true ||
+                                        message['messageStatus'] == 'deleted';
                                 return SwipeToReply(
-                                  onReply: () {
-                                    final resolved =
-                                        _resolveReplySource(message);
-                                    _replyToMessage(resolved,
-                                        isSendMe: isSentByMe);
-                                  },
+                                  onReply: isDeleted
+                                      ? null
+                                      : () {
+                                          final resolved =
+                                              _resolveReplySource(message);
+                                          _replyToMessage(resolved,
+                                              isSendMe: isSentByMe);
+                                        },
                                   child: AnimatedContainer(
                                     key: ValueKey(messageId),
                                     duration: const Duration(milliseconds: 600),

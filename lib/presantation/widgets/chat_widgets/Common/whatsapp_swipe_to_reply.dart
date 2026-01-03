@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 
 class SwipeToReply extends StatefulWidget {
   final Widget child;
-  final VoidCallback onReply;
+  final VoidCallback? onReply;
   final IconData icon;
   final Color iconColor;
   final double threshold;
@@ -11,7 +11,7 @@ class SwipeToReply extends StatefulWidget {
   const SwipeToReply({
     super.key,
     required this.child,
-    required this.onReply,
+    this.onReply,
     this.icon = Icons.reply,
     this.iconColor = Colors.grey,
     this.threshold = 60.0,
@@ -46,6 +46,7 @@ class _SwipeToReplyState extends State<SwipeToReply>
   }
 
   void _onHorizontalDragUpdate(DragUpdateDetails details) {
+    if (widget.onReply == null) return;
     setState(() {
       // Apply a friction effect as the user swipes further
       double delta = details.delta.dx;
@@ -78,8 +79,9 @@ class _SwipeToReplyState extends State<SwipeToReply>
   }
 
   void _onHorizontalDragEnd(DragEndDetails details) {
+    if (widget.onReply == null) return;
     if (_isThresholdReached) {
-      widget.onReply();
+      widget.onReply!();
     }
 
     _animation = Tween<double>(begin: _dragOffset, end: 0.0).animate(

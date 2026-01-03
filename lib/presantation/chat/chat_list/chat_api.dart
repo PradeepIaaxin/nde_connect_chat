@@ -175,6 +175,8 @@ class ChatListApiService {
         await resetGlobalDoc();
 
         final chats = await decodeChatsFromLoro(snapshot);
+         log(chats.toString());
+
         return chats;
       }
 
