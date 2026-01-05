@@ -25,6 +25,7 @@ import 'package:nde_email/presantation/chat/widget/delete_dialogue.dart';
 import 'package:nde_email/presantation/chat/widget/scaffold.dart';
 import 'package:nde_email/presantation/chat/widget/voicerec_ui.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/grouped_media_widget.dart';
+import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/AudioMessageWidget.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/grp_showbottom_sheet.dart';
 import 'package:nde_email/utils/const/consts.dart';
 import 'package:nde_email/utils/datetime/date_time_utils.dart';
@@ -107,12 +108,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   bool _isPaused = false;
   bool _isRecording = false;
   bool _isSelectionMode = false;
+
+  final int _limit = 40;
   Timer? _timer;
 
   // Locked Recording State
   bool _isRecordingLocked = false;
-
-  final int _limit = 40;
 
   final TextEditingController _messageController = TextEditingController();
 
@@ -167,6 +168,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       _clearDraft();
     }
     _recorder.closeRecorder();
+
     _messageController.dispose();
     _focusNode.dispose();
     _scrollController.removeListener(_scrollListener);
@@ -283,6 +285,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         }
       }
     });
+
+    _initRecorder();
+  }
+
+  Future<void> _initRecorder() async {
+    // Open the audio session for FlutterSoundRecorder
+    await _recorder.openRecorder();
+    // Configure usage for voice recording (optional but good practice)
+    await _recorder.setSubscriptionDuration(const Duration(milliseconds: 10));
   }
 
   String currentUserName = "";
@@ -768,6 +779,32 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       }
     }
     return messageId;
+  }
+
+  void _sendAudioMessage(String path, int duration) {
+    if (path.isEmpty) return;
+    final file = File(path);
+    if (!file.existsSync()) return;
+
+    final messageId = ObjectId().toString();
+
+    context.read<GroupChatBloc>().add(
+          GrpUploadFileEvent(
+            file: file,
+            convoId: widget.conversationId,
+            senderId: currentUserId,
+            receiverId: widget.datumId,
+            groupId: widget.datumId,
+            messageId: messageId,
+            message: "",
+            isGroupMessage: true,
+            groupMessageId: null,
+            contentType: 'audio',
+            duration: duration.toString(),
+          ),
+        );
+
+    _replyMessage = null; // Clear reply if any
   }
 
   void _updateLocalReactions(String targetMessageId, String? newEmoji) {
@@ -3387,21 +3424,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 RegExp(r'\.(mp4|mov|avi|mkv|webm)$', caseSensitive: false)
                     .hasMatch(fileName));
 
-    // if (message['isDeleted'] == true ||
-    //     message['content'] == 'Message Deleted') {
-    //   return Container(
-    //     margin: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-    //     padding: const EdgeInsets.all(8),
-    //     decoration: BoxDecoration(
-    //       color: Colors.grey[200],
-    //       borderRadius: BorderRadius.circular(16),
-    //     ),
-    //     child: const Text(
-    //       "This message was deleted",
-    //       style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
-    //     ),
-    //   );
-    // }
+    final bool isAudio = (fileType != null &&
+            fileType.toLowerCase().startsWith("audio")) ||
+        (fileName != null &&
+            RegExp(r'\.(mp3|wav|aac|m4a|flac|ogg|opus)$', caseSensitive: false)
+                .hasMatch(fileName));
 
     final String messageStatus =
         message['messageStatus']?.toString() ?? 'delivered';
@@ -3730,13 +3757,17 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
                                   if (fileUrl != null &&
                                       fileUrl.isNotEmpty &&
-                                      isVideo)
-                                    _buildVideoPreviewTile(
-                                        context,
-                                        fileUrl,
-                                        fileName ?? 'Video',
-                                        isSentByMe,
-                                        message)
+                                      isAudio)
+                                    AudioMessageWidget(
+                                      audioUrl: fileUrl,
+                                      profileAvatarUrl: profileImageUrl,
+                                      isSender: isSentByMe,
+                                      duration: message['duration']?.toString(),
+                                      timestamp: TimeUtils.formatUtcToIst(
+                                          message['time']),
+                                      status: messageStatus,
+                                      showContainer: false,
+                                    )
                                   else if (fileUrl != null &&
                                       fileUrl.isNotEmpty &&
                                       !(content == "Message Deleted" ||
@@ -4659,6 +4690,28 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       onCancelReply: _cancelReply,
       thereORleft: thereORleft,
       isGroupChat: true,
+      isRecordingLocked: _isRecordingLocked,
+      onLockRecording: () async {
+        await _recorder.stopRecorder();
+        _timer?.cancel();
+        setState(() {
+          _isRecordingLocked = true;
+        });
+      },
+      onCancelRecording: () {
+        _stopRecordingFs();
+        setState(() {
+          _isRecordingLocked = false;
+          _isRecording = false;
+        });
+      },
+      onSendRecording: (path, duration) {
+        setState(() {
+          _isRecordingLocked = false;
+          _isRecording = false;
+        });
+        _sendAudioMessage(path, duration);
+      },
     );
   }
 
