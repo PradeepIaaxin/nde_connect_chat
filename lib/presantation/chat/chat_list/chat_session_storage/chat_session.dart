@@ -7,22 +7,40 @@ class ChatSessionStorage {
   static Set<String> processedMessageIds = {};
 
   static Map<String, dynamic> _paginationData = {};
+
   static void mergeChatList(List<Datu> incoming) {
-    String chatKey(Datu chat) {
-      if (chat.isGroupChat == true) {
+    final Map<String, Datu> map = {};
+
+    String normalizeKey(Datu chat) {
+      // 🚨 HARD RULE: conversationId MUST exist
+      if (chat.conversationId != null && chat.conversationId!.isNotEmpty) {
         return chat.conversationId!;
       }
+
+      // 🔥 FIX: normalize group chats
+      if (chat.isGroupChat == true && chat.id != null) {
+        chat.conversationId = chat.id; // <-- THIS WAS MISSING
+        return chat.id!;
+      }
+
       return chat.id!;
     }
 
-    final Map<String, Datu> map = {for (final c in chatList) chatKey(c): c};
+    // 1️⃣ Existing chats
+    for (final c in chatList) {
+      final key = normalizeKey(c);
+      map[key] = c;
+    }
 
+    // 2️⃣ Incoming chats
     for (final chat in incoming) {
-      final key = chatKey(chat);
+      final key = normalizeKey(chat);
       map[key] = chat;
     }
 
     chatList = map.values.toList();
+
+    log("✅ Chat list normalized size: ${chatList.length}");
   }
 
   static void saveChatList(List<Datu> newChats) {

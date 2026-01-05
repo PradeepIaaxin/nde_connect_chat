@@ -17,7 +17,6 @@ class SocketService {
 
   IO.Socket? socket;
   Timer? _typingTimeout;
-  bool _deviceAuthenticated = false;
 
   String? roommId;
   String? currentWorkspaceId;
@@ -312,7 +311,6 @@ class SocketService {
 
     socket!.off('device_authenticated');
     socket!.on('device_authenticated', (_) {
-      _deviceAuthenticated = true;
       print('🎉 Device authenticated');
     });
 
@@ -685,6 +683,16 @@ class SocketService {
 
         final datuList = list.map<Datu>((e) => Datu.fromJson(e)).toList();
 
+        // 🔥 DEDUPLICATE BY conversationId (THIS FIXES YOUR ISSUE)
+        final Map<String, Datu> uniqueMap = {};
+        for (final d in datuList) {
+          if (d.conversationId != null) {
+            uniqueMap[d.conversationId!] = d;
+          }
+        }
+
+        final uniqueList = uniqueMap.values.toList();
+
         // 🔥 SAVE CRDT SNAPSHOT + FRONTIERS
         final snapshot = await exportChatSnapshot();
         final frontiers = await exportChatFrontiers();
@@ -698,38 +706,12 @@ class SocketService {
           ),
         );
 
-        _onChatListUpdatedCallback?.call(datuList);
+        _onChatListUpdatedCallback?.call(uniqueList);
       } catch (e) {
         _slog('chatlistUpdate error: $e');
       }
     });
   }
-
-  // void _handleChatListUpdate(dynamic payload) {
-  //   scheduleMicrotask(() async {
-  //     _slog('chatlistUpdate received');
-  //     try {
-  //       final bytes = _decodeToBytes(payload);
-  //       if (bytes == null || bytes.isEmpty) return;
-
-  //       final jsonString = await importChatUpdate(updateBytes: bytes);
-  //       final decoded = jsonDecode(jsonString);
-  //       final List list = decoded["chatDataList"] ?? [];
-
-  //       if (list.isEmpty) {
-  //         _slog('chatlistUpdate empty – skipping');
-  //         return;
-  //       }
-
-  //       final datuList = list.map<Datu>((e) => Datu.fromJson(e)).toList();
-  //       _onChatListUpdatedCallback?.call(datuList);
-
-  //       _slog('chatlistUpdate applied → ${datuList.length} chats');
-  //     } catch (e, st) {
-  //       _slog('chatlistUpdate error: $e\n$st');
-  //     }
-  //   });
-  // }
 
   void _handleMessageDeleted(dynamic data) {
     scheduleMicrotask(() {
