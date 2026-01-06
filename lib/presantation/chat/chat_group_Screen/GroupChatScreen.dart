@@ -1098,7 +1098,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final bool isDeleted =
         message['is_deleted'] == true || message['isDeleted'] == true;
 
+    final conversationId = message['conversationId'] ??
+        message['convoId'] ??
+        message['conversation_id'];
+
     return {
+      'conversationId': conversationId,
       'message_id': messageId,
       'messageId': messageId,
       'content': isDeleted ? '🚫 This message was deleted' : content,
@@ -2103,6 +2108,17 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final List<Map<String, dynamic>> combined = [];
 
     void addUnique(Map<String, dynamic> msg) {
+      // 🔥 SAFETY: Filter out messages from other conversations
+      final msgConvoId =
+          msg['conversationId'] ?? msg['convoId'] ?? msg['conversation_id'];
+
+      // Allow if ID is null (legacy) but block if explicit mismatch
+      if (msgConvoId != null &&
+          msgConvoId.toString() != widget.conversationId &&
+          msgConvoId.toString() != widget.datumId) {
+        return;
+      }
+
       if (msg['content']?.toString().trim() == '' &&
           (msg['imageUrl'] == null || msg['imageUrl'].toString().isEmpty) &&
           (msg['fileUrl'] == null || msg['fileUrl'].toString().isEmpty)) {
@@ -2625,7 +2641,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   Widget _buildChatBody() {
-    return BlocListener<GroupChatBloc, GroupChatState>(
+    return BlocListener<GroupChatBloc, GroupChatState>( 
       bloc: _groupBloc,
       listener: (context, state) {
         if (state is PermissionState) {
@@ -2652,7 +2668,20 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           final incomingNormalized = incomingLoaded
               .map<Map<String, dynamic>>((msg) => normalizeMessage(msg))
               .where((m) => m.isNotEmpty)
-              .toList();
+              .where((msg) {
+            // 🔥 SAFETY: Filter out messages from other conversations
+            final cId = msg['conversationId'] ??
+                msg['convoId'] ??
+                msg['conversation_id'];
+            // If ID is missing, we allow it (legacy/compatibility)
+            // If ID is present, it MUST match
+            if (cId != null &&
+                cId.toString() != widget.conversationId &&
+                cId.toString() != widget.datumId) {
+              return false;
+            }
+            return true;
+          }).toList();
 
           // Calculate total pages for debugging
           final totalPages = (state.response.total / _limit).ceil();
