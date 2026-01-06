@@ -1331,12 +1331,12 @@ class MessageBubble extends StatelessWidget {
             ),
             // ✅ TIME + TICKS
             Positioned(
-              bottom: -19,
-              right: -3,
+              bottom: 6,
+              right: 6,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  // color: Colors.black.withOpacity(0.45),
+                  color: Colors.black.withOpacity(0.45),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -1344,14 +1344,14 @@ class MessageBubble extends StatelessWidget {
                   children: [
                     Text(
                       TimeUtils.formatUtcToIst(message['time']),
-                      style: const TextStyle(fontSize: 10, color: Colors.black),
+                      style: const TextStyle(fontSize: 10, color: Colors.white),
                     ),
                     if (isSentByMe) ...[
                       const SizedBox(width: 4),
                       buildStatusIcon?.call(
                             message['messageStatus']?.toString() ?? 'sent',
                           ) ??
-                          const Icon(Icons.done, size: 12, color: Colors.black),
+                          const Icon(Icons.done, size: 12, color: Colors.white),
                     ],
                   ],
                 ),
