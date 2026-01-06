@@ -477,19 +477,13 @@ class ShowAltDialog {
         'receiver': {'_id': receiverId},
         'messageStatus': 'sent',
         'time': DateTime.now().toIso8601String(),
-
         'fileName': file.name,
         'fileType': mimeType,
-
         'imageUrl': isImage ? file.path : null,
         'fileUrl': isVideo ? file.path : null,
         'originalUrl': file.path,
         'isVideo': isVideo,
-
         'isLocal': true,
-
-        // 🔥🔥 ADD THESE TWO LINES 🔥🔥
-       // 'is_group_message': isGroupMessage,
         'is_grouped_message': isGroupMessage,
         'group_message_id': groupMessageId,
       };
@@ -512,10 +506,15 @@ class ShowAltDialog {
       } else {
         context.read<MessagerBloc>().add(
               UploadFileEvent(
-                  localFile, conversationId, senderId,  receiverId: receiverId ??"",
-                  isGroupMessage: isGroupMessage,
-                  groupMesageId: groupMessageId,
-                  messageId: localMessageId.toString()),
+                localFile,
+                conversationId,
+                senderId,
+                receiverId: receiverId ?? "",
+                isGroupMessage: isGroupMessage,
+                groupMesageId: groupMessageId,
+                messageId: localMessageId.toString(),
+                contentType: isVideo ? 'video' : (isImage ? 'image' : 'file'),
+              ),
             );
       }
 

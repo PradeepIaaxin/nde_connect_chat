@@ -751,8 +751,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   void _setupMessageListener() {
     if (currentUserId.isEmpty || widget.datumId == null) return;
 
-    _messagerBloc.add(
-        ListenToMessages(senderId: currentUserId, receiverId: widget.datumId!));
+    _messagerBloc.add(ListenToMessages(
+        senderId: currentUserId, receiverId: widget.receiverId!));
     _statusSubscription ??=
         socketService.statusUpdateStream.listen((statusUpdate) {
       if (!mounted) return;
@@ -2091,7 +2091,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         reactions: message['reactions'] as List<Map<String, dynamic>>? ?? [],
         currentUserId: currentUserId,
         convoId: widget.convoId,
-        receiverId: widget.datumId ?? "",
+        receiverId: widget.receiverId ?? "",
         firstName: widget.firstname ?? "",
         lastName: widget.lastname ?? "",
       ),
@@ -2637,7 +2637,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                       conversationId: widget.convoId,
                                       emoji: selectedEmoji,
                                       userId: currentUserId,
-                                      receiverId: widget.datumId ?? "",
+                                      receiverId: widget.receiverId ?? "",
                                       firstName: widget.firstname ?? "",
                                       lastName: widget.lastname ?? "",
                                     ));
@@ -2706,7 +2706,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           conversationId: widget.convoId,
           emoji: emoji,
           userId: currentUserId,
-          receiverId: widget.datumId ?? "",
+          receiverId: widget.receiverId ?? "",
           firstName: widget.firstname ?? "",
           lastName: widget.lastname ?? "",
         ));
@@ -2722,7 +2722,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           conversationId: widget.convoId,
           emoji: oldEmoji ?? '',
           userId: currentUserId,
-          receiverId: widget.datumId ?? "",
+          receiverId: widget.receiverId ?? "",
           firstName: widget.firstname ?? "",
           lastName: widget.lastname ?? "",
         ));
@@ -2732,7 +2732,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           conversationId: widget.convoId,
           emoji: emoji,
           userId: currentUserId,
-          receiverId: widget.datumId ?? "",
+          receiverId: widget.receiverId ?? "",
           firstName: widget.firstname ?? "",
           lastName: widget.lastname ?? "",
         ));
@@ -2747,7 +2747,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         conversationId: widget.convoId,
         emoji: emoji,
         userId: currentUserId,
-        receiverId: widget.datumId ?? "",
+        receiverId: widget.receiverId ?? "",
         firstName: widget.firstname ?? "",
         lastName: widget.lastname ?? "",
       ));
@@ -2951,7 +2951,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         messageIds: _selectedMessageIds.toList(),
         convoId: widget.convoId,
         senderId: currentUserId,
-        receiverId: widget.datumId ?? "",
+        receiverId: widget.receiverId ?? "",
         message:
             _selectedMessageKeys.isNotEmpty ? _selectedMessageKeys.first : "",
         deleteFor: deleteFor));
@@ -3870,7 +3870,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                                       'sent',
                                               buildStatusIcon: (status) =>
                                                   MessageStatusIcon(
-                                                    status: status ?? 'sent',
+                                                    status: status,
                                                     isStatus: true,
                                                   ),
                                               onImageTap: (tappedIndex) {
@@ -3881,9 +3881,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                                 final tappedItem =
                                                     groupMedia[tappedIndex];
 
-                                                final startIndex =
-                                                    conversationMedia
-                                                        .indexWhere(
+                                                conversationMedia.indexWhere(
                                                   (m) =>
                                                       m.mediaUrl ==
                                                       tappedItem.mediaUrl,
@@ -4119,7 +4117,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     _messagerBloc.add(
       SendAudioMessageEvent(
         senderId: currentUserId,
-        receiverId: widget.datumId ?? '',
+        receiverId: widget.receiverId ?? '',
         audioPath: path,
         duration: duration.toString(),
         convoId: widget.convoId,
@@ -4324,7 +4322,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         recorderHelper.cancelReply();
         _replyPreview = null;
         _replyMessage = null;
-        //  _messageController.clear();
+
         setState(() {});
       },
       reciverID: widget.datumId ?? "",
@@ -4348,7 +4346,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       onCancelRecording: () {
         setState(() {
           _isRecordingLocked = false;
-          _isRecording = false; // reset state
+          _isRecording = false;
         });
         // Stop actual recording if needed
         recorderHelper.stopRecording();

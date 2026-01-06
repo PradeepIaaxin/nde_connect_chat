@@ -801,14 +801,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             groupId: widget.datumId,
             messageId: messageId,
             message: "",
-            isGroupMessage: true,
+            isGroupMessage: false,
             groupMessageId: null,
             contentType: 'audio',
             duration: duration.toString(),
           ),
         );
 
-    _replyMessage = null; // Clear reply if any
+    _replyMessage = null;
   }
 
   void _updateLocalReactions(String targetMessageId, String? newEmoji) {
@@ -1468,7 +1468,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     if (!(_isOnline && socketService.isConnected)) {
       // Offline: Add to queue
       _offlineQueue.add({
-        'message_id': tempId, // Store tempId to replace later if needed
+        'message_id': tempId,
         'content': textToSend,
         'replyTo': replyPayload,
       });
@@ -1972,6 +1972,16 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       }
 
       // 🔹 Detect image
+      final String contentType =
+          (currentMsg['ContentType'] ?? currentMsg['contentType'] ?? '')
+              .toString()
+              .toLowerCase();
+
+      // Explicitly SKIP audio messages from grouping
+      if (contentType == 'audio' ||
+          (currentMsg['fileType'] ?? '').toString().startsWith('audio/')) {
+        continue;
+      }
       final hasImage = (currentMsg['imageUrl'] != null &&
               currentMsg['imageUrl'].toString().isNotEmpty) ||
           (currentMsg['localImagePath'] != null &&
@@ -2375,7 +2385,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final int durationSec =
         durRaw is int ? durRaw : int.tryParse(durRaw?.toString() ?? '') ?? 0;
 
-    String _formatDuration(int sec) {
+    String formatDuration(int sec) {
       if (sec <= 0) return '';
       final d = Duration(seconds: sec);
       final m = d.inMinutes;
@@ -2508,7 +2518,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                             const SizedBox(width: 4),
                             Text(
                               'Video'
-                              '${durationSec > 0 ? " (${_formatDuration(durationSec)})" : ""}',
+                              '${durationSec > 0 ? " (${formatDuration(durationSec)})" : ""}',
                               style: const TextStyle(fontSize: 12),
                             ),
                           ],
@@ -3760,6 +3770,16 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                           ),
 
                                   if (fileUrl != null &&
+                                      fileUrl.isNotEmpty &&
+                                      isVideo)
+                                    _buildVideoPreviewTile(
+                                      context,
+                                      fileUrl,
+                                      fileName ?? "",
+                                      isSentByMe,
+                                      message,
+                                    )
+                                  else if (fileUrl != null &&
                                       fileUrl.isNotEmpty &&
                                       isAudio)
                                     AudioMessageWidget(

@@ -39,7 +39,7 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
       final localRaw = LocalChatStorage.loadMessages(event.convoId);
 
       final localFlat = localRaw
-          .whereType<Map<String, dynamic>>() 
+          .whereType<Map<String, dynamic>>()
           .map((e) => Datum.fromJson(e))
           .toList();
 
@@ -454,7 +454,7 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
             roomId: roomId,
             workspaceId: workspaceID,
             isGroupChat: event.isGroupMessage,
-            contentType: data["ContentType"],
+            contentType: event.contentType ?? data["ContentType"],
             mimeType: data["mimetype"],
             fileWithText: data["file_with_text"] != "",
             fileName: data["fileName"] ?? "",
@@ -582,10 +582,8 @@ String _extractDateLabel(DateTime? time) {
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
   final msgDay = DateTime(time.year, time.month, time.day);
-
   if (msgDay == today) return "Today";
   if (msgDay == today.subtract(Duration(days: 1))) return "Yesterday";
-
   return "${time.year}-${time.month}-${time.day}";
 }
 
@@ -595,7 +593,7 @@ List<Map<String, dynamic>> _mergeLocalReactionsIntoServerJson({
   required List<Map<String, dynamic>> serverJsonList,
 }) {
   // 1) Load whatever we last saved locally
-  final localRaw = LocalChatStorage.loadMessages(convoId) ?? [];
+  final localRaw = LocalChatStorage.loadMessages(convoId);
 
   // Map: messageId -> List<reaction>
   final Map<String, List<Map<String, dynamic>>> localReactionsById = {};
