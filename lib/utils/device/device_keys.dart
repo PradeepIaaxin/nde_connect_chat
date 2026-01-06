@@ -100,6 +100,31 @@ Future<DeviceKeys> getOrCreateDeviceKeys() async {
   );
 }
 
+
+Map<String, dynamic> ecPublicKeyToJwk(Uint8List publicKeyBytes) {
+  // publicKeyBytes = 65 bytes (04 + X + Y)
+  if (publicKeyBytes.length != 65 || publicKeyBytes[0] != 0x04) {
+    throw Exception('Invalid uncompressed EC public key');
+  }
+
+  final x = publicKeyBytes.sublist(1, 33);
+  final y = publicKeyBytes.sublist(33, 65);
+
+  return {
+    "kty": "EC",
+    "crv": "P-256",
+    "x": base64UrlNoPadding(x),
+    "y": base64UrlNoPadding(y),
+    "ext": true,
+    "key_ops": ["verify"],
+  };
+}
+
+
+String base64UrlNoPadding(Uint8List bytes) {
+  return base64Url.encode(bytes).replaceAll('=', '');
+}
+
 /// ========================
 /// SIGN MESSAGE (HEX OUTPUT)
 /// ========================

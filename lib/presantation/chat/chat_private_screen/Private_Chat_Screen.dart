@@ -256,6 +256,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     /// 1️⃣ Normalize CRDT messages
     final incoming = messagesMap.values
+        .where((raw) => raw['isGroupChat'] != true)
         .map((raw) => handler.normalizeMessage(raw))
         .where((m) => m.isNotEmpty)
         .toList();
@@ -507,6 +508,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
   void _handleIncomingRawMessage(Map<String, dynamic> raw, {String? event}) {
     try {
+      if (raw['isGroupChat'] == true) return;
       final normalized = normalizeMessage(raw);
       if (normalized.isEmpty) {
         debugPrint('⚠️ normalizeMessage returned empty');
@@ -3653,6 +3655,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                     });
                   }
                 } else if (state is NewMessageReceivedState) {
+                  if (state.message['isGroupChat'] == true) return;
                   final normalized = normalizeMessage(state.message);
                   if (normalized.isEmpty) return;
 
@@ -3675,11 +3678,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
                     _updateNotifierFromAll();
                   }
-
-                  // onMessageReceived(state.message);
-
-                  // normalizeReplyMessages(socketMessages);
-                  // _updateNotifier();
                 }
               },
               builder: (context, state) {
