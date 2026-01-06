@@ -601,6 +601,9 @@ class SocketService {
   }
 
   void _handleUserPresence(dynamic data, {required bool online}) {
+    // ✅ SAFETY: controller may be closed after logout
+    if (_userStatusController.isClosed) return;
+
     String? userId;
 
     if (data is List && data.isNotEmpty) {
@@ -613,6 +616,7 @@ class SocketService {
 
     if (userId == null || userId.isEmpty) return;
 
+    // ✅ Update notifier (safe, not a stream)
     final current = Set<String>.from(onlineUsersNotifier.value);
 
     if (online) {
@@ -621,13 +625,20 @@ class SocketService {
       current.remove(userId);
     }
     onlineUsersNotifier.value = current;
-    if (data is Map<String, dynamic>) {
-      _userStatusController.add(data);
-      log("👤 User status update received: $data");
-    } else {
-      // fallback if data is just userId string or list
-      _userStatusController.add({'userId': userId, 'online': online});
+
+    // ✅ ADD TO STREAM ONLY IF OPEN
+    if (!_userStatusController.isClosed) {
+      if (data is Map<String, dynamic>) {
+        _userStatusController.add(data);
+        log("👤 User status update received: $data");
+      } else {
+        _userStatusController.add({
+          'userId': userId,
+          'online': online,
+        });
+      }
     }
+
     _slog("Presence: $userId → ${online ? 'online' : 'offline'}");
   }
 
@@ -1375,24 +1386,8 @@ class SocketService {
   void dispose() {
     _typingTimeout?.cancel();
 
-    void safeClose(StreamController c) {
-      if (!c.isClosed) {
-        c.close();
-      }
-    }
-
-    safeClose(_typingController);
-    safeClose(_reactionController);
-    safeClose(_onlineStatusController);
-    safeClose(_statusUpdateController);
-    safeClose(_chatListRefreshController);
-    safeClose(_systemMessageController);
-    safeClose(_userStatusController);
-    safeClose(_messageDeletedController);
-    safeClose(_favoriteUpdateController);
-    safeClose(_groupUpdateController);
-    safeClose(_messageController);
-    safeClose(_crdtMessageController);
+    // ❌ DO NOT close StreamControllers here
+    // They must survive logout/login
 
     socket?.clearListeners();
     socket?.disconnect();
@@ -1401,8 +1396,9 @@ class SocketService {
 
     _joinedRooms.clear();
     _isInitialized = false;
+    _isConnecting = false;
 
-    _slog('SocketService disposed safely');
+    _slog('SocketService disposed (streams preserved)');
   }
 
   void disconnect() {
@@ -1421,11 +1417,12 @@ class SocketService {
 
     socket?.clearListeners();
     socket?.disconnect();
+    socket?.dispose();
     socket = null;
 
     _isInitialized = false;
     _isConnecting = false;
 
-    _slog('SocketService reset for logout');
+    _slog('SocketService reset for logout (safe)');
   }
 }
