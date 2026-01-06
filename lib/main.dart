@@ -64,8 +64,6 @@ void main() async {
   // TOKEN REFRESH + SOCKET IN BACKGROUND
   if (isLoggedIn && refreshToken != null) {
     await _connectSocketOnStartup(refreshToken);
-
-    //  unawaited(_connectSocketOnStartup(refreshToken));
   }
 
   runApp(MyRootApp(isLoggedIn: isLoggedIn, isFirstOpen: isFirstOpen));
