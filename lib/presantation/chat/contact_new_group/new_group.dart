@@ -33,12 +33,29 @@ class _NewGroupState extends State<NewGroup> {
 
   List<ChatUserlist> selectedUsers = [];
 
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   searchController.addListener(_onSearchChanged);
+
+  //   // Initialize with initial selected users if provided
+  //   if (widget.initialSelectedUsers != null) {
+  //     selectedUsers.addAll(widget.initialSelectedUsers!);
+  //   }
+  // }
+
   @override
   void initState() {
     super.initState();
+
     searchController.addListener(_onSearchChanged);
 
-    // Initialize with initial selected users if provided
+    // ✅ CREATE BLOC ONLY ONCE
+    userListBloc = UserListBloc(userService: UserService());
+
+    // ✅ FETCH USER LIST
+    userListBloc.add(FetchUserList(page: 1, limit: 100));
+
     if (widget.initialSelectedUsers != null) {
       selectedUsers.addAll(widget.initialSelectedUsers!);
     }
@@ -48,6 +65,7 @@ class _NewGroupState extends State<NewGroup> {
   void dispose() {
     searchController.removeListener(_onSearchChanged);
     searchController.dispose();
+    userListBloc.close();
     super.dispose();
   }
 
@@ -75,17 +93,13 @@ class _NewGroupState extends State<NewGroup> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) {
-        userListBloc = UserListBloc(userService: UserService());
-        userListBloc.add(FetchUserList(page: 1, limit: 100));
-        return userListBloc;
-      },
+    return BlocProvider.value(
+      value: userListBloc,
       child: Scaffold(
           backgroundColor: Colors.white,
           appBar: AppBar(
             backgroundColor: Colors.white,
-              surfaceTintColor: Colors.white,
+            surfaceTintColor: Colors.white,
             elevation: 0.2,
             title: _isSearching
                 ? TextField(

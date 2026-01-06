@@ -36,6 +36,7 @@ class MessageBubble extends StatelessWidget {
   final List<Map<String, dynamic>> allMessages;
   final String? currentUserId;
   final String? receiverName;
+  final bool stretchReply;
   const MessageBubble(
       {super.key,
       required this.message,
@@ -59,7 +60,8 @@ class MessageBubble extends StatelessWidget {
       this.groupMediaLength,
       required this.allMessages,
       this.currentUserId,
-      this.receiverName});
+      this.receiverName,
+      this.stretchReply = false});
 
   @override
   Widget build(BuildContext context) {
@@ -141,6 +143,7 @@ class MessageBubble extends StatelessWidget {
         },
         child: Align(
           alignment: isSentByMe ? Alignment.centerRight : Alignment.centerLeft,
+          widthFactor: isReply ? 1.0 : null,
           child: Stack(
             clipBehavior: Clip.none,
             children: [
@@ -183,12 +186,90 @@ class MessageBubble extends StatelessWidget {
                       ? Border.all(color: borderColor, width: 2)
                       : null,
                 ),
-                child: IntrinsicWidth(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (hasReply)
-                        RepliedMessagePreview(
+                child: Stack(
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (hasReply)
+                          Opacity(
+                            opacity: 0,
+                            child: RepliedMessagePreview(
+                              key: ValueKey(
+                                  '${message['message_id']}_${message['replyContent']}_placeholder'),
+                              replied: message['reply'] ??
+                                  _buildSyntheticReply(message),
+                              receiver: message['receiver'] is Map
+                                  ? Map<String, dynamic>.from(
+                                      message['receiver'])
+                                  : {},
+                              isSender: isSentByMe,
+                              onTap: null,
+                              groupMediaLength: groupMediaLength,
+                            ),
+                          ),
+
+                        if (!isSentByMe && isForwarded == true)
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Image.asset(
+                                "assets/images/forward.png",
+                                height: 14,
+                                width: 14,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                "Forwarded",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[700],
+                                ),
+                              ),
+                            ],
+                          ),
+
+                        // Image preview (only if not video and not audio)
+                        if (!isVideo && !isAudio && hasImage)
+                          _buildImage(
+                              context, content, displayImageUrl!, fileName,
+                              isSentByMe: isSentByMe),
+
+                        // Audio Message
+                        if (isAudio && hasFile)
+                          AudioMessageWidget(
+                            audioUrl: fileUrl,
+                            profileAvatarUrl: message['sender']
+                                    ?['profile_pic_path'] ??
+                                message['sender']?['profilePic'] ??
+                                message['profile_pic_path'] ??
+                                '',
+                            isSender: isSentByMe,
+                            duration: message['duration']?.toString(),
+                            timestamp:
+                                TimeUtils.formatUtcToIst(message['time']),
+                            status:
+                                message['messageStatus']?.toString() ?? 'sent',
+                            showContainer: false,
+                          ),
+
+                        // File preview (if file exists and NOT audio)
+                        if (hasFile && !isAudio)
+                          _buildFile(
+                              context, fileUrl, fileName, fileType, content,
+                              isSentByMe: isSentByMe),
+
+                        // Text content
+                        if (content.isNotEmpty)
+                          _buildTextMessage(content, messageStatus),
+                      ],
+                    ),
+                    if (hasReply && stretchReply)
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        child: RepliedMessagePreview(
                           key: ValueKey(
                               '${message['message_id']}_${message['replyContent']}'),
                           replied:
@@ -200,65 +281,23 @@ class MessageBubble extends StatelessWidget {
                           onTap: onReplyTap,
                           groupMediaLength: groupMediaLength,
                         ),
-
-                      if (!isSentByMe && isForwarded == true)
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Image.asset(
-                              "assets/images/forward.png",
-                              height: 14,
-                              width: 14,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              "Forwarded",
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[700],
-                              ),
-                            ),
-                          ],
-                        ),
-
-                      // Image preview (only if not video and not audio)
-                      if (!isVideo && !isAudio && hasImage)
-                        _buildImage(
-                            context, content, displayImageUrl!, fileName,
-                            isSentByMe: isSentByMe),
-
-                      // Audio Message
-                      if (isAudio && hasFile)
-                        AudioMessageWidget(
-                          audioUrl: fileUrl,
-                          profileAvatarUrl: message['sender']
-                                  ?['profile_pic_path'] ??
-                              message['sender']?['profilePic'] ??
-                              message['profile_pic_path'] ??
-                              '',
-                          isSender: isSentByMe,
-                          duration: message['duration']?.toString(),
-                          timestamp: TimeUtils.formatUtcToIst(message['time']),
-                          status:
-                              message['messageStatus']?.toString() ?? 'sent',
-                          showContainer: false,
-                        ),
-
-                      // File preview (if file exists and NOT audio)
-                      if (hasFile && !isAudio)
-                          _buildFile(
-                              context, fileUrl, fileName, fileType, content,
-                              isSentByMe: isSentByMe),
-
-                      // Text content
-                      if (content.isNotEmpty)
-                        _buildTextMessage(content, messageStatus, hasReply),
-                    ],
-                  ),
+                      )
+                    else if (hasReply)
+                      RepliedMessagePreview(
+                        key: ValueKey(
+                            '${message['message_id']}_${message['replyContent']}'),
+                        replied:
+                            message['reply'] ?? _buildSyntheticReply(message),
+                        receiver: message['receiver'] is Map
+                            ? Map<String, dynamic>.from(message['receiver'])
+                            : {},
+                        isSender: isSentByMe,
+                        onTap: onReplyTap,
+                        groupMediaLength: groupMediaLength,
+                      ),
+                  ],
                 ),
               ),
-
-              // reactions bar (if exists)
               if (message['reactions'] != null &&
                   (message['reactions'] as List).isNotEmpty &&
                   buildReactionsBar != null)
@@ -277,7 +316,6 @@ class MessageBubble extends StatelessWidget {
                     ),
                   ),
                 ),
-
               if (isVideo ||
                   hasImage ||
                   hasFile ||
@@ -920,17 +958,16 @@ class MessageBubble extends StatelessWidget {
     }
   }
 
-  Widget _buildTextMessage(
-      String content, String messageStatus, bool shouldStretch) {
-    final bool useIntrinsic = content.trim().length < 25;
+  Widget _buildTextMessage(String content, String messageStatus) {
+    final bool hasLinkLocal = content.isNotEmpty &&
+        RegExp(r'((https?:\/\/)|(www\.))[^\s]+', caseSensitive: false)
+            .hasMatch(content);
     bool isExpanded = false;
 
     return StatefulBuilder(
       builder: (context, setState) {
         final Widget messageContent = Column(
-          crossAxisAlignment: shouldStretch
-              ? CrossAxisAlignment.stretch
-              : CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (RegExp(r'((https?:\/\/)|(www\.))[^\s]+', caseSensitive: false)
                 .hasMatch(content))
@@ -1111,14 +1148,12 @@ class MessageBubble extends StatelessWidget {
 
         final textBubble = Padding(
           padding: const EdgeInsets.only(top: 6),
-          child: useIntrinsic
-              ? IntrinsicWidth(child: constrainedBox)
-              : constrainedBox,
+          child: constrainedBox,
         );
 
-        final bool hasLinkLocal = content.isNotEmpty &&
-            RegExp(r'((https?:\/\/)|(www\.))[^\s]+', caseSensitive: false)
-                .hasMatch(content);
+        // final bool hasLinkLocal = content.isNotEmpty &&
+        //     RegExp(r'((https?:\/\/)|(www\.))[^\s]+', caseSensitive: false)
+        //         .hasMatch(content);
 
         return hasLinkLocal
             ? Stack(

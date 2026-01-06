@@ -44,4 +44,25 @@ class TimeUtils {
       return ''; // return empty or fallback string on parse error
     }
   }
+
+  static String formatLastSeen(DateTime dateTime) {
+    final istTime = dateTime.toUtc().add(Duration(hours: 5, minutes: 30));
+    final now = DateTime.now().toUtc().add(Duration(hours: 5, minutes: 30));
+    final timeStr = DateFormat('hh:mm a').format(istTime);
+
+    if (istTime.year == now.year &&
+        istTime.month == now.month &&
+        istTime.day == now.day) {
+      return "today at $timeStr";
+    }
+
+    final yesterday = now.subtract(Duration(days: 1));
+    if (istTime.year == yesterday.year &&
+        istTime.month == yesterday.month &&
+        istTime.day == yesterday.day) {
+      return "yesterday at $timeStr";
+    }
+
+    return "${istTime.day}/${istTime.month}/${istTime.year} at $timeStr";
+  }
 }

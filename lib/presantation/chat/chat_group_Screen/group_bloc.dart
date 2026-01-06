@@ -17,6 +17,7 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
 
   late final StreamSubscription<MessageReaction> _reactionSubscription;
   late final StreamSubscription<Map<String, dynamic>> _crdtSubscription;
+  String? _activeConvoId;
 
   GroupChatBloc(this.grpSocket, this.api) : super(GroupChatInitial()) {
     on<FetchGroupMessages>(_onFetchGroupMessages);
@@ -30,12 +31,12 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
     on<FetchGroupDetails>(_onFetchGroupDetails);
     _crdtSubscription =
         grpSocket.crdtMessageStream.listen(_onCrdtMessageReceived);
-    // on<ReactionReceived>(_onReactionReceived);
   }
 
   @override
   Future<void> close() {
     _reactionSubscription.cancel();
+    grpSocket.clearActiveConversation();
     _crdtSubscription.cancel();
     return super.close();
   }
@@ -43,11 +44,11 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
   Future<void> _onCrdtMessageReceived(Map<String, dynamic> payload) async {
     try {
       final convoId = payload['conversationId']?.toString();
+      print(convoId.toString());
       if (convoId == null) return;
 
-      // 🔴 CRDT payload does NOT send isGroupChat → REMOVE this check
-      // final isGroup = payload['isGroupChat'] == true;
-      // if (!isGroup) return;
+      if (convoId != _activeConvoId) return;
+      
 
       final List<GroupMessageModel> existing = [];
       int page = 1;
@@ -131,150 +132,14 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
     }
   }
 
-  // Future<void> _onCrdtMessageReceived(Map<String, dynamic> payload) async {
-  //   try {
-  //     final convoId = payload['conversationId']?.toString();
-  //     if (convoId == null) return;
-
-  //     final isGroup = payload['isGroupChat'] == true;
-  //     if (!isGroup) return;
-
-  //     if (state is! GroupChatLoaded) return;
-  //     final current = state as GroupChatLoaded;
-
-  //     final Map<String, dynamic> messagesMap =
-  //         Map<String, dynamic>.from(payload['messages'] ?? {});
-  //     if (messagesMap.isEmpty) return;
-
-  //     // 1️⃣ CRDT → models
-  //     final incoming = messagesMap.values
-  //         .map((e) => GroupMessageModel.fromJson(
-  //               Map<String, dynamic>.from(e),
-  //             ))
-  //         .toList();
-
-  //     // 2️⃣ FLATTEN CURRENT UI (authoritative)
-  //     final existing = current.response.data.expand((g) => g.messages).toList();
-
-  //     // 3️⃣ MERGE BY MESSAGE ID
-  //     final Map<String, GroupMessageModel> merged = {};
-
-  //     // ✅ Keep existing (socket + optimistic)
-  //     for (final m in existing) {
-  //       final id = m.messageId.isNotEmpty ? m.messageId : m.id;
-  //       if (id.isNotEmpty) merged[id] = m;
-  //     }
-
-  //     // ✅ CRDT overrides same IDs
-  //     for (final m in incoming) {
-  //       final id = m.messageId.isNotEmpty ? m.messageId : m.id;
-  //       if (id.isNotEmpty) merged[id] = m;
-  //     }
-
-  //     // 4️⃣ SORT (web behavior)
-  //     final mergedFlat = merged.values.toList()
-  //       ..sort((a, b) => a.time.compareTo(b.time));
-
-  //     // 5️⃣ OPTIONAL: save locally (safe now)
-  //     await GrpLocalChatStorage.saveMessages(
-  //       convoId,
-  //       mergedFlat.map((e) => e.toJson()).toList(),
-  //     );
-
-  //     // 6️⃣ EMIT UI (NO MESSAGE LOSS)
-  //     emit(
-  //       GroupChatLoaded(
-  //         GroupMessageResponse(
-  //           data: _groupMessagesByDate(mergedFlat),
-  //           total: mergedFlat.length,
-  //           page: current.response.page,
-  //           limit: current.response.limit,
-  //           hasPreviousPage: current.response.hasPreviousPage,
-  //           hasNextPage: current.response.hasNextPage,
-  //         ),
-  //       ),
-  //     );
-  //   } catch (e, st) {
-  //     log("❌ GROUP CRDT merge error: $e");
-  //     log(st.toString());
-  //   }
-  // }
-
-  // Future<void> _onCrdtMessageReceived(Map<String, dynamic> payload) async {
-  //   try {
-  //     final convoId = payload['conversationId']?.toString();
-
-  //     final isGroup = payload['isGroupChat'] == true;
-
-  //     if (!isGroup) return;
-  //     if (convoId == null) return;
-
-  //     if (state is! GroupChatLoaded) return;
-
-  //     final current = state as GroupChatLoaded;
-
-  //     // Convert CRDT map → models
-  //     final Map<String, dynamic> messagesMap =
-  //         Map<String, dynamic>.from(payload['messages'] ?? {});
-
-  //     if (messagesMap.isEmpty) return;
-
-  //     final incoming = messagesMap.entries
-  //         .map((e) => GroupMessageModel.fromJson(
-  //               Map<String, dynamic>.from(e.value),
-  //             ))
-  //         .toList();
-
-  //     // Flatten current UI messages
-  //     final oldFlat = current.response.data.expand((g) => g.messages).toList();
-
-  //     // Merge by ID
-  //     final Map<String, GroupMessageModel> merged = {};
-
-  //     for (final m in oldFlat) {
-  //       final id = m.messageId.isNotEmpty ? m.messageId : m.id;
-  //       merged[id] = m;
-  //     }
-
-  //     for (final m in incoming) {
-  //       final id = m.messageId.isNotEmpty ? m.messageId : m.id;
-  //       merged[id] = m;
-  //     }
-
-  //     final mergedFlat = merged.values.toList()
-  //       ..sort((a, b) => a.time.compareTo(b.time));
-
-  //     // 💾 Save to local storage
-  //     await GrpLocalChatStorage.saveMessages(
-  //       convoId,
-  //       mergedFlat.map((e) => e.toJson()).toList(),
-  //     );
-
-  //     // 🔄 Emit updated UI state
-  //     emit(
-  //       GroupChatLoaded(
-  //         GroupMessageResponse(
-  //           data: _groupMessagesByDate(mergedFlat),
-  //           total: mergedFlat.length,
-  //           page: current.response.page,
-  //           limit: current.response.limit,
-  //           hasPreviousPage: current.response.hasPreviousPage,
-  //           hasNextPage: current.response.hasNextPage,
-  //         ),
-  //       ),
-  //     );
-  //   } catch (e, st) {
-  //     log("❌ CRDT merge error: $e");
-  //     log(st.toString());
-  //   }
-  // }
-
   Future<void> _onFetchGroupMessages(
     FetchGroupMessages event,
     Emitter<GroupChatState> emit,
   ) async {
     try {
       /// 1️⃣ Load local cached messages FIRST (flat)
+      _activeConvoId = event.convoId;
+      grpSocket.setActiveConversation(event.convoId);
       final localMaps = GrpLocalChatStorage.loadMessages(event.convoId);
 
       List<GroupMessageModel> localMessages =
@@ -368,122 +233,7 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
     }
   }
 
-  // Future<void> _onFetchGroupMessages(
-  //     FetchGroupMessages event, Emitter<GroupChatState> emit) async {
-  //   try {
-  //     /// 1. Load ALL local stored (flat) messages first
-  //     final localMaps = GrpLocalChatStorage.loadMessages(event.convoId);
-  //     List<GroupMessageModel> localMessages =
-  //         localMaps.map((json) => GroupMessageModel.fromJson(json)).toList();
-
-  //     if (event.page == 1) {
-  //       if (localMessages.isNotEmpty) {
-  //         emit(GroupChatLoaded(
-  //           GroupMessageResponse(
-  //             data: _groupMessagesByDate(localMessages),
-  //             total: localMessages.length,
-  //             page: event.page,
-  //             limit: event.limit,
-  //             hasPreviousPage: false,
-  //             hasNextPage: true,
-  //           ),
-  //         ));
-
-  //         log("📌 Loaded local cache: ${localMessages.length}");
-  //       }
-  //     }
-
-  //     // =============================
-  //     // 🔥 Fetch API Grouped Response
-  //     // =============================
-  //     final apiResp = await api.fetchMessages(
-  //       convoId: event.convoId,
-  //       page: event.page,
-  //       limit: event.limit,
-  //     );
-
-  //     // API returns:
-  //     // data = List<GroupMessageGroup>
-  //     final List<GroupMessageGroup> incomingGroups = apiResp.data;
-
-  //     // Flatten messages for saving to local
-  //     final flatIncoming =
-  //         incomingGroups.expand((group) => group.messages).toList();
-
-  //     // 🛠️ FIX: Preserve pending 'sending' messages from local cache that are missing in API
-  //     final pendingMessages = localMessages.where((m) {
-  //       return m.messageStatus == 'sending' &&
-  //           !flatIncoming.any((apiMsg) =>
-  //               apiMsg.id == m.id || apiMsg.messageId == m.messageId);
-  //     }).toList();
-
-  //     if (pendingMessages.isNotEmpty) {
-  //       log("🔄 Providing persistence for ${pendingMessages.length} pending messages");
-  //       flatIncoming.addAll(pendingMessages);
-
-  //       final todayLabel = _formatDate(DateTime.now());
-  //       final todayGroupIndex =
-  //           incomingGroups.indexWhere((g) => g.label == todayLabel);
-
-  //       if (todayGroupIndex != -1) {
-  //         incomingGroups[todayGroupIndex].messages.addAll(pendingMessages);
-  //       } else {
-  //         incomingGroups.insert(0,
-  //             GroupMessageGroup(label: todayLabel, messages: pendingMessages));
-  //       }
-  //     }
-
-  //     // 🛠️ CRITICAL FIX: Merge flatIncoming into localMessages instead of overwriting
-  //     final Map<String, GroupMessageModel> mergeMap = {};
-  //     // 1. Put existing local messages into map
-  //     for (var m in localMessages) {
-  //       final id = (m.messageId.isNotEmpty ? m.messageId : m.id).toString();
-  //       if (id.isNotEmpty) mergeMap[id] = m;
-  //     }
-  //     // 2. Overlay incoming API messages
-  //     for (var m in flatIncoming) {
-  //       final id = (m.messageId.isNotEmpty ? m.messageId : m.id).toString();
-  //       if (id.isNotEmpty) mergeMap[id] = m;
-  //     }
-
-  //     final mergedFlatList = mergeMap.values.toList();
-  //     log("💾 Saving merged local storage: ${mergedFlatList.length} messages (was ${localMessages.length})");
-
-  //     await GrpLocalChatStorage.saveMessages(
-  //       event.convoId,
-  //       mergedFlatList.map((m) => m.toJson()).toList(),
-  //     );
-
-  //     // Merge Pages for State Emission
-  //     if (state is GroupChatLoaded && event.page > 1) {
-  //       final prev = (state as GroupChatLoaded).response;
-  //       log("🔄 Merging Page ${event.page} into existing state (Page ${prev.page})");
-
-  //       // merge groups properly
-  //       final mergedGroups = _mergeGroupedPages(prev.data, incomingGroups);
-
-  //       final newState = GroupChatLoaded(
-  //         GroupMessageResponse(
-  //           data: mergedGroups,
-  //           total: apiResp.total,
-  //           page: apiResp.page,
-  //           limit: apiResp.limit,
-  //           hasPreviousPage: apiResp.hasPreviousPage,
-  //           hasNextPage: apiResp.hasNextPage,
-  //         ),
-  //       );
-
-  //       log("📤 Emitting merged GroupChatLoaded: Page ${newState.response.page}, Total ${newState.response.total}, Groups ${newState.response.data.length}");
-  //       emit(newState);
-  //     } else {
-  //       log("📤 Emitting fresh GroupChatLoaded: Page ${apiResp.page}, Total ${apiResp.total}, Groups ${apiResp.data.length}");
-  //       emit(GroupChatLoaded(apiResp));
-  //     }
-  //   } catch (e) {
-  //     log("❌ FetchGroupMessages Error: $e");
-  //     emit(GroupChatError("Failed to load messages"));
-  //   }
-  // }
+  
 
   Stream<GroupChatState> mapEventToState(GroupChatEvent event) async* {
     if (event is PermissionCheck) {
@@ -494,32 +244,6 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
         yield GroupChatError(e.toString());
       }
     }
-  }
-
-  // ==========================================================
-  //                📌 MERGE PAGINATION GROUPS
-  // ==========================================================
-  List<GroupMessageGroup> _mergeGroupedPages(
-      List<GroupMessageGroup> oldGroups, List<GroupMessageGroup> newGroups) {
-    final Map<String, GroupMessageGroup> groupMap = {
-      for (var g in oldGroups) g.label: g
-    };
-
-    for (var ng in newGroups) {
-      if (groupMap.containsKey(ng.label)) {
-        groupMap[ng.label] = GroupMessageGroup(
-          label: ng.label,
-          messages: [...groupMap[ng.label]!.messages, ...ng.messages],
-        );
-      } else {
-        groupMap[ng.label] = ng;
-      }
-    }
-
-    final sorted = groupMap.values.toList()
-      ..sort((a, b) => a.label.compareTo(b.label));
-
-    return sorted;
   }
 
   // ==========================================================

@@ -190,47 +190,59 @@ class CommonAppBarBuilder {
                 ),
               );
             },
-            child: CircleAvatar(
-              maxRadius: 20,
-              backgroundColor: Colors.grey[300],
-              child: profileAvatarUrl.isNotEmpty
-                  ? ClipOval(
-                      child: Image.network(
-                        profileAvatarUrl,
-                        width: 40,
-                        height: 40,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            color: avatarColor,
-                            alignment: Alignment.center,
-                            child: Text(
-                              initials,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
+            child: ValueListenableBuilder<Set<String>>(
+              valueListenable: SocketService().onlineUsersNotifier,
+              builder: (_, onlineSet, __) {
+                final bool isUserOnline = onlineSet.contains(resvID);
+
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    CircleAvatar(
+                      maxRadius: 20,
+                      backgroundColor: Colors.grey[300],
+                      child: profileAvatarUrl.isNotEmpty
+                          ? ClipOval(
+                              child: Image.network(
+                                profileAvatarUrl,
+                                width: 40,
+                                height: 40,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    color: avatarColor,
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      initials,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            )
+                          : Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: avatarColor,
+                                shape: BoxShape.circle,
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                initials,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
-                          );
-                        },
-                      ),
-                    )
-                  : Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: avatarColor,
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        initials,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
                     ),
+                  ],
+                );
+              },
             ),
           ),
         ],

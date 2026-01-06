@@ -809,11 +809,14 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                         ? chat.name!
                                         : "Unknown");
 
-                            final String itemKey = chat.isGroupChat == true
-                                ? 'group_${chat.conversationId ?? chat.id ?? index}'
-                                : 'private_${chat.id ?? chat.conversationId ?? index}';
+                            // final String itemKey = chat.isGroupChat == true
+                            //     ? 'group_${chat.conversationId ?? chat.id ?? index}'
+                            //     : 'private_${chat.id ?? chat.conversationId ?? index}';
+                            final String itemKey =
+                                'chat_${chat.conversationId ?? chat.id}';
 
-                            final typingText = _typingByConvo[chat.id];
+                            final typingText =
+                                _typingByConvo[chat.conversationId ?? chat.id];
 
                             return ValueListenableBuilder(
                                 valueListenable:
@@ -886,14 +889,15 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                                   favourite:
                                                       chat.isFavorites ?? false,
                                                 ),
-                                        ).then((_) {
-                                          log(chat.toJson().toString());
-                                          if (mounted) {
-                                            context
-                                                .read<ChatListBloc>()
-                                                .add(UpdateLocalChatList());
-                                          }
-                                        });
+                                        );
+                                        // then((_) {
+                                        //   log(chat.toJson().toString());
+                                        //   if (mounted) {
+                                        //     context
+                                        //         .read<ChatListBloc>()
+                                        //         .add(UpdateLocalChatList());
+                                        //   }
+                                        // });
                                       }
                                     },
                                     onLongPress: () {

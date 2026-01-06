@@ -139,9 +139,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   final recorderHelper = AudioRecorderHelper();
   bool _initialScrollDone = false;
   bool _screenActive = false;
-
-  // Inline emoji overlay
-  final List<String> _quickReactions = ['👍', '❤️', '😂', '😮', '😢', '👏'];
+  String? _lastSeen;
+  StreamSubscription<Map<String, dynamic>>? _userStatusSub;
 
   @override
   void initState() {
@@ -165,15 +164,13 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     _crdtSub = socketService.crdtMessageStream.listen((data) {
       final convoId = data['conversationId']?.toString();
-      final isGroup = data['isGroupChat'] == true;
+      if (convoId == null) return;
 
-      // 🚫 ignore group updates in private chat
-      if (isGroup) return;
-
+      // 🔥 ONLY THIS FILTER MATTERS
       if (convoId != widget.convoId) return;
 
       _applyCrdtMessages(
-        convoId!,
+        convoId,
         Map<String, dynamic>.from(data['messages'] ?? {}),
       );
     });
@@ -197,6 +194,25 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         }
       }
     });
+
+    _userStatusSub = socketService.userStatusStream.listen((data) {
+      log("👤 User status update received: $data");
+
+      final userId = data['userId']?.toString();
+      if (userId == widget.receiverId || userId == widget.datumId) {
+        if (data['online'] == false) {
+          // Update last seen if provided
+          final lastSeenTime =
+              data['lastSeen'] ?? data['last_seen'] ?? data['time'];
+          if (lastSeenTime != null) {
+            setState(() {
+              _lastSeen = TimeUtils.formatLastSeen(
+                  DateTime.tryParse(lastSeenTime.toString()) ?? DateTime.now());
+            });
+          }
+        }
+      }
+    });
   }
 
   @override
@@ -206,7 +222,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     _messageDeletedSubscription?.cancel();
     _scrollController.removeListener(_scrollListener);
     _connSub?.cancel();
-
+    _userStatusSub?.cancel();
     _crdtSub?.cancel();
     _saveDebounceTimer?.cancel();
     _saveAllMessages();
@@ -1301,10 +1317,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
   }
 
-  void _refreshMessages() {
-    _messagesNotifier.value = _getCombinedMessages();
-  }
-
   String _anyId(Map<String, dynamic> m) {
     final candidates = [
       m['message_id'],
@@ -1452,14 +1464,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
   // ------------------ Incoming messages ------------------
   void onMessageReceived(Map<String, dynamic> data) {
-    // debugPrint(
-    //     'RECEIVED message (id=${data['message_id'] ?? data['id']}): reply=${data['reply']}');
-    // debugPrint(
-    //     'INCOMING raw message: ${data}'); // rawMsg is what you received from server/socket
-    // debugPrint('INCOMING raw reply field: ${data['reply']}');
-    // debugPrint(
-    //     'INCOMING reply_message_id: ${data['reply_message_id'] ?? data['replyMessageId'] ?? data['reply_to']}');
-
     final event = data['event'];
 
     if (event == 'update_message_read') {
@@ -1485,7 +1489,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
 // inside your NewMessageReceivedState or onMessageReceived handler:
     debugPrint(
-        'INCOMING raw message: ${data}'); // rawMsg is what you received from server/socket
+        'INCOMING raw message: $data'); // rawMsg is what you received from server/socket
     debugPrint('INCOMING raw reply field: ${data['reply']}');
     debugPrint(
         'INCOMING reply_message_id: ${data['reply_message_id'] ?? data['replyMessageId'] ?? data['reply_to']}');
@@ -1628,83 +1632,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       }
     } catch (e, st) {
       debugPrint('❌ Reaction update failed: $e\n$st');
-    }
-  }
-
-  void _replaceLocalForwardIdWithRealId(
-      String realId, Map<String, dynamic> serverMsg) {
-    final serverOriginalId = (serverMsg['original_message_id'] ??
-            serverMsg['originalMessageId'] ??
-            serverMsg['parent_message_id'] ??
-            serverMsg['parentMessageId'] ??
-            '')
-        .toString();
-
-    final serverContent = (serverMsg['content'] ?? '').toString();
-
-    bool replaced = false;
-
-    void tryReplaceIn(List<Map<String, dynamic>> list) {
-      if (replaced) return;
-
-      for (var i = 0; i < list.length; i++) {
-        final m = list[i];
-        final mid = (m['message_id'] ?? m['messageId'] ?? '').toString();
-
-        final isSynthetic =
-            mid.startsWith('temp_') || mid.startsWith('forward_');
-        if (!isSynthetic) continue;
-
-        final localOriginalId = (m['original_message_id'] ??
-                m['originalMessageId'] ??
-                m['parent_message_id'] ??
-                m['parentMessageId'] ??
-                '')
-            .toString();
-
-        final localContent = (m['content'] ?? '').toString();
-
-        final sameOriginal = serverOriginalId.isNotEmpty &&
-            localOriginalId.isNotEmpty &&
-            serverOriginalId == localOriginalId;
-
-        final sameContent =
-            serverContent.isNotEmpty && serverContent == localContent;
-
-        if (sameOriginal || sameContent) {
-          final copy = Map<String, dynamic>.from(m);
-          copy['message_id'] = realId;
-          copy['messageStatus'] = serverMsg['messageStatus'] ?? 'delivered';
-          final isRealForward = serverOriginalId.isNotEmpty;
-
-          copy['isForwarded'] = isRealForward;
-
-          if (isRealForward) {
-            copy['original_message_id'] = serverOriginalId;
-          }
-
-          if (serverOriginalId.isNotEmpty) {
-            copy['original_message_id'] = serverOriginalId;
-          }
-
-          list[i] = copy;
-          replaced = true;
-          log('✅ Replaced synthetic id $mid → real id $realId');
-          break;
-        }
-      }
-    }
-
-    tryReplaceIn(socketMessages);
-    tryReplaceIn(messages);
-    tryReplaceIn(dbMessages);
-
-    if (replaced) {
-      _seenMessageIds.add(realId);
-      _updateNotifier();
-      _scheduleSaveMessages();
-    } else {
-      log('ℹ️ _replaceLocalForwardIdWithRealId: no temp_ message matched');
     }
   }
 
@@ -1937,19 +1864,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     );
   }
 
-  List<String> _collectUnreadIds() {
-    final combined = _messagesNotifier.value;
-
-    final ids = combined
-        .where(_isUnreadMessage) // your existing function
-        .map((m) => (m['message_id'] ?? m['messageId'] ?? m['id']).toString())
-        .where((id) => id.isNotEmpty)
-        .toList();
-
-    log("📥 _collectUnreadIds -> $ids");
-    return ids;
-  }
-
   Future<void> _fetchMessages() async {
     _messagerBloc.add(FetchMessagesEvent(
         convoId: widget.convoId, page: _currentPage, limit: _initialLimit));
@@ -2133,11 +2047,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     isSentByMe = correctIsSentByMe;
 
-    // 🔥 FIX: Create unique key that includes reply data to force rebuilds
-    final messageId = (message['message_id'] ?? message['id'] ?? '').toString();
-    final replyContent = (message['replyContent'] ?? '').toString();
-    final keyString = '$messageId-$replyContent-${message.hashCode}';
-
     // Handle deleted message display
     Map<String, dynamic> displayMessage = message;
     if (message['is_deleted'] == true) {
@@ -2204,6 +2113,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       },
       groupMediaLength: length,
       allMessages: _getCombinedMessages(),
+      stretchReply: true,
     );
   }
 
@@ -3204,7 +3114,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       lastSeen: widget.lastSeen,
       convertionId: widget.convoId,
       grpId: widget.datumId ?? "",
-      resvID: widget.datumId ?? "",
+      resvID: widget.receiverId ?? widget.datumId ?? "",
       favouitre: widget.favourite,
       grpChat: widget.grpChat,
       onSearchTap: () => toggleSearchAppBar(),
@@ -3255,12 +3165,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     LocalChatStorage.saveMessages(widget.convoId, combined);
   }
 
-  bool _shouldAddMessage(Map<String, dynamic> msg) {
-    return msg['content']?.toString().trim().isNotEmpty == true ||
-        (msg['imageUrl']?.toString().isNotEmpty == true) ||
-        (msg['fileUrl']?.toString().isNotEmpty == true);
-  }
-
   bool _isUnreadMessage(dynamic msg) {
     if (msg is Map<String, dynamic>) {
       final senderId =
@@ -3268,7 +3172,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
               ?.toString();
 
       return msg['messageStatus'] != 'read' &&
-          senderId != currentUserId && // 👈 only msgs from others
+          senderId != currentUserId &&
           msg['message_id'] != null;
     }
     return false;
@@ -4127,62 +4031,59 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                                   DateSeparator(
                                                       dateTime: _parseTime(
                                                           message['time'])),
-                                                IntrinsicWidth(
-                                                  child: Container(
-                                                    margin: const EdgeInsets
-                                                        .symmetric(
-                                                        horizontal: 5,
-                                                        vertical: 0),
-                                                    constraints:
-                                                        const BoxConstraints(
-                                                            maxWidth: 160),
-                                                    decoration: BoxDecoration(
-                                                      color: (isSentByMe
-                                                          ? const Color(
-                                                              0xFFD8E1FE)
-                                                          : Colors.white),
-                                                      borderRadius:
-                                                          BorderRadius.only(
-                                                        topLeft: isSentByMe
-                                                            ? const Radius
-                                                                .circular(18)
-                                                            : const Radius
-                                                                .circular(18),
-                                                        topRight: isSentByMe
-                                                            ? const Radius
-                                                                .circular(18)
-                                                            : const Radius
-                                                                .circular(18),
-                                                        bottomLeft: isSentByMe
-                                                            ? const Radius
-                                                                .circular(18)
-                                                            : Radius.zero,
-                                                        bottomRight: isSentByMe
-                                                            ? Radius.zero
-                                                            : const Radius
-                                                                .circular(16),
+                                                Container(
+                                                  margin: const EdgeInsets
+                                                      .symmetric(
+                                                      horizontal: 5,
+                                                      vertical: 0),
+                                                  constraints:
+                                                      const BoxConstraints(
+                                                          maxWidth: 160),
+                                                  decoration: BoxDecoration(
+                                                    color: (isSentByMe
+                                                        ? const Color(
+                                                            0xFFD8E1FE)
+                                                        : Colors.white),
+                                                    borderRadius:
+                                                        BorderRadius.only(
+                                                      topLeft: isSentByMe
+                                                          ? const Radius
+                                                              .circular(18)
+                                                          : const Radius
+                                                              .circular(18),
+                                                      topRight: isSentByMe
+                                                          ? const Radius
+                                                              .circular(18)
+                                                          : const Radius
+                                                              .circular(18),
+                                                      bottomLeft: isSentByMe
+                                                          ? const Radius
+                                                              .circular(18)
+                                                          : Radius.zero,
+                                                      bottomRight: isSentByMe
+                                                          ? Radius.zero
+                                                          : const Radius
+                                                              .circular(16),
+                                                    ),
+                                                    boxShadow: [
+                                                      BoxShadow(
+                                                        color: Colors.black
+                                                            .withOpacity(0.05),
+                                                        blurRadius: 4,
+                                                        offset:
+                                                            const Offset(0, 2),
                                                       ),
-                                                      boxShadow: [
-                                                        BoxShadow(
-                                                          color: Colors.black
-                                                              .withOpacity(
-                                                                  0.05),
-                                                          blurRadius: 4,
-                                                          offset: const Offset(
-                                                              0, 2),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                    child: Column(
-                                                      children: [
-                                                        _buildMessageBubble(
-                                                            message,
-                                                            correctIsSentByMe,
-                                                            hasReply,
-                                                            length: groupMedia
-                                                                .length),
-                                                      ],
-                                                    ),
+                                                    ],
+                                                  ),
+                                                  child: Column(
+                                                    children: [
+                                                      _buildMessageBubble(
+                                                          message,
+                                                          correctIsSentByMe,
+                                                          hasReply,
+                                                          length: groupMedia
+                                                              .length),
+                                                    ],
                                                   ),
                                                 )
                                               ],
@@ -4213,8 +4114,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
   void _sendAudioMessage(String path, int duration) {
     debugPrint("Sending audio message: $path, duration: $duration");
-
-    final localId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
 
     // Ensure SendAudioMessageEvent exists in your BLoC events
     _messagerBloc.add(
@@ -4452,7 +4351,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           _isRecording = false; // reset state
         });
         // Stop actual recording if needed
-        recorderHelper.stopRecording(); // or cancel
+        recorderHelper.stopRecording();
       },
       onSendRecording: (path, duration) {
         setState(() {

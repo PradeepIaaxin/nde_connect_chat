@@ -6,11 +6,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
 import 'package:nde_email/data/respiratory.dart';
-import 'package:nde_email/main.dart';
+
 import 'package:nde_email/presantation/chat/chat_contact_list/local_strorage.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/localstorage/local_storage.dart';
 import 'package:nde_email/presantation/drive/Bloc/file_bloc/drive_local_storage.dart'
     show LocalDriveStorage;
+    import 'package:nde_email/presantation/chat/Socket/socket_service.dart';
 import 'package:nde_email/presantation/drive/Bloc/sharred_bloc/sharred_local.dart';
 import 'package:nde_email/presantation/drive/Bloc/starred_bloc/stared_local.dart';
 import 'package:nde_email/presantation/login/login_api.dart';
@@ -83,15 +84,15 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
       final token = await UserPreferences.getAccessToken();
 
       if (token != null && userId != null && workspaceId != null) {
-        await socketService.initialize();
+        await SocketService().initialize();
       }
       await authRepository.login(loginRequest);
 
       // ✅ Initialize socket ONCE
-      await socketService.initialize();
+      await SocketService().initialize();
 
       // ✅ WAIT until socket is REALLY connected
-      await socketService.waitUntilConnected();
+      await SocketService().waitUntilConnected();
 
       _startRefreshTimer();
 
@@ -175,10 +176,11 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
 
     // 1️⃣ Notify offline
     if (userId != null && workspaceId != null) {
-      socketService.setUserOffline(userId, workspaceId);
+      SocketService().setUserOffline(userId, workspaceId);
     }
 
-    socketService.dispose();
+    SocketService().dispose();
+    SocketService().resetForLogout();
 
     // 2️⃣ Clear SharedPreferences
     final prefs = await SharedPreferences.getInstance();

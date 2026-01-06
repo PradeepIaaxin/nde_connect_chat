@@ -132,6 +132,7 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
           borderRadius: BorderRadius.circular(10),
         ),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             // Container(
             //   width: 3,
@@ -142,9 +143,10 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
             //   ),
             // ),
             const SizedBox(width: 8),
-            Expanded(
+            Flexible(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     widget.isSender
