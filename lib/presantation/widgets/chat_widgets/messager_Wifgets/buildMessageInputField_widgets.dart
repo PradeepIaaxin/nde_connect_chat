@@ -278,21 +278,14 @@ class _MessageInputFieldState extends State<MessageInputField> {
     final String? fileType = widget.replyText?['fileType'];
     // final String userName = widget.replyText?['userName'] ?? '';
     final String? originalUrl = widget.replyText?['originalUrl'];
-    final String imageCount = widget.replyText?["imageCount"]?.toString() ?? "";
-    final String videoCount = widget.replyText?["videoCount"]?.toString() ?? "";
 
-    final String firstName =
-        widget.replyText?['receiver']?['first_name']?.toString() ?? "";
-    final String lastName =
-        widget.replyText?['receiver']?['last_name'].toString() ?? "";
     // final bool isSendMe = widget.replyText?['isSendMe'];
     final String senderId = widget.replyText?['senderId']?.toString() ?? "";
     final String userId = widget.replyText?['sender']?["_id"]?.toString() ?? "";
 
-    print("sssssssss ${senderId}");
-    print("userId ${userId}");
+    log("sssssssss ${senderId}");
+    log("userId ${userId}");
 
-    final bool isSendMe = senderId == userId;
 // 🔥 Detect grouped media safely
     final bool hasGroupId = widget.replyText?['group_message_id'] != null;
 
@@ -308,7 +301,7 @@ class _MessageInputFieldState extends State<MessageInputField> {
 
     final bool isGroupedMedia =
         hasGroupId && (localImageCount + localVideoCount > 1);
-    print("hhhhhhhhhhhhhhhhhhhhh $isSendMe");
+
     // Type label like WhatsApp
     // Type label like WhatsApp
     String typeLabel = '';
@@ -318,6 +311,13 @@ class _MessageInputFieldState extends State<MessageInputField> {
         ((fileType ?? '').toLowerCase().startsWith('video/') ||
                 widget.replyText?['isVideo'] == true) &&
             (originalUrl != null && originalUrl.isNotEmpty);
+
+    final bool isAudio = fileName != null &&
+        (fileName.endsWith('.mp3') ||
+            fileName.endsWith('.aac') ||
+            fileName.endsWith('.wav') ||
+            fileName.endsWith('.m4a') ||
+            (widget.replyText?['mimeType'] ?? '').toString().contains('audio'));
 
     if (isGroupedMedia) {
       if (localImageCount > 0 && localVideoCount > 0) {
@@ -332,6 +332,9 @@ class _MessageInputFieldState extends State<MessageInputField> {
         typeLabel = 'Video';
       } else if (imageUrl != null && imageUrl.isNotEmpty) {
         typeLabel = 'Photo';
+      } else if (isAudio) {
+        final duration = widget.replyText?['duration'];
+        typeLabel = duration != null ? 'Audio ($duration)' : 'Audio';
       }
     }
     Widget _buildVideoThumb(String videoPathOrUrl) {
@@ -404,9 +407,9 @@ class _MessageInputFieldState extends State<MessageInputField> {
     // ---------- build trailing thumbnail (image / video) ----------
     Widget? trailingThumb;
 
-    const double thumbSize = 70;
+    const double thumbSize = 45;
     if (!isGroupedMedia) {
-      if (isVideoReply && originalUrl != null) {
+      if (isVideoReply) {
         trailingThumb = _buildVideoThumb(originalUrl);
       } else if (imageUrl != null && imageUrl.isNotEmpty) {
         trailingThumb = imageUrl.startsWith('/')
@@ -420,7 +423,7 @@ class _MessageInputFieldState extends State<MessageInputField> {
         width: thumbSize,
         height: thumbSize,
         child: FutureBuilder<File?>(
-          future: VideoThumbUtil.generateFromUrl(originalUrl!),
+          future: VideoThumbUtil.generateFromUrl(originalUrl),
           builder: (context, snapshot) {
             final thumbFile = snapshot.data;
             if (thumbFile == null) {
@@ -478,12 +481,28 @@ class _MessageInputFieldState extends State<MessageInputField> {
                 width: thumbSize,
                 height: thumbSize,
                 fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    width: thumbSize,
+                    height: thumbSize,
+                    color: Colors.grey.shade300,
+                    child: const Icon(Icons.image, color: Colors.grey),
+                  );
+                },
               )
             : Image.network(
                 imageUrl,
                 width: thumbSize,
                 height: thumbSize,
                 fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    width: thumbSize,
+                    height: thumbSize,
+                    color: Colors.grey.shade300,
+                    child: const Icon(Icons.image, color: Colors.grey),
+                  );
+                },
               ),
       );
     }
@@ -527,7 +546,9 @@ class _MessageInputFieldState extends State<MessageInputField> {
                                   ? Icons.photo
                                   : typeLabel == 'Video'
                                       ? Icons.video_camera_back_rounded
-                                      : null,
+                                      : typeLabel.startsWith('Audio')
+                                          ? Icons.music_note
+                                          : null,
                               color: Colors.grey,
                               size: 16,
                             ),
@@ -584,8 +605,8 @@ class _MessageInputFieldState extends State<MessageInputField> {
                 children: [
                   trailingThumb,
                   Positioned(
-                    top: -2,
-                    right: -3,
+                    top: -6,
+                    right: -6,
                     child: InkWell(
                       onTap: widget.onCancelReply,
                       child: Container(

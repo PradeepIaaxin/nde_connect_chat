@@ -175,12 +175,15 @@ class SocketService {
     socket?.dispose();
     socket = null;
     print("socket creating....");
-
-    const String socketUrl = 'https://api.nowdigitaleasy.com/wschat';
+    const String socketUrl =
+        //"https://945067be4009.ngrok-free.app/wschat";
+        'https://api.nowdigitaleasy.com/wschat';
 
     socket = IO.io(
       socketUrl,
       IO.OptionBuilder()
+
+          ///wschat
           .setPath('/wschat/socket.io')
           .setQuery({
             'token': 'Bearer $token',
@@ -215,22 +218,21 @@ class SocketService {
         _connectCompleter!.complete();
       }
 
-      print("current workspace : $currentWorkspaceId");
-      print("mine userId : $_currentUserId");
-
       Future.microtask(() async {
         try {
           final deviceId = await UserPreferences.getDeviceId();
           log("device_id : $deviceId");
           final keys = await getOrCreateDeviceKeys();
+          final publicKeyJwk = ecPublicKeyToJwk(keys.publicKey);
 
           socket!.emit('register_device', {
             'deviceId': deviceId,
             'userId': _currentUserId,
-            'publicKey': bytesToHex(keys.publicKey),
+            'publicKey': publicKeyJwk,
           });
 
           _slog('[SOCKET] register_device emitted');
+          _slog('Socket register_device: ${socket!.connected}');
         } catch (e) {
           _slog('❌ register_device error: $e');
         }
@@ -278,35 +280,32 @@ class SocketService {
     // DEVICE AUTH EVENTS (ADD ONCE)
     // ========================
 
+    socket!.off('device_registered');
+    socket!.on('device_registered', (_) async {
+      print('🔐 device_registered');
+
+      socket!.emit('request_device_challenge');
+      print('📤 request_device_challenge emitted');
+    });
+
     socket!.off('device_challenge');
     socket!.on('device_challenge', (data) async {
-      try {
-        print('🔐 device_challenge');
+      final payload = (data is List && data.isNotEmpty) ? data.first : data;
+      if (payload is! Map) return;
 
-        final payload = (data is List && data.isNotEmpty) ? data.first : data;
-        if (payload is! Map) return;
+      final nonce = payload['nonce']?.toString();
+      if (nonce == null) return;
 
-        final nonce = payload['nonce']?.toString();
-        if (nonce == null) return;
+      final keys = await getOrCreateDeviceKeys();
 
-        final keys = await getOrCreateDeviceKeys();
+      final signature = await signWithPrivateKey(
+        keys.privateKey,
+        nonce,
+      );
 
-        final signature = await signWithPrivateKey(
-          keys.privateKey,
-          nonce,
-        );
-
-        print('🖊 signature generated, length=${signature.length}');
-
-        socket!.emit('verify_device', {
-          'signature': signature,
-        });
-
-        print('✅ verify_device emitted');
-      } catch (e, st) {
-        print('❌ device_challenge error: $e');
-        print(st);
-      }
+      socket!.emit('verify_device', {
+        'signature': signature,
+      });
     });
 
     socket!.off('device_authenticated');

@@ -46,7 +46,13 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
         mediaUrl.toLowerCase().contains('.jpg') ||
         mediaUrl.toLowerCase().contains('.png');
 
-    if (replyContent.isEmpty && mediaUrl.isEmpty) {
+    final bool isAudio = fileName.endsWith('.mp3') ||
+        fileName.endsWith('.aac') ||
+        fileName.endsWith('.wav') ||
+        fileName.endsWith('.m4a') ||
+        (widget.replied['mimeType'] ?? '').toString().contains('audio');
+
+    if (replyContent.isEmpty && mediaUrl.isEmpty && !isAudio) {
       return const SizedBox.shrink();
     }
 
@@ -68,6 +74,15 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
           errorWidget: (_, __, ___) => Container(color: Colors.grey.shade400),
         );
       }
+
+      // if (isAudio) {
+      //   return Container(
+      //     color: Colors.grey.shade300,
+      //     child: const Center(
+      //       child: Icon(Icons.mic, color: Colors.white),
+      //     ),
+      //   );
+      // }
 
       if (isVideo) {
         trailingThumb = SizedBox(
@@ -164,11 +179,28 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
                       'Video',
                       style: TextStyle(fontSize: 12),
                     )
-                  else if (isImage)
-                    const Text(
-                      'Photo',
-                      style: TextStyle(fontSize: 12),
+                  else if (isAudio)
+                    Row(
+                      children: [
+                        const Icon(Icons.music_note, size: 16, color: Colors.grey),
+                        const SizedBox(width: 4),
+                        Text(
+                          widget.replied['duration'] != null
+                              ? 'Audio (${widget.replied['duration']})'
+                              : 'Audio',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ],
                     )
+                  else if (isImage)
+                     Row(
+                       children: [
+                         Text(
+                          'Photo',
+                          style: TextStyle(fontSize: 12),
+                                      ),
+                       ],
+                     )
                   else
                     Text(
                       replyContent,
