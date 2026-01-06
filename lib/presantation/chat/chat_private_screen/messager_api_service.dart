@@ -45,8 +45,10 @@ class MessagerApiService {
         },
       );
 
-      if (response.statusCode != 200) {
-        throw Exception("Failed to fetch messages: ${response.statusCode}");
+      if (response.statusCode != 200 ||
+          response.statusCode != 201 ||
+          response.statusCode != 204) {
+        log(response.statusCode.toString());
       }
 
       final jsonData = jsonDecode(response.body);

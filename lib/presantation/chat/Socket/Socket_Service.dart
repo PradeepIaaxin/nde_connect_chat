@@ -330,9 +330,6 @@ class SocketService {
       _slog('Socket error: $err');
       _onlineStatusController.add(false);
     });
-
-    // Register all event handlers once
-    // _registerAllEventHandlers();
   }
 
   void _registerAllEventHandlers() {
@@ -358,16 +355,15 @@ class SocketService {
       'group_updated': (data) => _groupUpdateController.add(data),
     };
 
-    // Message events (multiple names)
     final messageEvents = [
       // 'receive_message',
-      'new_message',
-      'message',
-      'newMessage',
-      'message_created',
+      // 'new_message',
+      // 'message',
+      // 'newMessage',
+      // 'message_created',
       'send_message',
-      'receive_group_message',
-      'group_message',
+      // 'receive_group_message',
+      // 'group_message',
     ];
 
     // Register all
@@ -449,7 +445,6 @@ class SocketService {
         saveRoomId(roommId!);
         _slog('Saved roomId $roommId');
       }
-      // _onlineStatusController.add(true);
     });
   }
 
@@ -625,9 +620,14 @@ class SocketService {
     } else {
       current.remove(userId);
     }
-
     onlineUsersNotifier.value = current;
-
+    if (data is Map<String, dynamic>) {
+      _userStatusController.add(data);
+      log("👤 User status update received: $data");
+    } else {
+      // fallback if data is just userId string or list
+      _userStatusController.add({'userId': userId, 'online': online});
+    }
     _slog("Presence: $userId → ${online ? 'online' : 'offline'}");
   }
 
@@ -725,31 +725,101 @@ class SocketService {
   void _handleIncomingMessage(dynamic payload) {
     try {
       final map = _firstMapFromPossibleList(payload);
-      if (map == null) {
-        _slog('Incoming message not map: ${payload.runtimeType}');
-        return;
-      }
+      if (map == null) return;
 
-      final msgId =
-          (map['messageId'] ?? map['message_id'] ?? map['id'])?.toString();
-      if (msgId != null && msgId.isNotEmpty) {
-        if (processedMessageIds.contains(msgId)) {
-          _slog('Duplicate message skipped: $msgId');
-          return;
-        }
-        processedMessageIds.add(msgId);
-        if (processedMessageIds.length > 2000) {
-          final toRemove = processedMessageIds.length - 1000;
-          final iter = processedMessageIds.toList().sublist(0, toRemove);
-          for (final id in iter) processedMessageIds.remove(id);
-        }
-      }
+      final String? convoId =
+          map['conversationId']?.toString() ?? map['convoId']?.toString();
 
-      _messageController.add(Map<String, dynamic>.from(map));
-    } catch (e, st) {
-      _slog('Incoming message error: $e $st');
-    }
+      final String? messageId =
+          map['message_id']?.toString() ?? map['messageId']?.toString();
+
+      if (convoId == null || messageId == null) return;
+
+      final dedupeKey = '$convoId:$messageId';
+
+      if (processedMessageIds.contains(dedupeKey)) return;
+      processedMessageIds.add(dedupeKey);
+
+      // ✅ DO NOTHING ELSE
+      // ❌ DO NOT ADD TO MESSAGE LIST
+      // CRDT WILL HANDLE IT
+    } catch (_) {}
   }
+
+  // void _handleIncomingMessage(dynamic payload) {
+  //   try {
+  //     final map = _firstMapFromPossibleList(payload);
+  //     if (map == null) return;
+
+  //     // 🔑 Normalize conversationId
+  //     final String? convoId =
+  //         map['conversationId']?.toString() ?? map['convoId']?.toString();
+
+  //     if (convoId == null || convoId.isEmpty) return;
+
+  //     // 🔑 Normalize messageId (DO NOT use `id`)
+  //     final String? messageId =
+  //         map['message_id']?.toString() ?? map['messageId']?.toString();
+
+  //     if (messageId == null || messageId.isEmpty) return;
+
+  //     // 🔥 STRONG DEDUPE KEY (conversation + message)
+  //     final String dedupeKey = '$convoId:$messageId';
+
+  //     if (processedMessageIds.contains(dedupeKey)) {
+  //       _slog('⏭ Duplicate message skipped: $dedupeKey');
+  //       return;
+  //     }
+
+  //     processedMessageIds.add(dedupeKey);
+
+  //     // 🧹 Keep memory small
+  //     if (processedMessageIds.length > 3000) {
+  //       processedMessageIds.remove(processedMessageIds.first);
+  //     }
+
+  //     // 🚫 CRDT is source of truth for active conversation
+  //     if (_activeConversationId == convoId) {
+  //       return;
+  //     }
+
+  //     // ✅ Emit message ONCE
+  //     _messageController.add(Map<String, dynamic>.from(map));
+  //   } catch (e, st) {
+  //     _slog('Incoming message error: $e\n$st');
+  //   }
+  // }
+
+  // void _handleIncomingMessage(dynamic payload) {
+  //   try {
+  //     final map = _firstMapFromPossibleList(payload);
+  //     if (map == null) {
+  //       _slog('Incoming message not map: ${payload.runtimeType}');
+  //       return;
+  //     }
+
+  //     final msgId =
+  //         (map['messageId'] ?? map['message_id'] ?? map['id'])?.toString();
+  //     if (msgId != null && msgId.isNotEmpty) {
+  //       if (processedMessageIds.contains(msgId)) {
+  //         _slog('Duplicate message skipped: $msgId');
+  //         return;
+  //       }
+  //       processedMessageIds.add(msgId);
+  //       if (processedMessageIds.length > 2000) {
+  //         final toRemove = processedMessageIds.length - 1000;
+  //         final iter = processedMessageIds.toList().sublist(0, toRemove);
+  //         for (final id in iter) {
+  //           processedMessageIds.remove(id);
+  //         }
+  //       }
+  //     }
+
+  //     _messageController.add(Map<String, dynamic>.from(map));
+  //   } catch (e, st) {
+  //     _slog('Incoming message error: $e $st');
+  //   }
+  // }
 
   // ========================
   // Helper parsers
@@ -1341,5 +1411,21 @@ class SocketService {
     socket?.disconnect();
 
     _slog('SocketService disconnected');
+  }
+
+  /// Call this ONLY on LOGOUT
+  void resetForLogout() {
+    _activeConversationId = null;
+    _joinedRooms.clear();
+    processedMessageIds.clear();
+
+    socket?.clearListeners();
+    socket?.disconnect();
+    socket = null;
+
+    _isInitialized = false;
+    _isConnecting = false;
+
+    _slog('SocketService reset for logout');
   }
 }

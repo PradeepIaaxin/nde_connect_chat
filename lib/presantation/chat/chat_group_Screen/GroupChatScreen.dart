@@ -159,7 +159,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   @override
   void dispose() {
-    // SocketService().clearActiveConversation();
+    SocketService().clearActiveConversation();
     _messageDeletedSubscription?.cancel();
     final unsentText = _messageController.text.trim();
     if (unsentText.isNotEmpty) {
@@ -436,7 +436,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     // ✅ Filter by conversationId (GROUP SAFETY)
     final String? incomingConvoId =
-        (msg['conversationId'] ?? msg['convoId'] ?? msg['roomId'])?.toString();
+        (msg['conversationId'] ?? msg['convoId'])?.toString();
+
+    if (incomingConvoId != widget.conversationId) return;
+
+    if (msg['isGroupChat'] != true) return;
 
     if (incomingConvoId == null || incomingConvoId != widget.conversationId) {
       return; // ❌ Message NOT for this open group

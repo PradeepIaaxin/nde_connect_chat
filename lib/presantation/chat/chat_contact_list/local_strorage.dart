@@ -23,7 +23,6 @@ class GrpLocalChatStorage {
     }).toList();
   }
 
-
   /// Save draft message for a group conversation
   static Future<void> saveDraftMessage(String convoId, String message) async {
     final box = Hive.box(boxName);
@@ -41,6 +40,10 @@ class GrpLocalChatStorage {
     final box = Hive.box(boxName);
     await box.delete('grp_draft_message_$convoId');
   }
+
+  /// ❗ CLEAR ALL MESSAGES FOR A CONVERSATION (VERY IMPORTANT)
+  static Future<void> clearMessages(String convoId) async {
+    final box = Hive.box(boxName);
+    await box.delete('chat_messages_$convoId');
+  }
 }
-
-

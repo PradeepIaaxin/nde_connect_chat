@@ -31,10 +31,6 @@ void main() async {
   if (!Hive.isAdapterRegistered(51)) {
     Hive.registerAdapter(MessageListCrdtAdapter());
   }
-  // await RustLib.init();
-  // await RustLib.init(
-  //   externalLibrary: ExternalLibrary.open('libbridge.so'),
-  // );
 
   if (Platform.isAndroid) {
     await RustLib.init(
