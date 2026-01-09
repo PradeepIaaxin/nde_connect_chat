@@ -1,5 +1,3 @@
-
-
 import '../messager_model.dart';
 
 abstract class MessagerState {}
@@ -7,7 +5,6 @@ abstract class MessagerState {}
 class MessagerInitial extends MessagerState {}
 
 class MessagerLoading extends MessagerState {}
-
 
 class MessagerLoaded extends MessagerState {
   final MessageListResponse response;
@@ -21,6 +18,12 @@ class MessagerError extends MessagerState {
   final String message;
 
   MessagerError(this.message);
+}
+
+class LocalAudioMessageAdded extends MessagerState {
+  final Map<String, dynamic> message;
+
+  LocalAudioMessageAdded(this.message);
 }
 
 class MessageSentSuccessfully extends MessagerState {
@@ -175,4 +178,3 @@ class MessageAckReceived extends MessagerState {
     required this.status,
   });
 }
-

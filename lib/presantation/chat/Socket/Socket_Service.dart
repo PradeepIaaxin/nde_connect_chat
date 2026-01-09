@@ -119,6 +119,22 @@ class SocketService {
     _activeConversationId = null;
   }
 
+  Future<void> hardReconnect() async {
+    _slog('🔁 HARD SOCKET RECONNECT');
+
+    try {
+      socket?.clearListeners();
+      socket?.disconnect();
+      socket?.dispose();
+    } catch (_) {}
+
+    socket = null;
+    _isInitialized = false;
+    _isConnecting = false;
+
+    await initialize();
+  }
+
   // ========================
   // INITIALIZE – Call once at app start
   // ========================
@@ -211,7 +227,8 @@ class SocketService {
   // Global handlers (registered once)
   // ========================
   void _registerGlobalHandlers() {
-    socket!.onConnect((_) {
+    socket!.onConnect((_) async {
+      await resetGlobalDoc();
       _socketCreationCount++;
       _slog('✅ Socket connected: ${socket!.id} (total: $_socketCreationCount)');
       if (_connectCompleter != null && !_connectCompleter!.isCompleted) {
@@ -238,7 +255,6 @@ class SocketService {
         }
       });
 
-      _registerAllEventHandlers();
       // Re-join workspace on every connect/reconnect
       Future.delayed(const Duration(milliseconds: 150), () {
         if (currentWorkspaceId != null && _currentUserId != null) {
@@ -313,6 +329,8 @@ class SocketService {
       print('🎉 Device authenticated');
     });
 
+    _registerAllEventHandlers();
+
     socket!.onDisconnect((_) {
       _slog('Socket disconnected');
       _onlineStatusController.add(false);
@@ -335,7 +353,12 @@ class SocketService {
     final Map<String, Function(dynamic)> events = {
       'roomJoined': _handleRoomJoined,
       'workspaceRoomJoined': _handleRoomJoined,
-      'system_message': (data) => _systemMessageController.add(data),
+      //    'system_message': (data) => _systemMessageController.add(data),
+      'system_message': (data) {
+        final map = _firstMapFromPossibleList(data);
+        if (map != null) _systemMessageController.add(map);
+      },
+
       'get_typing': _handleTyping,
       'messagesRead': _handleMessagesRead,
       'updated_reaction': (data) => _handleReaction(data, isRemoval: false),
@@ -349,20 +372,12 @@ class SocketService {
       'user_offline': (data) => _handleUserPresence(data, online: false),
       'messageListUpdate': _handleMessageListUpdate,
       'chatlistUpdate': _handleChatListUpdate,
+      'convoList:updates': _handleConvoListUpdates,
       'message_deleted': _handleMessageDeleted,
-      'favorite_updated': (data) => _favoriteUpdateController.add(data),
-      'group_updated': (data) => _groupUpdateController.add(data),
     };
 
     final messageEvents = [
-      // 'receive_message',
-      // 'new_message',
-      // 'message',
-      // 'newMessage',
-      // 'message_created',
       'send_message',
-      // 'receive_group_message',
-      // 'group_message',
     ];
 
     // Register all
@@ -377,6 +392,56 @@ class SocketService {
     }
 
     _slog('All event handlers registered once');
+  }
+
+  void _handleConvoListUpdates(dynamic payload) {
+    scheduleMicrotask(() async {
+      try {
+        if (payload is! List || payload.isEmpty) return;
+
+        final first = payload.first;
+        if (first is! Map || first['updates'] == null) return;
+
+        // 🔥 base64 → bytes
+        final Uint8List bytes = base64Decode(first['updates']);
+
+        // 🔥 apply CRDT update
+        final jsonString = await importChatUpdate(updateBytes: bytes);
+        final decoded = jsonDecode(jsonString);
+        final List list = decoded['chatDataList'] ?? [];
+
+        if (list.isEmpty) return;
+
+        final datuList = list.map<Datu>((e) => Datu.fromJson(e)).toList();
+
+        // ✅ dedupe by conversationId
+        final Map<String, Datu> unique = {};
+        for (final d in datuList) {
+          if (d.conversationId != null) {
+            unique[d.conversationId!] = d;
+          }
+        }
+
+        final normalized = unique.values.toList();
+
+        // 🔥 SAVE SNAPSHOT (CRITICAL)
+        final snapshot = await exportChatSnapshot();
+
+        final box = await Hive.openBox<ConvoListCrdt>('convo_crdt');
+        await box.put(
+          _currentUserId!,
+          ConvoListCrdt(
+            snapshot: snapshot,
+            frontiers: const [], // server-driven
+            savedAt: DateTime.now().millisecondsSinceEpoch,
+          ),
+        );
+
+        _onChatListUpdatedCallback?.call(normalized);
+      } catch (e, st) {
+        _slog('convoList:updates error: $e\n$st');
+      }
+    });
   }
 
   // ========================
@@ -659,6 +724,7 @@ class SocketService {
 
         final jsonString = await importMessageUpdate(updateBytes: bytes);
         final decoded = jsonDecode(jsonString);
+        // log("repose: ${decoded.toString()}");
         final Map<String, dynamic> messagesMap =
             Map<String, dynamic>.from(decoded['messages'] ?? {});
 
@@ -677,6 +743,12 @@ class SocketService {
         debugPrint('messageListUpdate error: $e\n$st');
       }
     });
+  }
+
+  Future<List<Map<String, dynamic>>> exportChatFrontiersJsonSafe() async {
+    final jsonString = await exportChatFrontiersJson();
+    final decoded = jsonDecode(jsonString) as List;
+    return decoded.map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
   void _handleChatListUpdate(dynamic payload) {
@@ -705,7 +777,10 @@ class SocketService {
 
         // 🔥 SAVE CRDT SNAPSHOT + FRONTIERS
         final snapshot = await exportChatSnapshot();
-        final frontiers = await exportChatFrontiers();
+        // final frontiers = await exportChatFrontiers();
+        final frontiers = await exportChatFrontiersJsonSafe();
+        log(frontiers.toString());
+
         final box = await Hive.openBox<ConvoListCrdt>('convo_crdt');
         await box.put(
           _currentUserId!,
@@ -755,81 +830,6 @@ class SocketService {
       // CRDT WILL HANDLE IT
     } catch (_) {}
   }
-
-  // void _handleIncomingMessage(dynamic payload) {
-  //   try {
-  //     final map = _firstMapFromPossibleList(payload);
-  //     if (map == null) return;
-
-  //     // 🔑 Normalize conversationId
-  //     final String? convoId =
-  //         map['conversationId']?.toString() ?? map['convoId']?.toString();
-
-  //     if (convoId == null || convoId.isEmpty) return;
-
-  //     // 🔑 Normalize messageId (DO NOT use `id`)
-  //     final String? messageId =
-  //         map['message_id']?.toString() ?? map['messageId']?.toString();
-
-  //     if (messageId == null || messageId.isEmpty) return;
-
-  //     // 🔥 STRONG DEDUPE KEY (conversation + message)
-  //     final String dedupeKey = '$convoId:$messageId';
-
-  //     if (processedMessageIds.contains(dedupeKey)) {
-  //       _slog('⏭ Duplicate message skipped: $dedupeKey');
-  //       return;
-  //     }
-
-  //     processedMessageIds.add(dedupeKey);
-
-  //     // 🧹 Keep memory small
-  //     if (processedMessageIds.length > 3000) {
-  //       processedMessageIds.remove(processedMessageIds.first);
-  //     }
-
-  //     // 🚫 CRDT is source of truth for active conversation
-  //     if (_activeConversationId == convoId) {
-  //       return;
-  //     }
-
-  //     // ✅ Emit message ONCE
-  //     _messageController.add(Map<String, dynamic>.from(map));
-  //   } catch (e, st) {
-  //     _slog('Incoming message error: $e\n$st');
-  //   }
-  // }
-
-  // void _handleIncomingMessage(dynamic payload) {
-  //   try {
-  //     final map = _firstMapFromPossibleList(payload);
-  //     if (map == null) {
-  //       _slog('Incoming message not map: ${payload.runtimeType}');
-  //       return;
-  //     }
-
-  //     final msgId =
-  //         (map['messageId'] ?? map['message_id'] ?? map['id'])?.toString();
-  //     if (msgId != null && msgId.isNotEmpty) {
-  //       if (processedMessageIds.contains(msgId)) {
-  //         _slog('Duplicate message skipped: $msgId');
-  //         return;
-  //       }
-  //       processedMessageIds.add(msgId);
-  //       if (processedMessageIds.length > 2000) {
-  //         final toRemove = processedMessageIds.length - 1000;
-  //         final iter = processedMessageIds.toList().sublist(0, toRemove);
-  //         for (final id in iter) {
-  //           processedMessageIds.remove(id);
-  //         }
-  //       }
-  //     }
-
-  //     _messageController.add(Map<String, dynamic>.from(map));
-  //   } catch (e, st) {
-  //     _slog('Incoming message error: $e $st');
-  //   }
-  // }
 
   // ========================
   // Helper parsers

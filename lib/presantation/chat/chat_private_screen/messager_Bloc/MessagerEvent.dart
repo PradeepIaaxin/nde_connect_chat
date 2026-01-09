@@ -52,22 +52,25 @@ class UploadFileEvent extends MessagerEvent {
   final String? groupMesageId;
   final String? contentType;
   final String? messageId;
+  final String? duration;
 
   const UploadFileEvent(
     this.file,
     this.convoId,
     this.senderId, {
-    required this.receiverId, // ✅ ONLY required field
+    required this.receiverId, 
     this.message = "",
     this.isGroupMessage = false,
     this.groupMesageId,
     this.contentType,
     this.messageId,
+    this.duration,
   });
+
 
   @override
   List<Object?> get props => [
-        file.path, // better than File object
+        file.path, 
         convoId,
         senderId,
         receiverId,
@@ -76,6 +79,7 @@ class UploadFileEvent extends MessagerEvent {
         groupMesageId,
         contentType,
         messageId,
+        duration
       ];
 }
 

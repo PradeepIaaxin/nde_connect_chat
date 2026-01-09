@@ -119,6 +119,10 @@ class MessageHandler {
       if (normalizedReply != null) 'repliedMessage': normalizedReply,
       'replyContent': replyContent,
       'replyToUser': replyToUser,
+      if (normalizedReply != null)
+        'reply_message_id': normalizedReply['reply_message_id'],
+      if (normalizedReply != null)
+        'replyMessageId': normalizedReply['reply_message_id'],
       'reactions': reactions,
       'localImagePath': message['localImagePath'],
       'isSelected': false,

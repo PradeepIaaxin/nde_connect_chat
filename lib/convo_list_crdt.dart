@@ -9,7 +9,7 @@ class ConvoListCrdt extends HiveObject {
   Uint8List snapshot;
 
   @HiveField(1)
-  List<int> frontiers;
+  List<Map<String, dynamic>> frontiers;
 
   @HiveField(2)
   int savedAt;

@@ -71,37 +71,33 @@ class MessageBubble extends StatelessWidget {
     final String? fileTypeRaw = message['fileType']?.toString();
     final String fileType = fileTypeRaw?.toLowerCase() ?? '';
 
-    final bool isFileImage = fileType.startsWith('image/') ||
+    final bool isImage = fileType.startsWith('image/') ||
         (fileName != null &&
-            ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic', 'heif', 'svg']
-                .any((ext) => fileName.toLowerCase().endsWith('.$ext')));
+            RegExp(r'\.(jpg|jpeg|png|gif|webp|bmp|heic|heif|svg)$',
+                    caseSensitive: false)
+                .hasMatch(fileName));
+
+    final bool isVideo = fileType.startsWith('video/') ||
+        (message['isVideo'] == true) ||
+        (fileName != null &&
+            RegExp(r'\.(mp4|mov|avi|mkv|webm)$', caseSensitive: false)
+                .hasMatch(fileName));
+
+    final bool isAudio = (message['ContentType'] == 'audio') ||
+        (fileType.startsWith('audio')) ||
+        (fileName != null &&
+            RegExp(r'\.(mp3|wav|aac|m4a|flac|ogg|opus)$', caseSensitive: false)
+                .hasMatch(fileName));
 
     final String? imageUrl = message['imageUrl'];
     final String? originalUrl = message['originalUrl']?.toString();
-    final String? displayImageUrl =
-        originalUrl ?? imageUrl ?? (isFileImage ? fileUrl : null);
+    final String? displayImageUrl = originalUrl ??
+        imageUrl ??
+        ((isImage || (fileUrl != null && isImage)) ? fileUrl : null);
 
     final bool? isForwarded = message['isForwarded'] ?? false;
     final bool? isReplyMessage = message['isReplyMessage'];
     final String messageStatus = message['messageStatus']?.toString() ?? 'sent';
-
-    final bool isVideo = fileType.startsWith('video/') ||
-        (message['isVideo'] == true) ||
-        ((fileUrl ?? originalUrl ?? '')
-                .toString()
-                .toLowerCase()
-                .endsWith('.mp4') ||
-            (fileUrl ?? originalUrl ?? '')
-                .toString()
-                .toLowerCase()
-                .endsWith('.mov'));
-
-    final bool isAudio = (message['ContentType'] == 'audio') ||
-        (fileTypeRaw != null && fileTypeRaw.startsWith('audio')) ||
-        (fileName != null &&
-            (RegExp(r'\.(mp3|wav|aac|m4a|flac|ogg|opus)$', caseSensitive: false)
-                    .hasMatch(fileName) ||
-                fileName.toLowerCase().contains('audio_')));
 
     final replyData = message['reply'];
     final replyId = message['reply_message_id'] ?? message['replyMessageId'];
@@ -116,21 +112,16 @@ class MessageBubble extends StatelessWidget {
         !isDeleted;
 
     final bool hasFile = fileUrl != null && fileUrl.isNotEmpty;
-    final bool hasImage = (imageUrl != null && imageUrl.isNotEmpty) ||
-        (isFileImage && fileUrl != null && fileUrl.isNotEmpty);
-    // If nothing to show (no text, no image, no file) -> shimmer placeholder
-    if (content.isEmpty && !hasImage && !hasFile) {
-      return Align(
-        alignment: isSentByMe ? Alignment.centerRight : Alignment.centerLeft,
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-          constraints: const BoxConstraints(maxWidth: 260),
-          child: const ShimmerImagePlaceholder(
-            width: 260,
-            height: 300,
-          ),
-        ),
-      );
+    final bool hasImageContent = displayImageUrl != null &&
+        displayImageUrl.isNotEmpty &&
+        (isImage || (displayImageUrl != fileUrl));
+
+    if (content.isEmpty &&
+        !hasImageContent &&
+        !hasFile &&
+        !isAudio &&
+        !isVideo) {
+      return const SizedBox.shrink();
     }
 
     return Padding(
@@ -160,8 +151,8 @@ class MessageBubble extends StatelessWidget {
                 padding: isReply
                     ? null
                     : const EdgeInsets.only(
-                        left: 5, right: 5, top: 5, bottom: 10),
-                constraints: const BoxConstraints(maxWidth: 280),
+                        top: 3, left: 7, right: 6, bottom: 5),
+                constraints: const BoxConstraints(maxWidth: 250),
                 decoration: BoxDecoration(
                   color: isReply
                       ? null
@@ -229,12 +220,6 @@ class MessageBubble extends StatelessWidget {
                             ],
                           ),
 
-                        // Image preview (only if not video and not audio)
-                        if (!isVideo && !isAudio && hasImage)
-                          _buildImage(
-                              context, content, displayImageUrl!, fileName,
-                              isSentByMe: isSentByMe),
-
                         // Audio Message
                         if (isAudio && hasFile)
                           AudioMessageWidget(
@@ -251,10 +236,21 @@ class MessageBubble extends StatelessWidget {
                             status:
                                 message['messageStatus']?.toString() ?? 'sent',
                             showContainer: false,
-                          ),
+                          )
 
-                        // File preview (if file exists and NOT audio)
-                        if (hasFile && !isAudio)
+                        // 2. Video Preview
+                        else if (isVideo && hasFile)
+                          _buildVideoPreviewTile(context, fileUrl,
+                              fileName ?? "", isSentByMe, content.isEmpty)
+
+                        // 3. Image preview
+                        else if (isImage && (hasImageContent || hasFile))
+                          _buildImage(context, content,
+                              displayImageUrl ?? fileUrl ?? "", fileName,
+                              isSentByMe: isSentByMe, showTime: content.isEmpty)
+
+                        // 4. General File preview (Document)
+                        else if (hasFile)
                           _buildFile(
                               context, fileUrl, fileName, fileType, content,
                               isSentByMe: isSentByMe),
@@ -317,7 +313,7 @@ class MessageBubble extends StatelessWidget {
                   ),
                 ),
               if (isVideo ||
-                  hasImage ||
+                  hasImageContent ||
                   hasFile ||
                   (content.isNotEmpty &&
                       RegExp(r'((https?:\/\/)|(www\.))[^\s]+',
@@ -446,9 +442,9 @@ class MessageBubble extends StatelessWidget {
     String imageUrl,
     String? fileName, {
     required bool isSentByMe,
+    bool showTime = true,
   }) {
     if (content == "Message Deleted") return const SizedBox();
-
     final String name = fileName ?? 'Unknown file';
     final String extension =
         name.split('.').isNotEmpty ? name.split('.').last.toLowerCase() : '';
@@ -485,6 +481,7 @@ class MessageBubble extends StatelessWidget {
     }
 
     final bool looksImage = looksLikeImage(imageUrl, name, extension);
+    final bool showTime = content.isEmpty;
 
     // Choose fallback document tile (so PDFs/docs don't show the red '!') ----------------
     Widget documentFallbackTile() {
@@ -646,31 +643,33 @@ class MessageBubble extends StatelessWidget {
         ),
 
         // time + status badge
-        Positioned(
-          bottom: 5,
-          right: -2,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  TimeUtils.formatUtcToIst(message['time']),
-                  style: const TextStyle(fontSize: 10, color: Colors.white),
-                ),
-                if (isSentByMe) ...[
-                  const SizedBox(width: 4),
-                  buildStatusIcon?.call(
-                          message['messageStatus']?.toString() ?? 'sent') ??
-                      const Icon(Icons.done, size: 12, color: Colors.white),
+
+        if (showTime)
+          Positioned(
+            bottom: 5,
+            right: -2,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    TimeUtils.formatUtcToIst(message['time']),
+                    style: const TextStyle(fontSize: 10, color: Colors.white),
+                  ),
+                  if (isSentByMe) ...[
+                    const SizedBox(width: 4),
+                    buildStatusIcon?.call(
+                            message['messageStatus']?.toString() ?? 'sent') ??
+                        const Icon(Icons.done, size: 12, color: Colors.white),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
-        ),
       ],
     );
   }
@@ -840,87 +839,75 @@ class MessageBubble extends StatelessWidget {
 
     // 🔹 If it's a video, show a "media preview" style tile instead of document card
     if (isVideo) {
-      return _buildVideoPreviewTile(context, fileUrl, name, isSentByMe);
+      return _buildVideoPreviewTile(context, fileUrl, name, isSentByMe, true);
     }
 
     // 🔹 Otherwise fall back to your existing document UI...
     // (keep your existing code below, but with the new _getFileIcon)
-    return Container(
-      width: 300,
-      height: 100,
-      margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            margin: const EdgeInsets.only(top: 8),
-            padding: const EdgeInsets.all(8),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 5),
+          child: Container(
+            width: 250, // Match constraints
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.grey[200],
+              color: Colors.white, // White card as in image
               borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(_getFileIcon(fileType), color: chatColor, size: 30),
-                const SizedBox(width: 8),
+                Icon(_getFileIcon(fileType), color: chatColor, size: 28),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    fileName ?? 'Download file',
+                    name,
                     style: const TextStyle(
-                      fontWeight: FontWeight.w500,
-                      overflow: TextOverflow.ellipsis,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                      color: Colors.black87,
                     ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
                   icon: const Icon(Icons.download_rounded),
                   onPressed: () => onFileTap?.call(fileUrl, fileType),
                 ),
               ],
             ),
           ),
-          Positioned(
-            top: 0,
-            bottom: 0,
-            left: isSentByMe ? -60 : null,
-            right: isSentByMe ? null : -60,
-            child: Center(
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(20),
-                  onTap: () {
-                    print("Forwarding file: $fileName");
-                    MyRouter.push(
-                      screen: ForwardMessageScreen(
-                        messages: [message],
-                        currentUserId: message['senderId'] ?? '',
-                        conversionalid: "",
-                        username: message['senderName'] ?? '',
-                      ),
-                    );
-                  },
-                  child: CircleAvatar(
-                    maxRadius: 16,
-                    backgroundColor: Colors.white,
-                    child: Image.asset(
-                      "assets/images/forward.png",
-                      height: 20,
-                      width: 20,
-                    ),
-                  ),
+        ),
+        if (content.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 4, right: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  TimeUtils.formatUtcToIst(message['time']),
+                  style: const TextStyle(fontSize: 10, color: Colors.black54),
                 ),
-              ),
+                if (isSentByMe) ...[
+                  const SizedBox(width: 4),
+                  buildStatusIcon?.call(
+                          message['messageStatus']?.toString() ?? 'sent') ??
+                      const Icon(Icons.done, size: 12, color: Colors.black54),
+                ],
+              ],
             ),
           ),
-        ],
-      ),
+      ],
     );
   }
 
@@ -1235,6 +1222,7 @@ class MessageBubble extends StatelessWidget {
     String videoUrl,
     String fileName,
     bool isSentByMe,
+    bool showTime,
   ) {
     final isNetwork =
         videoUrl.startsWith('http://') || videoUrl.startsWith('https://');
@@ -1330,33 +1318,38 @@ class MessageBubble extends StatelessWidget {
               ),
             ),
             // ✅ TIME + TICKS
-            Positioned(
-              bottom: 6,
-              right: 6,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.45),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      TimeUtils.formatUtcToIst(message['time']),
-                      style: const TextStyle(fontSize: 10, color: Colors.white),
-                    ),
-                    if (isSentByMe) ...[
-                      const SizedBox(width: 4),
-                      buildStatusIcon?.call(
-                            message['messageStatus']?.toString() ?? 'sent',
-                          ) ??
-                          const Icon(Icons.done, size: 12, color: Colors.white),
+
+            if (showTime)
+              Positioned(
+                bottom: 6,
+                right: 6,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.45),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        TimeUtils.formatUtcToIst(message['time']),
+                        style:
+                            const TextStyle(fontSize: 10, color: Colors.white),
+                      ),
+                      if (isSentByMe) ...[
+                        const SizedBox(width: 4),
+                        buildStatusIcon?.call(
+                              message['messageStatus']?.toString() ?? 'sent',
+                            ) ??
+                            const Icon(Icons.done,
+                                size: 12, color: Colors.white),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),

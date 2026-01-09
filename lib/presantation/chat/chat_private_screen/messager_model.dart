@@ -127,8 +127,10 @@ class Message {
           : null, // Optional
       isGroupMessage: json['is_grouped_message'] ?? json['isGroupMessage'],
       groupMessageId: json['group_message_id'] ?? json['groupMessageId'],
-      duration: json['duration'] as String?,
-      contentType: json['ContentType'] as String?,
+      duration:
+          (json['duration'] ?? json['audioDuration'] ?? json['videoDuration'])
+              ?.toString(),
+      contentType: (json['ContentType'] ?? json['contentType'])?.toString(),
     );
   }
 
@@ -367,7 +369,8 @@ class Datum {
 
       thumbNailKey: json["thumbNailKey"],
 
-      ContentType: json["ContentType"]?.toString() ?? "",
+      ContentType:
+          (json["ContentType"] ?? json["contentType"])?.toString() ?? "",
       originalKey: json["originalKey"]?.toString() ?? "",
       originalUrl: json["originalUrl"]?.toString() ?? "",
       thumbnailUrl: json["thumbnailUrl"]?.toString() ?? "",
@@ -395,7 +398,9 @@ class Datum {
                   (x) => Reaction.fromJson(Map<String, dynamic>.from(x as Map)))
               .toList()
           : null,
-      duration: json["duration"]?.toString(),
+      duration:
+          (json["duration"] ?? json["audioDuration"] ?? json["videoDuration"])
+              ?.toString(),
     );
   }
 

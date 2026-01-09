@@ -11,11 +11,13 @@ import 'package:nde_email/utils/reusbale/common_import.dart';
 class AddMembersScreen extends StatefulWidget {
   final String groupId;
   final bool isAdmin;
+  final List<ChatUserlist> groupMembers;
 
   const AddMembersScreen({
     super.key,
     required this.groupId,
     required this.isAdmin,
+    required this.groupMembers,
   });
 
   @override
@@ -24,6 +26,7 @@ class AddMembersScreen extends StatefulWidget {
 
 class _AddMembersScreenState extends State<AddMembersScreen> {
   bool _isSearching = false;
+  late final Set<String> existingMemberIds;
   final searchController = TextEditingController();
   List<ChatUserlist> allUsers = [];
   List<ChatUserlist> filteredUsers = [];
@@ -31,10 +34,18 @@ class _AddMembersScreenState extends State<AddMembersScreen> {
   List<ChatUserlist> selectedUsers = [];
   bool _isAddingMembers = false;
 
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   searchController.addListener(_onSearchChanged);
+  // }
   @override
   void initState() {
     super.initState();
     searchController.addListener(_onSearchChanged);
+
+    // 👇 THIS IS THE KEY
+    existingMemberIds = widget.groupMembers.map((e) => e.userId).toSet();
   }
 
   @override
@@ -88,7 +99,7 @@ class _AddMembersScreenState extends State<AddMembersScreen> {
 
       final body = jsonEncode({
         "groupId": widget.groupId,
-        "membersList": selectedUsers.map((user) => user.id).toList(),
+        "membersList": selectedUsers.map((u) => u.userId).toList(),
       });
 
       print("Body to send: $body");
@@ -97,7 +108,7 @@ class _AddMembersScreenState extends State<AddMembersScreen> {
           Uri.parse('https://api.nowdigitaleasy.com/wschat/v1/group/members');
       final response = await http.post(uri, headers: headers, body: body);
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 201) {
         Messenger.alertSuccess("Members added successfully");
         Navigator.pop(context, true);
       } else {
@@ -231,9 +242,11 @@ class _AddMembersScreenState extends State<AddMembersScreen> {
                                             CircleAvatar(
                                               backgroundColor: ColorUtil
                                                   .getColorFromAlphabet(
-                                                      user.firstName[0]),
+                                                      (user.firstName.isNotEmpty ? user.firstName[0] : 'U')
+),
                                               child: Text(
-                                                user.firstName[0].toUpperCase(),
+                                                (user.firstName.isNotEmpty ? user.firstName[0] : 'U')
+                                                    .toUpperCase(),
                                                 style: const TextStyle(
                                                     color: Colors.white),
                                               ),
@@ -280,28 +293,46 @@ class _AddMembersScreenState extends State<AddMembersScreen> {
                               itemBuilder: (context, index) {
                                 final user = filteredUsers[index];
                                 final isSelected = selectedUsers.contains(user);
+
+                                final isAlreadyInGroup =
+                                    existingMemberIds.contains(user.userId);
+
                                 return ListTile(
-                                  onTap: widget.isAdmin
+                                  onTap: (widget.isAdmin && !isAlreadyInGroup)
                                       ? () {
                                           setState(() {
                                             if (isSelected) {
                                               selectedUsers.remove(user);
                                             } else {
                                               selectedUsers.add(user);
-                                              print(selectedUsers.length);
                                             }
                                           });
                                         }
                                       : null,
+
+                                  // onTap: widget.isAdmin
+                                  //     ? () {
+                                  //         setState(() {
+                                  //           if (isSelected) {
+                                  //             selectedUsers.remove(user);
+                                  //           } else {
+                                  //             selectedUsers.add(user);
+                                  //             print(selectedUsers.length);
+                                  //           }
+                                  //         });
+                                  //       }
+                                  //     : null,
                                   leading: Stack(
                                     clipBehavior: Clip.none,
                                     children: [
                                       CircleAvatar(
                                         backgroundColor:
                                             ColorUtil.getColorFromAlphabet(
-                                                user.firstName[0]),
+                                                (user.firstName.isNotEmpty ? user.firstName[0] : 'U')
+),
                                         child: Text(
-                                          user.firstName[0].toUpperCase(),
+                                          (user.firstName.isNotEmpty ? user.firstName[0] : 'U')
+.toUpperCase(),
                                           style: const TextStyle(
                                             color: Colors.white,
                                             fontWeight: FontWeight.bold,
@@ -320,6 +351,17 @@ class _AddMembersScreenState extends State<AddMembersScreen> {
                                               size: 14,
                                               color: Colors.white,
                                             ),
+                                          ),
+                                        ),
+                                      if (isAlreadyInGroup)
+                                        const Positioned(
+                                          right: -4,
+                                          bottom: -4,
+                                          child: CircleAvatar(
+                                            radius: 10,
+                                            backgroundColor: Colors.orange,
+                                            child: Icon(Icons.lock,
+                                                size: 14, color: Colors.white),
                                           ),
                                         ),
                                     ],

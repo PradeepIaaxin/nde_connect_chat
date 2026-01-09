@@ -36,7 +36,7 @@ class MediaRepository {
 
         final decoded = jsonDecode(response.body);
         final data = decoded['data'];
-        log(data.toString());
+
         if (data is List) {
           return data
               .map<MediaItem>((json) => MediaItem.fromJson(json))
@@ -62,21 +62,19 @@ class MediaRepository {
       final response = await _getRequest(url);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        log(response.body.toString());
         return ContactModel.fromJson(jsonDecode(response.body));
       } else {
         throw Exception(
             'Failed to fetch group contact: ${response.statusCode}');
       }
     } catch (e, stacktrace) {
-      log("  Error in fetchContact: $e\n📍 $stacktrace");
+      log("Error in fetchContact: $e\n📍 $stacktrace");
       rethrow;
     }
   }
 
   Future<OnlineUserModel> fetchCommongrp(String receiverId) async {
     try {
-      print(receiverId);
       final url =
           'https://api.nowdigitaleasy.com/wschat/v1/employees/$receiverId';
       final response = await _getRequest(url);
@@ -88,7 +86,6 @@ class MediaRepository {
         final parsed = OnlineUserModel.fromJson(jsonDecode(response.body));
         print(parsed);
 
-        log(" ${parsed.sharedGroups.length} users");
         return parsed;
       } else {
         throw Exception('Failed to fetch common group: ${response.statusCode}');

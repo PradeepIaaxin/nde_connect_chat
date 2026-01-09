@@ -15,38 +15,6 @@ import '../../../data/respiratory.dart';
 class GrpMessagerApiService {
   late final BuildContext context;
 
-//   Future<GroupMessageResponse> fetchMessages({
-//   required String convoId,
-//   required int page,
-//   required int limit,
-// }) async {
-//   final token = await UserPreferences.getAccessToken();
-//   final workspace = await UserPreferences.getDefaultWorkspace();
-
-//   const baseUrl = 'https://api.nowdigitaleasy.com/wschat/v1/messages';
-
-//   final uri = Uri.parse(baseUrl).replace(queryParameters: {
-//     'convoId': convoId,
-//     'page': page.toString(),
-//     'limit': limit.toString(),
-//   });
-
-//   final response = await http.get(
-//     uri,
-//     headers: {
-//       'Authorization': 'Bearer $token',
-//       'x-workspace': workspace ?? '',
-//       'Content-Type': 'application/json',
-//     },
-//   );
-
-//   if (response.statusCode != 200) {
-//     throw Exception('Failed to fetch group messages');
-//   }
-
-//   return GroupMessageResponse.fromJson(jsonDecode(response.body));
-// }
-
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);

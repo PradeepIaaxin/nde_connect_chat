@@ -56,6 +56,27 @@ pub fn export_chat_frontiers() -> Vec<u8> {
 
 
 #[frb]
+pub fn export_chat_frontiers_json() -> String {
+    let doc = GLOBAL_DOC.lock().unwrap();
+
+    let frontiers = doc.state_frontiers();
+
+    let list: Vec<Value> = frontiers
+        .iter()
+        .map(|f| {
+            json!({
+                "peer": f.peer.to_string(),
+                "counter": f.counter
+            })
+        })
+        .collect();
+
+    serde_json::to_string(&list).unwrap()
+}
+
+
+
+#[frb]
 pub fn decode_message_snapshot(snapshot_base64: String) -> String {
     let bytes = STANDARD
         .decode(snapshot_base64)

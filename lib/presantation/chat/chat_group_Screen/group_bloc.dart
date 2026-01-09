@@ -48,7 +48,6 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
       if (convoId == null) return;
 
       if (convoId != _activeConvoId) return;
-      
 
       final List<GroupMessageModel> existing = [];
       int page = 1;
@@ -233,8 +232,6 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
     }
   }
 
-  
-
   Stream<GroupChatState> mapEventToState(GroupChatEvent event) async* {
     if (event is PermissionCheck) {
       try {
@@ -316,13 +313,21 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
     GrpUploadFileEvent event,
     Emitter<GroupChatState> emit,
   ) async {
+    final completer = Completer<void>();
     emit(UploadInProgress(0));
 
     try {
       await api.uploadFile(
         file: event.file,
-        onProgress: (p) => emit(UploadInProgress(p)),
+        onProgress: (p) {
+          if (!emit.isDone) emit(UploadInProgress(p));
+        },
         onSuccess: (data) async {
+          if (emit.isDone) {
+            if (!completer.isCompleted) completer.complete();
+            return;
+          }
+
           final messageId = event.messageId ?? ObjectId().toString();
           final workspace = await UserPreferences.getDefaultWorkspace();
 
@@ -373,12 +378,22 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
             thumbnailUrl: data["thumbnailUrl"] ?? "",
             originalKey: data["originalKey"] ?? "",
             originalUrl: data["originalUrl"] ?? "",
+            audioDuration: event.duration,
           );
+
+          emit(UploadSuccess(data, messageId: messageId));
+          if (!completer.isCompleted) completer.complete();
         },
-        onError: (err) => emit(UploadFailure(err)),
+        onError: (err) {
+          if (!emit.isDone) emit(UploadFailure(err));
+          if (!completer.isCompleted) completer.complete();
+        },
       );
+
+      await completer.future;
     } catch (e) {
-      emit(UploadFailure(e.toString()));
+      if (!emit.isDone) emit(UploadFailure(e.toString()));
+      if (!completer.isCompleted) completer.complete();
     }
   }
 

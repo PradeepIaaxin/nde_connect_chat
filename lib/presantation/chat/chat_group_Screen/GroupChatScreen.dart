@@ -18,6 +18,7 @@ import 'package:nde_email/presantation/chat/chat_group_Screen/group_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_event.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_model.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_state.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/MediaPreviewScreen.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/MixedMediaViewer.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/commonfuntion.dart';
 import 'package:nde_email/presantation/chat/widget/custom_appbar.dart';
@@ -311,73 +312,43 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       final XFile? file =
           await ImagePicker().pickImage(source: ImageSource.camera);
 
-      if (file != null) {
-        final File localFile = File(file.path);
+      if (file == null) return;
 
-        if (!localFile.existsSync()) {
-          log("  File does not exist at: ${file.path}");
-          Messenger.alert(msg: "Selected image is missing.");
-          return;
-        }
+      // Open preview screen (like Gallery does)
+      final localMessages = await Navigator.push<List<Map<String, dynamic>>>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => BlocProvider.value(
+            value: _groupBloc,
+            child: MediaPreviewScreen(
+              files: [file],
+              conversationId: widget.conversationId,
+              senderId: currentUserId,
+              receiverId: widget.datumId,
+              isGroupChat: true,
+            ),
+          ),
+        ),
+      );
 
-        final mimeType = lookupMimeType(file.path);
-        final isImage = mimeType != null && mimeType.startsWith('image/');
-        log("📄 MIME Type: $mimeType");
-        log("🖼️ Is Image: $isImage");
-
-        final prefs = await SharedPreferences.getInstance();
-
-        if (isImage) {
-          await prefs.setString('chat_image_path', localFile.path);
-          log(" Image path saved: ${localFile.path}");
-        }
-
-        GrpShowAltDialog.grpshowOptionsDialog(context,
-            conversationId: widget.conversationId,
-            senderId: currentUserId,
-            receiverId: widget.datumId,
-            isGroupChat: true,
-            onOptionSelected: _sendMessageImage);
-        final messageId = ObjectId().toString();
-
-        final message = {
-          'message_id': messageId,
-          'content': '',
-          'sender': {'_id': currentUserId},
-          'receiver': {'_id': widget.datumId},
-          'messageStatus': 'pending',
-          'time': DateTime.now().toIso8601String(),
-          'localImagePath': file.path,
-          'fileName': file.name,
-          'fileType': mimeType,
-          'imageUrl': file.path,
-          'fileUrl': null,
-        };
-
-        log("🟢 Local message metadata: $message");
-
+      // Add messages to UI when user confirms send
+      if (localMessages != null && localMessages.isNotEmpty) {
         setState(() {
-          socketMessages.add(message);
+          socketMessages.addAll(localMessages);
+          for (var msg in localMessages) {
+            final id = (msg['message_id'] ?? '').toString();
+            if (id.isNotEmpty) _seenMessageIds.add(id);
+          }
         });
 
-        context.read<GroupChatBloc>().add(
-              GrpUploadFileEvent(
-                file: localFile,
-                convoId: widget.conversationId,
-                senderId: currentUserId,
-                receiverId: widget.datumId,
-                groupId: widget.datumId,
-                messageId: messageId,
-                message: "",
-                isGroupMessage: false,
-                groupMessageId: null,
-              ),
-            );
+        _updateNotifier();
 
-        Navigator.pop(context);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToBottom();
+        });
       }
     } catch (e) {
-      log('  Error opening camera: $e');
+      log('❌ Error opening camera: $e');
       Messenger.alert(msg: "Could not open camera.");
     }
   }
@@ -513,6 +484,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       'isForwarded': msg['isForwarded'] ?? false,
       'reactions': msg['reactions'] ?? [],
       'repliedMessage': msg['reply'] ?? msg['repliedMessage'],
+      'duration': msg['duration']?.toString(),
     };
 
     if (!mounted) return;
@@ -791,6 +763,34 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     if (!file.existsSync()) return;
 
     final messageId = ObjectId().toString();
+
+    // 1. Create optimistic local message for instant UI update
+    final localAudioMessage = {
+      'content': '',
+      'message_id': messageId,
+      'senderId': currentUserId,
+      'sender': {'_id': currentUserId},
+      'messageStatus': 'sending',
+      'time': DateTime.now().toIso8601String(),
+      'fileName': file.path.split('/').last,
+      'fileType': 'audio/m4a',
+      'fileUrl': path, // Local file path
+      'isLocal': true,
+      'contentType': 'audio',
+      'duration': duration.toString(),
+    };
+
+    // 2. Add to socketMessages for instant display
+    setState(() {
+      socketMessages.add(localAudioMessage);
+    });
+
+    // 3. Update UI and save
+    _refreshMessages();
+    final combined = _getCombinedMessages();
+    GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
+
+    _scrollToBottom();
 
     context.read<GroupChatBloc>().add(
           GrpUploadFileEvent(
@@ -1127,6 +1127,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       'profile_pic_path': profilePic,
       'isDeleted': isDeleted,
       'is_deleted': isDeleted,
+      'duration': message['duration']?.toString() ??
+          message['videoDuration']?.toString(),
     };
   }
 
@@ -1963,6 +1965,41 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     return '${msg['message_id'] ?? msg['time']}_${msg['content']}_${msg['imageUrl'] ?? ''}_${msg['fileUrl'] ?? ''}${msg['userName'] ?? ''}';
   }
 
+  bool _isGroupableMedia(Map<String, dynamic> msg) {
+    if (msg['isDeleted'] == true || msg['is_deleted'] == true) return false;
+
+    final String contentType = (msg['ContentType'] ?? msg['contentType'] ?? '')
+        .toString()
+        .toLowerCase();
+    final String fileType =
+        (msg['fileType'] ?? msg['mimeType'] ?? '').toString().toLowerCase();
+    final String fileUrl =
+        (msg['fileUrl'] ?? msg['originalUrl'] ?? '').toString().toLowerCase();
+
+    // 1. Explicitly NOT audio or common document types
+    if (contentType == 'audio' || fileType.startsWith('audio/')) return false;
+
+    // 2. Identify Image
+    // More robust image check:
+    final bool isRealImage =
+        (msg['imageUrl'] != null && msg['imageUrl'].toString().isNotEmpty) &&
+            (fileType.startsWith('image/') ||
+                contentType == 'image' ||
+                ['.jpg', '.jpeg', '.png', '.gif', '.webp']
+                    .any((ext) => fileUrl.endsWith(ext)));
+
+    final bool isLocalImage = (msg['localImagePath'] != null &&
+        msg['localImagePath'].toString().isNotEmpty);
+
+    // 3. Identify Video
+    final bool isRealVideo = fileType.startsWith('video/') ||
+        contentType == 'video' ||
+        ['.mp4', '.mov', '.mkv', '.avi', '.webm']
+            .any((ext) => fileUrl.endsWith(ext));
+
+    return isRealImage || isLocalImage || isRealVideo;
+  }
+
   List<Map<String, dynamic>> _inferGrouping(
       List<Map<String, dynamic>> messages) {
     if (messages.isEmpty) return messages;
@@ -1976,35 +2013,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         continue;
       }
 
-      // 🔹 Detect image
-      final String contentType =
-          (currentMsg['ContentType'] ?? currentMsg['contentType'] ?? '')
-              .toString()
-              .toLowerCase();
-
-      // Explicitly SKIP audio messages from grouping
-      if (contentType == 'audio' ||
-          (currentMsg['fileType'] ?? '').toString().startsWith('audio/')) {
-        continue;
-      }
-      final hasImage = (currentMsg['imageUrl'] != null &&
-              currentMsg['imageUrl'].toString().isNotEmpty) ||
-          (currentMsg['localImagePath'] != null &&
-              currentMsg['localImagePath'].toString().isNotEmpty);
-
-      // 🔹 Detect video
-      final String fileType =
-          (currentMsg['fileType'] ?? currentMsg['mimeType'] ?? '')
-              .toString()
-              .toLowerCase();
-      final String fileUrl =
-          (currentMsg['fileUrl'] ?? currentMsg['originalUrl'] ?? '').toString();
-
-      final bool hasVideo = fileType.startsWith('video/') ||
-          ['.mp4', '.mov', '.mkv', '.avi', '.webm']
-              .any((ext) => fileUrl.toLowerCase().endsWith(ext));
-
-      final bool isMedia = hasImage || hasVideo;
+      final bool isMedia = _isGroupableMedia(currentMsg);
       if (!isMedia) continue;
 
       // Look ahead for consecutive media from same sender within time threshold
@@ -2022,22 +2031,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         final nextTime = _parseTime(nextMsg['time']);
 
         // Detect media for next message
-        final nextHasImage = (nextMsg['imageUrl'] != null &&
-                nextMsg['imageUrl'].toString().isNotEmpty) ||
-            (nextMsg['localImagePath'] != null &&
-                nextMsg['localImagePath'].toString().isNotEmpty);
-
-        final String nextFileType =
-            (nextMsg['fileType'] ?? nextMsg['mimeType'] ?? '')
-                .toString()
-                .toLowerCase();
-        final String nextFileUrl =
-            (nextMsg['fileUrl'] ?? nextMsg['originalUrl'] ?? '').toString();
-        final bool nextHasVideo = nextFileType.startsWith('video/') ||
-            ['.mp4', '.mov', '.mkv', '.avi', '.webm']
-                .any((ext) => nextFileUrl.toLowerCase().endsWith(ext));
-
-        final bool nextIsMedia = nextHasImage || nextHasVideo;
+        // Detect media for next message
+        final bool nextIsMedia = _isGroupableMedia(nextMsg);
 
         if (nextSender != currentSender ||
             !nextIsMedia ||
@@ -2104,6 +2099,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   /// Merge all messages (db + messages + socket), sort, dedupe
+  /// Merge all messages (db + messages + socket), sort, dedupe
   List<Map<String, dynamic>> _getCombinedMessages() {
     final List<Map<String, dynamic>> combined = [];
 
@@ -2130,11 +2126,46 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           msg['message_id'] ?? msg['messageId'] ?? msg['_id'] ?? msg['id'];
       if (msgId != null) {
         final idString = msgId.toString();
-        final existsById = combined.any((m) {
+
+        // Find existing message with same ID
+        final existingIndex = combined.indexWhere((m) {
           final mId = m['message_id'] ?? m['messageId'] ?? m['_id'] ?? m['id'];
           return mId != null && mId.toString() == idString;
         });
-        if (existsById) return;
+
+        if (existingIndex != -1) {
+          // Message with this ID already exists - merge/update it
+          final existing = combined[existingIndex];
+          final existingStatus = (existing['messageStatus'] ?? '').toString();
+          final newStatus = (msg['messageStatus'] ?? '').toString();
+
+          // Priority: sent/delivered/read > sending > pending
+          final statusPriority = {
+            'read': 4,
+            'delivered': 3,
+            'sent': 2,
+            'sending': 1,
+            'pending': 0,
+            'pending_offline': 0,
+            'failed': 0,
+          };
+
+          final existingPriority = statusPriority[existingStatus] ?? 0;
+          final newPriority = statusPriority[newStatus] ?? 0;
+
+          // If new message has better status or more complete data, replace
+          if (newPriority > existingPriority ||
+              (msg['originalUrl'] != null && existing['originalUrl'] == null) ||
+              (msg['fileUrl'] != null && existing['isLocal'] == true)) {
+            // Merge: keep any local data, but update with server data
+            final merged = Map<String, dynamic>.from(existing);
+            msg.forEach((key, value) {
+              if (value != null) merged[key] = value;
+            });
+            combined[existingIndex] = merged;
+          }
+          return; // Don't add duplicate
+        }
       }
 
       // 2. Fallback to content/time check
@@ -2148,13 +2179,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           (m['fileUrl'] ?? '') == (msg['fileUrl'] ?? ''));
 
       if (!exists) {
-        // Create a copy to ensure Flutter detects changes when reactions are modified
         final copy = Map<String, dynamic>.from(msg);
         combined.add(copy);
       }
     }
 
-    // Prioritize LIVE messages (socket) > Fetched (messages) > Local (dbMessages)
     for (var m in socketMessages) {
       addUnique(m);
     }
@@ -2641,7 +2670,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   Widget _buildChatBody() {
-    return BlocListener<GroupChatBloc, GroupChatState>( 
+    return BlocListener<GroupChatBloc, GroupChatState>(
       bloc: _groupBloc,
       listener: (context, state) {
         if (state is PermissionState) {
@@ -2649,6 +2678,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         }
         if (state is GrpMessageSentSuccessfully) {
           // Handled by _sendMessage completer
+        } else if (state is UploadSuccess) {
+          if (state.messageId != null) {
+            _updateMessageStatus(state.messageId!, 'sent');
+          }
         } else if (state is GroupChatError) {
           setState(() {
             _isLoadingMore = false;
@@ -4854,75 +4887,76 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ReusableChatScaffold(
-      appBar: _buildAppBar(),
-      chatBody: _buildChatBody(),
-      voiceRecordingUI: _buildVoiceRecordingUI(),
-      messageInputBuilder: (context) {
-        return BlocListener<GroupChatBloc, GroupChatState>(
-          bloc: _groupBloc,
-          listenWhen: (previous, current) =>
-              current is GroupLeftState ||
-              current is GroupChatError ||
-              current is GroupDetailsLoaded,
-          listener: (context, state) {
-            if (state is GroupLeftState) {
-              setState(() {
-                _hasLeftGroup = true;
-              });
-            }
-            if (state is GroupDetailsLoaded) {
-              if (mounted) {
+    return BlocProvider.value(
+      value: _groupBloc,
+      child: ReusableChatScaffold(
+        appBar: _buildAppBar(),
+        chatBody: _buildChatBody(),
+        voiceRecordingUI: _buildVoiceRecordingUI(),
+        messageInputBuilder: (context) {
+          return BlocListener<GroupChatBloc, GroupChatState>(
+            bloc: _groupBloc,
+            listenWhen: (previous, current) =>
+                current is GroupLeftState ||
+                current is GroupChatError ||
+                current is GroupDetailsLoaded,
+            listener: (context, state) {
+              if (state is GroupLeftState) {
                 setState(() {
-                  final members = state.groupDetails['groupMembers'];
-                  if (members is List) {
-                    groupMembers = members.map((m) {
-                      if (m is Map) {
-                        return (m['member_id'] ?? m['id'] ?? m['_id'] ?? "")
-                            .toString();
-                      }
-                      return m.toString();
-                    }).toList();
-                    print("✅ Updated Group Members from API: $groupMembers");
-                  }
+                  _hasLeftGroup = true;
                 });
               }
-            }
-            if (state is GroupChatError) {
-              log("GroupChatError: ${state.message}");
-            }
-          },
-          child: BlocBuilder<GroupChatBloc, GroupChatState>(
-            bloc: _groupBloc,
-            buildWhen: (previous, current) =>
-                current is! GroupLeftState, // Avoid conflict with listener
-            builder: (context, state) {
-              /// 🔒 User has left the group — show banner instead of input
-              if (_hasLeftGroup) {
-                return const Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Text(
-                    'You have left the group',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.redAccent,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                );
+              if (state is GroupDetailsLoaded) {
+                if (mounted) {
+                  setState(() {
+                    final members = state.groupDetails['groupMembers'];
+                    if (members is List) {
+                      groupMembers = members.map((m) {
+                        if (m is Map) {
+                          return (m['member_id'] ?? m['id'] ?? m['_id'] ?? "")
+                              .toString();
+                        }
+                        return m.toString();
+                      }).toList();
+                      print("✅ Updated Group Members from API: $groupMembers");
+                    }
+                  });
+                }
               }
-
-              final isKeyboardVisible =
-                  WidgetsBinding.instance.window.viewInsets.bottom > 0;
-
-              /// Normal message input UI
-              return _buildMessageInputField(isKeyboardVisible, false);
+              if (state is GroupChatError) {
+                log("GroupChatError: ${state.message}");
+              }
             },
-          ),
-        );
-      },
-      isRecording: _isRecording,
-      bloc: _groupBloc,
+            child: BlocBuilder<GroupChatBloc, GroupChatState>(
+              bloc: _groupBloc,
+              buildWhen: (previous, current) => current is! GroupLeftState,
+              builder: (context, state) {
+                if (_hasLeftGroup) {
+                  return const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Text(
+                      'You have left the group',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.redAccent,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  );
+                }
+
+                final isKeyboardVisible =
+                    WidgetsBinding.instance.window.viewInsets.bottom > 0;
+
+                /// Normal message input UI
+                return _buildMessageInputField(isKeyboardVisible, false);
+              },
+            ),
+          );
+        },
+        isRecording: _isRecording,
+        bloc: _groupBloc,
+      ),
     );
   }
 
@@ -5590,9 +5624,3 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
   }
 }
-
-
-
-
-// when the application is  offline mode 
-// wheneever ia m getting converiosn list - >  forntired , snaptop , userId  - > save in hive -> user went to ofline mode -> online back we need to emit event -> 'convoList:sync', 

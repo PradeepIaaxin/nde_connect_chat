@@ -4,6 +4,7 @@ import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/bloc/prof
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/model/contact_model.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/user_profile_image.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/widget/grp_create_screen.dart';
+import 'package:nde_email/presantation/chat/chat_contact_list/user_data_model.dart';
 import 'package:nde_email/presantation/chat/contact_new_group/add_member_screen.dart';
 import 'package:nde_email/utils/reusbale/colour_utlis.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
@@ -15,6 +16,9 @@ class GroupProfileHeader extends StatelessWidget {
   final String mailName;
   final String fullName;
   final bool grpChat;
+  final List<ChatUserlist> groupMembers;
+  final VoidCallback onAddMember;
+
 
   const GroupProfileHeader({
     super.key,
@@ -24,6 +28,8 @@ class GroupProfileHeader extends StatelessWidget {
     required this.mailName,
     required this.fullName,
     required this.grpChat,
+    required this.groupMembers,
+     required this.onAddMember,
   });
 
   @override
@@ -47,7 +53,7 @@ class GroupProfileHeader extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              _buildProfileAvatar(context, displayLetter,currentGroupName ),
+              _buildProfileAvatar(context, displayLetter, currentGroupName),
               const SizedBox(height: 16),
               _buildProfileTextInfo(currentGroupName),
               const SizedBox(height: 8),
@@ -75,7 +81,8 @@ class GroupProfileHeader extends StatelessWidget {
     return group.totalMembers ?? group.groupMembers.length;
   }
 
-  Widget _buildProfileAvatar(BuildContext context, String displayLetter , String fullName) {
+  Widget _buildProfileAvatar(
+      BuildContext context, String displayLetter, String fullName) {
     return GestureDetector(
       onTap: () {
         MyRouter.push(
@@ -205,14 +212,7 @@ class GroupProfileHeader extends StatelessWidget {
             icon:
                 grpChat == false ? Icons.currency_rupee : Icons.person_add_alt,
             label: grpChat == false ? 'Pay' : 'Add',
-            onTap: () {
-              MyRouter.push(
-                screen: AddMembersScreen(
-                  groupId: groupId,
-                  isAdmin: true,
-                ),
-              );
-            },
+            onTap: grpChat ? onAddMember : () {},
           ),
           _buildActionButton(
             icon: Icons.search,
