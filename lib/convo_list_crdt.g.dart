@@ -18,7 +18,9 @@ class ConvoListCrdtAdapter extends TypeAdapter<ConvoListCrdt> {
     };
     return ConvoListCrdt(
       snapshot: fields[0] as Uint8List,
-      frontiers: (fields[1] as List).cast<int>(),
+      frontiers: (fields[1] as List)
+          .map((dynamic e) => (e as Map).cast<String, dynamic>())
+          .toList(),
       savedAt: fields[2] as int,
     );
   }

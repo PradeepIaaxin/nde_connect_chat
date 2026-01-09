@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:nde_email/presantation/chat/chat_group_Screen/group_bloc.dart';
+import 'package:nde_email/presantation/chat/chat_group_Screen/group_event.dart'
+    as grp_event;
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/MessagerBloc.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/MessagerEvent.dart';
 import 'package:mime/mime.dart';
@@ -420,6 +423,7 @@ class ShowAltDialog {
   }) async {
     try {
       final File localFile = File(file.path);
+      log("File path: ${file.path}");
 
       if (!localFile.existsSync()) {
         log("  File does not exist at: ${file.path}");
@@ -480,7 +484,7 @@ class ShowAltDialog {
         'fileName': file.name,
         'fileType': mimeType,
         'imageUrl': isImage ? file.path : null,
-        'fileUrl': isVideo ? file.path : null,
+        'fileUrl': !isImage ? file.path : null,
         'originalUrl': file.path,
         'isVideo': isVideo,
         'isLocal': true,
@@ -492,24 +496,27 @@ class ShowAltDialog {
 
       // Trigger upload via BLoC
       if (isGroupChat) {
-        // context.read<GroupChatBloc>().add(
-        //       GrpUploadFileEvent(
-        //         localFile,
-        //         conversationId,
-        //         senderId,
-        //         receiverId,
-        //         "",
-        //         isGroupMessage: isGroupMessage,
-        //         groupMessageId: groupMessageId,
-        //       ),
-        //     );
+        context.read<GroupChatBloc>().add(
+              grp_event.GrpUploadFileEvent(
+                file: localFile,
+                convoId: conversationId,
+                senderId: senderId,
+                receiverId: receiverId,
+                groupId: receiverId,
+                message: "",
+                isGroupMessage: isGroupMessage,
+                groupMessageId: groupMessageId,
+                messageId: localMessageId,
+                contentType: isVideo ? 'video' : (isImage ? 'image' : 'file'),
+              ),
+            );
       } else {
         context.read<MessagerBloc>().add(
               UploadFileEvent(
                 localFile,
                 conversationId,
                 senderId,
-                receiverId: receiverId ?? "",
+                receiverId: receiverId,
                 isGroupMessage: isGroupMessage,
                 groupMesageId: groupMessageId,
                 messageId: localMessageId.toString(),

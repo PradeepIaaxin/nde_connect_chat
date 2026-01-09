@@ -213,3 +213,9 @@ Future<void> initializeStorage() async {
 
 //1.already in group not able to choose that guys 
 //2.messgae info 
+
+///grp list added 
+///grp info screen edit option
+///grp add member screen already adding person and profile refresh 
+/// edit name decritiom and avarator refresh 
+/// 

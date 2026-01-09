@@ -92,12 +92,15 @@ class _MessageInputFieldState extends State<MessageInputField> {
   @override
   void initState() {
     super.initState();
+
     widget.focusNode.addListener(() {
       if (widget.focusNode.hasFocus && _showEmoji) {
-        setState(() {
-          _showEmoji = false;
-        });
+        setState(() => _showEmoji = false);
       }
+    });
+
+    widget.messageController.addListener(() {
+      setState(() {});
     });
   }
 
@@ -204,7 +207,6 @@ class _MessageInputFieldState extends State<MessageInputField> {
                           const SizedBox(width: 6),
                           widget.messageController.text.trim().isEmpty
                               ? GestureDetector(
-                                  // 1. Simple Tap: Start Locked Recording immediately
                                   onTap: () {
                                     widget.onLockRecording?.call();
                                   },
@@ -283,8 +285,8 @@ class _MessageInputFieldState extends State<MessageInputField> {
     final String senderId = widget.replyText?['senderId']?.toString() ?? "";
     final String userId = widget.replyText?['sender']?["_id"]?.toString() ?? "";
 
-    log("sssssssss ${senderId}");
-    log("userId ${userId}");
+    log("sssssssss $senderId");
+    log("userId $userId");
 
 // 🔥 Detect grouped media safely
     final bool hasGroupId = widget.replyText?['group_message_id'] != null;
@@ -337,7 +339,7 @@ class _MessageInputFieldState extends State<MessageInputField> {
         typeLabel = duration != null ? 'Audio ($duration)' : 'Audio';
       }
     }
-    Widget _buildVideoThumb(String videoPathOrUrl) {
+    Widget buildVideoThumb(String videoPathOrUrl) {
       const double size = 70;
 
       return SizedBox(
@@ -410,7 +412,7 @@ class _MessageInputFieldState extends State<MessageInputField> {
     const double thumbSize = 45;
     if (!isGroupedMedia) {
       if (isVideoReply) {
-        trailingThumb = _buildVideoThumb(originalUrl);
+        trailingThumb = buildVideoThumb(originalUrl);
       } else if (imageUrl != null && imageUrl.isNotEmpty) {
         trailingThumb = imageUrl.startsWith('/')
             ? Image.file(File(imageUrl),
@@ -648,15 +650,31 @@ class _MessageInputFieldState extends State<MessageInputField> {
   }
 
   void _handleEmojiBackspace() {
-    final text = widget.messageController.text;
-    final sel = widget.messageController.selection;
-    int cursor = sel.start;
-    if (cursor <= 0) return;
+    final controller = widget.messageController;
+    final text = controller.text;
+    final selection = controller.selection;
 
-    final newText = text.replaceRange(cursor - 1, cursor, '');
-    widget.messageController.text = newText;
-    widget.messageController.selection =
-        TextSelection.fromPosition(TextPosition(offset: cursor - 1));
+    if (selection.start <= 0) return;
+
+    final chars = text.characters.toList();
+    final cursorIndex = text.characters
+        .takeWhile((c) => text.indexOf(c) < selection.start)
+        .length;
+
+    if (cursorIndex == 0) return;
+
+    chars.removeAt(cursorIndex - 1);
+
+    final newText = chars.join();
+
+    controller.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(
+        offset: newText.characters.take(cursorIndex - 1).string.length,
+      ),
+    );
+
+    setState(() {});
   }
 
   void _onTextChanged(String value) async {

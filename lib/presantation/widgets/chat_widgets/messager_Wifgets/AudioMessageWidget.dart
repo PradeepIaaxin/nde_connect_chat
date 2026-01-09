@@ -6,7 +6,7 @@ import 'package:nde_email/utils/const/consts.dart';
 
 class AudioMessageWidget extends StatefulWidget {
   final String audioUrl;
-  final String profileAvatarUrl; 
+  final String profileAvatarUrl;
   final bool isSender;
   final String? duration;
   final String? timestamp;
@@ -101,6 +101,23 @@ class _AudioMessageWidgetState extends State<AudioMessageWidget> {
   }
 
   @override
+  void didUpdateWidget(AudioMessageWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.audioUrl != widget.audioUrl ||
+        oldWidget.duration != widget.duration) {
+      // Reset state and re-initialize for the new audio
+      setState(() {
+        _isPlayerInitialized = false;
+        _isPlaying = false;
+        _position = Duration.zero;
+        _duration = Duration.zero;
+      });
+      _audioPlayer.stop();
+      _initPlayer();
+    }
+  }
+
+  @override
   void dispose() {
     _audioPlayer.dispose();
     super.dispose();
@@ -152,6 +169,11 @@ class _AudioMessageWidgetState extends State<AudioMessageWidget> {
     final senderColor = Color.fromARGB(255, 226, 242, 249); // Light Blue
     final receiverColor = Colors.white;
 
+    // Determine display duration: prefer player duration if it exists, otherwise fallback to widget prop
+    final Duration displayDuration = (_duration.inSeconds > 0)
+        ? _duration
+        : Duration(seconds: int.tryParse(widget.duration ?? "0") ?? 0);
+
     final content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -196,10 +218,10 @@ class _AudioMessageWidgetState extends State<AudioMessageWidget> {
                 child: Slider(
                   value: _position.inSeconds
                       .toDouble()
-                      .clamp(0.0, _duration.inSeconds.toDouble()),
+                      .clamp(0.0, displayDuration.inSeconds.toDouble()),
                   min: 0,
-                  max: _duration.inSeconds.toDouble() > 0
-                      ? _duration.inSeconds.toDouble()
+                  max: displayDuration.inSeconds.toDouble() > 0
+                      ? displayDuration.inSeconds.toDouble()
                       : 1.0,
                   onChanged: (value) {
                     _audioPlayer.seek(Duration(seconds: value.toInt()));
@@ -215,10 +237,7 @@ class _AudioMessageWidgetState extends State<AudioMessageWidget> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                _formatDuration(_duration.inSeconds > 0
-                    ? _duration
-                    : Duration(
-                        seconds: int.tryParse(widget.duration ?? "0") ?? 0)),
+                _formatDuration(displayDuration),
                 style: TextStyle(
                   fontSize: 11,
                   color: Colors.grey[600],

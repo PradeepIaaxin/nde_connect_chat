@@ -107,14 +107,13 @@ class _NewGroupChoosenState extends State<NewGroupChoosen> {
       "description": "",
       "roomId": wrkspacetoken,
       "group_avatar": base64Image,
-      //  "group_profile": base64Image,
       "workspaceId": wrkspacetoken,
       "messageId": messageId,
     };
 
     log(groupPayload.toString());
     log(socketService.isConnected.toString());
-    log(groupPayload.toString());
+
     if (socketService.isConnected == true) {
       socketService.socket!.emitWithAck('create_group', [groupPayload],
           ack: (data) {
@@ -125,7 +124,7 @@ class _NewGroupChoosenState extends State<NewGroupChoosen> {
 
           if (responseData['success'] == true) {
             Messenger.alertSuccess(
-                responseData['message'] ?? 'Group created successfully');
+                responseData['message'] ?? '');
 
             Navigator.popUntil(context, (route) => route.isFirst);
             _groupNameController.clear();

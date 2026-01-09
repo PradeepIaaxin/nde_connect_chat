@@ -13,6 +13,7 @@ import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/widget/gr
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/widget/grp_create_screen.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_data_model.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/GroupChatScreen.dart';
+import 'package:nde_email/presantation/chat/contact_new_group/add_member_screen.dart';
 import 'package:nde_email/presantation/chat/contact_new_group/new_group.dart';
 import 'package:nde_email/utils/reusbale/colour_utlis.dart';
 import 'package:nde_email/utils/router/router.dart';
@@ -28,6 +29,7 @@ class UserProfileScreen extends StatefulWidget {
   final bool isGrp;
   final String reciverId;
   final bool favourite;
+
   final bool hasLeftGroup;
 
   const UserProfileScreen(
@@ -135,23 +137,69 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   Widget _buildProfileContent() {
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          GroupProfileHeader(
-            groupId: widget.grpId ?? "",
-            profileAvatarUrl: widget.profileAvatarUrl,
-            userName: widget.userName,
-            mailName: widget.mailName,
-            fullName: fullName,
-            grpChat: widget.isGrp,
+    return BlocBuilder<MediaBloc, MediaState>(
+      builder: (context, state) {
+        final contact = state is ContactLoaded && state.contacts.isNotEmpty
+            ? state.contacts.first
+            : null;
+
+        final displayName = contact?.groupName ?? widget.userName;
+        final avatar = contact?.groupAvatar ?? widget.profileAvatarUrl;
+
+        return SingleChildScrollView(
+          child: Column(
+            children: [
+              GroupProfileHeader(
+                groupId: widget.grpId ?? "",
+                profileAvatarUrl: avatar,
+                userName: displayName,
+                mailName: widget.mailName,
+                fullName: displayName,
+                grpChat: widget.isGrp,
+                groupMembers: contact?.groupMembers.map((m) {
+                      return ChatUserlist(
+                        userId: m.memberId ?? "",
+                        firstName: m.firstName ?? "",
+                        lastName: m.lastName ?? "",
+                        email: m.memberEmail ?? '',
+                        conversationId: widget.conversionalId,
+                        profilePic: m.profilePic ?? '',
+                      );
+                    }).toList() ??
+                    [],
+                onAddMember: () async {
+                  final bool? added = await MyRouter.push(
+                    screen: AddMembersScreen(
+                      groupId: widget.grpId!,
+                      isAdmin: true, 
+                      groupMembers: contact?.groupMembers.map((m) {
+                            return ChatUserlist(
+                              userId: m.memberId ?? "",
+                              firstName: m.firstName ?? "",
+                              lastName: m.lastName ?? "",
+                              email: m.memberEmail ?? '',
+                              conversationId: widget.conversionalId,
+                              profilePic: m.profilePic ?? '',
+                            );
+                          }).toList() ??
+                          [],
+                    ),
+                  );
+
+                  if (added == true) {
+                    _mediaBloc
+                        .add(FetchContact(grpId: widget.grpId!)); // 🔥 REFRESH
+                  }
+                },
+              ),
+              _buildUserInfoSection(),
+              if (!widget.isGrp) _buildCommonGroupsSection(),
+              if (widget.isGrp && widget.grpId != null)
+                GroupContactList(groupId: widget.grpId!),
+            ],
           ),
-          _buildUserInfoSection(),
-          if (!widget.isGrp) _buildCommonGroupsSection(),
-          if (widget.isGrp && widget.grpId != null)
-            GroupContactList(groupId: widget.grpId!),
-        ],
-      ),
+        );
+      },
     );
   }
 

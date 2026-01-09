@@ -85,11 +85,12 @@ class UploadInProgress extends GroupChatState {
 
 class UploadSuccess extends GroupChatState {
   final Map<String, dynamic> response;
+  final String? messageId;
 
-  const UploadSuccess(this.response);
+  const UploadSuccess(this.response, {this.messageId});
 
   @override
-  List<Object?> get props => [response];
+  List<Object?> get props => [response, messageId];
 }
 
 class UploadFailure extends GroupChatState {
@@ -123,6 +124,7 @@ class GroupChatLoadedWithError extends GroupChatState {
   @override
   List<Object> get props => [response, errorMessage];
 }
+
 class GroupDetailsLoaded extends GroupChatState {
   final Map<String, dynamic> groupDetails;
   const GroupDetailsLoaded(this.groupDetails);

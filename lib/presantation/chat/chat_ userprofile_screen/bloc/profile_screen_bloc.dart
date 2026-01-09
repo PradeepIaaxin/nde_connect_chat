@@ -3,9 +3,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/bloc/profile_screen_event.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/bloc/profile_screen_state.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/data/view_deatilsrepo.dart';
+import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/model/contact_model.dart';
 
 class MediaBloc extends Bloc<MediaEvent, MediaState> {
   final MediaRepository repository;
+
+
+ContactModel? currentGroup;
+
 
   MediaBloc(this.repository) : super(MediaInitial()) {
     on<FetchMedia>(_onFetchMedia);
@@ -35,6 +40,7 @@ class MediaBloc extends Bloc<MediaEvent, MediaState> {
     emit(MediaLoading());
     try {
       final contact = await repository.fetchContact(event.grpId);
+          currentGroup = contact;
       emit(ContactLoaded([contact]));
     } catch (e) {
       emit(MediaError(e.toString()));
@@ -147,30 +153,24 @@ class MediaBloc extends Bloc<MediaEvent, MediaState> {
 
   // === NEW: Unified handler for both name AND description ===
   Future<void> _onUpdateGroupLocally(
-    UpdateGroupLocally event,
-    Emitter<MediaState> emit,
-  ) async {
-    final groupId = event.groupId;
+  UpdateGroupLocally event,
+  Emitter<MediaState> emit,
+) async {
+  if (currentGroup == null) return;
 
-    if (state is ContactLoaded) {
-      final currentList = (state as ContactLoaded).contacts;
+  currentGroup = currentGroup!.copyWith(
+    groupName: event.newName ?? currentGroup!.groupName,
+    description: event.newDescription ?? currentGroup!.description,
+    groupAvatar: event.newAvatar ?? currentGroup!.groupAvatar,
+  );
 
-      final updatedList = currentList.map((contact) {
-        if (contact.id == groupId) {
-          return contact.copyWith(
-            groupName: event.newName ?? contact.groupName,
-            description: event.newDescription ?? contact.description,
-            groupAvatar: event.newAvatar ?? contact.groupAvatar, 
-          );
-        }
-        return contact;
-      }).toList();
+  // 🔥 Immediate UI update
+  emit(ContactLoaded([currentGroup!]));
 
-      emit(ContactLoaded(updatedList));
-    }
+  // 🔁 Backend sync
+  _scheduleRefresh(currentGroup!.id??"");
+}
 
-    _scheduleRefresh(groupId);
-  }
 
   // Helper to avoid duplicate refresh code
   void _scheduleRefresh(String groupId) {

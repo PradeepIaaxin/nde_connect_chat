@@ -165,6 +165,26 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
       return;
     }
 
+// 2. Create optimistic local message for instant UI update
+    final tempMessageId = ObjectId().toString();
+    final localMessage = {
+      'content': '',
+      'message_id': tempMessageId,
+      'sender': {'_id': event.senderId},
+      'receiver': {'_id': event.receiverId},
+      'messageStatus': 'sending',
+      'time': DateTime.now().toIso8601String(),
+      'fileName': audioFile.path.split('/').last,
+      'fileType': 'audio/m4a',
+      'fileUrl': event.audioPath,
+      'isLocal': true,
+      'contentType': 'audio',
+      'duration': event.duration,
+    };
+
+    // 3. Emit the local message for instant UI display
+    emit(LocalAudioMessageAdded(localMessage));
+
     emit(UploadInProgress(0));
 
     final Completer<void> completer = Completer<void>();
@@ -193,7 +213,6 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
 
           final roomId =
               socketService.generateRoomId(event.senderId, event.receiverId);
-          final tempMessageId = ObjectId().toString();
 
           // 3. Send via Socket
           socketService.sendMessage(
@@ -213,6 +232,22 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
             fileWithText: false,
             audioDuration: event.duration,
             originalUrl: data["originalUrl"] ?? data["location"] ?? "",
+            ackCallback: (ack) {
+              final tempId = ack['tempId'] ?? tempMessageId;
+              final realId = ack['realId'] ??
+                  ack['data']?['messageId'] ??
+                  ack['message_id'];
+
+              if (realId == null) return;
+
+              emit(
+                MessageAckReceived(
+                  tempId: tempId.toString(),
+                  realId: realId.toString(),
+                  status: 'sent',
+                ),
+              );
+            },
           );
 
           if (!completer.isCompleted) completer.complete();
@@ -463,6 +498,7 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
             thumbnailUrl: data["thumbnailUrl"] ?? "",
             originalKey: data["originalKey"] ?? "",
             originalUrl: data["originalUrl"] ?? "",
+            audioDuration: event.duration,
             ackCallback: (ack) {
               final tempId = ack['tempId'] ?? tempMessageId;
               final realId = ack['realId'] ??

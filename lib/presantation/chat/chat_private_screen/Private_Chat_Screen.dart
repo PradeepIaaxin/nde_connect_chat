@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/message_handler.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/MediaPreviewScreen.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/audio_reuable.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/commonfuntion.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/date_separate.dart';
@@ -32,8 +33,6 @@ class PrivateChatScreen extends StatefulWidget {
   final String? lastname;
   final bool grpChat;
   final bool favourite;
-
-  /// Optional initial messages to show immediately (useful after forwarding)
   final List<Map<String, dynamic>>? initialMessages;
 
   const PrivateChatScreen({
@@ -139,7 +138,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   final recorderHelper = AudioRecorderHelper();
   bool _initialScrollDone = false;
   bool _screenActive = false;
-  String? _lastSeen;
   StreamSubscription<Map<String, dynamic>>? _userStatusSub;
 
   @override
@@ -205,10 +203,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           final lastSeenTime =
               data['lastSeen'] ?? data['last_seen'] ?? data['time'];
           if (lastSeenTime != null) {
-            setState(() {
-              _lastSeen = TimeUtils.formatLastSeen(
-                  DateTime.tryParse(lastSeenTime.toString()) ?? DateTime.now());
-            });
+            setState(() {});
           }
         }
       }
@@ -543,11 +538,19 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           final m = _allMessages[i];
           final isTemp = m['_isTempMessage'] == true;
           final tempContent = (m['content'] ?? '').toString();
+          final tempFileName = (m['fileName'] ?? '').toString();
+
+          // 🆕 Enhanced matching: content for text, fileName for files
+          final bool contentMatch =
+              tempContent == content && content.isNotEmpty;
+          final bool fileMatch = tempFileName.isNotEmpty &&
+              tempFileName == (normalized['fileName'] ?? '').toString();
 
           if (isTemp &&
               m['senderId'] == currentUserId &&
-              tempContent == content &&
-              m['messageStatus'] == 'sending') {
+              (contentMatch || fileMatch) &&
+              (m['messageStatus'] == 'sending' ||
+                  m['messageStatus'] == 'pending_offline')) {
             debugPrint(
                 '🔄 Replacing temp message at index $i with real id $realId');
 
@@ -556,10 +559,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             updated['_isTempMessage'] = false;
             updated['_isOptimistic'] = false;
 
-            // Preserve reply info if any
+            // Preserve locals
             if (m['_localHasReply'] == true) {
               updated['_localHasReply'] = true;
-              updated['reply'] = m['reply'];
+              updated['reply'] = m['reply'] ?? m['_localReply'];
               updated['reply_message_id'] = m['reply_message_id'];
             }
 
@@ -573,6 +576,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         if (!foundTemp && existingIndex == -1) {
           debugPrint('➕ Adding my own message (no temp found)');
           _allMessages.add(normalized);
+        } else if (existingIndex != -1) {
+          _allMessages[existingIndex] = normalized;
         }
       }
       // Message from other user
@@ -595,7 +600,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         }
       });
 
-      // Always show all messages (remove pagination for debugging)
       _visibleCount = _allMessages.length;
 
       // Update the UI
@@ -633,9 +637,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     currentUserId = userId;
     _messageHandler =
         MessageHandler(currentUserId: currentUserId, convoId: widget.convoId);
-
-    // await socketService.connectPrivateRoom(
-    //     currentUserId, widget.datumId!, onMessageReceived, false);
 
     _setupMessageListener();
     _setupReactionListener();
@@ -754,7 +755,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     if (currentUserId.isEmpty || widget.datumId == null) return;
 
     _messagerBloc.add(ListenToMessages(
-        senderId: currentUserId, receiverId: widget.receiverId!));
+        senderId: currentUserId, receiverId: widget.receiverId ?? ""));
     _statusSubscription ??=
         socketService.statusUpdateStream.listen((statusUpdate) {
       if (!mounted) return;
@@ -994,11 +995,29 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       }
     }
 
-    m['duration'] = rawMsg['duration'] ?? rawMsg['audioDuration'];
+    // 🔥 NEW: Robust inference if ContentType is still missing
+    if (m['ContentType'] == null || m['ContentType'].toString().isEmpty) {
+      final fname = (m['fileName'] ?? '').toString().toLowerCase();
+      final furl =
+          (m['fileUrl'] ?? m['originalUrl'] ?? '').toString().toLowerCase();
+      if (fname.contains('audio_') ||
+          fname.endsWith('.m4a') ||
+          fname.endsWith('.mp3') ||
+          fname.endsWith('.opus') ||
+          furl.contains('/audio/')) {
+        m['ContentType'] = 'audio';
+        log('🎵 Inferred ContentType: audio for ${m['message_id']}');
+      }
+    }
+
+    m['duration'] = rawMsg['duration'] ??
+        rawMsg['audioDuration'] ??
+        rawMsg['videoDuration'];
     if (m['duration'] == null && rawMsg is Map) {
       final v = rawMsg['v'];
       if (v is Map) {
-        m['duration'] = v['duration'] ?? v['audioDuration'];
+        m['duration'] =
+            v['duration'] ?? v['audioDuration'] ?? v['videoDuration'];
       }
     }
 
@@ -1326,6 +1345,13 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       m['id'],
       m['_id'],
       m['reply_message_id'],
+      m['replyMessageId'],
+      if (m['reply'] is Map) m['reply']['reply_message_id'],
+      if (m['reply'] is Map) m['reply']['message_id'],
+      if (m['reply'] is Map) m['reply']['id'],
+      if (m['repliedMessage'] is Map) m['repliedMessage']['reply_message_id'],
+      if (m['repliedMessage'] is Map) m['repliedMessage']['message_id'],
+      if (m['repliedMessage'] is Map) m['repliedMessage']['id'],
     ];
 
     for (final c in candidates) {
@@ -1343,26 +1369,163 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     final ctx = _messageContexts[messageId];
 
     if (ctx != null && ctx.mounted) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Scrollable.ensureVisible(
-          ctx,
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-          alignment: 0.5,
-        );
+      _highlightAndScrollToContext(ctx, messageId);
+      return true;
+    }
 
-        _highlightMessage(messageId);
-      });
+    final combinedMessages = _messagesNotifier.value;
+    final int msgIndex = combinedMessages.indexWhere((m) {
+      final mid =
+          (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '').toString();
+      return mid == messageId;
+    });
+
+    if (msgIndex != -1) {
+      final int listIndex = combinedMessages.length - 1 - msgIndex;
+
+      final double estimatedOffset =
+          _estimateScrollOffset(listIndex, combinedMessages);
+
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(estimatedOffset.clamp(
+          0.0,
+          _scrollController.position.maxScrollExtent,
+        ));
+      }
+
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      final targetCtx = _messageContexts[messageId];
+      if (targetCtx != null && targetCtx.mounted) {
+        _highlightAndScrollToContext(targetCtx, messageId);
+        return true;
+      }
+
+      double currentEstimate = estimatedOffset;
+      for (int attempt = 0; attempt < 3; attempt++) {
+        await Future.delayed(const Duration(milliseconds: 50));
+
+        final targetCtx = _messageContexts[messageId];
+        if (targetCtx != null && targetCtx.mounted) {
+          _highlightAndScrollToContext(targetCtx, messageId);
+          return true;
+        }
+
+        int? closestVisibleIndex;
+        double minDiff = double.infinity;
+
+        for (final entry in _messageContexts.entries) {
+          final ctx = entry.value;
+          if (ctx.mounted) {
+            final idx = combinedMessages.indexWhere((m) {
+              final mid = (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '')
+                  .toString();
+              return mid == entry.key;
+            });
+
+            if (idx != -1) {
+              final diff = (idx - msgIndex).abs().toDouble();
+              if (diff < minDiff) {
+                minDiff = diff;
+                closestVisibleIndex = idx;
+              }
+            }
+          }
+        }
+
+        if (closestVisibleIndex != null) {
+          final int indexDiff = msgIndex - closestVisibleIndex;
+
+          double correction = 0;
+          final int start = indexDiff > 0 ? closestVisibleIndex : msgIndex;
+          final int end = indexDiff > 0 ? msgIndex : closestVisibleIndex;
+
+          for (int k = start; k < end; k++) {
+            correction += _estimateMessageHeight(combinedMessages[k]);
+          }
+
+          if (indexDiff < 0) correction = -correction;
+
+          currentEstimate += correction;
+          if (_scrollController.hasClients) {
+            _scrollController.jumpTo(currentEstimate.clamp(
+              0.0,
+              _scrollController.position.maxScrollExtent,
+            ));
+          }
+        } else {
+          break;
+        }
+      }
+
+      final finalCtx = _messageContexts[messageId];
+      if (finalCtx != null && finalCtx.mounted) {
+        _highlightAndScrollToContext(finalCtx, messageId);
+        return true;
+      }
+
+      _highlightMessage(messageId);
       return true;
     }
 
     if (fetchIfMissing) {
       _triggerServerFetch();
-      await Future.delayed(const Duration(milliseconds: 150));
+      await Future.delayed(const Duration(milliseconds: 300));
       return _scrollToMessageById(messageId);
     }
 
     return false;
+  }
+
+  void _highlightAndScrollToContext(BuildContext ctx, String messageId) {
+    if (!ctx.mounted) return;
+
+    _highlightMessage(messageId);
+
+    Scrollable.ensureVisible(
+      ctx,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+      alignment: 0.5,
+    );
+  }
+
+  double _estimateScrollOffset(
+      int listIndex, List<Map<String, dynamic>> messages) {
+    double offset = 0.0;
+    for (int i = 0; i < listIndex; i++) {
+      final realIndex = messages.length - 1 - i;
+      if (realIndex >= 0 && realIndex < messages.length) {
+        offset += _estimateMessageHeight(messages[realIndex]);
+      }
+    }
+    return offset;
+  }
+
+  double _estimateMessageHeight(Map<String, dynamic> message) {
+    double height = 60.0;
+
+    final content = (message['content'] ?? '').toString();
+    if (content.isNotEmpty) {
+      height += (content.length / 40) * 20.0;
+    }
+
+    // Media
+    if ((message['imageUrl'] != null &&
+            message['imageUrl'].toString().isNotEmpty) ||
+        (message['localImagePath'] != null &&
+            message['localImagePath'].toString().isNotEmpty) ||
+        (message['fileUrl'] != null &&
+            message['fileUrl'].toString().isNotEmpty)) {
+      height += 250.0;
+    }
+
+    // Reply preview
+    if (message['isReplyMessage'] == true || message['reply'] != null) {
+      height += 60.0;
+    }
+
+    return height;
   }
 
   void _highlightMessage(String messageId) {
@@ -1370,7 +1533,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     _highlightTimer?.cancel();
     _highlightTimer = Timer(
-      const Duration(milliseconds: 600), // 👈 SHORT highlight
+      const Duration(milliseconds: 1500),
       () {
         if (!mounted) return;
         setState(() => _highlightedMessageId = null);
@@ -1385,78 +1548,38 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       final XFile? file =
           await ImagePicker().pickImage(source: ImageSource.camera);
 
-      if (file != null) {
-        final localFile = File(file.path);
+      if (file == null) return;
 
-        if (!localFile.existsSync()) {
-          Messenger.alert(msg: "Selected image is missing.");
-          return;
-        }
-
-        final mimeType = lookupMimeType(file.path);
-        final isImage = mimeType != null && mimeType.startsWith('image/');
-
-        final prefs = await SharedPreferences.getInstance();
-
-        if (isImage) {
-          await prefs.setString('chat_image_path', localFile.path);
-        }
-
-        ShowAltDialog.showOptionsDialog(context,
+      // Open preview screen (like Gallery does)
+      final localMessages = await Navigator.push<List<Map<String, dynamic>>>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => MediaPreviewScreen(
+            files: [file],
             conversationId: widget.convoId,
             senderId: currentUserId,
             receiverId: widget.receiverId!,
             isGroupChat: false,
-            onOptionSelected: (List<Map<String, dynamic>> localMessages) {
-          if (localMessages.isEmpty) return;
+          ),
+        ),
+      );
 
-          setState(() {
-            // Add all local messages (grouped or single) to the socket list
-            socketMessages.addAll(localMessages);
-
-            // Mark them as seen so we don't re-add them if they come back from server
-            for (var msg in localMessages) {
-              final id = (msg['message_id'] ?? '').toString();
-              if (id.isNotEmpty) _seenMessageIds.add(id);
-            }
-          });
-
-          // Refresh UI immediately
-          _updateNotifier();
-          _scheduleSaveMessages();
-
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _scrollToBottom();
-          });
+      // Add messages to UI when user confirms send
+      if (localMessages != null && localMessages.isNotEmpty) {
+        setState(() {
+          socketMessages.addAll(localMessages);
+          for (var msg in localMessages) {
+            final id = (msg['message_id'] ?? '').toString();
+            if (id.isNotEmpty) _seenMessageIds.add(id);
+          }
         });
 
-        final message = {
-          'message_id': 'temp_${DateTime.now().millisecondsSinceEpoch}',
-          'content': '',
-          'sender': {'_id': currentUserId},
-          'receiver': {'_id': widget.receiverId},
-          'messageStatus': 'pending',
-          'time': DateTime.now().toIso8601String(),
-          'localImagePath': file.path,
-          'fileName': file.name,
-          'fileType': mimeType,
-          'imageUrl': file.path,
-          'fileUrl': null,
-        };
-
-        socketMessages.add(message);
-        _seenMessageIds.add((message['message_id'] ?? "").toString());
         _updateNotifier();
+        _scheduleSaveMessages();
 
-        context.read<MessagerBloc>().add(
-              UploadFileEvent(
-                localFile,
-                widget.convoId,
-                currentUserId,
-                receiverId: widget.receiverId!,
-              ),
-            );
-        Navigator.pop(context);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToBottom();
+        });
       }
     } catch (e) {
       log('❌ Error opening camera: $e');
@@ -2061,62 +2184,89 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       displayMessage['messageStatus'] = 'deleted';
     }
 
-    return MessageBubble(
-      message: displayMessage,
-      isSentByMe: correctIsSentByMe,
-      isSelected: _selectedMessageKeys.contains(_generateMessageKey(message)),
-      onTap: () => _onMessageTap(message),
-      onLongPress: () => _onMessageLongPress(message),
-      onRightSwipe:
-          message['is_deleted'] == true ? null : () => _replyToMessage(message),
-      // onRightSwipe: () => _replyToMessage(message),
-      onFileTap: (url, type) => _openFile(url, type),
-      buildStatusIcon: (status) => MessageStatusIcon(status: status ?? 'sent'),
-      buildReactionsBar: (msg, sentByMe) => _buildReactionsBar(msg, sentByMe),
-      sentMessageColor: senderColor,
-      receivedMessageColor: receiverColor,
-      selectedMessageColor: senderColor.withOpacity(0.2),
-      borderColor: Colors.blue,
-      chatColor: chatColor,
-      onReact: (msg, emoji) {
-        setState(() {
-          _handleReactionTap(msg, emoji);
-          _showSearchAppBar = false;
-          _isSelectionMode = false;
-          _selectedMessages.clear();
-          _selectedMessageKeys.clear();
-        });
-      },
-      emojpicker: () => ReactionDialog.show(
-        context: context,
-        messageId: message['message_id']?.toString() ?? '',
-        reactions: message['reactions'] as List<Map<String, dynamic>>? ?? [],
-        currentUserId: currentUserId,
-        convoId: widget.convoId,
-        receiverId: widget.receiverId ?? "",
-        firstName: widget.firstname ?? "",
-        lastName: widget.lastname ?? "",
-      ),
-      isReply: isReply,
-      onReplyTap: () {
-        print("hiiii");
-        final replyId =
-            message['reply']?['id'] ?? message['reply']?['message_id'];
+    final messageId =
+        (message['message_id'] ?? message['messageId'] ?? message['id'] ?? '')
+            .toString();
 
-        if (replyId != null) {
-          print("replyIddd $replyId");
-          final groupId = message['group_message_id']?.toString();
+    return Builder(builder: (context) {
+      // Register context for scrolling
+      if (messageId.isNotEmpty) {
+        _messageContexts[messageId] = context;
+      }
 
-          _scrollToMessageById(
-            replyId,
-            fetchIfMissing: false,
-          );
-        }
-      },
-      groupMediaLength: length,
-      allMessages: _getCombinedMessages(),
-      stretchReply: true,
-    );
+      return MessageBubble(
+        message: displayMessage,
+        isSentByMe: correctIsSentByMe,
+        isSelected: _selectedMessageKeys.contains(_generateMessageKey(message)),
+        onTap: () => _onMessageTap(message),
+        onLongPress: () => _onMessageLongPress(message),
+        onRightSwipe: message['is_deleted'] == true
+            ? null
+            : () => _replyToMessage(message),
+        onFileTap: (url, type) => _openFile(url, type),
+        buildStatusIcon: (status) =>
+            MessageStatusIcon(status: status ?? 'sent'),
+        buildReactionsBar: (msg, sentByMe) => _buildReactionsBar(msg, sentByMe),
+        sentMessageColor: senderColor,
+        receivedMessageColor: receiverColor,
+        selectedMessageColor: senderColor.withOpacity(0.2),
+        borderColor: Colors.blue,
+        chatColor: chatColor,
+        onReact: (msg, emoji) {
+          setState(() {
+            _handleReactionTap(msg, emoji);
+            _showSearchAppBar = false;
+            _isSelectionMode = false;
+            _selectedMessages.clear();
+            _selectedMessageKeys.clear();
+          });
+        },
+        emojpicker: () => ReactionDialog.show(
+          context: context,
+          messageId: message['message_id']?.toString() ?? '',
+          reactions: message['reactions'] as List<Map<String, dynamic>>? ?? [],
+          currentUserId: currentUserId,
+          convoId: widget.convoId,
+          receiverId: widget.receiverId ?? "",
+          firstName: widget.firstname ?? "",
+          lastName: widget.lastname ?? "",
+        ),
+        isReply: isReply,
+        onReplyTap: () {
+          final replyId = (message['reply']?['reply_message_id'] ??
+                  message['reply']?['message_id'] ??
+                  message['reply']?['id'] ??
+                  message['repliedMessage']?['reply_message_id'] ??
+                  message['repliedMessage']?['message_id'] ??
+                  message['repliedMessage']?['id'] ??
+                  message['reply_message_id'] ??
+                  message['replyMessageId'])
+              ?.toString();
+
+          if (replyId != null && replyId.isNotEmpty) {
+            _highlightMessage(replyId);
+
+            _scrollToMessageById(
+              replyId,
+              fetchIfMissing: true,
+            ).then((found) {
+              if (!found && mounted) {
+                Messenger.alert(
+                  msg:
+                      "Original message not loaded. Scroll up to load older messages.",
+                );
+              }
+            }).catchError((error) {
+              debugPrint('Error scrolling to message: $error');
+            });
+          }
+        },
+        groupMediaLength: length,
+        allMessages: _getCombinedMessages(),
+        stretchReply: true,
+        //isHighlighted: messageId == _highlightedMessageId,
+      );
+    });
   }
 
   Widget _buildReactionsBar(Map<String, dynamic> message, bool sentByMe) {
@@ -2167,10 +2317,32 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       }
 
       // 2️⃣ Check top-level reply fields
-      for (final key in ['reply_message_id', 'replyId', 'reply_to_id']) {
+      for (final key in [
+        'reply_message_id',
+        'replyId',
+        'reply_to_id',
+        'replyMessageId'
+      ]) {
         final v = m[key];
         if (v != null && v.toString().isNotEmpty) {
           return v.toString();
+        }
+      }
+
+      // 3️⃣ Check repliedMessage map (from MessageHandler)
+      final replied = m['repliedMessage'];
+      if (replied is Map<String, dynamic>) {
+        for (final key in [
+          'reply_message_id',
+          'message_id',
+          'messageId',
+          'id',
+          '_id',
+        ]) {
+          final v = replied[key];
+          if (v != null && v.toString().isNotEmpty) {
+            return v.toString();
+          }
         }
       }
 
@@ -3353,7 +3525,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        Navigator.pop(context, true); // 🔥 notify previous screen
+        Navigator.pop(context, true);
         return false; // prevent default pop
       },
       child: ReusableChatScaffold(
@@ -3389,6 +3561,46 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                     realId: state.realId,
                     status: state.status,
                   );
+                } else if (state is LocalAudioMessageAdded) {
+                  // ✅ Handle optimistic audio message - add directly to _allMessages
+                  final audioMessage = state.message;
+                  final id = audioMessage['message_id']?.toString();
+
+                  if (id != null && id.isNotEmpty) {
+                    // ✅ Check if not already in _allMessages (single source of truth)
+                    final exists =
+                        _allMessages.any((m) => (m['message_id'] ?? '') == id);
+
+                    if (!exists) {
+                      setState(() {
+                        // ✅ Add directly to _allMessages to avoid merge conflicts
+                        _allMessages.add(audioMessage);
+                        _seenMessageIds.add(id);
+                      });
+
+                      // ✅ Sort messages by time
+                      _allMessages.sort((a, b) {
+                        try {
+                          return _parseTime(a['time'])
+                              .compareTo(_parseTime(b['time']));
+                        } catch (e) {
+                          return 0;
+                        }
+                      });
+
+                      // ✅ Update visible count
+                      _visibleCount = _allMessages.length;
+
+                      // ✅ Update UI without re-merging (preserves existing statuses)
+                      _updateNotifierFromAll();
+                      _scheduleSaveMessages();
+
+                      // Scroll to bottom to show new message
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        _scrollToBottom();
+                      });
+                    }
+                  }
                 } else if (state is MessagerLoaded) {
                   final flat = state.response.data
                       .expand((g) => g.messages)
@@ -3654,30 +3866,31 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                       _prevScrollExtentBeforeLoad = 0.0;
                     });
                   }
+                } else if (state is MessageAckReceived) {
+                  _replaceTempMessageWithReal(
+                    tempId: state.tempId,
+                    realId: state.realId,
+                    status: state.status,
+                  );
+                } else if (state is LocalAudioMessageAdded) {
+                  final msg = state.message;
+                  final id = (msg['message_id'] ?? '').toString();
+                  if (id.isNotEmpty) _seenMessageIds.add(id);
+
+                  setState(() {
+                    socketMessages.add(msg);
+                  });
+                  _updateNotifier();
+                  _scheduleSaveMessages();
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    _scrollToBottom();
+                  });
                 } else if (state is NewMessageReceivedState) {
                   if (state.message['isGroupChat'] == true) return;
                   final normalized = normalizeMessage(state.message);
                   if (normalized.isEmpty) return;
 
-                  final id = normalized['message_id']?.toString();
-                  if (id == null || id.isEmpty) return;
-
-                  final index =
-                      _allMessages.indexWhere((m) => m['message_id'] == id);
-
-                  if (index == -1) {
-                    _allMessages.add(normalized);
-
-                    // 🔥 FIX: always expand visible window on new message
-                    _visibleCount = _allMessages.length;
-
-                    _allMessages.sort(
-                      (a, b) => _parseTime(a['time'])
-                          .compareTo(_parseTime(b['time'])),
-                    );
-
-                    _updateNotifierFromAll();
-                  }
+                  _handleIncomingRawMessage(normalized);
                 }
               },
               builder: (context, state) {
@@ -4171,7 +4384,42 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       final existingIndex = result.indexWhere((e) {
         final eid =
             (e['message_id'] ?? e['messageId'] ?? e['id'])?.toString() ?? '';
-        return eid == id;
+        if (eid == id) return true;
+
+        // 🔥 AGGRESSIVE DEDUPLICATION:
+        // If IDs differ, check if it's potentially the same message
+        // (Same sender, same content/fileName, and very close time)
+        final eIsTemp = e['_isTempMessage'] == true;
+        final mIsTemp = m['_isTempMessage'] == true;
+
+        if (eIsTemp != mIsTemp) {
+          final eSender = (e['senderId'] ?? e['from'])?.toString();
+          final mSender = (m['senderId'] ?? m['from'])?.toString();
+
+          if (eSender == mSender && eSender != null) {
+            final eContent = (e['content'] ?? '').toString();
+            final mContent = (m['content'] ?? '').toString();
+            final eFileName = (e['fileName'] ?? '').toString();
+            final mFileName = (m['fileName'] ?? '').toString();
+
+            final bool contentMatch =
+                eContent.isNotEmpty && eContent == mContent;
+            final bool fileMatch =
+                eFileName.isNotEmpty && eFileName == mFileName;
+
+            if (contentMatch || fileMatch) {
+              try {
+                final te = _parseTime(e['time']);
+                final tm = _parseTime(m['time']);
+                // Within 5 seconds (to account for server time skew)
+                if (te.difference(tm).inSeconds.abs() < 5) {
+                  return true;
+                }
+              } catch (_) {}
+            }
+          }
+        }
+        return false;
       });
 
       if (existingIndex == -1) {
@@ -4179,22 +4427,25 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       } else {
         final existing = result[existingIndex];
 
-        final existingHasReply = _hasReplyForMessage(existing);
-        final newHasReply = _hasReplyForMessage(m);
+        // Preference logic: keep server message over temp message
+        final existingIsTemp = existing['_isTempMessage'] == true;
+        final newIsTemp = m['_isTempMessage'] == true;
 
-        // 🔥 STRICT FORWARDED CHECK (CRDT WINS)
-        final bool newIsForwarded = m['isForwarded'] == true;
-        final bool existingIsForwarded = existing['isForwarded'] == true;
-
-        if (newHasReply && !existingHasReply) {
-          // Prefer message with reply info
+        if (existingIsTemp && !newIsTemp) {
+          // Replace temp with real
           result[existingIndex] = m;
-        } else if (newIsForwarded != existingIsForwarded) {
-          // 🔥 CRDT OVERRIDES OLD FORWARDED STATE
-          result[existingIndex] = m;
+        } else if (!existingIsTemp && newIsTemp) {
+          // Keep the existing real message, skip new temp
         } else {
-          // Otherwise keep latest (CRDT already sorted)
-          result[existingIndex] = m;
+          // Both real or both temp, keep latest info
+          final existingHasReply = _hasReplyForMessage(existing);
+          final newHasReply = _hasReplyForMessage(m);
+
+          if (newHasReply && !existingHasReply) {
+            result[existingIndex] = m;
+          } else {
+            result[existingIndex] = m;
+          }
         }
       }
     }
