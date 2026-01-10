@@ -24,8 +24,8 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
   Widget? trailingThumb;
   @override
   Widget build(BuildContext context) {
-    print("REPLIED DATA => ${widget.replied}");
-    print("REPLIED DATA => ${widget.groupMediaLength}");
+    log("REPLIED DATA => ${widget.replied}");
+    log("REPLIED DATAs => ${widget.groupMediaLength}");
     const double thumbSize = 70;
     final replyContent =
         (widget.replied['replyContent'] ?? widget.replied['content'] ?? '')
@@ -119,6 +119,56 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
 
       return const SizedBox.shrink();
     }
+    Widget buildReplyText() {
+      final text = replyContent.toLowerCase();
+
+      if (text.contains('photo')) {
+        return Row(
+          children: [
+            const Icon(Icons.image, size: 16, color: Colors.grey),
+            const SizedBox(width: 4),
+            Text(replyContent, style: const TextStyle(fontSize: 12)),
+          ],
+        );
+      }
+
+      if (text.contains('video')) {
+        return Row(
+          children: [
+            const Icon(Icons.videocam, size: 16, color: Colors.grey),
+            const SizedBox(width: 4),
+            Text(replyContent, style: const TextStyle(fontSize: 12)),
+          ],
+        );
+      }
+
+      if (text.contains('media')) {
+        return Row(
+          children: [
+            const Icon(Icons.collections, size: 16, color: Colors.grey),
+            const SizedBox(width: 4),
+            Text(replyContent, style: const TextStyle(fontSize: 12)),
+          ],
+        );
+      }
+
+      if (isAudio) {
+        return Row(
+          children: const [
+            Icon(Icons.music_note, size: 16, color: Colors.grey),
+            SizedBox(width: 4),
+            Text("Audio", style: TextStyle(fontSize: 12)),
+          ],
+        );
+      }
+
+      return Text(
+        replyContent,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontSize: 12),
+      );
+    }
 
     return GestureDetector(
       onTap: widget.onTap,
@@ -161,9 +211,7 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
                                 size: 16, color: Colors.grey),
                             const SizedBox(width: 4),
                             Text(
-                              isVideo
-                                  ? "${widget.groupMediaLength} videos"
-                                  : "${widget.groupMediaLength} photos",
+                              replyContent,
                               style: const TextStyle(fontSize: 12),
                             ),
                           ],
@@ -171,31 +219,26 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
                       else if (isVideo)
                         const Text("Video", style: TextStyle(fontSize: 12))
                       else if (isAudio)
-                        Row(
-                          children: const [
-                            Icon(Icons.music_note,
-                                size: 16, color: Colors.grey),
-                            SizedBox(width: 4),
-                            Text("Audio", style: TextStyle(fontSize: 12)),
-                          ],
-                        )
-                      else if (isImage)
-                        const Text("Photo", style: TextStyle(fontSize: 12))
-                      else
-                        Text(
-                          replyContent,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 11),
-                        ),
+                          Row(
+                            children: const [
+                              Icon(Icons.music_note, size: 16, color: Colors.grey),
+                              SizedBox(width: 4),
+                              Text("Audio", style: TextStyle(fontSize: 12)),
+                            ],
+                          )
+                        else if (isImage)
+                            const Text("Photo", style: TextStyle(fontSize: 12))
+                          else
+                            buildReplyText(),
+
                     ],
                   ),
                 ),
               ),
 
               // RIGHT THUMB
-              if ((isGrouped || isImage || isVideo) && mediaUrl.isNotEmpty)
-                Padding(
+              if ((isGroupedMedia || isImage || isVideo) && mediaUrl.isNotEmpty)
+                isGroupedMedia?SizedBox(): Padding(
                   padding: const EdgeInsets.only(left: 8),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(6),

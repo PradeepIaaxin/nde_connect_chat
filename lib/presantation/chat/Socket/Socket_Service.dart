@@ -1267,12 +1267,13 @@ class SocketService {
     required bool isGroupMessage,
     String? groupMessageId,
     String? audioDuration,
+    String? groupMessageCount,
   }) {
     if (!isConnected) {
       _slog('sendMessage aborted: not connected');
       return;
     }
-
+log("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb ${ reply?["replyContent"]}");
     final messagePayload = {
       "messageId": messageId,
       "conversationId": conversationId,
@@ -1304,7 +1305,7 @@ class SocketService {
         "reply": {
           "replyToUser": reply["sender"]?["_id"],
           "replyToMessage": reply["message_id"] ?? reply["_id"] ?? reply["id"],
-          "replyContent": reply["content"] ?? reply["replyContent"] ?? "",
+          "replyContent":isGroupMessage?groupMessageCount: reply["replyContent"] ?? reply["replyContent"] ?? "",
           "ContentType": reply["ContentType"] ?? "text",
           "fileName": reply["fileName"],
           "first_name": reply["sender"]?["first_name"] ?? "",

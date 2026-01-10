@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:intl/intl.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_model.dart';
 
@@ -10,14 +12,21 @@ class MessageHandler {
     required this.convoId,
   });
 
+  String normalizeReplyContent(dynamic value) {
+    if (value == null) return '';
+    if (value is List) return value.join(', ');
+    if (value is Map) return value.values.join(', ');
+    return value.toString();
+  }
+
   /// 🔹 MAIN NORMALIZER (CRDT + SOCKET SAFE)
   Map<String, dynamic> normalizeMessage(dynamic rawMsg) {
+
     final Map<String, dynamic> message = rawMsg is Datum
         ? rawMsg.toJson()
         : rawMsg is Map
             ? Map<String, dynamic>.from(rawMsg)
             : {};
-
     if (message.isEmpty) return {};
 
     /// 🔹 IDS (CANONICAL)
@@ -58,10 +67,20 @@ class MessageHandler {
           {};
 
       if (reply is Map && reply.isNotEmpty) {
-        replyContent = reply['replyContent'] ??
-            reply['content'] ??
-            reply['fileName'] ??
-            '';
+        final rawReplyContent =
+            reply['replyContent'] ?? reply['content'] ?? reply['fileName'] ?? '';
+
+        // if (rawReplyContent is List) {
+        //   replyContent = rawReplyContent.join(', ');
+        // } else if (rawReplyContent is Map) {
+        //   replyContent = rawReplyContent.values.join(', ');
+        // } else {
+        //   replyContent = rawReplyContent.toString();
+        // }
+        replyContent = normalizeReplyContent(
+            reply['replyContent'] ?? reply['content'] ?? reply['fileName']
+        );
+
 
         replyToUser =
             '${reply['first_name'] ?? ''} ${reply['last_name'] ?? ''}'.trim();
@@ -136,6 +155,7 @@ class MessageHandler {
 
       /// reply (OLD UI COMPATIBLE)
       if (normalizedReply != null) 'reply': normalizedReply,
+      if (normalizedReply != null)  'repliedMessage': normalizedReply,
       'reply_message_id': normalizedReply?['reply_message_id'],
       'replyContent': replyContent,
       'replyToUser': replyToUser,

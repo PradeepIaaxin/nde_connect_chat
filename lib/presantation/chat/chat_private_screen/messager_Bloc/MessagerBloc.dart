@@ -552,6 +552,7 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
         contentType: event.contentType,
         reply: event.replyTo,
         groupMessageId: event.replyGroupMessageId,
+          groupMessageCount:event.groupMessageCount
       );
 
       final localMessage = Message(
