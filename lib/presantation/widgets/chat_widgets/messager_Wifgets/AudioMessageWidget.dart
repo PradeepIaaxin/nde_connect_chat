@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:nde_email/utils/audio/audio_utils.dart';
 import 'package:nde_email/utils/const/consts.dart';
 
 class AudioMessageWidget extends StatefulWidget {
@@ -152,6 +153,8 @@ class _AudioMessageWidgetState extends State<AudioMessageWidget> {
       case 'sent':
         icon = Icons.check;
         color = Colors.grey[600]!;
+        // ✅ ADD SOUND PLAYBACK HERE
+        _playMessageSentSound();
         break;
       default:
         icon = Icons.access_time;
@@ -164,12 +167,24 @@ class _AudioMessageWidgetState extends State<AudioMessageWidget> {
     );
   }
 
+// ✅ ADD THIS METHOD TO YOUR AudioMessageWidget class
+  void _playMessageSentSound() {
+    try {
+      // Use your AudioPlayerService to play the sound
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final playerService = AudioPlayerService();
+        playerService.playMessageSentSound();
+      });
+    } catch (e) {
+      debugPrint("Error playing sent sound: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final senderColor = Color.fromARGB(255, 226, 242, 249); // Light Blue
+    final senderColor = Color.fromARGB(255, 226, 242, 249);
     final receiverColor = Colors.white;
 
-    // Determine display duration: prefer player duration if it exists, otherwise fallback to widget prop
     final Duration displayDuration = (_duration.inSeconds > 0)
         ? _duration
         : Duration(seconds: int.tryParse(widget.duration ?? "0") ?? 0);
@@ -192,7 +207,7 @@ class _AudioMessageWidgetState extends State<AudioMessageWidget> {
                 radius: 20,
                 backgroundColor: widget.isSender
                     ? chatColor.withOpacity(0.2)
-                    : Colors.grey[200],
+                    : const Color.fromARGB(255, 213, 212, 212),
                 child: Icon(
                   _isPlaying ? Icons.pause : Icons.play_arrow,
                   color: widget.isSender ? chatColor : Colors.grey[700],

@@ -8,7 +8,10 @@ import 'package:nde_email/presantation/network/connectivity_servicer.dart';
 import 'package:nde_email/presantation/update_screen/update_bloc/update_bloc.dart';
 import 'package:nde_email/presantation/update_screen/update_repo/update_repo.dart';
 import 'package:nde_email/utils/app_state/app_lifecycle_service.dart';
+import 'package:nde_email/utils/appsharescreen/sharepreviewscreen.dart';
 import 'package:nde_email/utils/imports/common_imports.dart';
+import 'dart:io';
+import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
 
 // GLOBAL SINGLETONS
@@ -46,7 +49,7 @@ void main() async {
   await initializeStorage();
   await NotificationService.init();
   await NotificationService.requestPermission();
-// ✅ check first
+  // ✅ check first
   final status = await Permission.storage.status;
   if (!status.isGranted) {
     await Permission.storage.request();
@@ -173,10 +176,57 @@ class MyRootApp extends StatelessWidget {
   }
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   final bool isLoggedIn;
   final bool isFirstOpen;
   const MyApp({required this.isLoggedIn, required this.isFirstOpen, super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  final ReceiveSharingIntent _receiveSharingIntent =
+      ReceiveSharingIntent.instance;
+
+  @override
+  void initState() {
+    super.initState();
+
+    /// 🔹 App opened from share (terminated state)
+    _receiveSharingIntent.getInitialMedia().then((files) {
+      if (files.isNotEmpty) {
+        _openShareUI(files);
+      }
+    });
+
+    /// 🔹 App already running (background / foreground)
+    _receiveSharingIntent.getMediaStream().listen((files) {
+      if (files.isNotEmpty) {
+        _openShareUI(files);
+      }
+    });
+  }
+
+  void _openShareUI(List<SharedMediaFile> files) {
+    final context = MyRouter.navigatorKey.currentContext;
+    if (context == null) return;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SharePreviewScreen(
+          files: files.map((e) => File(e.path)).toList(),
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _receiveSharingIntent.reset();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -208,14 +258,3 @@ Future<void> initializeStorage() async {
   ]);
   await FlutterDownloader.initialize(debug: false);
 }
-
-
-
-//1.already in group not able to choose that guys 
-//2.messgae info 
-
-///grp list added 
-///grp info screen edit option
-///grp add member screen already adding person and profile refresh 
-/// edit name decritiom and avarator refresh 
-/// 

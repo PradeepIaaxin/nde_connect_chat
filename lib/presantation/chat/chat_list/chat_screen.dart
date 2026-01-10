@@ -519,6 +519,22 @@ class _ChatListScreenState extends State<ChatListScreen> {
     context.read<ChatListBloc>().add(UpdateLocalChatList());
   }
 
+  void logChatDetails(dynamic chat) {
+    debugPrint('📌 CHAT ITEM TAPPED');
+    debugPrint('────────────────────────────');
+    debugPrint('🆔 Chat ID: ${chat.id}');
+    debugPrint('👤 Name: ${chat.name}');
+    debugPrint('👥 Is Group Chat: ${chat.isGroupChat}');
+    debugPrint('⭐ Favourite: ${chat.isFavorites}');
+    debugPrint('📩 Receiver ID: ${chat.reciverId}');
+    debugPrint('🧾 Datum ID: ${chat.datumId}');
+    debugPrint('🕒 Last Message Time: ${chat.lastMessageTime}');
+    debugPrint('👤 First Name: ${chat.firstName}');
+    debugPrint('👤 Last Name: ${chat.lastName}');
+    debugPrint('👥 Participants: ${chat.participants}');
+    debugPrint('────────────────────────────');
+  }
+
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
@@ -809,9 +825,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                         ? chat.name!
                                         : "Unknown");
 
-                            // final String itemKey = chat.isGroupChat == true
-                            //     ? 'group_${chat.conversationId ?? chat.id ?? index}'
-                            //     : 'private_${chat.id ?? chat.conversationId ?? index}';
                             final String itemKey =
                                 'chat_${chat.conversationId ?? chat.id}';
 
@@ -848,6 +861,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                                 ),
                                               );
                                         }
+                                        logChatDetails(chat);
+                                        log(chat.toJson().toString());
 
                                         MyRouter.push(
                                           screen: chat.isGroupChat == true

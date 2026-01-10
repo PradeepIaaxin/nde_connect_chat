@@ -26,6 +26,7 @@ class MixedMediaViewer extends StatefulWidget {
 
 class _MixedMediaViewerState extends State<MixedMediaViewer> {
   late final PageController _controller;
+  late final ScrollController _scrollController;
   late int _currentIndex;
   bool _showUI = true;
 
@@ -34,13 +35,18 @@ class _MixedMediaViewerState extends State<MixedMediaViewer> {
     super.initState();
     _currentIndex = widget.initialIndex;
     _controller = PageController(initialPage: _currentIndex);
-    // Hide status bar for immersive experience initially if needed,
-    // but usually we show UI first.
+    _scrollController = ScrollController();
+
+    // After first frame, scroll to the initial index thumbnail
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToIndex(_currentIndex);
+    });
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _scrollController.dispose();
     // Restore status bar when leaving
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
         overlays: SystemUiOverlay.values);
@@ -67,6 +73,25 @@ class _MixedMediaViewerState extends State<MixedMediaViewer> {
     } catch (e) {
       return '';
     }
+  }
+
+  void _scrollToIndex(int index) {
+    if (!_scrollController.hasClients) return;
+    const double itemWidth = 78.0;
+
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final double targetOffset =
+        (index * itemWidth) + (itemWidth / 2) - (screenWidth / 2) + 10;
+    // +10 for the ListView horizontal padding
+
+    final double maxScroll = _scrollController.position.maxScrollExtent;
+    final double finalOffset = targetOffset.clamp(0.0, maxScroll);
+
+    _scrollController.animateTo(
+      finalOffset,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
   }
 
   // ==========================================================
@@ -128,7 +153,10 @@ class _MixedMediaViewerState extends State<MixedMediaViewer> {
       child: PhotoViewGallery.builder(
         pageController: _controller,
         itemCount: widget.items.length,
-        onPageChanged: (i) => setState(() => _currentIndex = i),
+        onPageChanged: (i) {
+          setState(() => _currentIndex = i);
+          _scrollToIndex(i);
+        },
         backgroundDecoration: const BoxDecoration(color: Colors.black),
         builder: (context, index) {
           final item = widget.items[index];
@@ -175,6 +203,7 @@ class _MixedMediaViewerState extends State<MixedMediaViewer> {
       child: SizedBox(
         height: 78,
         child: ListView.builder(
+          controller: _scrollController,
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 10),
           itemCount: widget.items.length,

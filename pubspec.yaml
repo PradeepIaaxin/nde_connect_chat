@@ -131,6 +131,7 @@ dependencies:
   http: ^1.6.0
   pointycastle: ^4.0.0
   device_info_plus: ^12.3.0
+  receive_sharing_intent: ^1.8.1
   
 
 dev_dependencies:
@@ -170,4 +171,5 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
       - assets/images/
+      - assets/audio/message_sent.mp3
   

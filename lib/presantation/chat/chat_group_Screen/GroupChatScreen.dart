@@ -132,7 +132,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Timer? _highlightTimer;
   final Set<String> _selectedMessageIds = {};
   final Set<String> _selectedMessageKeys = {};
-  final List<dynamic> _selectedMessages = [];
+  final List<Map<String, dynamic>> _selectedMessages = [];
   bool _showEmoji = false;
   bool _showSearchAppBar = false;
   bool _permissionChecked = false;

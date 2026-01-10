@@ -14,6 +14,7 @@ class GrpShowAltDialog {
     required bool isGroupChat,
     required VoidCallback onOptionSelected,
     Function(List<XFile>)? onFilesSelected,
+    String? groupId,
   }) {
     List<XFile>? selectedFiles;
     String? selectedLabel;
@@ -297,6 +298,7 @@ class GrpShowAltDialog {
     required bool isGroupChat,
     required bool isGroupMessage,
     required String? groupMessageId,
+    String? groupId,
   }) async {
     try {
       final localFile = File(file.path);
@@ -343,7 +345,7 @@ class GrpShowAltDialog {
                 convoId: conversationId,
                 senderId: senderId,
                 receiverId: receiverId,
-                groupId: receiverId,
+                groupId: groupId ?? "",
                 messageId: messageId,
                 message: "",
                 isGroupMessage: isGroupMessage,

@@ -102,7 +102,7 @@ class MessageBubble extends StatelessWidget {
     final replyData = message['reply'];
     final replyId = message['reply_message_id'] ?? message['replyMessageId'];
     final replyContent = message['replyContent'];
-
+final screenWidth = MediaQuery.of(context).size.width;
     final bool isDeleted =
         message['is_deleted'] == true || message['messageStatus'] == 'deleted';
 
@@ -128,7 +128,9 @@ class MessageBubble extends StatelessWidget {
       padding: EdgeInsets.symmetric(vertical: emojpicker != null ? 6.0 : 0),
       child: GestureDetector(
         onTap: onTap,
+      
         onLongPress: () {
+              log(message.toString());
           _showReactionPicker(context);
           onLongPress?.call();
         },
@@ -183,24 +185,21 @@ class MessageBubble extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         if (hasReply)
-                          Opacity(
-                            opacity: 0,
-                            child: RepliedMessagePreview(
-                              key: ValueKey(
-                                  '${message['message_id']}_${message['replyContent']}_placeholder'),
-                              replied: message['reply'] ??
-                                  _buildSyntheticReply(message),
-                              receiver: message['receiver'] is Map
-                                  ? Map<String, dynamic>.from(
-                                      message['receiver'])
-                                  : {},
-                              isSender: isSentByMe,
-                              onTap: null,
-                              groupMediaLength: groupMediaLength,
-                            ),
+                          RepliedMessagePreview(
+                            key: ValueKey(
+                                '${message['message_id']}_${message['replyContent']}_placeholder'),
+                            replied: message['resolvedReply'] ??
+                                message['reply'] ??
+                                _buildSyntheticReply(message),
+                            receiver: message['sender'] is Map
+                                ? Map<String, dynamic>.from(message['sender'])
+                                : {},
+                            isSender: isSentByMe,
+                            onTap: null,
+                            groupMediaLength: groupMediaLength,
                           ),
 
-                        if (!isSentByMe && isForwarded == true)
+                        if (isForwarded == true)
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -268,10 +267,11 @@ class MessageBubble extends StatelessWidget {
                         child: RepliedMessagePreview(
                           key: ValueKey(
                               '${message['message_id']}_${message['replyContent']}'),
-                          replied:
-                              message['reply'] ?? _buildSyntheticReply(message),
-                          receiver: message['receiver'] is Map
-                              ? Map<String, dynamic>.from(message['receiver'])
+                          replied: message['resolvedReply'] ??
+                              message['reply'] ??
+                              _buildSyntheticReply(message),
+                          receiver: message['sender'] is Map
+                              ? Map<String, dynamic>.from(message['sender'])
                               : {},
                           isSender: isSentByMe,
                           onTap: onReplyTap,
@@ -282,10 +282,11 @@ class MessageBubble extends StatelessWidget {
                       RepliedMessagePreview(
                         key: ValueKey(
                             '${message['message_id']}_${message['replyContent']}'),
-                        replied:
-                            message['reply'] ?? _buildSyntheticReply(message),
-                        receiver: message['receiver'] is Map
-                            ? Map<String, dynamic>.from(message['receiver'])
+                        replied: message['resolvedReply'] ??
+                            message['reply'] ??
+                            _buildSyntheticReply(message),
+                        receiver: message['sender'] is Map
+                            ? Map<String, dynamic>.from(message['sender'])
                             : {},
                         isSender: isSentByMe,
                         onTap: onReplyTap,
@@ -322,35 +323,36 @@ class MessageBubble extends StatelessWidget {
                 Positioned(
                   top: 0,
                   bottom: 0,
-                  left: isSentByMe ? -60 : null,
-                  right: isSentByMe ? null : -60,
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.translucent,
-                      onTap: () {
-                        log("FORWARD ICON TAP");
-                        MyRouter.push(
-                          screen: ForwardMessageScreen(
-                            messages: [message],
-                            currentUserId: message['senderId'] ?? '',
-                            conversionalid: "",
-                            username: message['senderName'] ?? '',
+                  left: isSentByMe ? -22 : screenWidth * 0.58,
+                  right: isSentByMe ? null : -52,
+                  child: Center(
+                    child: Material(
+                      color: Colors.transparent,
+                      child: GestureDetector(
+                        onTap: () {
+                          MyRouter.pushReplace(
+                            screen: ForwardMessageScreen(
+                              isForward:isSentByMe,
+                              messages: [message],
+                              currentUserId: message['senderId'] ?? '',
+                              conversionalid: "",
+                              username: message['senderName'] ?? '',
+                            ),
+                          );
+                        },
+                        child: CircleAvatar(
+                          radius: 16,
+                          backgroundColor: Colors.white,
+                          child: Image.asset(
+                            "assets/images/forward.png",
+                            height: 20,
+                            width: 20,
                           ),
-                        );
-                      },
-                      child: CircleAvatar(
-                        maxRadius: 16,
-                        backgroundColor: Colors.white,
-                        child: Image.asset(
-                          "assets/images/forward.png",
-                          height: 20,
-                          width: 20,
                         ),
                       ),
                     ),
                   ),
-                )
+                ),
             ],
           ),
         ),
@@ -646,12 +648,13 @@ class MessageBubble extends StatelessWidget {
 
         if (showTime)
           Positioned(
-            bottom: 5,
-            right: -2,
+            bottom: 8,
+            right: 8,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
+                color: Colors.black.withOpacity(0.45),
+                borderRadius: BorderRadius.circular(6),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -850,10 +853,10 @@ class MessageBubble extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(top: 5),
           child: Container(
-            width: 250, // Match constraints
+            width: 250,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white, // White card as in image
+              color: Colors.grey.shade200,
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
@@ -1321,14 +1324,14 @@ class MessageBubble extends StatelessWidget {
 
             if (showTime)
               Positioned(
-                bottom: 6,
-                right: 6,
+                bottom: 12,
+                right: 8,
                 child: Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                   decoration: BoxDecoration(
                     color: Colors.black.withOpacity(0.45),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(6),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,

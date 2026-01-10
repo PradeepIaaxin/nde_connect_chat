@@ -3,6 +3,8 @@ import 'dart:developer' show log;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nde_email/data/respiratory.dart';
+import 'package:nde_email/presantation/chat/Socket/socket_service.dart';
+
 import 'package:nde_email/presantation/chat/chat_contact_list/UserService.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_data_model.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_list_bloc.dart';
@@ -19,23 +21,23 @@ import 'package:nde_email/utils/const/consts.dart';
 import 'package:nde_email/utils/reusbale/colour_utlis.dart';
 import 'package:nde_email/utils/router/router.dart';
 
-import '../../../chat/chat_private_screen/private_chat_screen.dart';
-import 'package:nde_email/presantation/chat/Socket/socket_service.dart';
+import '../../../chat/chat_private_screen/Private_Chat_Screen.dart';
 
 import '../../../chat/chat_private_screen/localstorage/local_storage.dart';
 
 class ForwardMessageScreen extends StatefulWidget {
-  final List<dynamic> messages;
+  final List<Map<String, dynamic>> messages;
   final String currentUserId;
   final String conversionalid;
   final String username;
-
+  final bool? isForward;
   const ForwardMessageScreen({
     super.key,
     required this.messages,
     required this.currentUserId,
     required this.conversionalid,
     required this.username,
+    this.isForward = false,
   });
 
   @override
@@ -49,23 +51,55 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
   List<Datu> frequentlyContactedChats = [];
   late UserListBloc userListBloc;
   late SocketService socketService;
+  final List<Map<String, dynamic>> optimisticMessagesForUI = [];
+
   @override
   void initState() {
     super.initState();
     frequentlyContactedChats = ChatSessionStorage.getChatList();
     socketService = SocketService();
+    log("messagesssssss ${widget.messages}");
+  }
+
+  bool _isUserSelected(ChatUserlist user) {
+    return selectedUsers.any((u) {
+      if (user.conversationId != null &&
+          user.conversationId!.isNotEmpty &&
+          u.conversationId != null &&
+          u.conversationId!.isNotEmpty) {
+        return u.conversationId == user.conversationId;
+      }
+      return u.userId == user.userId;
+    });
   }
 
   // --- Helper: Save optimistic message into LocalChatStorage ---
+  // Future<void> _saveOptimisticMessage(
+  //     String convoId, Map<String, dynamic> optimisticMsg) async {
+  //   try {
+  //     final existing = LocalChatStorage.loadMessages(convoId) ?? [];
+  //     final combined = [...existing, optimisticMsg];
+  //     LocalChatStorage.saveMessages(convoId, combined);
+  //   } catch (e) {
+  //     log("Error saving optimistic message: $e");
+  //   }
+  // }
   Future<void> _saveOptimisticMessage(
-      String convoId, Map<String, dynamic> optimisticMsg) async {
-    try {
-      final existing = LocalChatStorage.loadMessages(convoId) ?? [];
-      final combined = [...existing, optimisticMsg];
-      LocalChatStorage.saveMessages(convoId, combined);
-    } catch (e) {
-      log("Error saving optimistic message: $e");
-    }
+    String convoId,
+    Map<String, dynamic> msg,
+  ) async {
+    final existing = LocalChatStorage.loadMessages(convoId) ?? [];
+
+    final exists = existing.any(
+      (m) =>
+          m['message_id'] == msg['message_id'] ||
+          (m['forwardFingerprint'] != null &&
+              m['forwardFingerprint'] == msg['forwardFingerprint']),
+    );
+
+    if (exists) return; // 🚫 prevent duplicate
+
+    LocalChatStorage.saveMessages(convoId, [...existing, msg]);
   }
 
   // Replace optimistic message id with server message id (reconcile)
@@ -76,31 +110,45 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
   ) async {
     try {
       final existing = LocalChatStorage.loadMessages(convoId) ?? [];
-      var changed = false;
+      bool replaced = false;
 
       final updated = existing.map<Map<String, dynamic>>((m) {
-        if ((m['message_id'] ?? '') == localId) {
-          changed = true;
-          final copy = Map<String, dynamic>.from(m);
-          copy['message_id'] = serverMessageId;
-          copy['messageStatus'] = 'delivered';
-          return copy;
+        if (m['message_id'] == localId) {
+          replaced = true;
+
+          return {
+            ...m,
+
+            // 🔑 real server id
+            'message_id': serverMessageId,
+
+            // 🔥 IMPORTANT: clear optimistic flags
+            'isOptimistic': false,
+            'forwardFingerprint': null,
+
+            // normalize status
+            'messageStatus': 'sent',
+            'status': 'sent',
+
+            // keep media intact
+            'imageUrl': m['imageUrl'],
+            'fileUrl': m['fileUrl'],
+            'originalUrl': m['originalUrl'],
+          };
         }
-        return Map<String, dynamic>.from(m);
+        return m;
       }).toList();
 
-      if (changed) {
-        LocalChatStorage.saveMessages(convoId, updated);
+      if (replaced) {
+        await LocalChatStorage.saveMessages(convoId, updated);
       } else {
-        // ❌ don’t create a blank message that loses content
         log(
-          "⚠️ Did not find optimistic message $localId to replace. "
-          "Skipping placeholder creation for $serverMessageId.",
+          '⚠️ Optimistic message not found for localId=$localId, '
+          'serverId=$serverMessageId',
         );
-        LocalChatStorage.saveMessages(convoId, existing);
       }
-    } catch (e) {
-      log("Error reconciling optimistic message: $e");
+    } catch (e, st) {
+      log('❌ replaceOptimisticWithServerId failed: $e\n$st');
     }
   }
 
@@ -176,8 +224,6 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
       ],
       child: Scaffold(
         appBar: AppBar(
-          backgroundColor: Colors.white,
-          surfaceTintColor: Colors.white,
           title: Text(selectedUsers.isEmpty
               ? "Forward to..."
               : "${selectedUsers.length} selected"),
@@ -201,9 +247,18 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
                       : frequentlyContactedChats;
 
                   children.addAll(displayedChats.map((chat) {
-                    final isSelected = selectedUsers.any((u) =>
-                        u.conversationId == chat.id ||
-                        u.userId == chat.datumId);
+                    final isSelected = selectedUsers.any((u) {
+                      // Prefer conversationId if available
+                      if (chat.id != null &&
+                          chat.id!.isNotEmpty &&
+                          u.conversationId != null &&
+                          u.conversationId!.isNotEmpty) {
+                        return u.conversationId == chat.id;
+                      }
+
+                      // Fallback to userId
+                      return u.userId == chat.datumId;
+                    });
 
                     final user = ChatUserlist(
                       id: chat.id, // conversation id
@@ -228,9 +283,19 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
                   }
 
                   children.addAll(filteredUsers.map((user) {
-                    final isSelected = selectedUsers.any((u) =>
-                        u.userId == user.userId ||
-                        u.conversationId == user.conversationId);
+                    final isSelected = selectedUsers.any((u) {
+                      // 1️⃣ Prefer conversationId if available
+                      if (user.conversationId != null &&
+                          user.conversationId!.isNotEmpty &&
+                          u.conversationId != null &&
+                          u.conversationId!.isNotEmpty) {
+                        return u.conversationId == user.conversationId;
+                      }
+
+                      // 2️⃣ Fallback to userId
+                      return u.userId == user.userId;
+                    });
+
                     return _buildUserTile(user, isSelected);
                   }));
                 }
@@ -256,7 +321,7 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
                         const Center(child: CircularProgressIndicator()),
                   );
 
-                  final socket = SocketService();
+                  final socket = socketService; // ✅ CORRECT
                   final failures = <String>[];
                   final successes = <String>[];
                   final defaultWorkspace =
@@ -280,37 +345,105 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
                         final originalMessageId =
                             message["message_id"]?.toString() ?? "";
                         if (originalMessageId.isEmpty) continue;
+                        final String? imageUrl =
+                            message['imageUrl'] ?? message['originalUrl'];
+                        final String? fileUrl =
+                            message['fileUrl'] ?? message['originalUrl'];
+                        final String? fileType =
+                            message['fileType'] ?? message['mimeType'];
+                        final String? originalKey =
+                            message['originalKey'] ?? message['originalKey'];
+                        final String? mimeType = message['mimeType'] ?? "";
+                        final bool isVideo = (fileType
+                                    ?.toLowerCase()
+                                    .startsWith('video/') ??
+                                false) ||
+                            (fileUrl?.toLowerCase().endsWith('.mp4') ??
+                                false) ||
+                            (fileUrl?.toLowerCase().endsWith('.mov') ?? false);
 
                         final content = (message["content"] ?? "").toString();
                         final fileName = message['fileName']?.toString();
-                        final imageUrl = (message['imageUrl'] ?? "").toString();
-                        final contentType =
-                            (message['contentType'] ?? 'text').toString();
+                        final contentType = message['contentType'] ??
+                            message['ContentType'] ??
+                            (isVideo
+                                ? 'video'
+                                : imageUrl != null
+                                    ? 'image'
+                                    : 'text');
+
                         // use a TEMP id only for UI, NOT forward_...
                         final localId =
-                            'temp_${DateTime.now().millisecondsSinceEpoch}';
+                            'temp_${DateTime.now().microsecondsSinceEpoch}_${receiverId}';
+
+                        final forwardFingerprint =
+                            '${originalMessageId}_${receiverId}';
 
                         final optimisticMessage = {
+                          // 🔑 TEMP LOCAL ID (only for UI)
                           'message_id': localId,
+
+                          // 📝 CONTENT
                           'content': content,
-                          'sender': {'_id': widget.currentUserId},
-                          'receiver': {'_id': receiverId},
-                          'messageStatus': 'pending',
-                          'time': DateTime.now().toIso8601String(),
+                          'contentType': contentType,
+
+                          // 👤 USERS
+                          'senderId': widget.currentUserId,
+                          'receiverId': receiverId,
+                          'sender': {
+                            '_id': widget.currentUserId,
+                            'first_name': widget.username,
+                          },
+                          'receiver': {
+                            '_id': receiverId,
+                          },
+
+                          // 🎥 MEDIA (SAFE + NORMALIZED)
                           'imageUrl': imageUrl,
+                          'originalUrl': imageUrl ?? fileUrl,
+                          'fileUrl': fileUrl,
                           'fileName': fileName,
-                          'fileUrl': imageUrl.isNotEmpty ? imageUrl : null,
+                          'fileType': fileType,
+                          'isVideo': isVideo,
+
+                          // ⏳ STATUS
+                          'messageStatus': 'sent',
+                          'status': 'sent',
+                          'time': DateTime.now().toIso8601String(),
+
+                          // ⚡ OPTIMISTIC FLAGS
+                          'isOptimistic': true,
+                          'forwardFingerprint': forwardFingerprint,
+
+                          // 🔁 FORWARD META
                           'isForwarded': true,
-                          'original_message_id':
-                              originalMessageId, // ⬅️ keep link to original
+                          'original_message_id': originalMessageId,
+                          'forwardedFrom': widget.currentUserId,
+
+                          // 🛡 SAFETY FLAGS
+                          'isReplyMessage': false,
+
+                          // 🚫 DO NOT SET GROUPING HERE
+                          // ❌ 'group_message_id'
+                          // ❌ 'is_grouped_message'
                         };
 
-                        // Save optimistic message first so recipient screen shows it immediately
-                        await _saveOptimisticMessage(
-                            targetConvoId!, optimisticMessage);
+                        //optimisticMessagesForUI.add(optimisticMessage);
+                        print("foewardddd ${widget.isForward}");
+                        widget.isForward!
+                            ? null
+                            : await _saveOptimisticMessage(
+                                targetConvoId!, optimisticMessage);
 
                         // Now call socket forward for this single receiver
+                        final imageToSend =
+                            (imageUrl != null && imageUrl.isNotEmpty)
+                                ? imageUrl
+                                : null;
+
                         final results = await socket.forwardMessage(
+                          originalKey: originalKey,
+                          mimeType: mimeType,
                           senderId: widget.currentUserId,
                           receiverIds: [receiverId],
                           originalMessageId: originalMessageId,
@@ -322,7 +455,7 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
                             "id": widget.currentUserId,
                             "name": widget.username,
                           },
-                          image: imageUrl.isNotEmpty ? imageUrl : null,
+                          image: imageToSend,
                           fileName: fileName,
                           contentType: contentType,
                         );
@@ -360,7 +493,7 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
                     } // end targets loop
 
                     // Close progress dialog
-                    Navigator.of(context).pop();
+                    //   Navigator.of(context).pop();
                     // Show summary
                     // if (failures.isEmpty) {
                     //   ScaffoldMessenger.of(context).showSnackBar(
@@ -374,18 +507,31 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
 
                     // Finally navigate to last selected user's chat
                     final lastTarget = selectedUsers.last;
-                    MyRouter.pushReplacement(
+                    print(
+                        " lastTarget.conversationId ${lastTarget.conversationId}");
+                    print(" lastTarget.userId ${lastTarget.userId}");
+                    print(" lastTarget.userId ${lastTarget.userId}");
+                    print(" lastTarget.firstName ${lastTarget.firstName}");
+                    print(" lastTarget.lastName ${lastTarget.lastName}");
+                    print(" lastTarget.lastName ${lastTarget.lastName}");
+                    log("Optimistic UI messages: ${optimisticMessagesForUI.length}");
+
+                    Navigator.of(context).pop();
+                    MyRouter.pushReplace(
                       screen: PrivateChatScreen(
+                        initialMessages: optimisticMessagesForUI,
+                        key: ValueKey(lastTarget.conversationId),
                         convoId: lastTarget.conversationId ?? "",
-                        profileAvatarUrl: "",
-                        userName:
-                            "${lastTarget.firstName} ${lastTarget.lastName}",
-                        lastSeen: "",
                         datumId: lastTarget.userId,
+                        receiverId: lastTarget.userId,
                         firstname: lastTarget.firstName,
                         lastname: lastTarget.lastName,
+                        userName:
+                            "${lastTarget.firstName} ${lastTarget.lastName}",
+                        profileAvatarUrl: "",
                         grpChat: false,
                         favourite: false,
+                        lastSeen: '',
                       ),
                     );
                   } catch (e) {
@@ -414,14 +560,17 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
       onTap: () {
         setState(() {
           if (isSelected) {
-            selectedUsers.removeWhere((u) => u.userId == user.userId);
-            log(" id : ${user.id}");
-            log("conversional id : ${user.conversationId}");
-            log(" id : ${user.id}");
+            selectedUsers.removeWhere((u) {
+              if (user.conversationId != null &&
+                  user.conversationId!.isNotEmpty &&
+                  u.conversationId != null &&
+                  u.conversationId!.isNotEmpty) {
+                return u.conversationId == user.conversationId;
+              }
+              return u.userId == user.userId;
+            });
           } else {
             selectedUsers.add(user);
-            log(" id : ${user.id}");
-            log("conversional id : ${user.conversationId}");
           }
         });
       },
