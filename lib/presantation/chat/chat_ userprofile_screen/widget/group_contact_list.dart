@@ -136,6 +136,7 @@ class _GroupContactListState extends State<GroupContactList> {
                                             userName: nameText,
                                             lastSeen: "",
                                             datumId: member.memberId,
+                                            sharedFiles: [],
                                             grpChat: false,
                                             favourite: false,
                                           ),

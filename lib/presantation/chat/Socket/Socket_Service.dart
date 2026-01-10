@@ -7,6 +7,7 @@ import 'package:nde_email/data/respiratory.dart';
 import 'package:nde_email/presantation/chat/chat_list/chat_response_model.dart';
 import 'package:nde_email/presantation/chat/model/emoj_model.dart';
 import 'package:nde_email/utils/device/device_keys.dart';
+import 'package:nde_email/utils/device_info/device_info.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 
@@ -192,7 +193,7 @@ class SocketService {
     socket = null;
     print("socket creating....");
     const String socketUrl =
-        //"https://945067be4009.ngrok-free.app/wschat";
+        //   "https://945067be4009.ngrok-free.app/wschat";
         'https://api.nowdigitaleasy.com/wschat';
 
     socket = IO.io(
@@ -241,11 +242,16 @@ class SocketService {
           log("device_id : $deviceId");
           final keys = await getOrCreateDeviceKeys();
           final publicKeyJwk = ecPublicKeyToJwk(keys.publicKey);
+          // device info
+          final deviceInfo = await getDeviceInfo();
+
+          print("device info: $deviceInfo");
 
           socket!.emit('register_device', {
             'deviceId': deviceId,
             'userId': _currentUserId,
             'publicKey': publicKeyJwk,
+            'deviceInfo': deviceInfo,
           });
 
           _slog('[SOCKET] register_device emitted');
@@ -372,6 +378,7 @@ class SocketService {
       'user_offline': (data) => _handleUserPresence(data, online: false),
       'messageListUpdate': _handleMessageListUpdate,
       'chatlistUpdate': _handleChatListUpdate,
+
       'convoList:updates': _handleConvoListUpdates,
       'message_deleted': _handleMessageDeleted,
     };
@@ -392,6 +399,25 @@ class SocketService {
     }
 
     _slog('All event handlers registered once');
+  }
+
+  void emitReaction({
+    required String emoji,
+    required String roomId,
+    required String conversationId,
+    required String messageId,
+  }) {
+    print('Sending reaction via socket: $emoji');
+    print('roomId: $roomId, conversationId: $conversationId, messageId: $messageId');
+    print('isConnected: $isConnected');
+    
+    if (!isConnected) return;
+    socket?.emit('update_reaction', {
+      'emoji': emoji,
+      'roomId': roomId,
+      'conversationId': conversationId,
+      'messageId': messageId,
+    });
   }
 
   void _handleConvoListUpdates(dynamic payload) {
@@ -1380,6 +1406,23 @@ class SocketService {
     socket!.emit('chat:pin', {
       'action': nextPinnedState,
       'convoIds': [conversationId],
+    });
+  }
+
+  Future<void> archiveChat({
+    required String conversationId,
+    required bool nextPinnedState,
+  }) async {
+    print(
+        "archiveChat called with conversationId: $conversationId, nextPinnedState: $nextPinnedState");
+    if (!isConnected) return;
+    print(isConnected);
+
+    socket!.emitWithAck('chat:archive', {
+      'action': nextPinnedState,
+      'convoIds': [conversationId],
+    }, ack: (response) {
+      print('ACK from server: $response');
     });
   }
 
