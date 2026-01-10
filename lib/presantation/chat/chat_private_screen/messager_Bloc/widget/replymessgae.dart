@@ -24,6 +24,8 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
   Widget? trailingThumb;
   @override
   Widget build(BuildContext context) {
+    print("REPLIED DATA => ${widget.replied}");
+    print("REPLIED DATA => ${widget.groupMediaLength}");
     const double thumbSize = 70;
     final replyContent =
         (widget.replied['replyContent'] ?? widget.replied['content'] ?? '')
@@ -36,9 +38,14 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
         widget.replied['imageUrl'] ??
         widget.replied['fileUrl'] ??
         '';
+    final bool isGrouped = widget.replied['is_grouped_message'] == true &&
+        widget.replied['group_message_id'] != null;
 
     final bool isVideo =
         fileName.endsWith('.mp4') || mediaUrl.toLowerCase().contains('.mp4');
+    final bool isGroupedMedia = isGrouped &&
+        widget.groupMediaLength != null &&
+        widget.groupMediaLength! > 1;
 
     final bool isImage = fileName.endsWith('.jpg') ||
         fileName.endsWith('.jpeg') ||
@@ -52,20 +59,55 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
         fileName.endsWith('.m4a') ||
         (widget.replied['mimeType'] ?? '').toString().contains('audio');
 
-    if (replyContent.isEmpty && mediaUrl.isEmpty && !isAudio) {
+    if (widget.replied.isEmpty) {
       return const SizedBox.shrink();
     }
 
     print("urrrrrrrrrrrrrr $mediaUrl");
-    Widget? buildThumb() {
-      if (mediaUrl.startsWith('/')) {
-        return Image.file(
-          File(mediaUrl),
-          fit: BoxFit.cover,
+    Widget buildThumb() {
+      /// 🎥 VIDEO FIRST
+      if (isVideo) {
+        return SizedBox(
+          width: thumbSize,
+          height: thumbSize,
+          child: FutureBuilder<File?>(
+            future: VideoThumbUtil.generateFromUrl(mediaUrl),
+            builder: (context, snapshot) {
+              if (snapshot.hasData && snapshot.data != null) {
+                return Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.file(
+                        snapshot.data!,
+                        width: thumbSize,
+                        height: thumbSize,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    const Icon(Icons.play_circle_fill,
+                        color: Colors.white, size: 28),
+                  ],
+                );
+              }
+
+              return Container(
+                width: thumbSize,
+                height: thumbSize,
+                color: Colors.black26,
+              );
+            },
+          ),
         );
       }
 
-      /// ✅ IMAGE
+      /// 🖼 IMAGE LOCAL
+      if (mediaUrl.startsWith('/')) {
+        return Image.file(File(mediaUrl), fit: BoxFit.cover);
+      }
+
+      /// 🌐 IMAGE NETWORK
       if (isImage) {
         return CachedNetworkImage(
           imageUrl: mediaUrl,
@@ -75,156 +117,97 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
         );
       }
 
-      // if (isAudio) {
-      //   return Container(
-      //     color: Colors.grey.shade300,
-      //     child: const Center(
-      //       child: Icon(Icons.mic, color: Colors.white),
-      //     ),
-      //   );
-      // }
-
-      if (isVideo) {
-        trailingThumb = SizedBox(
-          width: thumbSize,
-          height: thumbSize,
-          child: FutureBuilder<File?>(
-            future: VideoThumbUtil.generateFromUrl(mediaUrl),
-            builder: (context, snapshot) {
-              final thumbFile = snapshot.data;
-              if (thumbFile == null) {
-                return ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    color: Colors.black26,
-                    child: Center(
-                      child: Container(
-                        color: Colors.grey,
-                      ),
-                    ),
-                  ),
-                );
-              }
-
-              if (thumbFile != null && thumbFile.existsSync()) {
-                return Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.file(
-                        thumbFile,
-                        width: thumbSize,
-                        height: thumbSize,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    const Icon(
-                      Icons.play_circle_fill,
-                      color: Colors.white,
-                      size: 28,
-                    ),
-                  ],
-                );
-              }
-
-              return Text("hiii");
-            },
-          ),
-        );
-      }
-      return trailingThumb;
+      return const SizedBox.shrink();
     }
 
     return GestureDetector(
       onTap: widget.onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 6),
-        padding: const EdgeInsets.only(right: 20, top: 5, bottom: 5),
-        decoration: BoxDecoration(
-          color: const Color.fromARGB(255, 231, 235, 249),
-          border: Border(left: BorderSide(color: Colors.blueAccent, width: 5)),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Container(
-            //   width: 3,
-            //   height: 42,
-            //   decoration: BoxDecoration(
-            //     color: Colors.blueAccent,
-            //     borderRadius: BorderRadius.circular(4),
-            //   ),
-            // ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    widget.isSender
-                        ? 'You'
-                        : '${widget.receiver['first_name'] ?? ''} ${widget.receiver['last_name'] ?? ''}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  if (isVideo)
-                    const Text(
-                      'Video',
-                      style: TextStyle(fontSize: 12),
-                    )
-                  else if (isAudio)
-                    Row(
-                      children: [
-                        const Icon(Icons.music_note, size: 16, color: Colors.grey),
-                        const SizedBox(width: 4),
-                        Text(
-                          widget.replied['duration'] != null
-                              ? 'Audio (${widget.replied['duration']})'
-                              : 'Audio',
-                          style: const TextStyle(fontSize: 12),
+          margin: const EdgeInsets.only(bottom: 6),
+          padding: const EdgeInsets.only(right: 10, top: 5, bottom: 5),
+          decoration: BoxDecoration(
+            color: const Color.fromARGB(255, 231, 235, 249),
+            border:
+                Border(left: BorderSide(color: Colors.blueAccent, width: 5)),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // LEFT TEXT
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        widget.isSender
+                            ? 'You'
+                            : '${widget.receiver['first_name'] ?? ''} ${widget.receiver['last_name'] ?? ''}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
                         ),
-                      ],
-                    )
-                  else if (isImage)
-                     Row(
-                       children: [
-                         Text(
-                          'Photo',
-                          style: TextStyle(fontSize: 12),
-                                      ),
-                       ],
-                     )
-                  else
-                    Text(
-                      replyContent,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 11,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                ],
-              ),
-            ),
-            if ((isImage || isVideo) && mediaUrl.isNotEmpty)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: SizedBox(
-                  width: 42,
-                  height: 42,
-                  child: buildThumb(),
+                      const SizedBox(height: 2),
+                      if (isGroupedMedia)
+                        Row(
+                          children: [
+                            Icon(isVideo ? Icons.videocam : Icons.image,
+                                size: 16, color: Colors.grey),
+                            const SizedBox(width: 4),
+                            Text(
+                              isVideo
+                                  ? "${widget.groupMediaLength} videos"
+                                  : "${widget.groupMediaLength} photos",
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ],
+                        )
+                      else if (isVideo)
+                        const Text("Video", style: TextStyle(fontSize: 12))
+                      else if (isAudio)
+                        Row(
+                          children: const [
+                            Icon(Icons.music_note,
+                                size: 16, color: Colors.grey),
+                            SizedBox(width: 4),
+                            Text("Audio", style: TextStyle(fontSize: 12)),
+                          ],
+                        )
+                      else if (isImage)
+                        const Text("Photo", style: TextStyle(fontSize: 12))
+                      else
+                        Text(
+                          replyContent,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                    ],
+                  ),
                 ),
               ),
-          ],
-        ),
-      ),
+
+              // RIGHT THUMB
+              if ((isGrouped || isImage || isVideo) && mediaUrl.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: SizedBox(
+                      width: 42,
+                      height: 42,
+                      child: buildThumb(),
+                    ),
+                  ),
+                ),
+            ],
+          )),
     );
   }
 }

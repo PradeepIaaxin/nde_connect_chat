@@ -36,11 +36,9 @@ class ChatListResponse {
         onlineUsers: (json["onlineUsers"] is List)
             ? List<String>.from(json["onlineUsers"]!.map((x) => x.toString()))
             : [],
-
         data: (json["data"] is List)
             ? List<Datu>.from(json["data"]!.map((x) => Datu.fromJson(x)))
             : [],
-
         paginationData: json["paginationData"] != null
             ? PaginationData.fromJson(json["paginationData"])
             : null,
@@ -79,8 +77,8 @@ class Datu {
   String? groupName;
   String? draftMessage;
   String? reciverId;
+  String? groupId;
 
- 
   List<String>? participants;
 
   /// ⭐ NEW FIELD — ACTIVE/ONLINE MEMBERS
@@ -111,6 +109,7 @@ class Datu {
     this.reciverId,
     this.participants,
     this.onlineParticipants,
+    this.groupId,
   });
 
   Datu copyWith({
@@ -138,6 +137,7 @@ class Datu {
     String? reciverId,
     List<String>? participants,
     List<String>? onlineParticipants,
+    String? groupId,
   }) =>
       Datu(
         id: id ?? this.id,
@@ -161,9 +161,10 @@ class Datu {
         isFavorites: isFavorites ?? this.isFavorites,
         groupName: groupName ?? this.groupName,
         draftMessage: draftMessage ?? this.draftMessage,
-        reciverId: reciverId?? this.reciverId,
+        reciverId: reciverId ?? this.reciverId,
         participants: participants ?? this.participants,
         onlineParticipants: onlineParticipants ?? this.onlineParticipants,
+        groupId: groupId ?? this.groupId,
       );
 
   factory Datu.fromJson(Map<String, dynamic> json) => Datu(
@@ -192,8 +193,9 @@ class Datu {
         isArchived: json["isArchived"] ?? false,
         groupName: json["groupName"] ?? "",
         draftMessage: json["draftMessage"],
+        groupId: json["groupId"] ?? "",
 
-      /// ⭐ PARTICIPANTS LIST
+        /// ⭐ PARTICIPANTS LIST
         participants: json["participants"] != null
             ? List<String>.from(json["participants"].map((x) {
                 if (x is Map) {
@@ -237,9 +239,9 @@ class Datu {
         "favourites": isFavorites,
         "groupName": groupName,
         "draftMessage": draftMessage,
-
         "participants": participants ?? [],
         "onlineParticipants": onlineParticipants ?? [],
+        "groupId": groupId,
       };
 }
 
@@ -263,8 +265,7 @@ class PaginationData {
     this.prevPage,
   });
 
-  factory PaginationData.fromJson(Map<String, dynamic> json) =>
-      PaginationData(
+  factory PaginationData.fromJson(Map<String, dynamic> json) => PaginationData(
         totalDocs: json["totalDocs"] ?? 0,
         page: json["page"] ?? 0,
         limit: json["limit"] ?? 0,

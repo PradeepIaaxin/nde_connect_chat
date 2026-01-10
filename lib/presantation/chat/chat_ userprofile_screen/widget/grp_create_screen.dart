@@ -77,7 +77,7 @@ class _GroupNameEditScreenState extends State<GroupNameEditScreen> {
     print(widget.groupId);
 
     final response = await Dio().put(
-      //'https://e26a1b10a954.ngrok-free.app/v1/group/profile/${widget.groupId}',
+    
       "https://api.nowdigitaleasy.com/wschat/v1/group/profile/${widget.groupId}",
       data: formData,
       options: Options(

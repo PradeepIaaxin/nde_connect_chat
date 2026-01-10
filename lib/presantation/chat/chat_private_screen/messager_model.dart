@@ -157,12 +157,6 @@ class Message {
   }
 }
 
-bool? _bool(dynamic v) {
-  if (v is bool) return v;
-  if (v is String) return v == "true";
-  if (v is num) return v == 1;
-  return false;
-}
 
 Sender? _parseSender(dynamic s) {
   if (s == null) return null;

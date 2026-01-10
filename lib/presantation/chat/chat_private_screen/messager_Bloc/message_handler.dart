@@ -26,10 +26,13 @@ class MessageHandler {
 
     /// 🔹 FORWARDED (STRICT — WEB LOGIC)
     /// ❌ Never trust `isForwarded` boolean
-    final bool isForwarded = message['original_message_id'] != null ||
+    final bool isForwarded = message['isForwarded'] == true ||
+        message['original_message_id'] != null ||
         message['parent_message_id'] != null ||
         message['originalMessageId'] != null ||
-        message['parentMessageId'] != null;
+        message['parentMessageId'] != null ||
+        message['forwardedFrom'] != null ||
+        message['forwardFingerprint'] != null;
 
     /// 🔹 BASIC CONTENT
     final content = message['content']?.toString().trim() ?? '';
@@ -42,29 +45,45 @@ class MessageHandler {
     final fileType = message['mimeType'] ?? message['fileType'];
 
     /// 🔹 REPLY
+    /// 🔹 REPLY
     final bool isReplyMessage = message['isReplyMessage'] == true;
     Map<String, dynamic>? normalizedReply;
     String replyContent = '';
     String replyToUser = '';
 
-    if (isReplyMessage && message['reply'] is Map) {
-      final reply = Map<String, dynamic>.from(message['reply']);
+    if (isReplyMessage) {
+      final reply = message['reply'] ??
+          message['repliedMessage'] ??
+          message['replyMessage'] ??
+          {};
 
-      replyContent =
-          reply['replyContent'] ?? reply['content'] ?? reply['fileName'] ?? '';
+      if (reply is Map && reply.isNotEmpty) {
+        replyContent = reply['replyContent'] ??
+            reply['content'] ??
+            reply['fileName'] ??
+            '';
 
-      replyToUser =
-          '${reply['first_name'] ?? ''} ${reply['last_name'] ?? ''}'.trim();
+        replyToUser =
+            '${reply['first_name'] ?? ''} ${reply['last_name'] ?? ''}'.trim();
 
-      normalizedReply = {
-        'reply_message_id':
-            reply['id'] ?? reply['messageId'] ?? reply['message_id'],
-        'replyContent': replyContent,
-        'replyToUser': replyToUser,
-        'replyUrl': reply['replyUrl'],
-        'fileName': reply['fileName'],
-        'ContentType': reply['ContentType'] ?? 'text',
-      };
+        final replyId = reply['reply_message_id'] ??
+            reply['message_id'] ??
+            reply['id'] ??
+            reply['messageId'];
+
+        normalizedReply = {
+          'reply_message_id': replyId?.toString(),
+          'message_id': replyId?.toString(),
+          'id': replyId?.toString(),
+          'replyContent': replyContent,
+          'replyToUser': replyToUser,
+          'replyUrl': reply['replyUrl'],
+          'fileName': reply['fileName'],
+          'ContentType': reply['ContentType'] ?? 'text',
+          'group_message_id': reply['group_message_id'],
+          'is_grouped_message': reply['is_grouped_message'] ?? false,
+        };
+      }
     }
 
     /// 🔹 REACTIONS
@@ -116,13 +135,10 @@ class MessageHandler {
       'group_message_id': message['group_message_id']?.toString(),
 
       /// reply (OLD UI COMPATIBLE)
-      if (normalizedReply != null) 'repliedMessage': normalizedReply,
+      if (normalizedReply != null) 'reply': normalizedReply,
+      'reply_message_id': normalizedReply?['reply_message_id'],
       'replyContent': replyContent,
       'replyToUser': replyToUser,
-      if (normalizedReply != null)
-        'reply_message_id': normalizedReply['reply_message_id'],
-      if (normalizedReply != null)
-        'replyMessageId': normalizedReply['reply_message_id'],
       'reactions': reactions,
       'localImagePath': message['localImagePath'],
       'isSelected': false,

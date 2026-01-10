@@ -53,24 +53,25 @@ class UploadFileEvent extends MessagerEvent {
   final String? contentType;
   final String? messageId;
   final String? duration;
+  final bool? isGroupMessageChat;
 
   const UploadFileEvent(
     this.file,
     this.convoId,
     this.senderId, {
-    required this.receiverId, 
+    required this.receiverId,
     this.message = "",
     this.isGroupMessage = false,
     this.groupMesageId,
     this.contentType,
     this.messageId,
     this.duration,
+    this.isGroupMessageChat,
   });
-
 
   @override
   List<Object?> get props => [
-        file.path, 
+        file.path,
         convoId,
         senderId,
         receiverId,
@@ -110,8 +111,19 @@ class SendMessageEvent extends MessagerEvent {
       this.replyGroupMessageId});
 
   @override
-  List<Object?> get props =>
-      [senderId, receiverId, message, convoId, contentType, mediaUrl, replyTo];
+  List<Object?> get props => [
+        senderId,
+        receiverId,
+        message,
+        convoId,
+        contentType,
+        mediaUrl,
+        replyTo,
+        clientTempId,
+        replyMessageId,
+        replyIsGroupMessage,
+        replyGroupMessageId
+      ];
 }
 
 class DeleteMessagesEvent extends MessagerEvent {
@@ -132,14 +144,8 @@ class DeleteMessagesEvent extends MessagerEvent {
   });
 
   @override
-  List<Object?> get props => [
-        messageIds,
-        convoId,
-        senderId,
-        receiverId,
-        message,
-        deleteFor
-      ];
+  List<Object?> get props =>
+      [messageIds, convoId, senderId, receiverId, message, deleteFor];
 }
 
 class ForwardMessageEvent extends MessagerEvent {
@@ -337,16 +343,16 @@ class SendAudioMessageEvent extends MessagerEvent {
   final String convoId;
   final String duration;
 
-  const SendAudioMessageEvent({
-    required this.senderId,
-    required this.receiverId,
-    required this.audioPath,
-    required this.convoId,
-    required this.duration
-  });
+  const SendAudioMessageEvent(
+      {required this.senderId,
+      required this.receiverId,
+      required this.audioPath,
+      required this.convoId,
+      required this.duration});
 
   @override
-  List<Object?> get props => [senderId, receiverId, audioPath, convoId, duration];
+  List<Object?> get props =>
+      [senderId, receiverId, audioPath, convoId, duration];
 }
 
 class AudioMessageSentSuccessfully extends MessagerEvent {

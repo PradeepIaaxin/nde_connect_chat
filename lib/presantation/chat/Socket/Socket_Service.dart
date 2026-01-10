@@ -984,6 +984,8 @@ class SocketService {
     dynamic file,
     String? fileName,
     String? image,
+    String? originalKey,
+    String? mimeType,
     String contentType = 'text',
     Duration ackTimeout = const Duration(seconds: 8),
   }) async {
@@ -1026,7 +1028,9 @@ class SocketService {
         "isOwnConvo": true,
         "contentType": contentType,
         "fileName": fileName,
-        "image": image,
+        "originalUrl": image,
+        "originalKey": originalKey,
+        "mimeType": mimeType,
       };
 
       /// 🔵 LOG → PAYLOAD
@@ -1047,7 +1051,7 @@ class SocketService {
           });
         }
       });
-
+      log("forward_messagess $forwardPayload");
       socket!.emitWithAck(
         'forward_message',
         forwardPayload,

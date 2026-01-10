@@ -7,8 +7,9 @@ import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/bloc/prof
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/bloc/profile_screen_state.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/data/view_deatilsrepo.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/model/doc_links_model.dart';
-import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/widget/unified_media_viewer.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/MixedMediaViewer.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
+import 'package:nde_email/presantation/widgets/chat_widgets/Common/grouped_media_viewer.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/router/router.dart';
 import 'package:shimmer/shimmer.dart';
@@ -86,7 +87,7 @@ class _UsermediaScreenState extends State<UsermediaScreen>
           BlocProvider(
             create: (_) => MediaBloc(mediaRepository)
               ..add(FetchMedia(userId: widget.userId, type: 'media')),
-            child:  MediaTab(),
+            child: MediaTab(),
           ),
           BlocProvider(
             create: (_) => MediaBloc(mediaRepository)
@@ -103,8 +104,6 @@ class _UsermediaScreenState extends State<UsermediaScreen>
     );
   }
 }
-
-
 
 class MediaTab extends StatelessWidget {
   MediaTab({super.key});
@@ -175,8 +174,18 @@ class MediaTab extends StatelessWidget {
               return GestureDetector(
                 onTap: () {
                   MyRouter.push(
-                    screen: UnifiedMediaViewer(
-                      items: items,
+                    screen: MixedMediaViewer(
+                      items: items.map((item) {
+                        return GroupMediaItem(
+                          previewUrl:
+                              item.thumbnailImageUrl ?? item.originalUrl ?? '',
+                          mediaUrl: item.originalUrl ?? '',
+                          isVideo: _isVideo(item),
+                          senderName: item.sender.firstName,
+                          senderId: item.sender.id,
+                          time: item.createdAt,
+                        );
+                      }).toList(),
                       initialIndex: index,
                     ),
                   );
@@ -203,8 +212,7 @@ class MediaTab extends StatelessWidget {
                             FutureBuilder<File?>(
                               future: _getThumb(url),
                               builder: (context, snapshot) {
-                                if (snapshot.hasData &&
-                                    snapshot.data != null) {
+                                if (snapshot.hasData && snapshot.data != null) {
                                   return Image.file(
                                     snapshot.data!,
                                     fit: BoxFit.cover,
@@ -244,7 +252,6 @@ class MediaTab extends StatelessWidget {
     );
   }
 }
-
 
 // ------------------ DOCS TAB ------------------
 

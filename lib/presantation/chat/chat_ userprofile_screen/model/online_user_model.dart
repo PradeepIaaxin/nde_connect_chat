@@ -41,6 +41,7 @@ class SharedGroupModel extends Equatable {
   final String groupAvatar;
   final String createdAt;
   final List<SampleMember> sampleMembers;
+  final String groupId;
 
   const SharedGroupModel({
     required this.id,
@@ -50,6 +51,7 @@ class SharedGroupModel extends Equatable {
     required this.groupAvatar,
     required this.createdAt,
     required this.sampleMembers,
+    required this.groupId,
   });
 
   // ADD THIS copyWith
@@ -62,6 +64,7 @@ class SharedGroupModel extends Equatable {
       groupAvatar: groupAvatar,
       createdAt: createdAt,
       sampleMembers: sampleMembers,
+      groupId: groupId,
     );
   }
 
@@ -76,6 +79,7 @@ class SharedGroupModel extends Equatable {
       sampleMembers: (json['sampleMembers'] as List<dynamic>? ?? [])
           .map((e) => SampleMember.fromJson(e as Map<String, dynamic>))
           .toList(),
+      groupId: json['group_id'] ?? '',
     );
   }
 

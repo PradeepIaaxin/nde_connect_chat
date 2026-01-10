@@ -479,7 +479,7 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
                 );
 
           socketService.sendMessage(
-            isGroupMessage: event.isGroupMessage,
+            isGroupMessage: event.isGroupMessageChat??false,
             groupMessageId: event.groupMesageId,
             messageId: tempMessageId,
             conversationId: event.convoId,
@@ -488,8 +488,8 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
             message: event.message,
             roomId: roomId,
             workspaceId: workspaceID,
-            isGroupChat: event.isGroupMessage,
-            contentType: event.contentType ?? data["ContentType"],
+            isGroupChat: false,
+            contentType: event.contentType ?? data["fieldname"] ?? "file",
             mimeType: data["mimetype"],
             fileWithText: data["file_with_text"] != "",
             fileName: data["fileName"] ?? "",

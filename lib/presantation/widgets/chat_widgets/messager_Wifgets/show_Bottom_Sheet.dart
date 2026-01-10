@@ -311,9 +311,6 @@ class ShowAltDialog {
                           backgroundColor: Colors.green,
                         ),
                         onPressed: () async {
-                          final String tempGroupId =
-                              'temp_group_${ObjectId().toString()}';
-                          final List<Map<String, dynamic>> mediaList = [];
 
                           localMessages.clear();
                           if (selectedImages.isNotEmpty) {
@@ -517,7 +514,8 @@ class ShowAltDialog {
                 conversationId,
                 senderId,
                 receiverId: receiverId,
-                isGroupMessage: isGroupMessage,
+                isGroupMessage: isGroupChat,
+                isGroupMessageChat: isGroupMessage,
                 groupMesageId: groupMessageId,
                 messageId: localMessageId.toString(),
                 contentType: isVideo ? 'video' : (isImage ? 'image' : 'file'),
