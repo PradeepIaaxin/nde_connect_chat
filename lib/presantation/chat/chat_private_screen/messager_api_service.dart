@@ -260,55 +260,55 @@ class MessagerApiService {
   ///       ADD REACTION
   /// =============================
 
-  Future<void> reactionUpdated({
-    required String messageId,
-    required String emoji,
-    required String receiverId,
-    required String userId,
-    required String conversationId,
-  }) async {
-    try {
-      final token = await UserPreferences.getAccessToken();
-      final defaultWorkspace = await UserPreferences.getDefaultWorkspace();
+  // Future<void> reactionUpdated({
+  //   required String messageId,
+  //   required String emoji,
+  //   required String receiverId,
+  //   required String userId,
+  //   required String conversationId,
+  // }) async {
+  //   try {
+  //     final token = await UserPreferences.getAccessToken();
+  //     final defaultWorkspace = await UserPreferences.getDefaultWorkspace();
 
-      final roomId = generateRoomId(userId, receiverId);
-      final normalizedId = _normalizeMessageIdForApi(messageId);
+  //     final roomId = generateRoomId(userId, receiverId);
+  //     final normalizedId = _normalizeMessageIdForApi(messageId);
 
-      const baseUrl = 'https://api.nowdigitaleasy.com/wschat/v1/messages/react';
+  //     const baseUrl = 'https://api.nowdigitaleasy.com/wschat/v1/messages/react';
 
-      final body = {
-        "conversationId": conversationId,
-        "messageId": normalizedId,
-        "emoji": emoji,
-        "roomId": roomId,
-      };
+  //     final body = {
+  //       "conversationId": conversationId,
+  //       "messageId": normalizedId,
+  //       "emoji": emoji,
+  //       "roomId": roomId,
+  //     };
 
-      log('📡 reactionUpdated → POST $baseUrl');
-      log('📦 body = $body');
+  //     log('📡 reactionUpdated → POST $baseUrl');
+  //     log('📦 body = $body');
 
-      final response = await http.post(
-        Uri.parse(baseUrl),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'x-workspace': defaultWorkspace ?? "",
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(body),
-      );
-      log('📤 reactionUpdated body: $body');
-      log('📥 reactionUpdated status: ${response.statusCode}');
-      log('📥 reactionUpdated response: ${response.body}');
+  //     final response = await http.post(
+  //       Uri.parse(baseUrl),
+  //       headers: {
+  //         'Authorization': 'Bearer $token',
+  //         'x-workspace': defaultWorkspace ?? "",
+  //         'Content-Type': 'application/json',
+  //       },
+  //       body: jsonEncode(body),
+  //     );
+  //     log('📤 reactionUpdated body: $body');
+  //     log('📥 reactionUpdated status: ${response.statusCode}');
+  //     log('📥 reactionUpdated response: ${response.body}');
 
-      log('📥 reactionUpdated status=${response.statusCode}');
-      log('📥 reactionUpdated body=${response.body}');
+  //     log('📥 reactionUpdated status=${response.statusCode}');
+  //     log('📥 reactionUpdated body=${response.body}');
 
-      if (response.statusCode != 200) {
-        log('❌ Backend rejected reaction');
-      }
-    } catch (e) {
-      log("❌ Error in reactionUpdated: $e");
-    }
-  }
+  //     if (response.statusCode != 200) {
+  //       log('❌ Backend rejected reaction');
+  //     }
+  //   } catch (e) {
+  //     log("❌ Error in reactionUpdated: $e");
+  //   }
+  // }
 
   /// =============================
   ///   REMOVE REACTION

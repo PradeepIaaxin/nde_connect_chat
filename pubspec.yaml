@@ -132,6 +132,7 @@ dependencies:
   pointycastle: ^4.0.0
   device_info_plus: ^12.3.0
   receive_sharing_intent: ^1.8.1
+  universal_html: ^2.3.0
   
 
 dev_dependencies:

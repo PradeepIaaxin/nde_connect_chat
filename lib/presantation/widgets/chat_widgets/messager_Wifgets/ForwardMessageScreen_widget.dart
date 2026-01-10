@@ -532,6 +532,7 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
                         grpChat: false,
                         favourite: false,
                         lastSeen: '',
+                        sharedFiles: []
                       ),
                     );
                   } catch (e) {
