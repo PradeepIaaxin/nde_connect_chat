@@ -127,8 +127,12 @@ final screenWidth = MediaQuery.of(context).size.width;
     return Padding(
       padding: EdgeInsets.symmetric(vertical: emojpicker != null ? 6.0 : 0),
       child: GestureDetector(
-        onTap: onTap,
-      
+       // onTap: onTap,
+      onTap: (){
+        log("messsagesss $message");
+        log("reply ${message["reply"]}");
+        log("resolvedReply ${message["resolvedReply"]}");
+      },
         onLongPress: () {
               log(message.toString());
           _showReactionPicker(context);

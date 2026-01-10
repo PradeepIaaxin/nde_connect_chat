@@ -52,7 +52,7 @@ String? _extractSenderName(Map<String, dynamic> msg, String? currentUserId) {
 
     if (firstName.isNotEmpty || lastName.isNotEmpty) {
       final fullName = '$firstName $lastName'.trim();
-      print('   ✅ Found from sender object: $fullName');
+    //  print('   ✅ Found from sender object: $fullName');
       return fullName;
     }
     if (name.isNotEmpty) {
@@ -66,83 +66,63 @@ String? _extractSenderName(Map<String, dynamic> msg, String? currentUserId) {
 }
 
 List<GroupMediaItem> buildConversationMedia(
-  List<Map<String, dynamic>> allMessages, {
-  String? currentUserId,
-  String? receiverName,
-}) {
+    List<Map<String, dynamic>> allMessages, {
+      String? currentUserId,
+      String? receiverName,
+    }) {
   final List<GroupMediaItem> media = [];
-
-  print('🎬 buildConversationMedia called with ${allMessages.length} messages');
-  print('   currentUserId: $currentUserId');
-  print('   receiverName: $receiverName');
 
   for (final msg in allMessages) {
     final String? originalUrl = msg['originalUrl']?.toString();
     final String? imageUrl = msg['imageUrl']?.toString();
     final String? thumbnailUrl = msg['thumbnailUrl']?.toString();
-    final String? fileUrl = msg['fileUrl'];
-    final String fileType = (msg['fileType'] ?? '').toLowerCase();
+    final String? fileUrl = msg['fileUrl']?.toString();
+    final String fileType =
+    (msg['fileType'] ?? msg['mimeType'] ?? '').toString().toLowerCase();
 
-    // Extract sender name and ID
-    String? senderName = _extractSenderName(msg, currentUserId);
+    final String? senderName = _extractSenderName(msg, currentUserId);
     final String? senderId = msg['senderId']?.toString() ??
         (msg['sender'] is Map ? msg['sender']['_id']?.toString() : null);
 
-    // ✅ FALLBACK: If no sender name found and it's not from current user, use receiverName
-    if (senderName == null &&
-        senderId != null &&
-        senderId != currentUserId &&
-        receiverName != null) {
-      senderName = receiverName;
-      print('   📝 Using receiverName as fallback: $receiverName');
-    }
+    final String? time = msg['time']?.toString();
 
     final bool isVideo = fileType.startsWith('video/') ||
         (fileUrl?.endsWith('.mp4') ?? false) ||
-        (fileUrl?.endsWith('.mov') ?? false);
-    final String? time = msg['time']?.toString();
+        (fileUrl?.endsWith('.mov') ?? false) ||
+        (fileUrl?.endsWith('.mkv') ?? false) ||
+        (fileUrl?.endsWith('.webm') ?? false);
 
     if (isVideo && fileUrl != null && fileUrl.isNotEmpty) {
-      print('   📹 Adding video with senderName: $senderName');
       media.add(
         GroupMediaItem(
-          previewUrl: msg['localThumbPath'] ?? thumbnailUrl ?? fileUrl,
+          previewUrl: msg['localThumbPath'] ??
+              thumbnailUrl ??
+              originalUrl ??
+              fileUrl,
           mediaUrl: fileUrl,
           isVideo: true,
-          senderName: senderName,
+          senderName: senderName ?? receiverName,
           senderId: senderId,
           time: time,
         ),
       );
-    } else if (originalUrl != null && originalUrl.isNotEmpty) {
-      print(
-          '   📸 Adding image with originalUrl: $originalUrl, senderName: $senderName');
-      media.add(
-        GroupMediaItem(
-          previewUrl: originalUrl,
-          mediaUrl: originalUrl,
-          isVideo: false,
-          senderName: senderName,
-          senderId: senderId,
-          time: time,
-        ),
-      );
-    } else if (imageUrl != null && imageUrl.isNotEmpty) {
-      print(
-          '   📸 Adding image with imageUrl: $imageUrl, senderName: $senderName');
-      media.add(
-        GroupMediaItem(
-          previewUrl: imageUrl,
-          mediaUrl: imageUrl,
-          isVideo: false,
-          senderName: senderName,
-          senderId: senderId,
-          time: time,
-        ),
-      );
+    } else {
+      final String? img = originalUrl ?? imageUrl;
+
+      if (img != null && img.isNotEmpty) {
+        media.add(
+          GroupMediaItem(
+            previewUrl: img,
+            mediaUrl: img,
+            isVideo: false,
+            senderName: senderName ?? receiverName,
+            senderId: senderId,
+            time: time,
+          ),
+        );
+      }
     }
   }
 
-  print('✅ Built ${media.length} media items');
   return media;
 }

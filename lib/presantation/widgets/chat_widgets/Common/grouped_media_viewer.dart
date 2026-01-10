@@ -121,7 +121,7 @@ class GroupedMediaWidget extends StatelessWidget {
               Positioned(
                 height: _statusBarHeight,
                 bottom: 18,
-                right: 10,
+                right:isSentByMe? 10:70,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                   decoration: BoxDecoration(
@@ -302,12 +302,16 @@ class GroupedMediaWidget extends StatelessWidget {
     return ClipRRect(
       borderRadius: const BorderRadius.all(Radius.circular(10)),
       child: GestureDetector(
-        onTap: () => onImageTap?.call(index),
+        onTap: () {
+          debugPrint("Tapped index $index => ${item.mediaUrl}");
+          onImageTap?.call(index);
+        },
+
         child: Stack(
           fit: StackFit.expand,
           children: [
             Hero(
-              tag: '${item.mediaUrl}_${messageId}_$index',
+              tag: item.mediaUrl,
               child: _thumb(item),
             ),
             if (item.isVideo)
