@@ -3370,6 +3370,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         'fileName': replySource['fileName'] ?? '',
         'fileType': fileType,
         'isVideo': isVideo,
+        'isDocument': !isVideo &&
+            (replySource['fileUrl'] != null &&
+                replySource['fileUrl'].isNotEmpty &&
+                (replySource['imageUrl'] == null ||
+                    replySource['imageUrl'].isEmpty)),
 
         // user
         'sender': replySource['sender'],
