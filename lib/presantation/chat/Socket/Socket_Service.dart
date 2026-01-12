@@ -773,7 +773,7 @@ class SocketService {
 
         final jsonString = await importMessageUpdate(updateBytes: bytes);
         final decoded = jsonDecode(jsonString);
-        // log("repose: ${decoded.toString()}");
+        log("repose: ${decoded.toString()}");
         final Map<String, dynamic> messagesMap =
             Map<String, dynamic>.from(decoded['messages'] ?? {});
 

@@ -536,10 +536,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
       final senderId = normalized['senderId']?.toString();
       final content = normalized['content']?.toString() ?? '';
+       final status = normalized['messageStatus']?.toString() ?? '';
 
       debugPrint(
-          '📥 Incoming message: id=$realId, sender=$senderId, content="$content"');
-
+          '📥 Incoming message: id=$realId, sender=$senderId, content="$content", status="$status"');
       // Check if we already have this message
       final existingIndex = _allMessages.indexWhere((m) {
         final mid =
@@ -1707,7 +1707,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             msg['message_id'] ?? msg['messageId'] ?? msg['_id'] ?? '');
         if (msgId != messageId) continue;
 
-        final existing = _extractReactions(msg['reactions']);
+        final existing = _extractReactions(msg['reactions'] ?? msg['reaction']);
         // Build incoming single reaction map
         final incoming = <Map<String, dynamic>>[
           {
@@ -4100,8 +4100,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                               final groupMessageId =
                                   message['group_message_id']?.toString();
 
-                              print("isGroupMessagesssss ${isGroupMessage}");
-
                               if (isGroupMessage &&
                                   groupMessageId != null &&
                                   groupMessageId.isNotEmpty) {
@@ -4217,7 +4215,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                                       'sent',
                                               buildStatusIcon: (status) =>
                                                   MessageStatusIcon(
-                                                    status: status ?? 'sent',
+                                                    status: status,
                                                     isStatus: true,
                                                   ),
                                               onImageTap: (tappedIndex) {
