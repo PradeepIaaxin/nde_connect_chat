@@ -421,6 +421,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     required String messageId,
   }) {
     print('Sending reaction: $emoji to messageId: $messageId');
+    print('Current convoId: ${widget.convoId}');
     SocketService().emitReaction(
       emoji: emoji,
       roomId: roomId,

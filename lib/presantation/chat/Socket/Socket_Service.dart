@@ -401,23 +401,46 @@ class SocketService {
     _slog('All event handlers registered once');
   }
 
-  void emitReaction({
+  Future<bool> emitReaction({
     required String emoji,
     required String roomId,
     required String conversationId,
     required String messageId,
   }) {
-    print('Sending reaction via socket: $emoji');
-    print('roomId: $roomId, conversationId: $conversationId, messageId: $messageId');
-    print('isConnected: $isConnected');
-    
-    if (!isConnected) return;
-    socket?.emit('update_reaction', {
-      'emoji': emoji,
-      'roomId': roomId,
-      'conversationId': conversationId,
-      'messageId': messageId,
+    if (socket == null || socket!.disconnected) {
+      return Future.value(false);
+    }
+
+    final completer = Completer<bool>();
+    log("Emitting reaction: $emoji to messageId: $messageId in convoId: $conversationId");
+    print("print : $roomId");
+
+    socket!.emitWithAck(
+      'update_reaction',
+      <String, dynamic>{
+        'emoji': emoji,
+        'roomId': roomId,
+        'conversationId': conversationId,
+        'messageId': messageId,
+      },
+      ack: (dynamic response) {
+        if (completer.isCompleted) return;
+
+        final bool success =
+            response == true || (response is Map && response['ok'] == true);
+
+        completer.complete(success);
+      },
+    );
+
+    /// Timeout safeguard to avoid waiting indefinitely
+    Future.delayed(const Duration(seconds: 3), () {
+      if (!completer.isCompleted) {
+        completer.complete(false);
+      }
     });
+
+    return completer.future;
   }
 
   void _handleConvoListUpdates(dynamic payload) {
@@ -1417,6 +1440,10 @@ class SocketService {
         "archiveChat called with conversationId: $conversationId, nextPinnedState: $nextPinnedState");
     if (!isConnected) return;
     print(isConnected);
+    log("Emitting chat:archive for convoId: $conversationId");
+    log("Next pinned state: $nextPinnedState");
+    log("Socket instance: $socket");
+    log("socket!.connected: ${socket!.connected}");
 
     socket!.emitWithAck('chat:archive', {
       'action': nextPinnedState,
