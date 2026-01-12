@@ -108,18 +108,22 @@ class MessageHandler {
     /// 🔹 REACTIONS
     final reactions = (message['reactions'] is List)
         ? (message['reactions'] as List).whereType<Map>().map((reaction) {
-            final user = reaction['user'] ?? {};
-            return {
-              'emoji': reaction['emoji'] ?? '',
-              'reacted_at': reaction['reacted_at'],
-              'user': {
-                '_id': user['_id'] ?? '',
-                'first_name': user['first_name'] ?? '',
-                'last_name': user['last_name'] ?? '',
-              },
-            };
-          }).toList()
+      final user = reaction['user'] ?? {};
+      final uid = user['_id'] ?? reaction['userId'] ?? '';
+
+      return {
+        'emoji': reaction['emoji'] ?? '',
+        'reacted_at': reaction['reacted_at'],
+        'userId': uid.toString(),
+        'user': {
+          '_id': uid.toString(),
+          'first_name': user['first_name'] ?? '',
+          'last_name': user['last_name'] ?? '',
+        },
+      };
+    }).toList()
         : <Map<String, dynamic>>[];
+
 
     /// 🔹 TIME + STATUS
     final time = message['time'] ?? DateTime.now().toIso8601String();
@@ -133,7 +137,7 @@ class MessageHandler {
     return {
       'message_id': messageId?.toString() ?? '',
       'content': content,
-      'sender': sender,
+      'senderId': sender is Map ? sender['_id'] : null,
       'receiver': receiver,
       'messageStatus': status,
       'time': time,

@@ -306,7 +306,8 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
   Future<void> _onAddReaction(
     AddReaction event,
     Emitter<MessagerState> emit,
-  ) async {
+  )
+  async {
     try {
       log('🔹 _onAddReaction called with: rawMessageId=${event.messageId}');
 
@@ -352,7 +353,8 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
   Future<void> _onRemoveReaction(
     RemoveReaction event,
     Emitter<MessagerState> emit,
-  ) async {
+  )
+  async {
     try {
       log('🔹 _onRemoveReaction called with: rawMessageId=${event.messageId}');
 

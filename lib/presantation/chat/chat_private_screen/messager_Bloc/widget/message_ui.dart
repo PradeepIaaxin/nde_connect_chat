@@ -115,7 +115,7 @@ final screenWidth = MediaQuery.of(context).size.width;
     final bool hasImageContent = displayImageUrl != null &&
         displayImageUrl.isNotEmpty &&
         (isImage || (displayImageUrl != fileUrl));
-
+    final reactions = _safeReactions(message['reactions']);
     if (content.isEmpty &&
         !hasImageContent &&
         !hasFile &&
@@ -1390,6 +1390,18 @@ final screenWidth = MediaQuery.of(context).size.width;
         ),
       ),
     );
+  }
+  List<Map<String, dynamic>> _safeReactions(dynamic raw) {
+    if (raw is! List) return [];
+    return raw.whereType<Map>().map((r) {
+      final user = r['user'] ?? {};
+      return {
+        'emoji': r['emoji'] ?? '',
+        'reacted_at': r['reacted_at'],
+        'userId': r['userId'] ?? user['_id'],
+        'user': user,
+      };
+    }).toList();
   }
 
   Widget _videoShimmerPlaceholder() {

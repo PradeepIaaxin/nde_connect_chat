@@ -168,7 +168,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
       // 🔥 ONLY THIS FILTER MATTERS
       if (convoId != widget.convoId) return;
-
+      log("data['messages'] ${data['messages']}");
       _applyCrdtMessages(
         convoId,
         Map<String, dynamic>.from(data['messages'] ?? {}),
@@ -209,6 +209,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           }
         }
       }
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _updateNotifierFromAll();
     });
   }
 
@@ -252,7 +255,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       currentUserId: currentUserId,
       convoId: widget.convoId,
     );
-
+log("vvvvvvvvvvvvvvvvvv $messagesMap");
     /// 1️⃣ Normalize CRDT messages
     final incoming = messagesMap.values
         .where((raw) => raw['isGroupChat'] != true)
@@ -272,19 +275,31 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
 
     // ✅ CRDT overrides same IDs only
+    // ✅ CRDT overrides same IDs only (SAFE MERGE)
     for (final m in incoming) {
       final senderId = m['senderId']?.toString();
       final id = m['message_id']?.toString();
 
-      // 🔥 IGNORE MY OWN MESSAGES (already handled optimistically)
-      if (senderId == currentUserId) {
-        continue;
+      if (id == null || id.isEmpty) continue;
+
+      if (merged.containsKey(id)) {
+        final old = merged[id]!;
+
+        if (m['reactions'] == null || (m['reactions'] as List).isEmpty) {
+          m['reactions'] = old['reactions'];
+        }
+
+        if (m['reply'] == null) {
+          m['reply'] = old['reply'];
+          m['replyContent'] = old['replyContent'];
+        }
       }
 
-      if (id != null && id.isNotEmpty) {
-        merged[id] = m;
-      }
+      if (senderId == currentUserId && m['reactions'] == null) continue;
+
+      merged[id] = m;
     }
+
 
     /// 3️⃣ Sort Old → New (web behavior)
     final mergedList = merged.values.toList()
@@ -357,7 +372,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     await Future.wait([_initializeSocket(), _loadCurrentUserId()]);
 
     if (widget.convoId.isNotEmpty) {
-      await _fetchMessages();
+       _fetchMessages();
     }
     final draft = LocalChatStorage.getDraftMessage(widget.convoId);
     if (draft != null && draft.isNotEmpty) {
@@ -481,6 +496,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     // ✅ immutable list
     _messagesNotifier.value =
         List<Map<String, dynamic>>.unmodifiable(visibleSlice);
+    // final combined = _getCombinedMessages();
+    // _messagesNotifier.value = combined;
 
     debugPrint('📊 UI now showing: ${_messagesNotifier.value.length} messages');
   }
@@ -830,7 +847,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   // Update the normalizeMessage function to handle LORRO data structure
   Map<String, dynamic> normalizeMessage(dynamic rawMsg) {
     if (rawMsg == null) return {};
-
+    log("rawMsgsssssssss $rawMsg");
     // Handle LORRO specific structure
     if (rawMsg is Map) {
       // Check if it's a LORRO-style message
@@ -934,6 +951,29 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     if ((senderId == null || senderId.isEmpty) && rawMsg['from'] != null) {
       senderId = rawMsg['from'].toString();
       senderRaw = {'_id': senderId, 'id': senderId};
+    }
+// ================= EXTRACT REACTIONS =================
+    if (rawMsg['reactions'] is List) {
+      m['reactions'] = (rawMsg['reactions'] as List)
+          .whereType<Map>()
+          .map((reaction) {
+        final user = reaction['user'] ?? {};
+        final uid = user['_id'] ?? reaction['userId'];
+
+        return {
+          'emoji': reaction['emoji'] ?? '',
+          'reacted_at': reaction['reacted_at'] ?? DateTime.now().toIso8601String(),
+
+          'userId': uid?.toString(),
+          'user': {
+            '_id': uid?.toString() ?? '',
+            'first_name': user['first_name'] ?? '',
+            'last_name': user['last_name'] ?? '',
+          },
+        };
+      }).toList();
+    } else {
+      m['reactions'] = [];
     }
 
     m['sender'] = senderRaw;
@@ -1389,7 +1429,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     required String tempId,
     required String realId,
     required String status,
-  }) {
+  })
+  {
     bool changed = false;
 
     void updateList(List<Map<String, dynamic>> list) {
@@ -1731,6 +1772,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       final raw = data['data'];
       if (raw == null) return;
       _handleIncomingRawMessage(raw, event: event);
+      _updateNotifierFromAll();
       return;
     }
 // inside your NewMessageReceivedState or onMessageReceived handler:
@@ -4111,6 +4153,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                   if (normalized.isEmpty) return;
 
                   _handleIncomingRawMessage(normalized);
+                  _updateNotifierFromAll();
                 }
               },
               builder: (context, state) {

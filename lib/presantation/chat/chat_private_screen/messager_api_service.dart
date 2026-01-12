@@ -266,7 +266,8 @@ class MessagerApiService {
     required String receiverId,
     required String userId,
     required String conversationId,
-  }) async {
+  })
+  async {
     try {
       final token = await UserPreferences.getAccessToken();
       final defaultWorkspace = await UserPreferences.getDefaultWorkspace();
@@ -319,7 +320,8 @@ class MessagerApiService {
     required String receiverId,
     required String userId,
     required String conversationId,
-  }) async {
+  })
+  async {
     try {
       final token = await UserPreferences.getAccessToken();
       final defaultWorkspace = await UserPreferences.getDefaultWorkspace();

@@ -1172,6 +1172,7 @@ class SocketService {
       "roomId": rid,
       "user": {"_id": userId, "first_name": firstName, "last_name": lastName},
     };
+    log("reactionObject $reactionObject");
     socket!.emit('updated_reaction', [reactionObject]);
   }
 
@@ -1182,7 +1183,8 @@ class SocketService {
     required String userId,
     required String firstName,
     required String lastName,
-  }) {
+  })
+  {
     if (!isConnected) return;
     socket!.emit('remove_reaction', {
       "messageId": messageId,
@@ -1195,7 +1197,8 @@ class SocketService {
   Future<void> toggleFavorite({
     required String targetId,
     required bool isCurrentlyFavorite,
-  }) async {
+  })
+  async {
     if (!isConnected) return;
     socket!.emitWithAck('toggle_favorite', {
       'targetId': targetId,
