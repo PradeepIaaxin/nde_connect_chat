@@ -87,7 +87,6 @@ class _GroupContactListState extends State<GroupContactList> {
                         ),
                      
                         ...members.asMap().entries.map((entry) {
-                          final i = entry.key;
                           final member = entry.value;
 
                           final bool isAdmin = member.isAdmin ?? false;

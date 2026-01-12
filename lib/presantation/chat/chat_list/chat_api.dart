@@ -9,9 +9,7 @@ import 'package:nde_email/utils/router/router.dart';
 import 'chat_response_model.dart';
 
 class ChatListApiService {
-  final String baseUrl =
-     
-      'https://api.nowdigitaleasy.com/wschat/v1/chats';
+  final String baseUrl = 'https://api.nowdigitaleasy.com/wschat/v1/chats';
   List<Datu> _lastData = [];
   final StreamController<List<Datu>> _chatStreamController =
       StreamController<List<Datu>>.broadcast();
@@ -80,6 +78,7 @@ class ChatListApiService {
     final decoded = jsonDecode(jsonString);
 
     final List data = decoded["chatDataList"] ?? [];
+    log(data.toString());
 
     return data.map((e) => Datu.fromJson(e)).toList();
   }
@@ -175,7 +174,7 @@ class ChatListApiService {
         await resetGlobalDoc();
 
         final chats = await decodeChatsFromLoro(snapshot);
-         log(chats.toString());
+        // log(chats.toString());
 
         return chats;
       }
@@ -183,7 +182,7 @@ class ChatListApiService {
       /// 🚫 snapshot == null OR empty → NORMAL JSON FLOW
       final List<dynamic> chatJson = jsonData["data"] ?? [];
       log(chatJson.toString());
-      
+
       return chatJson.map((e) => Datu.fromJson(e)).toList();
     }
 
@@ -195,7 +194,6 @@ class ChatListApiService {
       }
       throw Exception("Authentication failed");
     }
-
     throw Exception("Failed to fetch chats");
   }
 

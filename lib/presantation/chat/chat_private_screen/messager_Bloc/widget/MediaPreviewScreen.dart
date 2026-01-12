@@ -49,6 +49,25 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
           "${_currentIndex + 1} / ${widget.files.length}",
           style: const TextStyle(color: Colors.white),
         ),
+        actions: [
+          // Show count of files
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Center(
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${widget.files.length} items',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
 
       body: PhotoViewGallery.builder(
@@ -62,14 +81,7 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
           final isImage = mime.startsWith('image/');
           final isVideo = mime.startsWith('video/');
 
-          /// 📄 DOCUMENT PREVIEW
-          if (widget.isDocument == true) {
-            return PhotoViewGalleryPageOptions.customChild(
-              child: _documentPreview(file),
-            );
-          }
-
-          /// 🖼 IMAGE PREVIEW (ZOOM + HERO)
+          // For local files, display them directly
           if (isImage) {
             return PhotoViewGalleryPageOptions(
               heroAttributes: PhotoViewHeroAttributes(
@@ -81,7 +93,6 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
             );
           }
 
-          /// 🎬 VIDEO PREVIEW (UNCHANGED)
           if (isVideo) {
             return PhotoViewGalleryPageOptions.customChild(
               child: Hero(
@@ -91,7 +102,6 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
             );
           }
 
-          /// FALLBACK
           return PhotoViewGalleryPageOptions.customChild(
             child: _documentPreview(file),
           );
@@ -111,14 +121,13 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
                 ),
               )
             : const Icon(Icons.send),
-        label: Text(_sending ? "Sending..." : "Send"),
+        label: Text(_sending ? "Sending..." : "Send ${widget.files.length}"),
         backgroundColor: Colors.green,
         shape: const StadiumBorder(),
       ),
     );
   }
 
-  /// 📄 DOCUMENT UI
   Widget _documentPreview(XFile file) {
     return Center(
       child: Column(
@@ -136,7 +145,6 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
     );
   }
 
-  /// 🚀 SEND LOGIC (UNCHANGED)
   Future<void> _sendAll() async {
     setState(() => _sending = true);
 
@@ -155,11 +163,15 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
         isGroupMessage: widget.files.length > 1,
         groupMessageId: groupMessageId,
       );
-      log(msg.toString());
+      log('Created message: ${msg?.toString()}');
+      debugPrint('MSG STATUS: ${msg?['messageStatus']}');
+
       if (msg != null) localMessages.add(msg);
     }
 
     setState(() => _sending = false);
+
+    // Return the messages with localImagePath for immediate display
     Navigator.of(context).pop(localMessages);
   }
 }
