@@ -271,13 +271,17 @@ class _MessageInputFieldState extends State<MessageInputField> {
           );
   }
 
-  Widget _buildReplyPreviewInline() {
+Widget _buildReplyPreviewInline() {
     if (widget.replyText == null) return const SizedBox();
 
     final String content = widget.replyText?['content']?.toString() ?? '';
     final String? imageUrl = widget.replyText?['imageUrl'];
     final String? fileName = widget.replyText?['fileName'];
-    final String? fileType = widget.replyText?['fileType'];
+    final String? fileType = widget.replyText?['fileType'] ??
+        widget.replyText?['mimeType'] ??
+        widget.replyText?['mimetype'] ??
+        widget.replyText?['ContentType'];
+    final String? fileUrl = widget.replyText?['fileUrl'];
     // final String userName = widget.replyText?['userName'] ?? '';
     final String? originalUrl = widget.replyText?['originalUrl'];
 
@@ -314,12 +318,40 @@ class _MessageInputFieldState extends State<MessageInputField> {
                 widget.replyText?['isVideo'] == true) &&
             (originalUrl != null && originalUrl.isNotEmpty);
 
-    final bool isAudio = fileName != null &&
-        (fileName.endsWith('.mp3') ||
-            fileName.endsWith('.aac') ||
-            fileName.endsWith('.wav') ||
-            fileName.endsWith('.m4a') ||
-            (widget.replyText?['mimeType'] ?? '').toString().contains('audio'));
+    final bool isImage =
+        (fileType != null && fileType.toLowerCase().startsWith('image/')) ||
+            (widget.replyText?['ContentType'] == 'image') ||
+            (widget.replyText?['contentType'] == 'image') ||
+            (fileName != null &&
+                ['.jpg', '.jpeg', '.png', '.gif', '.webp']
+                    .any((ext) => fileName.toLowerCase().endsWith(ext))) ||
+            (imageUrl != null &&
+                imageUrl.isNotEmpty &&
+                ['.jpg', '.jpeg', '.png', '.gif', '.webp']
+                    .any((ext) => imageUrl.toLowerCase().contains(ext)));
+
+    final bool isAudio =
+        (fileType != null && fileType.toLowerCase().startsWith('audio/')) ||
+            (widget.replyText?['ContentType'] == 'audio') ||
+            (widget.replyText?['contentType'] == 'audio') ||
+            (fileName != null &&
+                ['.mp3', '.wav', '.aac', '.m4a', '.flac', '.ogg', '.opus']
+                    .any((ext) => fileName.toLowerCase().endsWith(ext)));
+
+    final bool isDocument = !isVideoReply &&
+        !isAudio &&
+        !isImage &&
+        ((fileType != null &&
+                !fileType.toLowerCase().startsWith('image/') &&
+                !fileType.toLowerCase().startsWith('video/') &&
+                !fileType.toLowerCase().startsWith('audio/') &&
+                fileType.isNotEmpty) ||
+            widget.replyText?['isDocument'] == true ||
+            widget.replyText?['ContentType'] == 'file' ||
+            widget.replyText?['contentType'] == 'file' ||
+            widget.replyText?['ContentType'] == 'document' ||
+            widget.replyText?['contentType'] == 'document' ||
+            (fileUrl != null && fileUrl.isNotEmpty));
 
     if (isGroupedMedia) {
       if (localImageCount > 0 && localVideoCount > 0) {
@@ -332,11 +364,12 @@ class _MessageInputFieldState extends State<MessageInputField> {
     } else {
       if (isVideoReply) {
         typeLabel = 'Video';
-      } else if (imageUrl != null && imageUrl.isNotEmpty) {
-        typeLabel = 'Photo';
       } else if (isAudio) {
-        final duration = widget.replyText?['duration'];
-        typeLabel = duration != null ? 'Audio ($duration)' : 'Audio';
+        typeLabel = 'Audio';
+      } else if (isImage) {
+        typeLabel = 'Photo';
+      } else if (isDocument) {
+        typeLabel = 'Document';
       }
     }
     Widget buildVideoThumb(String videoPathOrUrl) {
@@ -409,10 +442,15 @@ class _MessageInputFieldState extends State<MessageInputField> {
     // ---------- build trailing thumbnail (image / video) ----------
     Widget? trailingThumb;
 
-    const double thumbSize = 45;
     if (!isGroupedMedia) {
       if (isVideoReply) {
         trailingThumb = buildVideoThumb(originalUrl);
+      } else if (isAudio) {
+        // Don't show thumbnail for audio, just icon + text
+        trailingThumb = null;
+      } else if (isDocument) {
+        // Don't show thumbnail for documents, just icon + text
+        trailingThumb = null;
       } else if (imageUrl != null && imageUrl.isNotEmpty) {
         trailingThumb = imageUrl.startsWith('/')
             ? Image.file(File(imageUrl),
@@ -420,95 +458,6 @@ class _MessageInputFieldState extends State<MessageInputField> {
             : Image.network(imageUrl, width: 70, height: 70, fit: BoxFit.cover);
       }
     }
-    if (isVideoReply) {
-      trailingThumb = SizedBox(
-        width: thumbSize,
-        height: thumbSize,
-        child: FutureBuilder<File?>(
-          future: VideoThumbUtil.generateFromUrl(originalUrl),
-          builder: (context, snapshot) {
-            final thumbFile = snapshot.data;
-            if (thumbFile == null) {
-              return ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  color: Colors.black26,
-                  child: const Center(
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                ),
-              );
-            }
-
-            if (thumbFile.existsSync()) {
-              return Stack(
-                alignment: Alignment.center,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.file(
-                      thumbFile,
-                      width: thumbSize,
-                      height: thumbSize,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                  const Icon(
-                    Icons.play_circle_fill,
-                    color: Colors.white,
-                    size: 28,
-                  ),
-                ],
-              );
-            }
-
-            return ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                width: thumbSize,
-                height: thumbSize,
-                color: Colors.black,
-                child: const Icon(Icons.videocam, color: Colors.white),
-              ),
-            );
-          },
-        ),
-      );
-    } else if (imageUrl != null && imageUrl.isNotEmpty) {
-      trailingThumb = ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: imageUrl.startsWith('/')
-            ? Image.file(
-                File(imageUrl),
-                width: thumbSize,
-                height: thumbSize,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    width: thumbSize,
-                    height: thumbSize,
-                    color: Colors.grey.shade300,
-                    child: const Icon(Icons.image, color: Colors.grey),
-                  );
-                },
-              )
-            : Image.network(
-                imageUrl,
-                width: thumbSize,
-                height: thumbSize,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    width: thumbSize,
-                    height: thumbSize,
-                    color: Colors.grey.shade300,
-                    child: const Icon(Icons.image, color: Colors.grey),
-                  );
-                },
-              ),
-      );
-    }
-
     return Padding(
       padding: const EdgeInsets.all(8),
       child: Container(
@@ -550,7 +499,9 @@ class _MessageInputFieldState extends State<MessageInputField> {
                                       ? Icons.video_camera_back_rounded
                                       : typeLabel.startsWith('Audio')
                                           ? Icons.music_note
-                                          : null,
+                                          : typeLabel == 'Document'
+                                              ? Icons.insert_drive_file
+                                              : null,
                               color: Colors.grey,
                               size: 16,
                             ),

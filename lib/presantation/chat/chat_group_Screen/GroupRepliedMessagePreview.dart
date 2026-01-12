@@ -1,38 +1,41 @@
-import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
 import '../../../../../utils/reusbale/common_import.dart';
+import '../chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
 
-class RepliedMessagePreview extends StatefulWidget {
+class GroupRepliedMessagePreview extends StatefulWidget {
   final Map<String, dynamic> replied;
   final VoidCallback? onTap;
   final Map<String, dynamic> receiver;
   final bool isSender;
-  final int? groupMediaLength;
 
-  const RepliedMessagePreview(
-      {super.key,
-      required this.replied,
-      this.onTap,
-      required this.receiver,
-      required this.isSender,
-      this.groupMediaLength});
+  const GroupRepliedMessagePreview({
+    super.key,
+    required this.replied,
+    this.onTap,
+    required this.receiver,
+    required this.isSender,
+  });
 
   @override
-  State<RepliedMessagePreview> createState() => _RepliedMessagePreviewState();
+  State<GroupRepliedMessagePreview> createState() =>
+      _GroupRepliedMessagePreviewState();
 }
 
-class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
-  Widget? trailingThumb;
+class _GroupRepliedMessagePreviewState
+    extends State<GroupRepliedMessagePreview> {
   @override
   Widget build(BuildContext context) {
-    const double thumbSize = 70;
+    const double thumbSize = 42;
     final replyContent =
         (widget.replied['replyContent'] ?? widget.replied['content'] ?? '')
             .toString();
 
-    final mediaUrl = widget.replied['originalUrl'] ??
-        widget.replied['imageUrl'] ??
-        widget.replied['fileUrl'] ??
-        '';
+    String mediaUrl = widget.replied['originalUrl']?.toString() ?? '';
+    if (mediaUrl.isEmpty) {
+      mediaUrl = widget.replied['imageUrl']?.toString() ?? '';
+    }
+    if (mediaUrl.isEmpty) {
+      mediaUrl = widget.replied['fileUrl']?.toString() ?? '';
+    }
 
     final String fileType = (widget.replied['mimeType'] ??
             widget.replied['fileType'] ??
@@ -76,11 +79,18 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
             contentType == 'file' ||
             contentType == 'document');
 
+    // Debug logging to identify MIME type issues
+    if (widget.replied['fileName'] != null || mediaUrl.isNotEmpty) {
+      debugPrint(
+          'DEBUG GroupRepliedMessagePreview: contentType="$contentType", fileType="$fileType", fileName="${widget.replied['fileName']}", mediaUrl="$mediaUrl"');
+      debugPrint(
+          'DEBUG GroupRepliedMessagePreview: isVideo=$isVideo, isImage=$isImage, isAudio=$isAudio, isDocument=$isDocument');
+    }
+
     if (replyContent.isEmpty && mediaUrl.isEmpty && !isAudio && !isDocument) {
       return const SizedBox.shrink();
     }
 
-    print("urrrrrrrrrrrrrr $mediaUrl");
     Widget? buildThumb() {
       if (isImage && mediaUrl.startsWith('/')) {
         return Image.file(
@@ -103,77 +113,76 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
         return Container(
           color: Colors.grey.shade300,
           child: const Center(
-            child: Icon(Icons.insert_drive_file, color: Colors.white),
+            child: Icon(Icons.insert_drive_file, color: Colors.white, size: 20),
           ),
         );
       }
 
       if (isVideo) {
-        trailingThumb = SizedBox(
-          width: thumbSize,
-          height: thumbSize,
-          child: FutureBuilder<File?>(
-            future: VideoThumbUtil.generateFromUrl(mediaUrl),
-            builder: (context, snapshot) {
-              final thumbFile = snapshot.data;
-              if (thumbFile == null) {
-                return ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    color: Colors.black26,
-                    child: Center(
-                      child: Container(
-                        color: Colors.grey,
-                      ),
+        return FutureBuilder<File?>(
+          future: VideoThumbUtil.generateFromUrl(mediaUrl),
+          builder: (context, snapshot) {
+            final thumbFile = snapshot.data;
+            if (thumbFile == null) {
+              return ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: Container(
+                  color: Colors.black26,
+                  child: const Center(
+                    child: Icon(Icons.videocam, color: Colors.white, size: 16),
+                  ),
+                ),
+              );
+            }
+
+            if (thumbFile.existsSync()) {
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: Image.file(
+                      thumbFile,
+                      width: thumbSize,
+                      height: thumbSize,
+                      fit: BoxFit.cover,
                     ),
                   ),
-                );
-              }
+                  const Icon(
+                    Icons.play_circle_fill,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ],
+              );
+            }
 
-              if (thumbFile != null && thumbFile.existsSync()) {
-                return Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.file(
-                        thumbFile,
-                        width: thumbSize,
-                        height: thumbSize,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    const Icon(
-                      Icons.play_circle_fill,
-                      color: Colors.white,
-                      size: 28,
-                    ),
-                  ],
-                );
-              }
-
-              return Text("hiii");
-            },
-          ),
+            return Container(
+              color: Colors.grey.shade300,
+              child: const Center(
+                child: Icon(Icons.videocam, color: Colors.white, size: 16),
+              ),
+            );
+          },
         );
       }
-      return trailingThumb;
+      return null;
     }
 
     return GestureDetector(
       onTap: widget.onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 6),
-        padding: const EdgeInsets.only(right: 20, top: 5, bottom: 5),
+        margin: const EdgeInsets.all(6),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(
           color: const Color.fromARGB(255, 231, 235, 249),
           border: Border(left: BorderSide(color: Colors.blueAccent, width: 5)),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(width: 8),
+            const SizedBox(width: 5),
             Flexible(
               fit: FlexFit.loose,
               child: Column(
@@ -183,7 +192,12 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
                   Text(
                     widget.isSender
                         ? 'You'
-                        : '${widget.receiver['first_name'] ?? ''} ${widget.receiver['last_name'] ?? ''}',
+                        : (widget.replied['senderName'] ??
+                                widget.replied['userName'] ??
+                                widget.replied['first_name'] ??
+                                widget.replied['replyToUser'] ??
+                                'Unknown User')
+                            .toString(),
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -217,8 +231,8 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
                   else if (isImage)
                     Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Flexible(
+                      children: const [
+                        Flexible(
                           child: Text(
                             'Photo',
                             style: TextStyle(fontSize: 12),
@@ -247,23 +261,25 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
                     Text(
                       replyContent,
                       maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
+                        overflow: TextOverflow.ellipsis,
                         fontSize: 11,
                       ),
                     ),
                 ],
               ),
             ),
-            if ((isImage || isVideo) && mediaUrl.isNotEmpty)
+            if ((isImage || isVideo) && mediaUrl.isNotEmpty) ...[
+              const SizedBox(width: 8),
               ClipRRect(
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(4),
                 child: SizedBox(
-                  width: 42,
-                  height: 42,
+                  width: thumbSize,
+                  height: thumbSize,
                   child: buildThumb(),
                 ),
               ),
+            ],
           ],
         ),
       ),
