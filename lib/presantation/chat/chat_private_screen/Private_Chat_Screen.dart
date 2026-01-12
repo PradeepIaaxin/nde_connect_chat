@@ -12,7 +12,6 @@ import 'package:nde_email/presantation/chat/widget/reation_bottom.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/ForwardMessageScreen_widget.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/buildMessageInputField_widgets.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/show_Bottom_Sheet.dart';
-import 'package:nde_email/utils/audio/audio_utils.dart';
 import 'package:nde_email/utils/imports/common_imports.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
 import '../../widgets/chat_widgets/Common/grouped_media_viewer.dart';
@@ -36,6 +35,7 @@ class PrivateChatScreen extends StatefulWidget {
   final bool favourite;
   final List<Map<String, dynamic>>? initialMessages;
 
+  final List<File> sharedFiles;
   const PrivateChatScreen({
     super.key,
     required this.convoId,
@@ -49,6 +49,7 @@ class PrivateChatScreen extends StatefulWidget {
     required this.grpChat,
     required this.favourite,
     this.initialMessages,
+    required this.sharedFiles,
   });
 
   @override
@@ -218,7 +219,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   @override
   void dispose() {
     SocketService().clearActiveConversation();
-  //  _audioPlayerService.stopSafely();
+    //  _audioPlayerService.stopSafely();
     _reactionSubscription?.cancel();
     _messageDeletedSubscription?.cancel();
     _scrollController.removeListener(_scrollListener);
@@ -429,6 +430,20 @@ log("vvvvvvvvvvvvvvvvvv $messagesMap");
         _updateMessageStatus(localId, 'failed');
       }
     }
+  }
+
+  void sendReaction({
+    required String emoji,
+    required String messageId,
+  }) {
+    print('Sending reaction: $emoji to messageId: $messageId');
+    print('Current convoId: ${widget.convoId}');
+    SocketService().emitReaction(
+      emoji: emoji,
+      roomId: roomId,
+      conversationId: widget.convoId,
+      messageId: messageId,
+    );
   }
 
   Future<void> _saveDraft(String draft) async {
@@ -1485,8 +1500,8 @@ log("vvvvvvvvvvvvvvvvvv $messagesMap");
     updateList(socketMessages);
     updateList(messages);
     updateList(dbMessages);
-    updateList(_allMessages); // ✅ THIS WAS MISSING
-   // _audioPlayerService.playMessageSentSound();
+    updateList(_allMessages);
+    // _audioPlayerService.playMessageSentSound();
 
     if (changed) {
       _seenMessageIds.remove(tempId);
@@ -1737,7 +1752,7 @@ log("vvvvvvvvvvvvvvvvvv $messagesMap");
         _updateNotifier();
         _scheduleSaveMessages();
 
-       // _audioPlayerService.playMessageSentSound();
+        // _audioPlayerService.playMessageSentSound();
 
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _scrollToBottom();
@@ -3079,9 +3094,12 @@ log("vvvvvvvvvvvvvvvvvv $messagesMap");
     );
   }
 
-  void _handleReactionTap(Map<String, dynamic> message, String emoji) {
+  Future<void> _handleReactionTap(
+    Map<String, dynamic> message,
+    String emoji,
+  ) async {
     try {
-      String rawId = (message['message_id'] ??
+      final rawId = (message['message_id'] ??
               message['messageId'] ??
               message['id'] ??
               message['_id'] ??
@@ -3095,7 +3113,11 @@ log("vvvvvvvvvvvvvvvvvv $messagesMap");
 
       final apiMessageId = _normalizeMessageIdForApi(rawId);
 
-      // normalize reactions for this message
+      sendReaction(
+        emoji: emoji,
+        messageId: apiMessageId,
+      );
+
       final List<Map<String, dynamic>> reactions =
           _extractReactions(message['reactions']);
 
@@ -3114,7 +3136,7 @@ log("vvvvvvvvvvvvvvvvvv $messagesMap");
 
       final bool hasMyReaction = myIndex != -1;
 
-      // CASE 1: tap same emoji → remove
+      // 🔁 CASE 1: tap same emoji → remove
       if (hasMyReaction && oldEmoji == emoji) {
         _updateLocalReactions(rawId, null);
 
@@ -3130,7 +3152,7 @@ log("vvvvvvvvvvvvvvvvvv $messagesMap");
         return;
       }
 
-      // CASE 2: change emoji
+      // 🔁 CASE 2: change emoji
       if (hasMyReaction && oldEmoji != emoji) {
         _updateLocalReactions(rawId, emoji);
 
@@ -3156,7 +3178,7 @@ log("vvvvvvvvvvvvvvvvvv $messagesMap");
         return;
       }
 
-      // CASE 3: first time reacting
+      // 🆕 CASE 3: first reaction
       _updateLocalReactions(rawId, emoji);
 
       _messagerBloc.add(AddReaction(
@@ -3168,6 +3190,7 @@ log("vvvvvvvvvvvvvvvvvv $messagesMap");
         firstName: widget.firstname ?? "",
         lastName: widget.lastname ?? "",
       ));
+
       _saveAllMessages();
     } catch (e, st) {
       log('❌ Error handling reaction tap: $e\n$st');
@@ -3489,6 +3512,11 @@ log("vvvvvvvvvvvvvvvvvv $messagesMap");
         'fileName': replySource['fileName'] ?? '',
         'fileType': fileType,
         'isVideo': isVideo,
+        'isDocument': !isVideo &&
+            (replySource['fileUrl'] != null &&
+                replySource['fileUrl'].isNotEmpty &&
+                (replySource['imageUrl'] == null ||
+                    replySource['imageUrl'].isEmpty)),
 
         // user
         'sender': replySource['sender'],

@@ -322,13 +322,13 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
       print("receivarrr ${event.receiverId}");
       // 4️⃣ Only hit REST if this is a real server id
       if (!isTemp) {
-        await apiService.reactionUpdated(
-          conversationId: event.conversationId,
-          messageId: backendId, // 👈 normalized id
-          emoji: event.emoji,
-          userId: event.userId,
-          receiverId: event.receiverId,
-        );
+        // await apiService.reactionUpdated(
+        //   conversationId: event.conversationId,
+        //   messageId: backendId, // 👈 normalized id
+        //   emoji: event.emoji,
+        //   userId: event.userId,
+        //   receiverId: event.receiverId,
+        // );
       } else {
         log('ℹ️ Skipping HTTP reactionUpdated for temp messageId=$rawId');
       }

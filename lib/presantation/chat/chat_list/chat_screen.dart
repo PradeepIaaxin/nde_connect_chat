@@ -1,6 +1,4 @@
-import 'dart:convert';
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
 import 'package:nde_email/data/respiratory.dart';
 import 'package:nde_email/presantation/chat/Socket/socket_service.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_listscreen.dart';
@@ -135,15 +133,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
     });
   }
 
-  void _updateLocalArchive(String convoId, bool newStatus) {
-    final chat = ChatSessionStorage.getChatList()
-        .firstWhere((c) => c.id == convoId || c.conversationId == convoId);
-
-    chat.isArchived = newStatus;
-
-    context.read<ChatListBloc>().add(UpdateLocalChatList());
-  }
-
   void _scrollListener() {
     if (!_scrollController.hasClients) return;
 
@@ -216,26 +205,12 @@ class _ChatListScreenState extends State<ChatListScreen> {
     );
   }
 
-  Future<void> handleArchiveChat(String messageId, bool isArchived) async {
-    _updateLocalArchive(messageId, isArchived);
-
-    accessToken = await UserPreferences.getAccessToken();
-    defaultWorkspace = await UserPreferences.getDefaultWorkspace();
-    final url = Uri.parse('$baseURL/chats/archive');
-    final body = jsonEncode({
-      'action': isArchived,
-      'convoIds': [messageId]
-    });
-    final headers = {
-      'Authorization': 'Bearer $accessToken',
-      'x-workspace': defaultWorkspace ?? '',
-      'Content-Type': 'application/json',
-    };
-    try {
-      await http.post(url, headers: headers, body: body);
-    } catch (e) {
-      log("Error archiving chat: $e");
-    }
+  Future<void> handleArchiveChat(String convoId, bool newPinState) async {
+    print('Archiving chat: $convoId to state: $newPinState');
+    SocketService().archiveChat(
+      conversationId: convoId,
+      nextPinnedState: newPinState,
+    );
   }
 
   final Map<String, bool Function(Datu)> chatFilters = {
@@ -888,6 +863,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                                       'Unknown User',
                                                   profileAvatarUrl:
                                                       profileAvatarUrl,
+                                                  sharedFiles: [],
                                                   lastSeen: chat
                                                               .lastMessageTime !=
                                                           null
@@ -905,14 +881,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                                       chat.isFavorites ?? false,
                                                 ),
                                         );
-                                        // then((_) {
-                                        //   log(chat.toJson().toString());
-                                        //   if (mounted) {
-                                        //     context
-                                        //         .read<ChatListBloc>()
-                                        //         .add(UpdateLocalChatList());
-                                        //   }
-                                        // });
                                       }
                                     },
                                     onLongPress: () {

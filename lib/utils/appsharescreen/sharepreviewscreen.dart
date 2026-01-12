@@ -13,7 +13,6 @@ class SharePreviewScreen extends StatelessWidget {
       backgroundColor: Colors.black,
       body: Column(
         children: [
-
           /// 🔹 MEDIA PREVIEW
           Expanded(
             child: PageView.builder(
@@ -32,21 +31,21 @@ class SharePreviewScreen extends StatelessWidget {
           /// 🔹 CHAT LIST (BOTTOM)
           ShareChatList(
             onChatSelected: (user) {
-              // TODO: send files to chat
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
                   builder: (_) => PrivateChatScreen(
                     convoId: user.conversationId ?? "",
-                    profileAvatarUrl: "",
-                    firstname: user.firstName,
                     receiverId: user.userId,
+                    firstname: user.firstName,
                     lastname: user.lastName,
                     userName: user.firstName,
+                    profileAvatarUrl: "",
                     lastSeen: " ",
                     datumId: user.userId,
                     grpChat: false,
                     favourite: false,
+                    sharedFiles: files,
                   ),
                 ),
               );

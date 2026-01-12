@@ -201,6 +201,7 @@ class _UserListScreenState extends State<UserListScreen> {
                                 convoId: user.conversationId ?? "",
                                 profileAvatarUrl: "",
                                 firstname: user.firstName,
+                                        sharedFiles: [],
                                 receiverId: user.userId,
                                 lastname: user.lastName,
                                 userName: user.firstName,

@@ -386,6 +386,8 @@ final screenWidth = MediaQuery.of(context).size.width;
       'last_name': message['receiver']?['last_name'] ?? '',
       'group_message_id': message['group_message_id'],
       'is_grouped_message': message['is_grouped_message'] ?? false,
+      'mimeType': message['mimeType'] ?? message['fileType'],
+      'duration': message['duration'],
     };
   }
 
