@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
 import 'package:any_link_preview/any_link_preview.dart';
@@ -13,6 +14,7 @@ import 'package:flutter_sound/public/flutter_sound_recorder.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mime/mime.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/local_strorage.dart';
+import 'package:nde_email/presantation/chat/chat_group_Screen/GroupRepliedMessagePreview.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/api_servicer.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_event.dart';
@@ -130,6 +132,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   // 🔥 Highlight Logic
   String? _highlightedMessageId;
   Timer? _highlightTimer;
+  final Map<String, BuildContext> _messageContexts = {};
   final Set<String> _selectedMessageIds = {};
   final Set<String> _selectedMessageKeys = {};
   final List<Map<String, dynamic>> _selectedMessages = [];
@@ -178,7 +181,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     _timer?.cancel();
     _recordingTimer?.cancel();
     _recordTimer?.cancel();
-
+    _highlightTimer?.cancel();
+    _messageContexts.clear();
     _reactionSubscription?.cancel();
     _messageSubscription?.cancel();
     _statusSubscription?.cancel();
@@ -1029,31 +1033,88 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         senderData['avatar'] ??
         '';
 
-    final normalizedReply = (reply != null && reply is Map<String, dynamic>)
-        ? {
-            "userId": reply["userId"] ?? reply["senderId"],
-            "id": reply["id"] ?? reply["message_id"] ?? reply["messageId"],
-            "mimeType": reply["mimeType"] ?? reply["fileType"] ?? "",
-            "fileType": reply["fileType"] ?? reply["mimeType"] ?? "",
-            "ContentType": reply["ContentType"] ?? "",
-            "replyContent": reply["content"] ?? reply["replyContent"] ?? "",
-            "replyToUser": reply["senderName"] ??
-                reply["userName"] ??
-                reply["replyToUser"] ??
-                reply["replyToUSer"] ??
-                "",
-            "fileName": reply["fileName"] ?? "",
-            "first_name": reply["first_name"] ?? "",
-            "last_name": reply["last_name"] ?? "",
-            "imageUrl": reply["imageUrl"] ?? reply["thumbnailUrl"] ?? "",
-            "fileUrl": reply["fileUrl"] ?? "",
-            "originalUrl": reply["originalUrl"] ?? "",
-            "videoDuration": reply["videoDuration"] ?? reply["duration"],
-            'profile_pic_path': message['sender']?['profile_pic_path'] ??
-                message['sender']?['profilePic'] ??
-                message['profile_pic_path'] ??
-                '',
-          }
+   final normalizedReply = (reply != null && reply is Map<String, dynamic>)
+        ? (() {
+            // Extract URLs and fileName for extension check
+            final String mediaUrl = reply["originalUrl"]?.toString() ??
+                reply["imageUrl"]?.toString() ??
+                reply["fileUrl"]?.toString() ??
+                "";
+            final String fileName = reply["fileName"]?.toString() ?? "";
+
+            // Get extension
+            String ext = "";
+            if (mediaUrl.isNotEmpty) {
+              final uri = Uri.tryParse(mediaUrl);
+              ext = uri?.path.split('.').last.toLowerCase() ?? "";
+            } else if (fileName.isNotEmpty) {
+              ext = fileName.split('.').last.toLowerCase();
+            }
+
+            // Guess type by extension if not provided
+            String mimeType = reply["mimeType"]?.toString() ??
+                reply["fileType"]?.toString() ??
+                "";
+            String contentType = reply["ContentType"]?.toString() ??
+                reply["contentType"]?.toString() ??
+                "";
+
+            if (mimeType.isEmpty || contentType.isEmpty) {
+              if (["jpg", "jpeg", "png", "gif", "webp"].contains(ext)) {
+                mimeType = "image/$ext";
+                contentType = "image";
+              } else if (["mp4", "mov", "mkv", "avi", "webm"].contains(ext)) {
+                mimeType = "video/$ext";
+                contentType = "video";
+              } else if (["mp3", "wav", "aac", "m4a", "flac", "ogg", "opus"]
+                  .contains(ext)) {
+                mimeType = "audio/$ext";
+                contentType = "audio";
+              } else if ([
+                "pdf",
+                "doc",
+                "docx",
+                "xls",
+                "xlsx",
+                "ppt",
+                "pptx",
+                "txt"
+              ].contains(ext)) {
+                mimeType = "application/$ext";
+                contentType = "document";
+              } else if (mediaUrl.isNotEmpty) {
+                mimeType = "application/octet-stream";
+                contentType = "file";
+              }
+            }
+
+            return {
+              "userId": reply["userId"] ?? reply["senderId"],
+              "id": reply["id"] ?? reply["message_id"] ?? reply["messageId"],
+              "mimeType": mimeType,
+              "fileType": mimeType,
+              "ContentType": contentType,
+              "contentType": contentType,
+              "replyContent": reply["content"] ?? reply["replyContent"] ?? "",
+              "replyToUser": reply["senderName"] ??
+                  reply["userName"] ??
+                  reply["replyToUser"] ??
+                  reply["replyToUSer"] ??
+                  "",
+              "fileName": reply["fileName"] ?? "",
+              "first_name": reply["first_name"] ?? "",
+              "last_name": reply["last_name"] ?? "",
+              "imageUrl": reply["imageUrl"] ?? reply["thumbnailUrl"] ?? "",
+              "fileUrl": reply["fileUrl"] ?? "",
+              "originalUrl": reply["originalUrl"] ?? "",
+              "duration": reply["duration"] ?? reply["videoDuration"],
+              "videoDuration": reply["videoDuration"] ?? reply["duration"],
+              'profile_pic_path': message['sender']?['profile_pic_path'] ??
+                  message['sender']?['profilePic'] ??
+                  message['profile_pic_path'] ??
+                  '',
+            };
+          })()
         : null;
 
     // 🔥 NEW: Deep normalization of reactions to prevent "Unknown User"
@@ -1896,8 +1957,24 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       }
     }
   }
+  Map<String, dynamic> _mergeReplyData(dynamic replyData) {
+    Map<String, dynamic> merged = {};
 
-  void _replyToMessage(Map<String, dynamic> message) {
+    if (replyData is Map) {
+      merged.addAll(Map<String, dynamic>.from(replyData));
+    }
+
+    // Ensure we have proper MIME type by checking multiple fields
+    if ((merged['fileType'] == null || merged['fileType'].toString().isEmpty) &&
+        merged['mimeType'] != null &&
+        merged['mimeType'].toString().isNotEmpty) {
+      merged['fileType'] = merged['mimeType'];
+    }
+
+    return merged;
+  }
+
+void _replyToMessage(Map<String, dynamic> message) {
     if (message.isEmpty) return;
 
     // 🔹 Raw data from original message
@@ -1910,7 +1987,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     final String? fileUrl = message['fileUrl'];
     final String? fileName = message['fileName'];
-    final String? fileType = message['fileType'];
+    final String? fileType = message['mimeType'] ??
+        message['fileType'] ??
+        message['mimetype'] ??
+        message['ContentType'];
     final String? originalUrl = message['originalUrl'] ?? fileUrl;
 
     final String userName = message['senderName'] ??
@@ -1933,10 +2013,17 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         'imageUrl': imageUrl ?? '',
         'fileUrl': fileUrl ?? '',
         'fileName': fileName ?? '',
-        'fileType': fileType ?? '',
+        'fileType': message['mimeType'] ??
+            message['fileType'] ??
+            message['mimetype'] ??
+            message['ContentType'] ??
+            '',
         'originalUrl': originalUrl ?? '',
         'userName': userName,
         'isVideo': isVideo,
+        'ContentType': message['ContentType'] ?? message['contentType'] ?? '',
+        'duration': message['duration'] ?? '',
+        'mimeType': message['mimeType'] ?? message['mimetype'] ?? '',
       };
 
       _focusNode.requestFocus();
@@ -2306,355 +2393,270 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     });
   }
 
-  /// Scroll to message used in reply, with pagination + local storage
-  Future<bool> _scrollToMessageById(String messageId,
+ Future<bool> _scrollToMessageById(String messageId,
       {bool fetchIfMissing = true}) async {
     if (messageId.isEmpty) return false;
 
+    final ctx = _messageContexts[messageId];
+    if (ctx != null && ctx.mounted) {
+      _highlightAndScrollToContext(ctx, messageId);
+      return true;
+    }
+
     List<Map<String, dynamic>> combined = _getCombinedMessages();
 
-    int index = combined.indexWhere((m) {
-      final mid = (m['message_id'] ?? m['id'])?.toString() ?? '';
+    int msgIndex = combined.indexWhere((m) {
+      final mid =
+          (m['message_id'] ?? m['messageId'] ?? m['id'])?.toString() ?? '';
       return mid == messageId;
     });
 
-    if (index == -1 && fetchIfMissing) {
+    if (msgIndex == -1 && fetchIfMissing) {
       final found = await _fetchUntilMessageFound(messageId);
       if (!found) return false;
 
       combined = _getCombinedMessages();
-      index = combined.indexWhere((m) {
-        final mid = (m['message_id'] ?? m['id'])?.toString() ?? '';
+      msgIndex = combined.indexWhere((m) {
+        final mid =
+            (m['message_id'] ?? m['messageId'] ?? m['id'])?.toString() ?? '';
         return mid == messageId;
       });
 
-      if (index == -1) return false;
+      if (msgIndex == -1) return false;
     }
 
-    // Ensure the message is within the visible window
-    final int neededVisible = combined.length - index;
-    if (_visibleCount < neededVisible) {
-      setState(() {
-        _visibleCount = neededVisible + 5; // Add a small buffer
-        // Clamp to max length to be safe, though neededVisible <= combined.length should hold
-        if (_visibleCount > combined.length) _visibleCount = combined.length;
-      });
-      _updateNotifier();
-      // Allow UI to rebuild with new items
-      await Future.delayed(const Duration(milliseconds: 150));
+    if (msgIndex != -1) {
+      // Ensure message is within visible window
+      final int neededVisible = combined.length - msgIndex;
+      if (_visibleCount < neededVisible) {
+        setState(() {
+          _visibleCount = neededVisible + 5; // Add a small buffer
+          if (_visibleCount > combined.length) _visibleCount = combined.length;
+        });
+        _updateNotifier();
+        await Future.delayed(const Duration(milliseconds: 150));
+      }
+
+      final int listIndex = combined.length - 1 - msgIndex;
+      final double estimatedOffset = _estimateScrollOffset(listIndex, combined);
+
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(estimatedOffset.clamp(
+          0.0,
+          _scrollController.position.maxScrollExtent,
+        ));
+      }
+
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      final targetCtx = _messageContexts[messageId];
+      if (targetCtx != null && targetCtx.mounted) {
+        _highlightAndScrollToContext(targetCtx, messageId);
+        return true;
+      }
+
+      // Try multiple attempts with refined scrolling
+      for (int attempt = 0; attempt < 3; attempt++) {
+        await Future.delayed(const Duration(milliseconds: 50));
+
+        final targetCtx = _messageContexts[messageId];
+        if (targetCtx != null && targetCtx.mounted) {
+          _highlightAndScrollToContext(targetCtx, messageId);
+          return true;
+        }
+
+        // Find closest visible message and refine scroll position
+        int? closestVisibleIndex;
+        double minDiff = double.infinity;
+
+        for (final entry in _messageContexts.entries) {
+          final ctx = entry.value;
+          if (ctx.mounted) {
+            final idx = combined.indexWhere((m) {
+              final mid = (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '')
+                  .toString();
+              return mid == entry.key;
+            });
+
+            if (idx != -1) {
+              final diff = (idx - msgIndex).abs().toDouble();
+              if (diff < minDiff) {
+                minDiff = diff;
+                closestVisibleIndex = idx;
+              }
+            }
+          }
+        }
+
+        if (closestVisibleIndex != null) {
+          final int indexDiff = msgIndex - closestVisibleIndex;
+          double correction = 0;
+          final int start = indexDiff > 0 ? closestVisibleIndex : msgIndex;
+          final int end = indexDiff > 0 ? msgIndex : closestVisibleIndex;
+
+          for (int k = start; k < end; k++) {
+            correction += _estimateMessageHeight(combined[k]);
+          }
+
+          if (indexDiff < 0) correction = -correction;
+
+          final currentEstimate = estimatedOffset + correction;
+          if (_scrollController.hasClients) {
+            _scrollController.jumpTo(currentEstimate.clamp(
+              0.0,
+              _scrollController.position.maxScrollExtent,
+            ));
+          }
+        } else {
+          break;
+        }
+      }
+
+      final finalCtx = _messageContexts[messageId];
+      if (finalCtx != null && finalCtx.mounted) {
+        _highlightAndScrollToContext(finalCtx, messageId);
+        return true;
+      }
+
+      _highlightMessage(messageId);
+      return true;
     }
 
-    if (!_scrollController.hasClients) return false;
+    if (fetchIfMissing) {
+      _groupBloc.add(
+        FetchGroupMessages(
+          convoId: widget.conversationId,
+          page: _currentPage,
+          limit: _limit,
+        ),
+      );
+      await Future.delayed(const Duration(milliseconds: 300));
+      return _scrollToMessageById(messageId, fetchIfMissing: false);
+    }
 
-    // ✨ CRITICAL: ListView is REVERSED (newest at bottom, oldest at top)
-    // So we need to calculate from the END of the list (which is 0 in UI)
-    const double itemHeightEstimate = 80.0;
+    return false;
+  }
 
-    // The logic: proper offset = (visual_index) * height.
-    // Visual index 0 is bottom (newest).
-    // Message index (in combined) is 0 (oldest) ... N (newest).
-    // Visual Index = (Total - 1 - index).
-    // Note: Use combined.length as the total reference since we ensured visibility.
-    final reversedIndex = combined.length - 1 - index;
 
-    final double offset = (reversedIndex * itemHeightEstimate)
-        .clamp(0.0, _scrollController.position.maxScrollExtent);
+/// Highlight message and scroll to its context
+  void _highlightAndScrollToContext(BuildContext ctx, String messageId) {
+    if (!ctx.mounted) return;
 
-    await _scrollController.animateTo(
-      offset,
+    _highlightMessage(messageId);
+
+    Scrollable.ensureVisible(
+      ctx,
       duration: const Duration(milliseconds: 400),
       curve: Curves.easeOut,
     );
-
-    // ✨ Highlight the target message
-    if (mounted) {
-      setState(() => _highlightedMessageId = messageId);
-
-      _highlightTimer?.cancel();
-      _highlightTimer = Timer(const Duration(seconds: 2), () {
-        if (mounted) {
-          setState(() => _highlightedMessageId = null);
-        }
-      });
-    }
-
-    return true;
   }
 
-  /// Reply preview (tap → scroll to original). Works after reopen because ids are persisted.
-  Widget _buildReplyPreview(Map<String, dynamic> message, bool isSentByMe) {
-    final Map<String, dynamic> replyMap =
-        (message['repliedMessage'] ?? message['reply']) is Map
-            ? Map<String, dynamic>.from(
-                message['repliedMessage'] ?? message['reply'])
-            : <String, dynamic>{};
+  /// Highlight a message temporarily
+  void _highlightMessage(String messageId) {
+    setState(() => _highlightedMessageId = messageId);
 
-    if (replyMap.isEmpty) return const SizedBox.shrink();
+    _highlightTimer?.cancel();
+    _highlightTimer = Timer(
+      const Duration(milliseconds: 1500),
+      () {
+        if (!mounted) return;
+        setState(() => _highlightedMessageId = null);
+      },
+    );
+    
+  }
 
-    final replyId = (replyMap['id'] ??
-                replyMap['message_id'] ??
-                replyMap['messageId'] ??
-                replyMap['reply_message_id'])
-            ?.toString() ??
-        '';
 
-    final senderName = (replyMap['senderName'] ??
-            replyMap['userName'] ??
-            replyMap['first_name'] ??
-            replyMap['replyToUser'] ??
-            '')
-        .toString();
+  /// Estimate message height for scroll calculations
+  double _estimateMessageHeight(Map<String, dynamic> message) {
+    final content = (message['content'] ?? '').toString();
+    final hasMedia =
+        (message['fileUrl'] ?? message['imageUrl'] ?? '').toString().isNotEmpty;
+    final hasReply = _hasReplyForMessage(message);
 
-    final replyContent = (replyMap['replyContent'] ??
-            replyMap['content'] ??
-            replyMap['message'] ??
-            '')
-        .toString();
+    double height = 60.0; // Base height
 
-    // 👇 media info
-    String fileType = (replyMap['fileType'] ??
-            replyMap['mimeType'] ??
-            replyMap['mimetype'] ??
-            '')
-        .toString()
-        .toLowerCase();
-
-    String imageOrVideoUrl = (replyMap['originalUrl'] ??
-            replyMap['imageUrl'] ??
-            replyMap['fileUrl'] ??
-            '')
-        .toString();
-
-    // 👇 duration in seconds (change key if needed)
-    final dynamic durRaw = replyMap['videoDuration'] ?? replyMap['duration'];
-    final int durationSec =
-        durRaw is int ? durRaw : int.tryParse(durRaw?.toString() ?? '') ?? 0;
-
-    String formatDuration(int sec) {
-      if (sec <= 0) return '';
-      final d = Duration(seconds: sec);
-      final m = d.inMinutes;
-      final s = d.inSeconds % 60;
-      return '$m:${s.toString().padLeft(2, '0')}';
+    if (content.isNotEmpty) {
+      final lines = (content.length / 40).ceil();
+      height += lines * 20.0;
     }
 
-    // Try to recover media info from original message if missing in reply map
-    if (imageOrVideoUrl.isEmpty && replyId.isNotEmpty) {
-      try {
-        final all = _getCombinedMessages();
-        final original = all.firstWhere(
-          (m) {
-            final mid =
-                (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '').toString();
-            return mid == replyId;
-          },
-          orElse: () => <String, dynamic>{},
-        );
+    if (hasMedia) height += 120.0;
+    if (hasReply) height += 60.0;
 
-        if (original.isNotEmpty) {
-          imageOrVideoUrl = (original['originalUrl'] ??
-                  original['imageUrl'] ??
-                  original['thumbnailUrl'] ??
-                  original['fileUrl'] ??
-                  '')
+    return height.clamp(60.0, 300.0);
+  }
+
+  /// Estimate scroll offset for a given list index
+  double _estimateScrollOffset(
+      int listIndex, List<Map<String, dynamic>> messages) {
+    double offset = 0.0;
+
+    for (int i = 0; i < listIndex && i < messages.length; i++) {
+      offset += _estimateMessageHeight(messages[i]);
+    }
+
+    return offset;
+  }
+
+  /// Check if message has a reply
+  bool _hasReplyForMessage(Map<String, dynamic>? message) {
+    if (message == null) return false;
+
+    if (message['_localHasReply'] == true) return true;
+
+    final replyRaw = message['reply'];
+    Map<String, dynamic>? reply;
+    if (replyRaw is Map) {
+      reply = Map<String, dynamic>.from(replyRaw);
+    } else if (replyRaw is String) {
+      try {
+        final decoded = jsonDecode(replyRaw);
+        if (decoded is Map) reply = Map<String, dynamic>.from(decoded);
+      } catch (_) {}
+    }
+
+    if (reply != null && reply.isNotEmpty) {
+      final id = (reply['id'] ??
+              reply['message_id'] ??
+              reply['messageId'] ??
+              reply['reply_message_id'] ??
+              reply['_id'])
+          ?.toString();
+
+      final replyContent =
+          (reply['replyContent'] ?? reply['content'] ?? reply['message'] ?? '')
               .toString();
 
-          if (fileType.isEmpty) {
-            fileType = (original['fileType'] ??
-                    original['mimeType'] ??
-                    original['mimetype'] ??
-                    original['ContentType'] ??
-                    '')
-                .toString()
-                .toLowerCase();
-          }
-        }
-      } catch (e) {
-        debugPrint('reply preview lookup failed: $e');
+      final hasMedia = (reply['originalUrl'] ??
+                  reply['fileUrl'] ??
+                  reply['imageUrl'] ??
+                  reply['replyUrl'] ??
+                  reply['reply_url'] ??
+                  reply['thumbnailUrl'] ??
+                  reply['thumbnail_url'])
+              ?.toString()
+              .isNotEmpty ==
+          true;
+
+      if ((id != null && id.isNotEmpty) ||
+          replyContent.isNotEmpty ||
+          hasMedia) {
+        return true;
       }
     }
 
-    final bool isVideo = fileType.startsWith('video/') ||
-        ['mp4', 'mov', 'mkv', 'avi', 'webm']
-            .any((ext) => imageOrVideoUrl.toLowerCase().endsWith(ext));
+    final topReplyId = (message['reply_message_id'] ??
+            message['replyMessageId'] ??
+            message['reply_to'] ??
+            message['replyId'] ??
+            message['repliedMessageId'])
+        ?.toString();
+    if (topReplyId != null && topReplyId.isNotEmpty) return true;
 
-    final bool isImage = fileType.startsWith('image/') ||
-        ['jpg', 'jpeg', 'png', 'gif', 'webp']
-            .any((ext) => imageOrVideoUrl.toLowerCase().endsWith(ext));
-
-    bool _looksLikeNetwork(String s) =>
-        s.startsWith('http://') || s.startsWith('https://');
-
-    if (replyId.isEmpty && replyContent.isEmpty && imageOrVideoUrl.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return GestureDetector(
-      onTap: () async {
-        // open original based on media
-        if (isVideo && imageOrVideoUrl.isNotEmpty) {
-          final isNetwork = _looksLikeNetwork(imageOrVideoUrl);
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => VideoPlayerScreen(
-                path: imageOrVideoUrl,
-                isNetwork: isNetwork,
-              ),
-            ),
-          );
-        } else if (isImage && imageOrVideoUrl.isNotEmpty) {
-          ImageViewer.show(context, imageOrVideoUrl);
-        } else if (replyId.isNotEmpty) {
-          debugPrint("🖱️ Tapped reply preview. ID: $replyId");
-          final found =
-              await _scrollToMessageById(replyId, fetchIfMissing: true);
-          if (!found && mounted) {
-            Messenger.alert(
-                msg:
-                    "Original message not loaded. Scroll up to load older messages.");
-          }
-        }
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 6),
-        padding: const EdgeInsets.only(right: 20, top: 8, bottom: 8),
-        decoration: BoxDecoration(
-            color: const Color.fromARGB(255, 231, 235, 249),
-            borderRadius: BorderRadius.circular(10),
-            border:
-                Border(left: BorderSide(color: Colors.blueAccent, width: 5))),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // left colored bar
-            // Container(
-            //   width: 3,
-            //   height: 40,
-            //   decoration: BoxDecoration(
-            //     color: const Color.fromARGB(255, 51, 125, 253),
-            //     borderRadius: BorderRadius.circular(4),
-            //   ),
-            // ),
-            const SizedBox(width: 8),
-
-            // TEXT PART
-            Flexible(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (senderName.isNotEmpty)
-                    Text(
-                      senderName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  if (isVideo) ...[
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.videocam, size: 14),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Video'
-                              '${durationSec > 0 ? " (${formatDuration(durationSec)})" : ""}',
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ] else if (isImage) ...[
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        Icon(Icons.image, size: 14),
-                        SizedBox(width: 4),
-                        Text('Photo', style: TextStyle(fontSize: 12)),
-                      ],
-                    ),
-                  ] else if (replyContent.isNotEmpty) ...[
-                    Text(
-                      replyContent,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style:
-                          const TextStyle(fontSize: 11, color: Colors.black87),
-                    ),
-                  ],
-                  if (replyContent.isNotEmpty && (isVideo || isImage))
-                    Text(
-                      replyContent,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style:
-                          const TextStyle(fontSize: 10, color: Colors.black54),
-                    ),
-                ],
-              ),
-            ),
-
-            const SizedBox(width: 105),
-
-            // THUMBNAIL ON THE RIGHT
-            if (imageOrVideoUrl.isNotEmpty)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: SizedBox(
-                  width: 42,
-                  height: 42,
-                  child: isVideo
-                      // 🎥 VIDEO
-                      ? FutureBuilder<File?>(
-                          future:
-                              VideoThumbUtil.generateFromUrl(imageOrVideoUrl),
-                          builder: (context, snapshot) {
-                            if (snapshot.connectionState ==
-                                ConnectionState.waiting) {
-                              return Container(color: Colors.grey.shade300);
-                            }
-                            if (!snapshot.hasData || snapshot.data == null) {
-                              return Container(
-                                color: Colors.black,
-                                child: const Icon(Icons.videocam,
-                                    color: Colors.white, size: 18),
-                              );
-                            }
-                            return Image.file(
-                              snapshot.data!,
-                              fit: BoxFit.cover,
-                            );
-                          },
-                        )
-                      // 🖼 IMAGE
-                      : (_looksLikeNetwork(imageOrVideoUrl)
-                          ? CachedNetworkImage(
-                              imageUrl: imageOrVideoUrl,
-                              fit: BoxFit.cover,
-                              placeholder: (c, _) =>
-                                  Container(color: Colors.grey.shade300),
-                              errorWidget: (c, _, __) => Container(
-                                color: Colors.grey.shade300,
-                                child: const Icon(Icons.error, size: 18),
-                              ),
-                            )
-                          : Image.file(
-                              File(imageOrVideoUrl),
-                              fit: BoxFit.cover,
-                            )),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
+    return false;
   }
+  
 
   List<Map<String, dynamic>> flattenGroupedMessages(
       List<GroupMessageGroup> groups) {
@@ -3454,7 +3456,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     );
   }
 
-  Widget _buildMessageBubble(Map<String, dynamic> message, bool isSentByMe) {
+ Widget _buildMessageBubble(Map<String, dynamic> message, bool isSentByMe) {
     final String content = message['content']?.toString() ?? '';
     final String? imageUrl = message['imageUrl'] ?? _imageFile;
     final String? fileUrl = message['fileUrl'] ?? _fileUrl;
@@ -3534,904 +3536,957 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                     message['reply']['messageId']) !=
                 null);
 
+    final messageId = (message['message_id'] ??
+                message['messageId'] ??
+                message['id'] ??
+                message['_id'])
+            ?.toString() ??
+        '';
+
     return message['content'].contains('Group created by')
         ? voidBox
         : (contentType == "system" &&
                 (content.contains('added') || content.contains('left')))
             ? voidBox
-            : SwipeToReply(
-                icon: Icons.reply,
-                iconColor: Colors.grey.shade600,
-                onReply: isDeleted
-                    ? null
-                    : () {
-                        _replyToMessage(message);
-                      },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      vertical: 5.0, horizontal: 4.0),
-                  child: GestureDetector(
-                    onTap: () => _onMessageTap(message),
-                    onLongPress: () {
-                      if (_isSelectionMode) {
-                        _toggleMessageSelection(message);
-                      } else if (!isDeleted) {
-                        _showReactionPicker(context, message);
+            : Builder(
+                builder: (context) {
+                  // Register context for scrolling
+                  if (messageId.isNotEmpty) {
+                    _messageContexts[messageId] = context;
+                  }
 
-                        // Enter selection mode
-                        setState(() {
-                          _isSelectionMode = true;
-                        });
-                        _toggleMessageSelection(message);
-                      } else {
-                        // If deleted, only enter selection mode
-                        setState(() {
-                          _isSelectionMode = true;
-                        });
-                        _toggleMessageSelection(message);
-                      }
-                    },
-                    child: Align(
-                      alignment: isSentByMe
-                          ? Alignment.centerRight
-                          : Alignment.centerLeft,
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(left: 36),
-                            child: Container(
-                              margin: EdgeInsets.only(
-                                left: 5,
-                                right: 5,
-                                top: 0,
-                                bottom: (message['reactions'] != null &&
-                                        message['reactions'].isNotEmpty)
-                                    ? 20
-                                    : 0,
-                              ),
-                              padding: const EdgeInsets.only(
-                                  top: 3, left: 7, right: 6, bottom: 5),
-                              constraints: const BoxConstraints(maxWidth: 250),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? senderColor.withOpacity(0.2)
-                                    : (isSentByMe
-                                        ? senderColor
-                                        : receiverColor),
-                                borderRadius: BorderRadius.only(
-                                  topLeft: isSentByMe
-                                      ? const Radius.circular(18)
-                                      : const Radius.circular(18),
-                                  topRight: isSentByMe
-                                      ? const Radius.circular(18)
-                                      : const Radius.circular(18),
-                                  bottomLeft: isSentByMe
-                                      ? const Radius.circular(18)
-                                      : Radius.zero,
-                                  bottomRight: isSentByMe
-                                      ? Radius.zero
-                                      : const Radius.circular(16),
-                                ),
-                                border: isSelected
-                                    ? Border.all(color: Colors.blue, width: 2)
-                                    : null,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                crossAxisAlignment: hasReply
-                                    ? CrossAxisAlignment.stretch
-                                    : CrossAxisAlignment.start,
-                                children: [
-                                  if (!isSentByMe && userName.isNotEmpty)
-                                    Padding(
-                                      padding:
-                                          const EdgeInsets.only(bottom: 4.0),
-                                      child: Text(
-                                        userName,
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: ColorUtil.getColorFromAlphabet(
-                                              userName),
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                    ),
+                  return SwipeToReply(
+                      icon: Icons.reply,
+                      iconColor: Colors.grey.shade600,
+                      onReply: isDeleted
+                          ? null
+                          : () {
+                              _replyToMessage(message);
+                            },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 5.0, horizontal: 4.0),
+                        child: GestureDetector(
+                          onTap: () => _onMessageTap(message),
+                          onLongPress: () {
+                            if (_isSelectionMode) {
+                              _toggleMessageSelection(message);
+                            } else if (!isDeleted) {
+                              _showReactionPicker(context, message);
 
-                                  // REPLY PREVIEW
-                                  if (hasReply)
-                                    _buildReplyPreview(message, isSentByMe),
-
-                                  if (isForwarded == true)
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Image.asset(
-                                          "assets/images/forward.png",
-                                          height: 14,
-                                          width: 14,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          "Forwarded",
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey[700],
+                              // Enter selection mode
+                              setState(() {
+                                _isSelectionMode = true;
+                              });
+                              _toggleMessageSelection(message);
+                            } else {
+                              // If deleted, only enter selection mode
+                              setState(() {
+                                _isSelectionMode = true;
+                              });
+                              _toggleMessageSelection(message);
+                            }
+                          },
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Align(
+                                alignment: isSentByMe
+                                    ? Alignment.centerRight
+                                    : Alignment.centerLeft,
+                                widthFactor: hasReply ? 1.0 : null,
+                                child: Stack(
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      Padding(
+                                        padding:
+                                            const EdgeInsets.only(left: 30),
+                                        child: Container(
+                                          margin: EdgeInsets.only(
+                                            left: 5,
+                                            right: 5,
+                                            top: 0,
+                                            bottom:
+                                                (message['reactions'] != null &&
+                                                        message['reactions']
+                                                            .isNotEmpty)
+                                                    ? 20
+                                                    : 0,
                                           ),
-                                        ),
-                                      ],
-                                    ),
-
-                                  if (imageUrl != null &&
-                                      imageUrl.isNotEmpty &&
-                                      (isImage || imageUrl != fileUrl))
-                                    content == "Message Deleted"
-                                        ? const SizedBox.shrink()
-                                        : Stack(
-                                            clipBehavior: Clip.none,
-                                            children: [
-                                              GestureDetector(
-                                                onTap: () => _showFullImage(
-                                                    context, imageUrl),
-                                                child: ClipRRect(
-                                                  borderRadius:
-                                                      BorderRadius.circular(12),
-                                                  child: imageUrl.startsWith(
-                                                              'https') ||
-                                                          imageUrl.startsWith(
-                                                              'http')
-                                                      ? CachedNetworkImage(
-                                                          imageUrl: imageUrl,
-                                                          width: 240,
-                                                          height: 300,
-                                                          fit: BoxFit.cover,
-                                                          placeholder: (context,
-                                                                  url) =>
-                                                              const Center(
-                                                                  child:
-                                                                      CircularProgressIndicator()),
-                                                          errorWidget: (context,
-                                                                  url, error) =>
-                                                              const Icon(
-                                                                  Icons.error,
-                                                                  color: Colors
-                                                                      .red),
-                                                        )
-                                                      : Image.file(
-                                                          File(imageUrl),
-                                                          width: 240,
-                                                          height: 240,
-                                                          fit: BoxFit.cover),
-                                                ),
-                                              ),
-                                              Positioned(
-                                                top: 0,
-                                                bottom: 0,
-                                                left: isSentByMe ? -60 : null,
-                                                right: isSentByMe ? null : -60,
-                                                child: Center(
-                                                  child: Material(
-                                                    color: Colors.transparent,
-                                                    child: InkWell(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              20),
-                                                      onTap: () {
-                                                        MyRouter.pushReplace(
-                                                          screen:
-                                                              ForwardMessageScreen(
-                                                            messages: [
-                                                              normalizeMessage(
-                                                                  message)
-                                                            ],
-                                                            currentUserId:
-                                                                currentUserId,
-                                                            conversionalid: widget
-                                                                .conversationId,
-                                                            username: widget
-                                                                .groupName,
-                                                          ),
-                                                        );
-                                                      },
-                                                      child: CircleAvatar(
-                                                        maxRadius: 16,
-                                                        backgroundColor:
-                                                            Colors.white,
-                                                        child: Image.asset(
-                                                          "assets/images/forward.png",
-                                                          height: 20,
-                                                          width: 20,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                              Positioned(
-                                                bottom: 5,
-                                                right: 4,
-                                                child: Container(
-                                                  padding: const EdgeInsets
-                                                      .symmetric(
-                                                      horizontal: 6,
-                                                      vertical: 2),
-                                                  decoration: BoxDecoration(
-                                                    boxShadow: [
-                                                      BoxShadow(
-                                                        color: Colors.black
-                                                            .withOpacity(0.2),
-                                                        blurRadius: 2,
-                                                        offset:
-                                                            const Offset(0, 1),
-                                                      ),
-                                                    ],
-                                                    color: Colors.black45
-                                                        .withOpacity(0.1),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            8),
-                                                  ),
-                                                  child: Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      Text(
-                                                        TimeUtils
-                                                            .formatUtcToIst(
-                                                                message[
-                                                                    'time']),
-                                                        style: const TextStyle(
-                                                          fontSize: 10,
-                                                          color: Colors.white,
-                                                        ),
-                                                      ),
-                                                      if (isSentByMe) ...[
-                                                        const SizedBox(
-                                                            width: 4),
-                                                        Builder(
-                                                            builder: (context) {
-                                                          switch (
-                                                              messageStatus) {
-                                                            case 'sent':
-                                                              return const Icon(
-                                                                  Icons.check,
-                                                                  size: 12,
-                                                                  color: Colors
-                                                                      .white);
-                                                            case 'delivered':
-                                                              return const Icon(
-                                                                  Icons
-                                                                      .done_all_rounded,
-                                                                  size: 12,
-                                                                  color: Colors
-                                                                      .white);
-                                                            case 'read':
-                                                              return const Icon(
-                                                                  Icons
-                                                                      .done_all,
-                                                                  size: 12,
-                                                                  color: Colors
-                                                                      .blue);
-                                                            default:
-                                                              return const SizedBox
-                                                                  .shrink();
-                                                          }
-                                                        }),
-                                                      ],
-                                                    ],
-                                                  ),
-                                                ),
+                                          padding: hasReply
+                                              ? EdgeInsets.only(
+                                                  left: 5, bottom: 3)
+                                              : const EdgeInsets.only(
+                                                  top: 8,
+                                                  left: 10,
+                                                  right: 6,
+                                                  bottom: 8),
+                                          constraints: const BoxConstraints(
+                                              maxWidth: 250),
+                                          decoration: BoxDecoration(
+                                            color: isSelected
+                                                ? senderColor.withOpacity(0.2)
+                                                : (isSentByMe
+                                                    ? senderColor
+                                                    : receiverColor),
+                                            borderRadius: BorderRadius.only(
+                                              topLeft: isSentByMe
+                                                  ? const Radius.circular(18)
+                                                  : const Radius.circular(18),
+                                              topRight: isSentByMe
+                                                  ? const Radius.circular(18)
+                                                  : const Radius.circular(18),
+                                              bottomLeft: isSentByMe
+                                                  ? const Radius.circular(18)
+                                                  : Radius.zero,
+                                              bottomRight: isSentByMe
+                                                  ? Radius.zero
+                                                  : const Radius.circular(16),
+                                            ),
+                                            border: isSelected
+                                                ? Border.all(
+                                                    color: Colors.blue,
+                                                    width: 2)
+                                                : null,
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black
+                                                    .withOpacity(0.05),
+                                                blurRadius: 4,
+                                                offset: const Offset(0, 2),
                                               ),
                                             ],
                                           ),
-
-                                  if (fileUrl != null &&
-                                      fileUrl.isNotEmpty &&
-                                      isVideo)
-                                    _buildVideoPreviewTile(
-                                      context,
-                                      fileUrl,
-                                      fileName ?? "",
-                                      isSentByMe,
-                                      message,
-                                    )
-                                  else if (fileUrl != null &&
-                                      fileUrl.isNotEmpty &&
-                                      isAudio)
-                                    AudioMessageWidget(
-                                      audioUrl: fileUrl,
-                                      profileAvatarUrl: profileImageUrl,
-                                      isSender: isSentByMe,
-                                      duration: message['duration']?.toString(),
-                                      timestamp: TimeUtils.formatUtcToIst(
-                                          message['time']),
-                                      status: messageStatus,
-                                      showContainer: false,
-                                    )
-                                  else if (fileUrl != null &&
-                                      fileUrl.isNotEmpty &&
-                                      !(content == "Message Deleted" ||
-                                          isImage || // Use pre-calculated isImage
-                                          (fileType != null &&
-                                              fileType
-                                                  .toLowerCase()
-                                                  .startsWith("image")) ||
-                                          (fileName != null &&
-                                              RegExp(r'\.(jpg|jpeg|png|gif|webp|bmp)$',
-                                                      caseSensitive: false)
-                                                  .hasMatch(fileName))))
-                                    Stack(
-                                      clipBehavior: Clip.none,
-                                      children: [
-                                        Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.end,
-                                          children: [
-                                            Container(
-                                              width: 300,
-                                              margin:
-                                                  const EdgeInsets.only(top: 8),
-                                              padding: const EdgeInsets.all(8),
-                                              decoration: BoxDecoration(
-                                                color: Colors.grey[200],
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                              ),
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Icon(_getFileIcon(fileType),
-                                                      color: chatColor,
-                                                      size: 30),
-                                                  const SizedBox(width: 8),
-                                                  Expanded(
-                                                    child: Text(
-                                                      fileName ??
-                                                          'Download file',
-                                                      style: const TextStyle(
-                                                        fontWeight:
-                                                            FontWeight.w500,
-                                                        overflow: TextOverflow
-                                                            .ellipsis,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  IconButton(
-                                                    icon: const Icon(
-                                                        Icons.download_rounded),
-                                                    onPressed: () => _openFile(
-                                                        fileUrl, fileType),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            Padding(
-                                              padding: const EdgeInsets.only(
-                                                  top: 2, right: 0),
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Text(
-                                                    TimeUtils.formatUtcToIst(
-                                                        message['time']),
-                                                    style: const TextStyle(
-                                                        fontSize: 10,
-                                                        color: Colors.black54),
-                                                  ),
-                                                  const SizedBox(width: 4),
-                                                  if (isSentByMe)
-                                                    _buildStatusIcon(
-                                                        messageStatus, message),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        Positioned(
-                                          top: 0,
-                                          bottom: 0,
-                                          left: isSentByMe ? -60 : null,
-                                          right: isSentByMe ? null : -60,
-                                          child: Center(
-                                            child: Material(
-                                              color: Colors.transparent,
-                                              child: InkWell(
-                                                borderRadius:
-                                                    BorderRadius.circular(20),
-                                                onTap: () {
-                                                  MyRouter.pushReplace(
-                                                    screen:
-                                                        ForwardMessageScreen(
-                                                      messages: [
-                                                        normalizeMessage(
-                                                            message)
-                                                      ],
-                                                      currentUserId:
-                                                          currentUserId,
-                                                      conversionalid:
-                                                          widget.conversationId,
-                                                      username:
-                                                          widget.groupName,
-                                                    ),
-                                                  );
-                                                },
-                                                child: CircleAvatar(
-                                                  maxRadius: 16,
-                                                  backgroundColor: Colors.white,
-                                                  child: Image.asset(
-                                                    "assets/images/forward.png",
-                                                    height: 20,
-                                                    width: 20,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    )
-                                  else
-                                    const SizedBox.shrink(),
-
-                                  if (content.isNotEmpty)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 6),
-                                      child: Column(
-                                        crossAxisAlignment: hasReply
-                                            ? CrossAxisAlignment.stretch
-                                            : CrossAxisAlignment.start,
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          if (RegExp(
-                                                  r'((https?:\/\/)|(www\.))[^\s]+',
-                                                  caseSensitive: false)
-                                              .hasMatch(content))
-                                            Stack(
-                                              clipBehavior: Clip.none,
-                                              children: [
-                                                Padding(
-                                                  padding: const EdgeInsets
-                                                      .symmetric(vertical: 8.0),
-                                                  child: ClipRRect(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            12),
-                                                    child: AnyLinkPreview(
-                                                      link: (() {
-                                                        final match = RegExp(
-                                                                r'((https?:\/\/)|(www\.))[^\s]+',
-                                                                caseSensitive:
-                                                                    false)
-                                                            .firstMatch(
-                                                                content);
-                                                        if (match == null) {
-                                                          return '';
-                                                        }
-                                                        String url =
-                                                            match.group(0)!;
-                                                        try {
-                                                          final uri = Uri.parse(
-                                                              url.startsWith(
-                                                                      'www.')
-                                                                  ? 'https://$url'
-                                                                  : url);
-                                                          return uri.toString();
-                                                        } catch (e) {
-                                                          return url;
-                                                        }
-                                                      })(),
-                                                      displayDirection: UIDirection
-                                                          .uiDirectionVertical,
-                                                      showMultimedia: true,
-                                                      backgroundColor:
-                                                          Colors.grey.shade100,
-                                                      bodyStyle:
-                                                          const TextStyle(
-                                                        color: Colors.black87,
-                                                        fontSize: 12,
-                                                        fontWeight:
-                                                            FontWeight.w400,
-                                                      ),
-                                                      titleStyle:
-                                                          const TextStyle(
-                                                        color: Colors.black,
-                                                        fontSize: 14,
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                      ),
-                                                      cache: const Duration(
-                                                          hours: 1),
-                                                      borderRadius: 12,
-                                                      errorBody:
-                                                          'Could not load link preview',
-                                                      errorTitle:
-                                                          'Link Preview',
-                                                      errorWidget: Container(
-                                                        height: 100,
-                                                        color: Colors.grey[200],
-                                                        child: const Center(
-                                                            child: Icon(Icons
-                                                                .link_off)),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                                Positioned(
-                                                  top: 20,
-                                                  bottom: 0,
-                                                  left: isSentByMe ? -60 : null,
-                                                  right:
-                                                      isSentByMe ? null : -60,
-                                                  child: Center(
-                                                    child: Material(
-                                                      color: Colors.transparent,
-                                                      child: InkWell(
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(20),
-                                                        onTap: () {
-                                                          MyRouter.pushReplace(
-                                                            screen:
-                                                                ForwardMessageScreen(
-                                                              messages: [
-                                                                normalizeMessage(
-                                                                    message)
-                                                              ],
-                                                              currentUserId:
-                                                                  currentUserId,
-                                                              conversionalid: widget
-                                                                  .conversationId,
-                                                              username: widget
-                                                                  .groupName,
-                                                            ),
-                                                          );
-                                                        },
-                                                        child: CircleAvatar(
-                                                          maxRadius: 16,
-                                                          backgroundColor:
-                                                              Colors.white,
-                                                          child: Image.asset(
-                                                            "assets/images/forward.png",
-                                                            height: 20,
-                                                            width: 20,
+                                          child: Stack(
+                                            children: [
+                                              Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    if (!isSentByMe &&
+                                                        userName.isNotEmpty)
+                                                      Padding(
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .only(
+                                                                bottom: 4,
+                                                                left: 7,
+                                                                right: 6,
+                                                                top: 0),
+                                                        child: Text(
+                                                          userName,
+                                                          style: TextStyle(
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            color: ColorUtil
+                                                                .getColorFromAlphabet(
+                                                                    userName),
+                                                            fontSize: 14,
                                                           ),
                                                         ),
                                                       ),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          Stack(
-                                            children: [
-                                              StatefulBuilder(
-                                                builder: (context, setState) {
-                                                  const maxCharsPerLine = 30;
-                                                  final bool isTextLong =
-                                                      (content.length /
-                                                                  maxCharsPerLine)
-                                                              .ceil() >
-                                                          10;
-                                                  bool isExpanded =
-                                                      (message['isExpanded'] ??
-                                                              false) ==
-                                                          true;
-                                                  return Padding(
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                            bottom: 5.0),
-                                                    child: Column(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                      children: [
-                                                        RichText(
-                                                          maxLines:
-                                                              !isExpanded &&
-                                                                      isTextLong
-                                                                  ? 9
-                                                                  : null,
-                                                          overflow:
-                                                              !isExpanded &&
-                                                                      isTextLong
-                                                                  ? TextOverflow
-                                                                      .ellipsis
-                                                                  : TextOverflow
-                                                                      .visible,
-                                                          text: TextSpan(
-                                                            children: [
-                                                              ...(() {
-                                                                final List<
-                                                                        InlineSpan>
-                                                                    spans = [];
-                                                                final RegExp
-                                                                    urlRegExp =
-                                                                    RegExp(
-                                                                        r'((https?:\/\/)|(www\.))[^\s]+',
-                                                                        caseSensitive:
-                                                                            false);
-                                                                final matches =
-                                                                    urlRegExp
-                                                                        .allMatches(
-                                                                            content);
-                                                                int start = 0;
-                                                                for (final match
-                                                                    in matches) {
-                                                                  if (match
-                                                                          .start >
-                                                                      start) {
-                                                                    spans.add(
-                                                                      TextSpan(
-                                                                        text: content.substring(
-                                                                            start,
-                                                                            match.start),
-                                                                        style:
-                                                                            const TextStyle(
-                                                                          fontSize:
-                                                                              15,
-                                                                          color:
-                                                                              Colors.black87,
+
+                                                    if (isForwarded == true)
+                                                      Padding(
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .only(
+                                                                bottom: 4.0,
+                                                                left: 7,
+                                                                right: 6),
+                                                        child: Row(
+                                                          mainAxisSize:
+                                                              MainAxisSize.min,
+                                                          children: [
+                                                            Image.asset(
+                                                              "assets/images/forward.png",
+                                                              height: 14,
+                                                              width: 14,
+                                                            ),
+                                                            const SizedBox(
+                                                                width: 4),
+                                                            Text(
+                                                              "Forwarded",
+                                                              style: TextStyle(
+                                                                fontSize: 12,
+                                                                color: Colors
+                                                                    .grey[700],
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
+
+                                                    // REPLY PREVIEW - opacity trick for measurement
+                                                    if (hasReply)
+                                                      Opacity(
+                                                        opacity: 0,
+                                                        child:
+                                                            GroupRepliedMessagePreview(
+                                                          key: ValueKey(
+                                                              '${messageId}_${message['replyContent']}_placeholder'),
+                                                          replied: (message[
+                                                                          'repliedMessage'] ??
+                                                                      message[
+                                                                          'reply'])
+                                                                  is Map
+                                                              ? Map<String,
+                                                                  dynamic>.from(message[
+                                                                      'repliedMessage'] ??
+                                                                  message[
+                                                                      'reply'])
+                                                              : <String,
+                                                                  dynamic>{},
+                                                          receiver: message[
+                                                                      'receiver']
+                                                                  is Map
+                                                              ? Map<String,
+                                                                      dynamic>.from(
+                                                                  message[
+                                                                      'receiver'])
+                                                              : {},
+                                                          isSender: isSentByMe,
+                                                          onTap: null,
+                                                        ),
+                                                      ),
+
+                                                    // Main content with proper padding when reply exists
+                                                    Padding(
+                                                      padding: hasReply
+                                                          ? const EdgeInsets
+                                                              .only(
+                                                              left: 7,
+                                                              right: 6,
+                                                              bottom: 0,
+                                                              top: 0)
+                                                          : EdgeInsets.zero,
+                                                      child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          if (imageUrl !=
+                                                                  null &&
+                                                              imageUrl
+                                                                  .isNotEmpty &&
+                                                              (isImage ||
+                                                                  imageUrl !=
+                                                                      fileUrl))
+                                                            content ==
+                                                                    "Message Deleted"
+                                                                ? const SizedBox
+                                                                    .shrink()
+                                                                : Stack(
+                                                                    clipBehavior:
+                                                                        Clip.none,
+                                                                    children: [
+                                                                      GestureDetector(
+                                                                        onTap: () => _showFullImage(
+                                                                            context,
+                                                                            imageUrl),
+                                                                        child:
+                                                                            ClipRRect(
+                                                                          borderRadius:
+                                                                              BorderRadius.circular(12),
+                                                                          child: imageUrl.startsWith('https') || imageUrl.startsWith('http')
+                                                                              ? CachedNetworkImage(
+                                                                                  imageUrl: imageUrl,
+                                                                                  width: 240,
+                                                                                  height: 300,
+                                                                                  fit: BoxFit.cover,
+                                                                                  placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+                                                                                  errorWidget: (context, url, error) => const Icon(Icons.error, color: Colors.red),
+                                                                                )
+                                                                              : Image.file(File(imageUrl), width: 240, height: 240, fit: BoxFit.cover),
                                                                         ),
                                                                       ),
-                                                                    );
-                                                                  }
-
-                                                                  final String
-                                                                      url =
-                                                                      content.substring(
-                                                                          match
-                                                                              .start,
-                                                                          match
-                                                                              .end);
-
-                                                                  spans.add(
-                                                                    TextSpan(
-                                                                      text: url,
-                                                                      style:
-                                                                          const TextStyle(
-                                                                        color: Colors
-                                                                            .blue,
-                                                                        decoration:
-                                                                            TextDecoration.underline,
-                                                                        fontSize:
-                                                                            15,
+                                                                      Positioned(
+                                                                        top: 0,
+                                                                        bottom:
+                                                                            0,
+                                                                        left: isSentByMe
+                                                                            ? -60
+                                                                            : null,
+                                                                        right: isSentByMe
+                                                                            ? null
+                                                                            : -60,
+                                                                        child:
+                                                                            Center(
+                                                                          child:
+                                                                              Material(
+                                                                            color:
+                                                                                Colors.transparent,
+                                                                            child:
+                                                                                InkWell(
+                                                                              borderRadius: BorderRadius.circular(20),
+                                                                              onTap: () {
+                                                                                MyRouter.pushReplace(
+                                                                                  screen: ForwardMessageScreen(
+                                                                                    messages: [
+                                                                                      normalizeMessage(message)
+                                                                                    ],
+                                                                                    currentUserId: currentUserId,
+                                                                                    conversionalid: widget.conversationId,
+                                                                                    username: widget.groupName,
+                                                                                  ),
+                                                                                );
+                                                                              },
+                                                                              child: CircleAvatar(
+                                                                                maxRadius: 16,
+                                                                                backgroundColor: Colors.white,
+                                                                                child: Image.asset(
+                                                                                  "assets/images/forward.png",
+                                                                                  height: 20,
+                                                                                  width: 20,
+                                                                                ),
+                                                                              ),
+                                                                            ),
+                                                                          ),
+                                                                        ),
                                                                       ),
-                                                                      recognizer:
-                                                                          TapGestureRecognizer()
-                                                                            ..onTap =
-                                                                                () async {
-                                                                              try {
-                                                                                final uri = Uri.parse(url.startsWith('www.') ? 'https://$url' : url);
-                                                                                if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-                                                                                  throw 'Could not launch $uri';
-                                                                                }
-                                                                              } catch (e) {
-                                                                                debugPrint('Could not launch url: $e');
-                                                                              }
-                                                                            },
-                                                                    ),
-                                                                  );
-
-                                                                  start =
-                                                                      match.end;
-                                                                }
-
-                                                                if (start <
-                                                                    content
-                                                                        .length) {
-                                                                  spans.add(
-                                                                    TextSpan(
-                                                                      text: content
-                                                                          .substring(
-                                                                              start),
-                                                                      style:
-                                                                          const TextStyle(
-                                                                        fontSize:
-                                                                            15,
+                                                                      Positioned(
+                                                                        bottom:
+                                                                            5,
+                                                                        right:
+                                                                            4,
+                                                                        child:
+                                                                            Container(
+                                                                          padding: const EdgeInsets
+                                                                              .symmetric(
+                                                                              horizontal: 6,
+                                                                              vertical: 2),
+                                                                          decoration:
+                                                                              BoxDecoration(
+                                                                            boxShadow: [
+                                                                              BoxShadow(
+                                                                                color: Colors.black.withOpacity(0.2),
+                                                                                blurRadius: 2,
+                                                                                offset: const Offset(0, 1),
+                                                                              ),
+                                                                            ],
+                                                                            color:
+                                                                                Colors.black45.withOpacity(0.1),
+                                                                            borderRadius:
+                                                                                BorderRadius.circular(8),
+                                                                          ),
+                                                                          child:
+                                                                              Row(
+                                                                            mainAxisSize:
+                                                                                MainAxisSize.min,
+                                                                            children: [
+                                                                              Text(
+                                                                                TimeUtils.formatUtcToIst(message['time']),
+                                                                                style: const TextStyle(
+                                                                                  fontSize: 10,
+                                                                                  color: Colors.white,
+                                                                                ),
+                                                                              ),
+                                                                              if (isSentByMe) ...[
+                                                                                const SizedBox(width: 4),
+                                                                                Builder(builder: (context) {
+                                                                                  switch (messageStatus) {
+                                                                                    case 'sent':
+                                                                                      return const Icon(Icons.check, size: 12, color: Colors.white);
+                                                                                    case 'delivered':
+                                                                                      return const Icon(Icons.done_all_rounded, size: 12, color: Colors.white);
+                                                                                    case 'read':
+                                                                                      return const Icon(Icons.done_all, size: 12, color: Colors.blue);
+                                                                                    default:
+                                                                                      return const SizedBox.shrink();
+                                                                                  }
+                                                                                }),
+                                                                              ],
+                                                                            ],
+                                                                          ),
+                                                                        ),
+                                                                      ),
+                                                                    ],
+                                                                  ),
+                                                          if (fileUrl != null &&
+                                                              fileUrl
+                                                                  .isNotEmpty &&
+                                                              isVideo)
+                                                            _buildVideoPreviewTile(
+                                                              context,
+                                                              fileUrl,
+                                                              fileName ?? "",
+                                                              isSentByMe,
+                                                              message,
+                                                            )
+                                                          else if (fileUrl !=
+                                                                  null &&
+                                                              fileUrl
+                                                                  .isNotEmpty &&
+                                                              isAudio)
+                                                            AudioMessageWidget(
+                                                              audioUrl: fileUrl,
+                                                              profileAvatarUrl:
+                                                                  profileImageUrl,
+                                                              isSender:
+                                                                  isSentByMe,
+                                                              duration: message[
+                                                                      'duration']
+                                                                  ?.toString(),
+                                                              timestamp: TimeUtils
+                                                                  .formatUtcToIst(
+                                                                      message[
+                                                                          'time']),
+                                                              status:
+                                                                  messageStatus,
+                                                              showContainer:
+                                                                  false,
+                                                            )
+                                                          else if (fileUrl !=
+                                                                  null &&
+                                                              fileUrl
+                                                                  .isNotEmpty &&
+                                                              !(content ==
+                                                                      "Message Deleted" ||
+                                                                  isImage || // Use pre-calculated isImage
+                                                                  (fileType !=
+                                                                          null &&
+                                                                      fileType
+                                                                          .toLowerCase()
+                                                                          .startsWith(
+                                                                              "image")) ||
+                                                                  (fileName !=
+                                                                          null &&
+                                                                      RegExp(r'\.(jpg|jpeg|png|gif|webp|bmp)$',
+                                                                              caseSensitive:
+                                                                                  false)
+                                                                          .hasMatch(
+                                                                              fileName))))
+                                                            Stack(
+                                                              clipBehavior:
+                                                                  Clip.none,
+                                                              children: [
+                                                                Column(
+                                                                  crossAxisAlignment:
+                                                                      CrossAxisAlignment
+                                                                          .end,
+                                                                  children: [
+                                                                    Container(
+                                                                      width:
+                                                                          300,
+                                                                      margin: const EdgeInsets
+                                                                          .only(
+                                                                          top:
+                                                                              8),
+                                                                      padding:
+                                                                          const EdgeInsets
+                                                                              .all(
+                                                                              8),
+                                                                      decoration:
+                                                                          BoxDecoration(
                                                                         color: Colors
-                                                                            .black87,
+                                                                            .grey[200],
+                                                                        borderRadius:
+                                                                            BorderRadius.circular(12),
+                                                                      ),
+                                                                      child:
+                                                                          Row(
+                                                                        mainAxisSize:
+                                                                            MainAxisSize.min,
+                                                                        children: [
+                                                                          Icon(
+                                                                              _getFileIcon(fileType),
+                                                                              color: chatColor,
+                                                                              size: 30),
+                                                                          const SizedBox(
+                                                                              width: 8),
+                                                                          Expanded(
+                                                                            child:
+                                                                                Text(
+                                                                              fileName ?? 'Download file',
+                                                                              style: const TextStyle(
+                                                                                fontWeight: FontWeight.w500,
+                                                                                overflow: TextOverflow.ellipsis,
+                                                                              ),
+                                                                            ),
+                                                                          ),
+                                                                          IconButton(
+                                                                            icon:
+                                                                                const Icon(Icons.download_rounded),
+                                                                            onPressed: () =>
+                                                                                _openFile(fileUrl, fileType),
+                                                                          ),
+                                                                        ],
                                                                       ),
                                                                     ),
-                                                                  );
-                                                                }
-
-                                                                return spans;
-                                                              })(),
-                                                              WidgetSpan(
-                                                                child: SizedBox(
-                                                                  width:
-                                                                      isSentByMe
-                                                                          ? 95
-                                                                          : 75,
+                                                                    Padding(
+                                                                      padding: const EdgeInsets
+                                                                          .only(
+                                                                          top:
+                                                                              0,
+                                                                          right:
+                                                                              0),
+                                                                      child:
+                                                                          Row(
+                                                                        mainAxisSize:
+                                                                            MainAxisSize.min,
+                                                                        children: [
+                                                                          Text(
+                                                                            TimeUtils.formatUtcToIst(message['time']),
+                                                                            style:
+                                                                                const TextStyle(fontSize: 10, color: Colors.black54),
+                                                                          ),
+                                                                          const SizedBox(
+                                                                              width: 4),
+                                                                          if (isSentByMe)
+                                                                            _buildStatusIcon(messageStatus,
+                                                                                message),
+                                                                        ],
+                                                                      ),
+                                                                    ),
+                                                                  ],
                                                                 ),
-                                                              ),
-                                                            ],
-                                                          ),
-                                                        ),
-                                                        if (!isExpanded &&
-                                                            isTextLong)
-                                                          GestureDetector(
-                                                            onTap: () => setState(
-                                                                () => message[
-                                                                        'isExpanded'] =
-                                                                    true),
-                                                            child:
-                                                                const Padding(
-                                                              padding: EdgeInsets
-                                                                  .symmetric(
-                                                                      vertical:
-                                                                          4),
-                                                              child: Text(
-                                                                "Read more",
-                                                                style: TextStyle(
-                                                                    color: Colors
-                                                                        .blue,
-                                                                    fontWeight:
-                                                                        FontWeight
-                                                                            .bold),
+                                                                Positioned(
+                                                                  top: 0,
+                                                                  bottom: 0,
+                                                                  left:
+                                                                      isSentByMe
+                                                                          ? -60
+                                                                          : null,
+                                                                  right:
+                                                                      isSentByMe
+                                                                          ? null
+                                                                          : -60,
+                                                                  child: Center(
+                                                                    child:
+                                                                        Material(
+                                                                      color: Colors
+                                                                          .transparent,
+                                                                      child:
+                                                                          InkWell(
+                                                                        borderRadius:
+                                                                            BorderRadius.circular(20),
+                                                                        onTap:
+                                                                            () {
+                                                                          MyRouter
+                                                                              .pushReplace(
+                                                                            screen:
+                                                                                ForwardMessageScreen(
+                                                                              messages: [
+                                                                                normalizeMessage(message)
+                                                                              ],
+                                                                              currentUserId: currentUserId,
+                                                                              conversionalid: widget.conversationId,
+                                                                              username: widget.groupName,
+                                                                            ),
+                                                                          );
+                                                                        },
+                                                                        child:
+                                                                            CircleAvatar(
+                                                                          maxRadius:
+                                                                              16,
+                                                                          backgroundColor:
+                                                                              Colors.white,
+                                                                          child:
+                                                                              Image.asset(
+                                                                            "assets/images/forward.png",
+                                                                            height:
+                                                                                20,
+                                                                            width:
+                                                                                20,
+                                                                          ),
+                                                                        ),
+                                                                      ),
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                              ],
+                                                            )
+                                                          else
+                                                            const SizedBox
+                                                                .shrink(),
+                                                          if (content
+                                                              .isNotEmpty)
+                                                            Padding(
+                                                              padding:
+                                                                  const EdgeInsets
+                                                                      .only(
+                                                                      top: 0),
+                                                              child: Column(
+                                                                crossAxisAlignment: hasReply
+                                                                    ? CrossAxisAlignment
+                                                                        .start
+                                                                    : CrossAxisAlignment
+                                                                        .start,
+                                                                mainAxisSize:
+                                                                    MainAxisSize
+                                                                        .min,
+                                                                children: [
+                                                                  if (RegExp(
+                                                                          r'((https?:\/\/)|(www\.))[^\s]+',
+                                                                          caseSensitive:
+                                                                              false)
+                                                                      .hasMatch(
+                                                                          content))
+                                                                    Stack(
+                                                                      clipBehavior:
+                                                                          Clip.none,
+                                                                      children: [
+                                                                        Padding(
+                                                                          padding: const EdgeInsets
+                                                                              .symmetric(
+                                                                              vertical: 0.0),
+                                                                          child:
+                                                                              ClipRRect(
+                                                                            borderRadius:
+                                                                                BorderRadius.circular(12),
+                                                                            child:
+                                                                                AnyLinkPreview(
+                                                                              link: (() {
+                                                                                final match = RegExp(r'((https?:\/\/)|(www\.))[^\s]+', caseSensitive: false).firstMatch(content);
+                                                                                if (match == null) {
+                                                                                  return '';
+                                                                                }
+                                                                                String url = match.group(0)!;
+                                                                                try {
+                                                                                  final uri = Uri.parse(url.startsWith('www.') ? 'https://$url' : url);
+                                                                                  return uri.toString();
+                                                                                } catch (e) {
+                                                                                  return url;
+                                                                                }
+                                                                              })(),
+                                                                              displayDirection: UIDirection.uiDirectionVertical,
+                                                                              showMultimedia: true,
+                                                                              backgroundColor: Colors.grey.shade100,
+                                                                              bodyStyle: const TextStyle(
+                                                                                color: Colors.black87,
+                                                                                fontSize: 12,
+                                                                                fontWeight: FontWeight.w400,
+                                                                              ),
+                                                                              titleStyle: const TextStyle(
+                                                                                color: Colors.black,
+                                                                                fontSize: 14,
+                                                                                fontWeight: FontWeight.bold,
+                                                                              ),
+                                                                              cache: const Duration(hours: 1),
+                                                                              borderRadius: 12,
+                                                                              errorBody: 'Could not load link preview',
+                                                                              errorTitle: 'Link Preview',
+                                                                              errorWidget: Container(
+                                                                                height: 100,
+                                                                                color: Colors.grey[200],
+                                                                                child: const Center(child: Icon(Icons.link_off)),
+                                                                              ),
+                                                                            ),
+                                                                          ),
+                                                                        ),
+                                                                        Positioned(
+                                                                          top:
+                                                                              20,
+                                                                          bottom:
+                                                                              0,
+                                                                          left: isSentByMe
+                                                                              ? -60
+                                                                              : null,
+                                                                          right: isSentByMe
+                                                                              ? null
+                                                                              : -60,
+                                                                          child:
+                                                                              Center(
+                                                                            child:
+                                                                                Material(
+                                                                              color: Colors.transparent,
+                                                                              child: InkWell(
+                                                                                borderRadius: BorderRadius.circular(20),
+                                                                                onTap: () {
+                                                                                  MyRouter.pushReplace(
+                                                                                    screen: ForwardMessageScreen(
+                                                                                      messages: [
+                                                                                        normalizeMessage(message)
+                                                                                      ],
+                                                                                      currentUserId: currentUserId,
+                                                                                      conversionalid: widget.conversationId,
+                                                                                      username: widget.groupName,
+                                                                                    ),
+                                                                                  );
+                                                                                },
+                                                                                child: CircleAvatar(
+                                                                                  maxRadius: 16,
+                                                                                  backgroundColor: Colors.white,
+                                                                                  child: Image.asset(
+                                                                                    "assets/images/forward.png",
+                                                                                    height: 20,
+                                                                                    width: 20,
+                                                                                  ),
+                                                                                ),
+                                                                              ),
+                                                                            ),
+                                                                          ),
+                                                                        ),
+                                                                      ],
+                                                                    ),
+                                                                  Stack(
+                                                                    children: [
+                                                                      StatefulBuilder(
+                                                                        builder:
+                                                                            (context,
+                                                                                setState) {
+                                                                          const maxCharsPerLine =
+                                                                              30;
+                                                                          final bool
+                                                                              isTextLong =
+                                                                              (content.length / maxCharsPerLine).ceil() > 10;
+                                                                          bool
+                                                                              isExpanded =
+                                                                              (message['isExpanded'] ?? false) == true;
+                                                                          return Stack(
+                                                                            children: [
+                                                                              Padding(
+                                                                                padding: const EdgeInsets.only(bottom: 3.0, top: 1.0),
+                                                                                child: Column(
+                                                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                                                  children: [
+                                                                                    RichText(
+                                                                                      maxLines: !isExpanded && isTextLong ? 9 : null,
+                                                                                      overflow: !isExpanded && isTextLong ? TextOverflow.ellipsis : TextOverflow.visible,
+                                                                                      text: TextSpan(
+                                                                                        children: [
+                                                                                          ...(() {
+                                                                                            final List<InlineSpan> spans = [];
+                                                                                            final RegExp urlRegExp = RegExp(r'((https?:\/\/)|(www\.))[^\s]+', caseSensitive: false);
+                                                                                            final matches = urlRegExp.allMatches(content);
+                                                                                            int start = 0;
+                                                                                            for (final match in matches) {
+                                                                                              if (match.start > start) {
+                                                                                                spans.add(
+                                                                                                  TextSpan(
+                                                                                                    text: content.substring(start, match.start),
+                                                                                                    style: const TextStyle(
+                                                                                                      fontSize: 15,
+                                                                                                      color: Colors.black87,
+                                                                                                    ),
+                                                                                                  ),
+                                                                                                );
+                                                                                              }
+
+                                                                                              final String url = content.substring(match.start, match.end);
+
+                                                                                              spans.add(
+                                                                                                TextSpan(
+                                                                                                  text: url,
+                                                                                                  style: const TextStyle(
+                                                                                                    color: Colors.blue,
+                                                                                                    decoration: TextDecoration.underline,
+                                                                                                    fontSize: 15,
+                                                                                                  ),
+                                                                                                  recognizer: TapGestureRecognizer()
+                                                                                                    ..onTap = () async {
+                                                                                                      try {
+                                                                                                        final uri = Uri.parse(url.startsWith('www.') ? 'https://$url' : url);
+                                                                                                        if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+                                                                                                          throw 'Could not launch $uri';
+                                                                                                        }
+                                                                                                      } catch (e) {
+                                                                                                        debugPrint('Could not launch url: $e');
+                                                                                                      }
+                                                                                                    },
+                                                                                                ),
+                                                                                              );
+
+                                                                                              start = match.end;
+                                                                                            }
+
+                                                                                            if (start < content.length) {
+                                                                                              spans.add(
+                                                                                                TextSpan(
+                                                                                                  text: content.substring(start),
+                                                                                                  style: const TextStyle(
+                                                                                                    fontSize: 15,
+                                                                                                    color: Colors.black87,
+                                                                                                  ),
+                                                                                                ),
+                                                                                              );
+                                                                                            }
+
+                                                                                            return spans;
+                                                                                          })(),
+                                                                                          WidgetSpan(
+                                                                                            child: SizedBox(width: isSentByMe ? 75 : 60, height: 20),
+                                                                                          ),
+                                                                                        ],
+                                                                                      ),
+                                                                                    ),
+                                                                                    if (!isExpanded && isTextLong)
+                                                                                      GestureDetector(
+                                                                                        onTap: () => setState(() => message['isExpanded'] = true),
+                                                                                        child: const Padding(
+                                                                                          padding: EdgeInsets.symmetric(vertical: 4),
+                                                                                          child: Text(
+                                                                                            "Read more",
+                                                                                            style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                                                                                          ),
+                                                                                        ),
+                                                                                      ),
+                                                                                    if (isExpanded)
+                                                                                      GestureDetector(
+                                                                                        onTap: () => setState(() => message['isExpanded'] = false),
+                                                                                        child: const Padding(
+                                                                                          padding: EdgeInsets.symmetric(vertical: 4),
+                                                                                          child: Text(
+                                                                                            "Read less",
+                                                                                            style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                                                                                          ),
+                                                                                        ),
+                                                                                      ),
+                                                                                    if (!isExpanded && isTextLong)
+                                                                                      Align(
+                                                                                        alignment: Alignment.centerRight,
+                                                                                        child: Row(
+                                                                                          mainAxisSize: MainAxisSize.min,
+                                                                                          children: [
+                                                                                            Text(
+                                                                                              TimeUtils.formatUtcToIst(message['time']),
+                                                                                              style: const TextStyle(fontSize: 10, color: Colors.black54),
+                                                                                            ),
+                                                                                            const SizedBox(width: 4),
+                                                                                            if (isSentByMe && content != "Message Deleted") _buildStatusIcon(messageStatus, message),
+                                                                                          ],
+                                                                                        ),
+                                                                                      ),
+                                                                                  ],
+                                                                                ),
+                                                                              ),
+
+                                                                              /// ---- TIMESTAMP & STATUS (Positioned like private chat) ----
+                                                                              if (!(!isExpanded && isTextLong))
+                                                                                Positioned(
+                                                                                  bottom: 0,
+                                                                                  right: 0,
+                                                                                  child: IgnorePointer(
+                                                                                    ignoring: false,
+                                                                                    child: Row(
+                                                                                      mainAxisSize: MainAxisSize.min,
+                                                                                      children: [
+                                                                                        Text(
+                                                                                          TimeUtils.formatUtcToIst(message['time']),
+                                                                                          style: const TextStyle(fontSize: 10, color: Colors.black54),
+                                                                                        ),
+                                                                                        const SizedBox(width: 4),
+                                                                                        if (isSentByMe && content != "Message Deleted") _buildStatusIcon(messageStatus, message),
+                                                                                      ],
+                                                                                    ),
+                                                                                  ),
+                                                                                ),
+                                                                            ],
+                                                                          );
+                                                                        },
+                                                                      ),
+                                                                      Positioned(
+                                                                        top: 0,
+                                                                        bottom:
+                                                                            0,
+                                                                        left: isSentByMe
+                                                                            ? -60
+                                                                            : null,
+                                                                        right: isSentByMe
+                                                                            ? null
+                                                                            : -60,
+                                                                        child:
+                                                                            Center(
+                                                                          child:
+                                                                              Material(
+                                                                            color:
+                                                                                Colors.transparent,
+                                                                            child:
+                                                                                InkWell(
+                                                                              borderRadius: BorderRadius.circular(20),
+                                                                              onTap: () {
+                                                                                MyRouter.pushReplace(
+                                                                                  screen: ForwardMessageScreen(
+                                                                                    messages: [
+                                                                                      normalizeMessage(message)
+                                                                                    ],
+                                                                                    currentUserId: currentUserId,
+                                                                                    conversionalid: widget.conversationId,
+                                                                                    username: widget.groupName,
+                                                                                  ),
+                                                                                );
+                                                                              },
+                                                                              child: CircleAvatar(
+                                                                                maxRadius: 16,
+                                                                                backgroundColor: Colors.white,
+                                                                                child: Image.asset(
+                                                                                  "assets/images/forward.png",
+                                                                                  height: 20,
+                                                                                  width: 20,
+                                                                                ),
+                                                                              ),
+                                                                            ),
+                                                                          ),
+                                                                        ),
+                                                                      ),
+                                                                    ],
+                                                                  ),
+                                                                ],
                                                               ),
                                                             ),
-                                                          ),
-                                                        if (isExpanded)
-                                                          GestureDetector(
-                                                            onTap: () => setState(
-                                                                () => message[
-                                                                        'isExpanded'] =
-                                                                    false),
-                                                            child:
-                                                                const Padding(
-                                                              padding: EdgeInsets
-                                                                  .symmetric(
-                                                                      vertical:
-                                                                          4),
-                                                              child: Text(
-                                                                "Read less",
-                                                                style: TextStyle(
-                                                                    color: Colors
-                                                                        .blue,
-                                                                    fontWeight:
-                                                                        FontWeight
-                                                                            .bold),
-                                                              ),
-                                                            ),
-                                                          ),
-                                                      ],
-                                                    ),
-                                                  );
-                                                },
-                                              ),
-
-                                              Positioned(
-                                                top: 0,
-                                                bottom: 0,
-                                                left: isSentByMe ? -60 : null,
-                                                right: isSentByMe ? null : -60,
-                                                child: Center(
-                                                  child: Material(
-                                                    color: Colors.transparent,
-                                                    child: InkWell(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              20),
-                                                      onTap: () {
-                                                        MyRouter.pushReplace(
-                                                          screen:
-                                                              ForwardMessageScreen(
-                                                            messages: [
-                                                              normalizeMessage(
-                                                                  message)
-                                                            ],
-                                                            currentUserId:
-                                                                currentUserId,
-                                                            conversionalid: widget
-                                                                .conversationId,
-                                                            username: widget
-                                                                .groupName,
-                                                          ),
-                                                        );
-                                                      },
-                                                      child: CircleAvatar(
-                                                        maxRadius: 16,
-                                                        backgroundColor:
-                                                            Colors.white,
-                                                        child: Image.asset(
-                                                          "assets/images/forward.png",
-                                                          height: 20,
-                                                          width: 20,
-                                                        ),
+                                                        ],
                                                       ),
                                                     ),
-                                                  ),
-                                                ),
-                                              ),
+                                                  ]),
 
-                                              /// ---- TIMESTAMP & STATUS (DISABLED TOUCH) ----
-                                              Positioned(
-                                                bottom: 0,
-                                                right: 0,
-                                                child: IgnorePointer(
-                                                  ignoring: false,
-                                                  child: Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      // time: 2025-12-29T17:44:21.347773,
-                                                      Text(
-                                                        TimeUtils
-                                                            .formatUtcToIst(
-                                                                message[
-                                                                    'time']),
-                                                        style: const TextStyle(
-                                                            fontSize: 10,
-                                                            color:
-                                                                Colors.black54),
-                                                      ),
-                                                      const SizedBox(width: 4),
-                                                      if (isSentByMe &&
-                                                          content !=
-                                                              "Message Deleted")
-                                                        _buildStatusIcon(
-                                                            messageStatus,
-                                                            message),
-                                                    ],
+                                              // Positioned reply preview (visible)
+                                              if (hasReply)
+                                                Positioned(
+                                                  top: (!isSentByMe &&
+                                                          userName.isNotEmpty)
+                                                      ? 25
+                                                      : 0,
+                                                  left: 0,
+                                                  right: 0,
+                                                  child:
+                                                      GroupRepliedMessagePreview(
+                                                    key: ValueKey(
+                                                        '${messageId}_${message['replyContent']}'),
+                                                    replied: _mergeReplyData(
+                                                        message['repliedMessage'] ??
+                                                            message['reply']),
+                                                    receiver: message[
+                                                            'receiver'] is Map
+                                                        ? Map<String,
+                                                                dynamic>.from(
+                                                            message['receiver'])
+                                                        : {},
+                                                    isSender: isSentByMe,
+                                                    onTap: () async {
+                                                      final replyId = ((message[
+                                                                              'repliedMessage'] ??
+                                                                          message[
+                                                                              'reply'])?[
+                                                                      'id'] ??
+                                                                  (message['repliedMessage'] ??
+                                                                          message[
+                                                                              'reply'])?[
+                                                                      'message_id'] ??
+                                                                  (message['repliedMessage'] ??
+                                                                          message[
+                                                                              'reply'])?[
+                                                                      'messageId'])
+                                                              ?.toString() ??
+                                                          '';
+                                                      if (replyId.isNotEmpty) {
+                                                        await _scrollToMessageById(
+                                                            replyId,
+                                                            fetchIfMissing:
+                                                                true);
+                                                      }
+                                                    },
                                                   ),
                                                 ),
-                                              ),
                                             ],
                                           ),
-                                        ],
+                                        ),
                                       ),
-                                    ),
-                                ],
+                                    ]),
                               ),
-                            ),
-                          ),
-                          // REACTIONS BAR - Positioned outside the Container
-                          if (message['reactions'] != null &&
-                              message['reactions'].isNotEmpty)
-                            Positioned(
-                              bottom: -10,
-                              left: isSentByMe ? 48 : 48,
-                              right: null,
-                              child: Padding(
-                                padding: EdgeInsets.only(
-                                  bottom: 12,
-                                  left: isSentByMe ? 0 : 0,
-                                ),
-                                child: GestureDetector(
-                                  onTap: () {
-                                    debugPrint('🔥 Tapped on reacted emoji!');
-                                    debugPrint(
-                                        '🔥 Message: ${message['message_id']}');
-                                    // Get first emoji from reactions or default to empty
-                                    final reactions =
-                                        _extractReactions(message['reactions']);
-                                    final firstEmoji = reactions.isNotEmpty
-                                        ? (reactions.first['emoji']
-                                                ?.toString() ??
-                                            '')
-                                        : '';
-                                    debugPrint(
-                                        '🔥 About to call _showReactionsBottomSheet');
-                                    _showReactionsBottomSheet(
-                                        message, firstEmoji);
-                                  },
-                                  child:
-                                      _buildReactionsBar(message, isSentByMe),
-                                ),
-                              ),
-                            ),
-                          isSentByMe
-                              ? const SizedBox.shrink()
-                              : Positioned(
-                                  left: isSentByMe ? null : 2,
-                                  right: isSentByMe ? 2 : null,
+                              // Avatar positioned outside the message bubble
+                              if (!isSentByMe)
+                                Positioned(
+                                  left: -5,
                                   top: 10,
                                   child: CircleAvatar(
                                     radius: 16,
@@ -4455,14 +4510,49 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                     ),
                                   ),
                                 ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
+                              // REACTIONS BAR - Positioned outside the message bubble
+                              if (message['reactions'] != null &&
+                                  message['reactions'].isNotEmpty)
+                                Positioned(
+                                  bottom: -12,
+                                  left:
+                                      isSentByMe ? (hasReply ? null : 320) : 40,
+                                  right: isSentByMe && hasReply ? 50 : null,
+                                  child: Padding(
+                                    padding: EdgeInsets.only(
+                                      bottom: 10,
+                                      left: isSentByMe ? 10 : 0,
+                                    ),
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        debugPrint(
+                                            '🔥 Tapped on reacted emoji!');
+                                        debugPrint(
+                                            '🔥 Message: ${message['message_id']}');
+                                        final reactions = _extractReactions(
+                                            message['reactions']);
+                                        final firstEmoji = reactions.isNotEmpty
+                                            ? (reactions.first['emoji']
+                                                    ?.toString() ??
+                                                '')
+                                            : '';
+                                        debugPrint(
+                                            '🔥 About to call _showReactionsBottomSheet');
+                                        _showReactionsBottomSheet(
+                                            message, firstEmoji);
+                                      },
+                                      child: _buildReactionsBar(
+                                          message, isSentByMe),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ));
+                },
               );
   }
-
   void _openFile(String urlOrPath, String? fileType) async {
     if (urlOrPath.startsWith('http://') || urlOrPath.startsWith('https://')) {
       try {

@@ -20,16 +20,17 @@ class GroupedMediaWidget extends StatelessWidget {
 
   const GroupedMediaWidget(
       {super.key,
-        required this.media,
-        required this.isSentByMe,
-        required this.time,
-        this.onImageTap,
-        required this.messageStatus,
-        this.buildStatusIcon,
-        this.onForwardTap,
-        this.onRightSwipe,
-        this.messageId,
-        this.isHighlighted = false,  this.isForwarded=false});
+      required this.media,
+      required this.isSentByMe,
+      required this.time,
+      this.onImageTap,
+      required this.messageStatus,
+      this.buildStatusIcon,
+      this.onForwardTap,
+      this.onRightSwipe,
+      this.messageId,
+      this.isHighlighted = false,
+      this.isForwarded = false});
 
   static const double _statusBarHeight = 20;
 
@@ -41,7 +42,7 @@ class GroupedMediaWidget extends StatelessWidget {
 
     // ✅ WhatsApp-like bubble width
     final double bubbleWidth =
-    screenWidth < 600 ? screenWidth * 0.72 : screenWidth * 0.5;
+        screenWidth < 600 ? screenWidth * 0.72 : screenWidth * 0.5;
 
     final visibleCount = media.length > 4 ? 4 : media.length;
 
@@ -73,9 +74,9 @@ class GroupedMediaWidget extends StatelessWidget {
                     topLeft: const Radius.circular(18),
                     topRight: const Radius.circular(18),
                     bottomLeft:
-                    isSentByMe ? const Radius.circular(18) : Radius.zero,
+                        isSentByMe ? const Radius.circular(18) : Radius.zero,
                     bottomRight:
-                    isSentByMe ? Radius.zero : const Radius.circular(16),
+                        isSentByMe ? Radius.zero : const Radius.circular(16),
                   ),
                   border: Border.all(
                       color: isSentByMe ? senderColor : receiverColor,
@@ -89,7 +90,7 @@ class GroupedMediaWidget extends StatelessWidget {
                   children: [
                     // 🔹 MEDIA AREA
 
-                    if ( isForwarded==true)
+                    if (isForwarded == true)
                       Padding(
                         padding: const EdgeInsets.all(2.0),
                         child: Row(
@@ -121,9 +122,10 @@ class GroupedMediaWidget extends StatelessWidget {
               Positioned(
                 height: _statusBarHeight,
                 bottom: 18,
-                right: 10,
+                right: isSentByMe ? 10 : 70,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                   decoration: BoxDecoration(
                     color: Colors.black.withOpacity(0.45),
                     borderRadius: BorderRadius.circular(6),
@@ -132,7 +134,8 @@ class GroupedMediaWidget extends StatelessWidget {
                     children: [
                       Text(
                         time,
-                        style: const TextStyle(fontSize: 11, color: Colors.white),
+                        style:
+                            const TextStyle(fontSize: 11, color: Colors.white),
                       ),
                       if (isSentByMe && buildStatusIcon != null) ...[
                         const SizedBox(width: 4),
@@ -223,7 +226,7 @@ class GroupedMediaWidget extends StatelessWidget {
                 Container(
                   height: 4,
                   color:
-                  isSentByMe ? senderColor : receiverColor, // divider line
+                      isSentByMe ? senderColor : receiverColor, // divider line
                 ),
                 Expanded(child: _tile(context, 2)),
               ],
@@ -438,13 +441,13 @@ class GroupMediaItem {
   final String? time;
   final String? uniqueId; // 🔥 ADD THIS
 
-
   GroupMediaItem({
     required this.previewUrl,
     required this.mediaUrl,
     required this.isVideo,
     this.senderName,
     this.senderId,
-    this.time,  this.uniqueId,
+    this.time,
+    this.uniqueId,
   });
 }
