@@ -192,9 +192,12 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
                   ),
                   const SizedBox(height: 2),
                   if (isVideo)
-                    const Text(
-                      'Video',
-                      style: TextStyle(fontSize: 12),
+                    Text(
+                      widget.groupMediaLength != null &&
+                              widget.groupMediaLength! > 1
+                          ? 'Video x ${widget.groupMediaLength}'
+                          : 'Video',
+                      style: const TextStyle(fontSize: 12),
                     )
                   else if (isAudio)
                     Row(
@@ -218,10 +221,13 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Flexible(
+                         Flexible(
                           child: Text(
-                            'Photo',
-                            style: TextStyle(fontSize: 12),
+                            widget.groupMediaLength != null &&
+                                    widget.groupMediaLength! > 1
+                                ? 'Photo x ${widget.groupMediaLength}'
+                                : 'Photo',
+                            style: const TextStyle(fontSize: 12),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),

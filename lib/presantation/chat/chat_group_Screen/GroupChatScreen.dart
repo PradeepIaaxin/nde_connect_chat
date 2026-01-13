@@ -1496,6 +1496,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             'fileName': _replyMessage!['fileName'],
             'fileType': _replyMessage!['fileType'],
             'originalUrl': _replyMessage!['originalUrl'],
+            'imageCount': _replyPreview?['imageCount'],
+            'videoCount': _replyPreview?['videoCount'],
+            'group_message_id': _replyPreview?['group_message_id'],
           }
         : null;
 
@@ -2003,6 +2006,46 @@ void _replyToMessage(Map<String, dynamic> message) {
     setState(() {
       // 1️⃣ Keep the FULL message as-is for _sendMessage
       _replyMessage = message;
+      // Calculate counts if it's a grouped message
+      int imageCount = 0;
+      int videoCount = 0;
+      final String? groupId = message['group_message_id']?.toString();
+
+      if (groupId != null && groupId.isNotEmpty) {
+        // Find all messages in this group
+        final groupMessages = _allMessages
+            .where((m) =>
+                m['group_message_id']?.toString() == groupId &&
+                m['is_deleted'] != true)
+            .toList();
+
+        for (var m in groupMessages) {
+          final String fType = (m['mimeType'] ??
+                  m['fileType'] ??
+                  m['mimetype'] ??
+                  m['ContentType'] ??
+                  '')
+              .toString()
+              .toLowerCase();
+          final String mUrl =
+              (m['originalUrl'] ?? m['imageUrl'] ?? m['fileUrl'] ?? '')
+                  .toString()
+                  .toLowerCase();
+
+          if (fType.startsWith('video/') ||
+              mUrl.endsWith('.mp4') ||
+              mUrl.endsWith('.mov') ||
+              mUrl.endsWith('.mkv')) {
+            videoCount++;
+          } else if (fType.startsWith('image/') ||
+              mUrl.endsWith('.jpg') ||
+              mUrl.endsWith('.png') ||
+              mUrl.endsWith('.jpeg') ||
+              mUrl.endsWith('.webp')) {
+            imageCount++;
+          }
+        }
+      }
 
       // 2️⃣ Build a lightweight map only for the input field UI
       _replyPreview = {
@@ -2024,6 +2067,9 @@ void _replyToMessage(Map<String, dynamic> message) {
         'ContentType': message['ContentType'] ?? message['contentType'] ?? '',
         'duration': message['duration'] ?? '',
         'mimeType': message['mimeType'] ?? message['mimetype'] ?? '',
+        'imageCount': imageCount,
+        'videoCount': videoCount,
+        'group_message_id': groupId,
       };
 
       _focusNode.requestFocus();
@@ -3615,7 +3661,7 @@ void _replyToMessage(Map<String, dynamic> message) {
                                           ),
                                           padding: hasReply
                                               ? EdgeInsets.only(
-                                                  left: 5, bottom: 3)
+                                                  left: 5, bottom: 3,right: 6)
                                               : const EdgeInsets.only(
                                                   top: 8,
                                                   left: 10,
@@ -3756,7 +3802,7 @@ void _replyToMessage(Map<String, dynamic> message) {
                                                           ? const EdgeInsets
                                                               .only(
                                                               left: 7,
-                                                              right: 6,
+                                                              right: 0,
                                                               bottom: 0,
                                                               top: 0)
                                                           : EdgeInsets.zero,
@@ -4234,6 +4280,7 @@ void _replyToMessage(Map<String, dynamic> message) {
                                                                               isExpanded =
                                                                               (message['isExpanded'] ?? false) == true;
                                                                           return Stack(
+                                                                            clipBehavior: Clip.none,
                                                                             children: [
                                                                               Padding(
                                                                                 padding: const EdgeInsets.only(bottom: 3.0, top: 1.0),
@@ -4352,23 +4399,21 @@ void _replyToMessage(Map<String, dynamic> message) {
                                                                               ),
 
                                                                               /// ---- TIMESTAMP & STATUS (Positioned like private chat) ----
-                                                                              if (!(!isExpanded && isTextLong))
+                                                                              if (!(!isExpanded && isTextLong) && !hasReply)
                                                                                 Positioned(
-                                                                                  bottom: 0,
-                                                                                  right: 0,
-                                                                                  child: IgnorePointer(
-                                                                                    ignoring: false,
-                                                                                    child: Row(
-                                                                                      mainAxisSize: MainAxisSize.min,
-                                                                                      children: [
-                                                                                        Text(
-                                                                                          TimeUtils.formatUtcToIst(message['time']),
-                                                                                          style: const TextStyle(fontSize: 10, color: Colors.black54),
-                                                                                        ),
-                                                                                        const SizedBox(width: 4),
-                                                                                        if (isSentByMe && content != "Message Deleted") _buildStatusIcon(messageStatus, message),
-                                                                                      ],
-                                                                                    ),
+                                                                                  bottom: 3,
+                                                                                  right: 3,
+                                                                                  child: Row(
+                                                                                    mainAxisAlignment: MainAxisAlignment.end,
+                                                                                    mainAxisSize: MainAxisSize.min,
+                                                                                    children: [
+                                                                                      Text(
+                                                                                        TimeUtils.formatUtcToIst(message['time']),
+                                                                                        style: const TextStyle(fontSize: 10, color: Colors.black54),
+                                                                                      ),
+                                                                                      const SizedBox(width: 4),
+                                                                                      if (isSentByMe && content != "Message Deleted") _buildStatusIcon(messageStatus, message),
+                                                                                    ],
                                                                                   ),
                                                                                 ),
                                                                             ],
@@ -4452,6 +4497,41 @@ void _replyToMessage(Map<String, dynamic> message) {
                                                             message['receiver'])
                                                         : {},
                                                     isSender: isSentByMe,
+                                                    groupMediaLength: () {
+                                                      int count = 0;
+                                                      final replyData = message[
+                                                              'repliedMessage'] ??
+                                                          message['reply'];
+                                                      if (replyData != null) {
+                                                        final String?
+                                                            replyGroupId =
+                                                            replyData[
+                                                                    'group_message_id']
+                                                                ?.toString();
+                                                        if (replyGroupId !=
+                                                                null &&
+                                                            replyGroupId
+                                                                .isNotEmpty) {
+                                                          count = _allMessages
+                                                              .where((m) =>
+                                                                  m['group_message_id']
+                                                                          ?.toString() ==
+                                                                      replyGroupId &&
+                                                                  m['is_deleted'] !=
+                                                                      true)
+                                                              .length;
+                                                        }
+                                                        if (count == 0) {
+                                                          count = ((replyData[
+                                                                      'imageCount'] ??
+                                                                  0) as int) +
+                                                              ((replyData[
+                                                                      'videoCount'] ??
+                                                                  0) as int);
+                                                        }
+                                                      }
+                                                      return count;
+                                                    }(),
                                                     onTap: () async {
                                                       final replyId = ((message[
                                                                               'repliedMessage'] ??
@@ -4477,6 +4557,38 @@ void _replyToMessage(Map<String, dynamic> message) {
                                                     },
                                                   ),
                                                 ),
+                                                // TIMESTAMP & STATUS - Positioned at Container Stack level for replied messages
+                                              if (hasReply &&
+                                                  content.isNotEmpty)
+                                                Positioned(
+                                                  bottom: 3,
+                                                  right: 3,
+                                                  child: Row(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment.end,
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      Text(
+                                                        TimeUtils
+                                                            .formatUtcToIst(
+                                                                message[
+                                                                    'time']),
+                                                        style: const TextStyle(
+                                                            fontSize: 10,
+                                                            color:
+                                                                Colors.black54),
+                                                      ),
+                                                      const SizedBox(width: 4),
+                                                      if (isSentByMe &&
+                                                          content !=
+                                                              "Message Deleted")
+                                                        _buildStatusIcon(
+                                                            messageStatus,
+                                                            message),
+                                                    ],
+                                                  ),
+                                                ),
                                             ],
                                           ),
                                         ),
@@ -4486,7 +4598,7 @@ void _replyToMessage(Map<String, dynamic> message) {
                               // Avatar positioned outside the message bubble
                               if (!isSentByMe)
                                 Positioned(
-                                  left: -5,
+                                  left: -2,
                                   top: 10,
                                   child: CircleAvatar(
                                     radius: 16,
@@ -4516,12 +4628,12 @@ void _replyToMessage(Map<String, dynamic> message) {
                                 Positioned(
                                   bottom: -12,
                                   left:
-                                      isSentByMe ? (hasReply ? null : 320) : 40,
-                                  right: isSentByMe && hasReply ? 50 : null,
+                                      isSentByMe ? (hasReply ? null : 312) : 40,
+                                  right: isSentByMe && hasReply ? 10 : null,
                                   child: Padding(
                                     padding: EdgeInsets.only(
                                       bottom: 10,
-                                      left: isSentByMe ? 10 : 0,
+                                      left: isSentByMe ? 12 : 0,
                                     ),
                                     child: GestureDetector(
                                       onTap: () {
