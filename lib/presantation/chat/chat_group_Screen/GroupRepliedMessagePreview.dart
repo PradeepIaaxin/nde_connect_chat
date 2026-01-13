@@ -7,12 +7,14 @@ class GroupRepliedMessagePreview extends StatefulWidget {
   final Map<String, dynamic> receiver;
   final bool isSender;
 
+  final int? groupMediaLength;
   const GroupRepliedMessagePreview({
     super.key,
     required this.replied,
     this.onTap,
     required this.receiver,
     required this.isSender,
+    this.groupMediaLength,
   });
 
   @override
@@ -206,9 +208,12 @@ class _GroupRepliedMessagePreviewState
                   ),
                   const SizedBox(height: 2),
                   if (isVideo)
-                    const Text(
-                      'Video',
-                      style: TextStyle(fontSize: 12),
+                    Text(
+                      widget.groupMediaLength != null &&
+                              widget.groupMediaLength! > 1
+                          ? 'Video x ${widget.groupMediaLength}'
+                          : 'Video',
+                      style: const TextStyle(fontSize: 12),
                     )
                   else if (isAudio)
                     Row(
@@ -231,11 +236,14 @@ class _GroupRepliedMessagePreviewState
                   else if (isImage)
                     Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: const [
+                      children: [
                         Flexible(
                           child: Text(
-                            'Photo',
-                            style: TextStyle(fontSize: 12),
+                            widget.groupMediaLength != null &&
+                                    widget.groupMediaLength! > 1
+                                ? 'Photo x ${widget.groupMediaLength}'
+                                : 'Photo',
+                            style: const TextStyle(fontSize: 12),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
