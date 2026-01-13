@@ -352,16 +352,15 @@ Widget _buildReplyPreviewInline() {
             widget.replyText?['ContentType'] == 'document' ||
             widget.replyText?['contentType'] == 'document' ||
             (fileUrl != null && fileUrl.isNotEmpty));
-
-    if (isGroupedMedia) {
+if (isGroupedMedia) {
       if (localImageCount > 0 && localVideoCount > 0) {
-        typeLabel = 'Media';
+        typeLabel = 'Media x ${localImageCount + localVideoCount}';
       } else if (localImageCount > 0) {
-        typeLabel = 'Photo';
+        typeLabel = 'Photo x $localImageCount';
       } else if (localVideoCount > 0) {
-        typeLabel = 'Video';
+        typeLabel = 'Video x $localVideoCount';
       }
-    } else {
+    }else {
       if (isVideoReply) {
         typeLabel = 'Video';
       } else if (isAudio) {
