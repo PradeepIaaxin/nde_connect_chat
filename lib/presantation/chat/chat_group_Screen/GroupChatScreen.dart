@@ -5040,6 +5040,7 @@ void _replyToMessage(Map<String, dynamic> message) {
   }
 
   PreferredSizeWidget _buildAppBar() {
+    print(widget.conversationId);
     return CommonAppBarBuilder.build(
       context: context,
       showSearchAppBar: _showSearchAppBar,
@@ -5084,6 +5085,7 @@ void _replyToMessage(Map<String, dynamic> message) {
       onSearchTap: _hasLeftGroup ? () {} : () => toggleSearchAppBar(),
       onCloseSearch: _hasLeftGroup ? () {} : () => toggleSearchAppBar(),
       hasLeftGroup: _hasLeftGroup,
+
     );
   }
 

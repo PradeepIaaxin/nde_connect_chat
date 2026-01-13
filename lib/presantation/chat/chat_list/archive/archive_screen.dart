@@ -357,7 +357,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
                                               datumId: chat.datumId ?? "",
                                               grpChat: true,
                                               favorite:
-                                                  chat.isFavorites ?? false,
+                                                  chat.isFavourite ?? false,
                                             )
                                           : PrivateChatScreen(
                                               userName:
@@ -377,7 +377,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
                                               grpChat: false,
                                               lastname: chat.lastName,
                                               favourite:
-                                                  chat.isFavorites ?? false,
+                                                  chat.isFavourite ?? false,
                                             ),
                                     );
                                   }

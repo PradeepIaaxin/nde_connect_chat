@@ -217,6 +217,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
     "All": (chat) => true,
     "Unread": (chat) => (chat.unreadCount ?? 0) > 0,
     "Groups": (chat) => chat.isGroupChat == true,
+    "Favourite": (chat) => chat.isFavourite == true,
   };
 
   Widget _buildFilterChip(
@@ -229,7 +230,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
           selectedFilter = label;
 
           final apiFilter = switch (label) {
-            "Favorites" => "favorites",
+            "Favourite" => "favorites",
             "Unread" => "unread",
             "Groups" => "group",
             _ => "",
@@ -274,9 +275,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
     _allChats = List.from(input);
 
     var filtered = input.where((chat) => chat.isArchived != true).toList();
-    if (selectedFilter != "Favourite") {
-      filtered = filtered.where(chatFilters[selectedFilter]!).toList();
-    }
+    filtered = filtered.where(chatFilters[selectedFilter]!).toList();
 
     final searchText = _searchController.text.trim().toLowerCase();
     if (searchText.isNotEmpty) {
@@ -473,7 +472,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
   void _addToFavourites() {
     for (var chat in selectedUsers) {
       // Update locally
-      chat.isFavorites = true;
+      chat.isFavourite = true;
     }
 
     // Clear selection after action
@@ -500,7 +499,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
     debugPrint('🆔 Chat ID: ${chat.id}');
     debugPrint('👤 Name: ${chat.name}');
     debugPrint('👥 Is Group Chat: ${chat.isGroupChat}');
-    debugPrint('⭐ Favourite: ${chat.isFavorites}');
+    debugPrint('⭐ Favourite: ${chat.isFavourite}');
     debugPrint('📩 Receiver ID: ${chat.reciverId}');
     debugPrint('🧾 Datum ID: ${chat.datumId}');
     debugPrint('🕒 Last Message Time: ${chat.lastMessageTime}');
@@ -856,7 +855,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                                   datumId: chat.datumId ?? "",
                                                   grpChat: true,
                                                   favorite:
-                                                      chat.isFavorites ?? false,
+                                                      chat.isFavourite ?? false,
                                                 )
                                               : PrivateChatScreen(
                                                   userName: chat.name ??
@@ -878,7 +877,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                                   grpChat: false,
                                                   lastname: chat.lastName,
                                                   favourite:
-                                                      chat.isFavorites ?? false,
+                                                      chat.isFavourite ?? false,
                                                 ),
                                         );
                                       }

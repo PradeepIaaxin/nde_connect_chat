@@ -224,7 +224,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   @override
   void dispose() {
     SocketService().clearActiveConversation();
-    //  _audioPlayerService.stopSafely();
+
     _reactionSubscription?.cancel();
     _messageDeletedSubscription?.cancel();
     _scrollController.removeListener(_scrollListener);
