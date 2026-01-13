@@ -73,7 +73,8 @@ class Datu {
   String? conversationId;
   bool? isPinned;
   bool? isArchived;
-  bool? isFavorites;
+  bool? isFavourite;
+
   String? groupName;
   String? draftMessage;
   String? reciverId;
@@ -102,7 +103,7 @@ class Datu {
     this.lastMessageSender,
     this.conversationId,
     this.isPinned,
-    this.isFavorites,
+    this.isFavourite,
     this.isArchived,
     this.groupName,
     this.draftMessage,
@@ -131,7 +132,7 @@ class Datu {
     String? conversationId,
     bool? isPinned,
     bool? isArchived,
-    bool? isFavorites,
+    bool? isFavourite,
     String? groupName,
     String? draftMessage,
     String? reciverId,
@@ -158,7 +159,7 @@ class Datu {
         conversationId: conversationId ?? this.conversationId,
         isPinned: isPinned ?? this.isPinned,
         isArchived: isArchived ?? this.isArchived,
-        isFavorites: isFavorites ?? this.isFavorites,
+        isFavourite: isFavourite ?? this.isFavourite,
         groupName: groupName ?? this.groupName,
         draftMessage: draftMessage ?? this.draftMessage,
         reciverId: reciverId ?? this.reciverId,
@@ -189,7 +190,7 @@ class Datu {
         lastMessageSender: json["lastMessageSender"] ?? "",
         conversationId: json["conversationId"] ?? "",
         isPinned: json["isPinned"] ?? false,
-        isFavorites: json["favourites"] ?? false,
+        isFavourite: json["isFavourite"] ?? false,
         isArchived: json["isArchived"] ?? false,
         groupName: json["groupName"] ?? "",
         draftMessage: json["draftMessage"],
@@ -236,7 +237,7 @@ class Datu {
         "conversationId": conversationId,
         "isPinned": isPinned,
         "isArchived": isArchived,
-        "favourites": isFavorites,
+        "isFavourite": isFavourite,
         "groupName": groupName,
         "draftMessage": draftMessage,
         "participants": participants ?? [],
