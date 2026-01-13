@@ -102,7 +102,7 @@ class MessageBubble extends StatelessWidget {
     final replyData = message['reply'];
     final replyId = message['reply_message_id'] ?? message['replyMessageId'];
     final replyContent = message['replyContent'];
-final screenWidth = MediaQuery.of(context).size.width;
+    final screenWidth = MediaQuery.of(context).size.width;
     final bool isDeleted =
         message['is_deleted'] == true || message['messageStatus'] == 'deleted';
 
@@ -128,9 +128,8 @@ final screenWidth = MediaQuery.of(context).size.width;
       padding: EdgeInsets.symmetric(vertical: emojpicker != null ? 6.0 : 0),
       child: GestureDetector(
         onTap: onTap,
-      
         onLongPress: () {
-              log(message.toString());
+          log(message.toString());
           _showReactionPicker(context);
           onLongPress?.call();
         },
@@ -323,7 +322,7 @@ final screenWidth = MediaQuery.of(context).size.width;
                 Positioned(
                   top: 0,
                   bottom: 0,
-                  left: isSentByMe ? -22 : screenWidth * 0.58,
+                  left: isSentByMe ? -35 : screenWidth * 0.65,
                   right: isSentByMe ? null : -52,
                   child: Center(
                     child: Material(
@@ -332,7 +331,7 @@ final screenWidth = MediaQuery.of(context).size.width;
                         onTap: () {
                           MyRouter.pushReplace(
                             screen: ForwardMessageScreen(
-                              isForward:isSentByMe,
+                              isForward: isSentByMe,
                               messages: [message],
                               currentUserId: message['senderId'] ?? '',
                               conversionalid: "",

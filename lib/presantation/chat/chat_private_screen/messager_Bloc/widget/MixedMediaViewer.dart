@@ -33,12 +33,23 @@ class _MixedMediaViewerState extends State<MixedMediaViewer> {
   @override
   void initState() {
     super.initState();
-    _currentIndex = widget.initialIndex;
+
+    // 🛡️ Safe initialization
+    if (widget.items.isEmpty) {
+      _currentIndex = 0;
+    } else {
+      _currentIndex = widget.initialIndex.clamp(0, widget.items.length - 1);
+    }
+
     _controller = PageController(initialPage: _currentIndex);
     _scrollController = ScrollController();
 
     // After first frame, scroll to the initial index thumbnail
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.items.isEmpty) {
+        if (mounted) Navigator.pop(context); // 🚨 Auto-close if no media
+        return;
+      }
       _scrollToIndex(_currentIndex);
     });
   }
@@ -98,7 +109,11 @@ class _MixedMediaViewerState extends State<MixedMediaViewer> {
   // MAIN BUILD
   // ==========================================================
   @override
+  @override
   Widget build(BuildContext context) {
+    // 🛡️ Guard against empty list
+    if (widget.items.isEmpty) return const SizedBox();
+
     final currentItem = widget.items[_currentIndex];
 
     return Scaffold(
