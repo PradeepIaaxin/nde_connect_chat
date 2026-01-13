@@ -1,5 +1,6 @@
 import 'package:nde_email/data/respiratory.dart';
-import 'package:nde_email/presantation/chat/Socket/socket_service.dart';
+import 'package:nde_email/presantation/chat/Socket/Socket_Service.dart';
+
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/bloc/profile_screen_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/bloc/profile_screen_event.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/bloc/profile_screen_state.dart';
@@ -11,9 +12,16 @@ import 'package:nde_email/utils/reusbale/colour_utlis.dart' show ColorUtil;
 import 'package:nde_email/utils/reusbale/common_import.dart';
 
 class GroupContactList extends StatefulWidget {
-  const GroupContactList({super.key, required this.groupId});
+  const GroupContactList({
+    super.key,
+    required this.groupId,
+    required this.conversionId,
+    required this.initialFavourite,
+  });
 
   final String groupId;
+  final String conversionId;
+  final bool initialFavourite;
 
   @override
   State<GroupContactList> createState() => _GroupContactListState();
@@ -22,10 +30,35 @@ class GroupContactList extends StatefulWidget {
 class _GroupContactListState extends State<GroupContactList> {
   String _uid = '';
 
+  late bool _isFavourite;
+  bool _favInitialized = false;
+
   @override
   void initState() {
     super.initState();
     _loadUid();
+
+    _isFavourite = widget.initialFavourite;
+    _favInitialized = true;
+
+    SocketService().setOnFavouriteUpdated(
+      ({required String conversationId, required bool isFavourite}) {
+        if (conversationId == widget.conversionId && mounted) {
+          setState(() {
+            _isFavourite = isFavourite;
+          });
+        }
+      },
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant GroupContactList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.groupId != widget.groupId) {
+      _favInitialized = false;
+    }
   }
 
   Future<void> _loadUid() async {
@@ -34,6 +67,16 @@ class _GroupContactListState extends State<GroupContactList> {
     setState(() {
       _uid = uid;
     });
+  }
+
+  @override
+  void dispose() {
+    /// cleanup
+    SocketService().setOnFavouriteUpdated(({
+      required String conversationId,
+      required bool isFavourite,
+    }) {});
+    super.dispose();
   }
 
   @override
@@ -49,15 +92,20 @@ class _GroupContactListState extends State<GroupContactList> {
             return const Center(child: Text('No contacts found.'));
           }
 
+          /// ✅ INIT favourite ONCE FROM API (FIX)
+          if (!_favInitialized) {
+            _isFavourite = contacts.first.isFavourite;
+            _favInitialized = true;
+          }
+
           return Column(
             children: [
               ListView.separated(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: contacts.length,
-                separatorBuilder: (_, __) => const Divider(
-                  color: Colors.transparent,
-                ),
+                separatorBuilder: (_, __) =>
+                    const Divider(color: Colors.transparent),
                 itemBuilder: (context, index) {
                   final contact = contacts[index];
                   final members = contact.groupMembers;
@@ -85,14 +133,11 @@ class _GroupContactListState extends State<GroupContactList> {
                             ),
                           ],
                         ),
-                     
                         ...members.asMap().entries.map((entry) {
                           final member = entry.value;
 
                           final bool isAdmin = member.isAdmin ?? false;
-
                           final bool isMe = member.memberId == _uid;
-                          final bool isTargetAdmin = member.isAdmin ?? false;
 
                           final bool loggedUserIsAdmin =
                               contact.groupMembers.any(
@@ -124,8 +169,7 @@ class _GroupContactListState extends State<GroupContactList> {
                                     UserActionDialog.show(
                                       context,
                                       name: nameText,
-                                      isAdmin: isTargetAdmin,
-
+                                      isAdmin: isAdmin,
                                       onMessage: () {
                                         MyRouter.push(
                                           screen: PrivateChatScreen(
@@ -141,7 +185,6 @@ class _GroupContactListState extends State<GroupContactList> {
                                           ),
                                         );
                                       },
-
                                       onView: () {
                                         MyRouter.push(
                                           screen: UserProfileScreen(
@@ -151,15 +194,13 @@ class _GroupContactListState extends State<GroupContactList> {
                                             lastname: member.lastName,
                                             conversionalId:
                                                 member.memberId ?? "",
-                                            grpId: '',
+                                            grpId: member.memberId ?? "",
                                             isGrp: false,
                                             reciverId: member.memberId ?? "",
                                             favourite: false,
                                           ),
                                         );
                                       },
-
-                                      // ✅ SHOW ONLY IF LOGGED USER IS ADMIN & NOT SELF
                                       onToggleAdmin: canManageMember
                                           ? () {
                                               context.read<MediaBloc>().add(
@@ -170,15 +211,13 @@ class _GroupContactListState extends State<GroupContactList> {
                                                           "member_id":
                                                               member.memberId ??
                                                                   "",
-                                                          "isAdmin":
-                                                              !isTargetAdmin,
+                                                          "isAdmin": !isAdmin,
                                                         }
                                                       ],
                                                     ),
                                                   );
                                             }
                                           : null,
-
                                       onRemove: canManageMember
                                           ? () {
                                               context.read<MediaBloc>().add(
@@ -190,98 +229,38 @@ class _GroupContactListState extends State<GroupContactList> {
                                                   );
                                             }
                                           : null,
-
                                       onVerify: () {},
                                     );
                                   },
                             child: ListTile(
                               contentPadding: EdgeInsets.zero,
-                              leading: Stack(
-                                children: [
-                                  CircleAvatar(
-                                    radius: 25,
-                                    backgroundColor: profileAvatarUrl.isEmpty
-                                        ? ColorUtil.getColorFromAlphabet(
-                                            profileAvatar)
-                                        : Colors.transparent,
-                                    backgroundImage: profileAvatarUrl.isNotEmpty
-                                        ? NetworkImage(profileAvatarUrl)
-                                        : null,
-                                    child: profileAvatarUrl.isEmpty
-                                        ? Text(
-                                            profileAvatar,
-                                            style: const TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.white,
-                                            ),
-                                          )
-                                        : null,
-                                  ),
-                                  ValueListenableBuilder(
-                                    valueListenable:
-                                        SocketService().userStatusNotifier,
-                                    builder: (context, val, _) {
-                                      final isOnline = SocketService()
-                                          .onlineUsers
-                                          .contains(member.memberId);
-                                      if (!isOnline) {
-                                        return const SizedBox.shrink();
-                                      }
-                                      return Positioned(
-                                        right: 0,
-                                        bottom: 0,
-                                        child: Container(
-                                          width: 12,
-                                          height: 12,
-                                          decoration: BoxDecoration(
-                                            color: Colors.green,
-                                            shape: BoxShape.circle,
-                                            border: Border.all(
-                                              color: Colors.white,
-                                              width: 2,
-                                            ),
-                                          ),
+                              leading: CircleAvatar(
+                                radius: 25,
+                                backgroundColor: profileAvatarUrl.isEmpty
+                                    ? ColorUtil.getColorFromAlphabet(
+                                        profileAvatar)
+                                    : Colors.transparent,
+                                backgroundImage: profileAvatarUrl.isNotEmpty
+                                    ? NetworkImage(profileAvatarUrl)
+                                    : null,
+                                child: profileAvatarUrl.isEmpty
+                                    ? Text(
+                                        profileAvatar,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
                                         ),
-                                      );
-                                    },
-                                  ),
-                                ],
+                                      )
+                                    : null,
                               ),
                               title: Text(
-                                isMe ? 'You' : nameText, // ✅ FIX
-                                style: const TextStyle(
-                                  color: Colors.black,
-                                  fontSize: 16,
-                                ),
+                                isMe ? 'You' : nameText,
+                                style: const TextStyle(fontSize: 16),
                               ),
                               subtitle: Text(
                                 member.role ?? '',
-                                style: const TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 13,
-                                ),
+                                style: const TextStyle(fontSize: 13),
                               ),
-                              trailing: isAdmin
-                                  ? Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.green[700],
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: const Text(
-                                        'Group Admin',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    )
-                                  : null,
                             ),
                           );
                         }),
@@ -290,32 +269,35 @@ class _GroupContactListState extends State<GroupContactList> {
                   );
                 },
               ),
+
+              /// ✅ GROUP ACTION SHEET (LOGIC FIXED ONLY)
               GroupActionSheet(
                 onAddToFavorites: () {
-                  final updatedFavourite = !contacts.first.isFavourite;
-                  context.read<MediaBloc>().add(
-                        ToggleFavourite(
-                          targetId: widget.groupId,
-                          isFavourite: updatedFavourite,
-                          grp: true,
-                        ),
-                      );
+                  final next = !_isFavourite;
+
+                  setState(() {
+                    _isFavourite = next;
+                  });
+                  SocketService().emitFavorites(
+                    conversationId: widget.conversionId,
+                    isFavourite: next,
+                  );
                 },
                 onAddToList: () {},
                 onExitGroup: () {
-                  context.read<MediaBloc>().add(
-                        ExitGroup(grpId: widget.groupId),
-                      );
+                  context
+                      .read<MediaBloc>()
+                      .add(ExitGroup(grpId: widget.groupId));
                 },
                 onReportGroup: () {},
                 isGroupChat: true,
                 fullName: contacts.first.groupName,
-                isFavorite: contacts.first.isFavourite,
+                isFavorite: _isFavourite,
               ),
             ],
           );
         } else {
-          return SizedBox();
+          return const SizedBox();
         }
       },
     );

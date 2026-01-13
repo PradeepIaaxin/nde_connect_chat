@@ -37,6 +37,7 @@ class MessageBubble extends StatelessWidget {
   final String? currentUserId;
   final String? receiverName;
   final bool stretchReply;
+
   const MessageBubble(
       {super.key,
       required this.message,

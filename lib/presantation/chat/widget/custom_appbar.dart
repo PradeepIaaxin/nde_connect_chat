@@ -1,18 +1,13 @@
 import 'dart:convert';
-import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_bloc/flutter_bloc.dart' show BlocBuilder;
-import 'package:nde_email/presantation/chat/Socket/socket_service.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/user_profile_screen.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/ChateHomeMoreOptionsButton.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/SearchAppBar_Widget.dart'
     show SearchAppBar;
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/longpressappbar_widget.dart';
-import 'package:nde_email/utils/const/consts.dart';
 import 'package:nde_email/utils/reusbale/colour_utlis.dart';
-import 'package:nde_email/utils/router/router.dart';
 import 'package:nde_email/utils/spacer/spacer.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -32,6 +27,7 @@ class CommonAppBarBuilder {
     required Function(Map<String, dynamic>) replyToMessage,
     required String profileAvatarUrl,
     required String convertionId,
+
     String? userName,
     String? firstname,
     String? lastname,
@@ -147,11 +143,8 @@ class CommonAppBarBuilder {
       );
     }
 
-    final initials = (userName != null && userName.isNotEmpty)
-        ? userName[0].toUpperCase()
-        : 'U';
 
-    final avatarColor = ColorUtil.getColorFromAlphabet(userName ?? "");
+    ColorUtil.getColorFromAlphabet(userName ?? "");
 
     return PreferredSize(
       preferredSize: const Size.fromHeight(kToolbarHeight),
