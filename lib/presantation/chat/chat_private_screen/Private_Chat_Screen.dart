@@ -589,7 +589,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
       final senderId = normalized['senderId']?.toString();
       final content = normalized['content']?.toString() ?? '';
-       final status = normalized['messageStatus']?.toString() ?? '';
+      final status = normalized['messageStatus']?.toString() ?? '';
 
       debugPrint(
           '📥 Incoming message: id=$realId, sender=$senderId, content="$content", status="$status"');
@@ -1267,7 +1267,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             'fileName': reply['fileName'] ?? '',
             'fileType':
                 (reply['fileType'] ?? reply['mimeType'] ?? '').toString(),
-                'imageCount': _replyPreview?['imageCount'],
+            'imageCount': _replyPreview?['imageCount'],
             'videoCount': _replyPreview?['videoCount'],
           };
 
@@ -2362,7 +2362,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     final messageId =
         (message['message_id'] ?? message['messageId'] ?? message['id'] ?? '')
             .toString();
-            int replyMediaCount = 0;
+    int replyMediaCount = 0;
     final replyData = message['reply'] ?? message['repliedMessage'];
     if (replyData != null) {
       final String? replyGroupId = replyData['group_message_id']?.toString();
@@ -2448,12 +2448,12 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                 );
               }
             }).catchError((error) {
-
               debugPrint('Error scrolling to message: $error');
             });
           }
         },
-groupMediaLength: replyMediaCount > 0 ? replyMediaCount : length,        allMessages: _getCombinedMessages(),
+        groupMediaLength: replyMediaCount > 0 ? replyMediaCount : length,
+        allMessages: _getCombinedMessages(),
         stretchReply: true,
         //isHighlighted: messageId == _highlightedMessageId,
       );
@@ -3150,7 +3150,37 @@ groupMediaLength: replyMediaCount > 0 ? replyMediaCount : length,        allMess
       return;
     }
 
-    // ✅ 2. everything else = your existing code
+    // ✅ 2. IMAGE: open in MixedMediaViewer
+    final lower = urlOrPath.toLowerCase();
+    final bool isImage = (fileType != null && fileType.startsWith('image/')) ||
+        lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.png') ||
+        lower.endsWith('.webp') ||
+        lower.endsWith('.bmp') ||
+        lower.endsWith('.gif');
+
+    if (isImage) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => MixedMediaViewer(
+            items: [
+              GroupMediaItem(
+                previewUrl: urlOrPath,
+                mediaUrl: urlOrPath,
+                isVideo: false,
+                senderName: widget.userName,
+              ),
+            ],
+            initialIndex: 0,
+          ),
+        ),
+      );
+      return;
+    }
+
+    // ✅ 3. everything else = your existing code
     if (urlOrPath.startsWith('http://') || urlOrPath.startsWith('https://')) {
       try {
         await launchUrl(Uri.parse(urlOrPath),
