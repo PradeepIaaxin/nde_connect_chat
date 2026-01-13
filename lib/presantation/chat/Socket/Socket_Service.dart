@@ -779,10 +779,10 @@ class SocketService {
 
         if (messagesMap.isEmpty) return;
 
-        if (_activeConversationId == null ||
-            convoIdFromEvent != _activeConversationId) {
-          return;
-        }
+        // if (_activeConversationId == null ||
+        //     convoIdFromEvent != _activeConversationId) {
+        //   return;
+        // }
 
         _crdtMessageController.add({
           'conversationId': convoIdFromEvent,

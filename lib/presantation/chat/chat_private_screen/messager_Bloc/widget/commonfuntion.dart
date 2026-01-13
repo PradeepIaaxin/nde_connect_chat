@@ -1,6 +1,6 @@
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/grouped_media_viewer.dart';
 
-/// Helper function to extract sender name from message
+// Helper function to extract sender name from message
 String? _extractSenderName(Map<String, dynamic> msg, String? currentUserId) {
   // Extract sender ID first - check multiple possible fields
   String? senderId = msg['senderId']?.toString();
@@ -73,8 +73,6 @@ List<GroupMediaItem> buildConversationMedia(
   final List<GroupMediaItem> media = [];
 
   print('🎬 buildConversationMedia called with ${allMessages.length} messages');
-  print('   currentUserId: $currentUserId');
-  print('   receiverName: $receiverName');
 
   for (final msg in allMessages) {
     final String? originalUrl = msg['originalUrl']?.toString();
@@ -82,6 +80,34 @@ List<GroupMediaItem> buildConversationMedia(
     final String? thumbnailUrl = msg['thumbnailUrl']?.toString();
     final String? fileUrl = msg['fileUrl'];
     final String fileType = (msg['fileType'] ?? '').toLowerCase();
+    final String contentType = (msg['ContentType'] ?? '').toLowerCase();
+    final String? fileName = msg['fileName']?.toString().toLowerCase();
+
+    // 🛑 STRICT FILTER: Exclude Audio & Documents
+    if (fileType.contains('audio') ||
+        contentType.contains('audio') ||
+        (fileName != null &&
+            (fileName.endsWith('.mp3') ||
+                fileName.endsWith('.wav') ||
+                fileName.endsWith('.aac') ||
+                fileName.endsWith('.m4a') ||
+                fileName.endsWith('.flac')))) {
+      continue;
+    }
+
+    // 🛑 STRICT FILTER: Exclude Documents (PDF, DOC, ZIP, etc.)
+    if (fileType.contains('application') ||
+        fileType.contains('text') ||
+        (fileName != null &&
+            (fileName.endsWith('.pdf') ||
+                fileName.endsWith('.doc') ||
+                fileName.endsWith('.docx') ||
+                fileName.endsWith('.xls') ||
+                fileName.endsWith('.xlsx') ||
+                fileName.endsWith('.zip') ||
+                fileName.endsWith('.rar')))) {
+      continue;
+    }
 
     // Extract sender name and ID
     String? senderName = _extractSenderName(msg, currentUserId);
@@ -94,7 +120,6 @@ List<GroupMediaItem> buildConversationMedia(
         senderId != currentUserId &&
         receiverName != null) {
       senderName = receiverName;
-      print('   📝 Using receiverName as fallback: $receiverName');
     }
 
     final bool isVideo = fileType.startsWith('video/') ||
@@ -102,8 +127,8 @@ List<GroupMediaItem> buildConversationMedia(
         (fileUrl?.endsWith('.mov') ?? false);
     final String? time = msg['time']?.toString();
 
+    // ✅ Only add Valid Video or Image
     if (isVideo && fileUrl != null && fileUrl.isNotEmpty) {
-      print('   📹 Adding video with senderName: $senderName');
       media.add(
         GroupMediaItem(
           previewUrl: msg['localThumbPath'] ?? thumbnailUrl ?? fileUrl,
@@ -114,35 +139,39 @@ List<GroupMediaItem> buildConversationMedia(
           time: time,
         ),
       );
-    } else if (originalUrl != null && originalUrl.isNotEmpty) {
-      print(
-          '   📸 Adding image with originalUrl: $originalUrl, senderName: $senderName');
-      media.add(
-        GroupMediaItem(
-          previewUrl: originalUrl,
-          mediaUrl: originalUrl,
-          isVideo: false,
-          senderName: senderName,
-          senderId: senderId,
-          time: time,
-        ),
-      );
-    } else if (imageUrl != null && imageUrl.isNotEmpty) {
-      print(
-          '   📸 Adding image with imageUrl: $imageUrl, senderName: $senderName');
-      media.add(
-        GroupMediaItem(
-          previewUrl: imageUrl,
-          mediaUrl: imageUrl,
-          isVideo: false,
-          senderName: senderName,
-          senderId: senderId,
-          time: time,
-        ),
-      );
+    } else {
+      // Check for Image
+      final String? finalImageUrl =
+          imageUrl ?? originalUrl ?? (fileUrl != null ? fileUrl : null);
+
+      if (finalImageUrl != null && finalImageUrl.isNotEmpty) {
+        // Double check if it looks like an image
+        bool looksLikeImage = fileType.startsWith('image/') ||
+            (fileName != null &&
+                (fileName.endsWith('.jpg') ||
+                    fileName.endsWith('.jpeg') ||
+                    fileName.endsWith('.png') ||
+                    fileName.endsWith('.gif') ||
+                    fileName.endsWith('.webp') ||
+                    fileName.endsWith('.heic')));
+
+        // If explicitly likely to be image or simply has an image url field and passed negative filters
+        if (looksLikeImage || (imageUrl != null || originalUrl != null)) {
+          media.add(
+            GroupMediaItem(
+              previewUrl: finalImageUrl,
+              mediaUrl: finalImageUrl,
+              isVideo: false,
+              senderName: senderName,
+              senderId: senderId,
+              time: time,
+            ),
+          );
+        }
+      }
     }
   }
 
-  print('✅ Built ${media.length} media items');
+  print('✅ Built ${media.length} media items (Images/Videos Only)');
   return media;
 }
