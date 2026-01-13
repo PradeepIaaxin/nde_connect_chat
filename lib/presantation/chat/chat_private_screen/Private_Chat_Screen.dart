@@ -168,7 +168,15 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       if (convoId == null) return;
 
       // 🔥 ONLY THIS FILTER MATTERS
-      if (convoId != widget.convoId) return;
+      // Ignore if it matches NEITHER the initial widget ID NOR the current (possibly updated) ID
+      // UNLESS we are in a "new chat" state (both empty), in which case we must inspect.
+      final bool isNewChat =
+          widget.convoId.isEmpty && _currentConversationId.isEmpty;
+      if (!isNewChat &&
+          convoId != widget.convoId &&
+          convoId != _currentConversationId) {
+        return;
+      }
 
       _applyCrdtMessages(
         convoId,
@@ -246,14 +254,23 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     String convoId,
     Map<String, dynamic> messagesMap,
   ) {
-    if (convoId != widget.convoId) return;
+    // 1️⃣ ID CHECK
+    if (convoId != widget.convoId && convoId != _currentConversationId) {
+      // If we are NOT in a new chat state, return strict.
+      // If we ARE in a new chat state, we proceed to inspect.
+      if (widget.convoId.isNotEmpty || _currentConversationId.isNotEmpty) {
+        return;
+      }
+    }
 
     final handler = MessageHandler(
       currentUserId: currentUserId,
-      convoId: widget.convoId,
+      convoId: _currentConversationId.isNotEmpty
+          ? _currentConversationId
+          : widget.convoId,
     );
 
-    /// 1️⃣ Normalize CRDT messages
+    // 2️⃣ NORMALIZE
     final incoming = messagesMap.values
         .where((raw) => raw['isGroupChat'] != true)
         .map((raw) => handler.normalizeMessage(raw))
@@ -261,6 +278,42 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         .toList();
 
     if (incoming.isEmpty) return;
+
+    // 🆕 NEW CHAT DETECTION:
+    // If we don't have a conversation ID yet, let's see if these messages belong to us.
+    if (_currentConversationId.isEmpty && widget.convoId.isEmpty) {
+      bool belongsToThisChat = false;
+      for (final m in incoming) {
+        final sender = m['sender'];
+        final receiver = m['receiver'];
+        final sId = (sender is Map ? sender['_id'] : sender)?.toString();
+        final rId = (receiver is Map ? receiver['_id'] : receiver)?.toString();
+
+        // Check if message is participants (Me & Receiver)
+        final isMe = sId == currentUserId;
+        final isOther = sId == widget.receiverId;
+        final receiverIsMe = rId == currentUserId;
+        final receiverIsOther = rId == widget.receiverId;
+
+        // Valid if: (Sender=Me AND Receiver=Other) OR (Sender=Other AND Receiver=Me)
+        if ((isMe && receiverIsOther) || (isOther && receiverIsMe)) {
+          belongsToThisChat = true;
+          break;
+        }
+      }
+
+      if (belongsToThisChat) {
+        debugPrint("🔥 MATCHED NEW CHAT ID: $convoId");
+        _currentConversationId = convoId;
+        socketService.setActiveConversation(convoId);
+      } else {
+        // Did not match participants, so this is just noise from another chat
+        return;
+      }
+    }
+
+    // Double check just in case (should match now if we set it above)
+    if (convoId != widget.convoId && convoId != _currentConversationId) return;
 
     /// 2️⃣ Merge with EXISTING messages (NO CLEAR)
     final Map<String, Map<String, dynamic>> merged = {};
