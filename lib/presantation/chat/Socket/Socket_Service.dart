@@ -111,13 +111,25 @@ class SocketService {
     }
   }
 
-  String? _activeConversationId;
+  // 🔔 Favourite-only callback
+  void Function({
+    required String conversationId,
+    required bool isFavourite,
+  })? _onFavouriteUpdated;
+
+  void setOnFavouriteUpdated(
+    void Function({
+      required String conversationId,
+      required bool isFavourite,
+    }) callback,
+  ) {
+    _onFavouriteUpdated = callback;
+  }
+
   void setActiveConversation(String convoId) {
-    _activeConversationId = convoId;
   }
 
   void clearActiveConversation() {
-    _activeConversationId = null;
   }
 
   Future<void> hardReconnect() async {
@@ -441,6 +453,33 @@ class SocketService {
     });
 
     return completer.future;
+  }
+
+  void emitFavorites({
+    required String conversationId,
+    required bool isFavourite,
+  }) {
+    if (socket == null || socket!.disconnected) {
+      log('Socket not connected — favourite not sent');
+      return;
+    }
+
+    print("emit favorite called");
+    print("conversationId: $conversationId, isFavourite: $isFavourite");
+    print("socket id : ${socket!.id}");
+    print("socket connected : ${socket!.connected}");
+    final payload = {
+      'conversationId': conversationId,
+      'isFavourite': isFavourite,
+    };
+
+    socket!.emit('chat:favourite', payload);
+
+    log(
+      'Favourite emitted → 12'
+      'conversationId: $conversationId, '
+      'isFavourite: $isFavourite',
+    );
   }
 
   void _handleConvoListUpdates(dynamic payload) {
@@ -773,7 +812,7 @@ class SocketService {
 
         final jsonString = await importMessageUpdate(updateBytes: bytes);
         final decoded = jsonDecode(jsonString);
-        log("repose: ${decoded.toString()}");
+        // log("repose: ${decoded.toString()}");
         final Map<String, dynamic> messagesMap =
             Map<String, dynamic>.from(decoded['messages'] ?? {});
 
@@ -808,6 +847,7 @@ class SocketService {
 
         final jsonString = await importChatUpdate(updateBytes: bytes);
         final decoded = jsonDecode(jsonString);
+        log("chatlistUpdate response: ${decoded.toString()}");
         final List list = decoded["chatDataList"] ?? [];
 
         if (list.isEmpty) return;
@@ -839,6 +879,18 @@ class SocketService {
             savedAt: DateTime.now().millisecondsSinceEpoch,
           ),
         );
+
+        for (final chat in uniqueList) {
+          final convoId = chat.conversationId;
+          final isFav = chat.isFavourite;
+
+          if (convoId != null && isFav != null) {
+            _onFavouriteUpdated?.call(
+              conversationId: convoId,
+              isFavourite: isFav,
+            );
+          }
+        }
 
         _onChatListUpdatedCallback?.call(uniqueList);
       } catch (e) {
@@ -1484,7 +1536,6 @@ class SocketService {
 
   /// Call this ONLY on LOGOUT
   void resetForLogout() {
-    _activeConversationId = null;
     _joinedRooms.clear();
     processedMessageIds.clear();
 

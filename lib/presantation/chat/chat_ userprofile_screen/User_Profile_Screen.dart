@@ -2,6 +2,7 @@ import 'dart:developer' show log;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:nde_email/presantation/chat/Socket/Socket_Service.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/bloc/profile_screen_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/bloc/profile_screen_event.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/bloc/profile_screen_state.dart';
@@ -53,12 +54,42 @@ class UserProfileScreen extends StatefulWidget {
 class _UserProfileScreenState extends State<UserProfileScreen> {
   late final String fullName;
   late final MediaBloc _mediaBloc;
+  late bool _isFavourite;
+  bool _favInitialized = false;
 
   @override
   void initState() {
     super.initState();
     fullName = '${widget.userName} ${widget.lastname ?? ''}'.trim();
     _mediaBloc = context.read<MediaBloc>();
+
+    logConversationDetails(
+      profileAvatarUrl: widget.profileAvatarUrl,
+      userName: widget.userName,
+      mailName: widget.mailName,
+      country: widget.country,
+      lastname: widget.lastname,
+      conversionalId: widget.conversionalId,
+      grpId: widget.grpId,
+      isGrp: widget.isGrp,
+      reciverId: widget.reciverId,
+      favourite: widget.favourite,
+      hasLeftGroup: widget.hasLeftGroup,
+    );
+
+    SocketService().setOnFavouriteUpdated((
+        {required String conversationId, required bool isFavourite}) {
+      // ✅ compare by conversationId
+      if (conversationId == widget.conversionalId) {
+        log('⭐ Profile favourite updated via socket → $isFavourite');
+
+        if (mounted) {
+          setState(() {
+            _isFavourite = isFavourite;
+          });
+        }
+      }
+    });
 
     _initializeData();
   }
@@ -73,6 +104,46 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         log(widget.reciverId);
       }
     }
+  }
+
+  @override
+  void dispose() {
+    SocketService().setOnFavouriteUpdated(({
+      required String conversationId,
+      required bool isFavourite,
+    }) {});
+    super.dispose();
+  }
+
+  void logConversationDetails({
+    required String profileAvatarUrl,
+    required String userName,
+    required String mailName,
+    String? country,
+    String? lastname,
+    required String conversionalId,
+    String? grpId,
+    required bool isGrp,
+    required String reciverId,
+    required bool favourite,
+    required bool hasLeftGroup,
+  }) {
+    log('''
+🧾 Conversation Details
+-----------------------
+profileAvatarUrl : $profileAvatarUrl
+userName         : $userName
+mailName         : $mailName
+country          : ${country ?? 'N/A'}
+lastname         : ${lastname ?? 'N/A'}
+conversionalId   : $conversionalId
+grpId            : ${grpId ?? 'N/A'}
+isGrp            : $isGrp
+reciverId        : $reciverId
+favourite        : $favourite
+hasLeftGroup     : $hasLeftGroup
+-----------------------
+''');
   }
 
   @override
@@ -143,6 +214,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             ? state.contacts.first
             : null;
 
+        if (contact != null && !_favInitialized) {
+          _isFavourite = contact.isFavourite;
+          _favInitialized = true;
+        }
+
         final displayName = contact?.groupName ?? widget.userName;
         final avatar = contact?.groupAvatar ?? widget.profileAvatarUrl;
 
@@ -171,7 +247,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   final bool? added = await MyRouter.push(
                     screen: AddMembersScreen(
                       groupId: widget.grpId!,
-                      isAdmin: true, 
+                      isAdmin: true,
                       groupMembers: contact?.groupMembers.map((m) {
                             return ChatUserlist(
                               userId: m.memberId ?? "",
@@ -187,15 +263,18 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   );
 
                   if (added == true) {
-                    _mediaBloc
-                        .add(FetchContact(grpId: widget.grpId!)); // 🔥 REFRESH
+                    _mediaBloc.add(FetchContact(grpId: widget.grpId!));
                   }
                 },
               ),
               _buildUserInfoSection(),
               if (!widget.isGrp) _buildCommonGroupsSection(),
               if (widget.isGrp && widget.grpId != null)
-                GroupContactList(groupId: widget.grpId!),
+                GroupContactList(
+                  groupId: widget.grpId!,
+                  conversionId: widget.conversionalId,
+                  initialFavourite: widget.favourite,
+                ),
             ],
           ),
         );
@@ -228,9 +307,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final allUsers =
         groupModelList.expand((model) => model.sharedGroups).toList();
 
-    final isCurrentlyFavourite =
-        groupModelList.isNotEmpty ? groupModelList.first.isFavourite : false;
-    final updatedIsFavourite = !isCurrentlyFavourite;
+    final isCurrentlyFavourite = _isFavourite;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -251,13 +328,17 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         _buildCreateGroupTile(),
         ...allUsers.map((user) => _buildUserTile(user)).toList(),
         GroupActionSheet(
-          onAddToFavorites: () {
-            context.read<MediaBloc>().add(
-                  ToggleFavourite(
-                    targetId: widget.grpId ?? "",
-                    isFavourite: updatedIsFavourite,
-                  ),
-                );
+          onAddToFavorites: () async {
+            final next = !_isFavourite;
+
+            setState(() {
+              _isFavourite = next;
+            });
+
+            SocketService().emitFavorites(
+              conversationId: widget.conversionalId,
+              isFavourite: next,
+            );
           },
           onAddToList: () => debugPrint('List pressed'),
           onExitGroup: () {
