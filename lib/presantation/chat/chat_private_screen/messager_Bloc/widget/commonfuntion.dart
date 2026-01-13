@@ -142,7 +142,7 @@ List<GroupMediaItem> buildConversationMedia(
     } else {
       // Check for Image
       final String? finalImageUrl =
-          imageUrl ?? originalUrl ?? (fileUrl != null ? fileUrl : null);
+          originalUrl ?? imageUrl ?? (fileUrl != null ? fileUrl : null);
 
       if (finalImageUrl != null && finalImageUrl.isNotEmpty) {
         // Double check if it looks like an image
