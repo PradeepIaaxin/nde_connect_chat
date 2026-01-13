@@ -154,7 +154,7 @@ class _AudioMessageWidgetState extends State<AudioMessageWidget> {
         icon = Icons.check;
         color = Colors.grey[600]!;
         // ✅ ADD SOUND PLAYBACK HERE
-        _playMessageSentSound();
+
         break;
       default:
         icon = Icons.access_time;
@@ -165,19 +165,6 @@ class _AudioMessageWidgetState extends State<AudioMessageWidget> {
       padding: const EdgeInsets.only(left: 4),
       child: Icon(icon, size: 16, color: color),
     );
-  }
-
-// ✅ ADD THIS METHOD TO YOUR AudioMessageWidget class
-  void _playMessageSentSound() {
-    try {
-      // Use your AudioPlayerService to play the sound
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final playerService = AudioPlayerService();
-        playerService.playMessageSentSound();
-      });
-    } catch (e) {
-      debugPrint("Error playing sent sound: $e");
-    }
   }
 
   @override
