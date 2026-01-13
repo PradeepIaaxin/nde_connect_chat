@@ -1267,6 +1267,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             'fileName': reply['fileName'] ?? '',
             'fileType':
                 (reply['fileType'] ?? reply['mimeType'] ?? '').toString(),
+                'imageCount': _replyPreview?['imageCount'],
+            'videoCount': _replyPreview?['videoCount'],
           };
 
     // ---------- TEMP MESSAGE ----------
@@ -2360,6 +2362,23 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     final messageId =
         (message['message_id'] ?? message['messageId'] ?? message['id'] ?? '')
             .toString();
+            int replyMediaCount = 0;
+    final replyData = message['reply'] ?? message['repliedMessage'];
+    if (replyData != null) {
+      final String? replyGroupId = replyData['group_message_id']?.toString();
+      if (replyGroupId != null && replyGroupId.isNotEmpty) {
+        replyMediaCount = _allMessages
+            .where((m) =>
+                m['group_message_id']?.toString() == replyGroupId &&
+                m['is_deleted'] != true)
+            .length;
+      }
+
+      if (replyMediaCount == 0) {
+        replyMediaCount = ((replyData['imageCount'] ?? 0) as int) +
+            ((replyData['videoCount'] ?? 0) as int);
+      }
+    }
 
     return Builder(builder: (context) {
       // Register context for scrolling
@@ -2429,12 +2448,12 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                 );
               }
             }).catchError((error) {
+
               debugPrint('Error scrolling to message: $error');
             });
           }
         },
-        groupMediaLength: length,
-        allMessages: _getCombinedMessages(),
+groupMediaLength: replyMediaCount > 0 ? replyMediaCount : length,        allMessages: _getCombinedMessages(),
         stretchReply: true,
         //isHighlighted: messageId == _highlightedMessageId,
       );
@@ -3408,6 +3427,46 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     setState(() {
       _replyMessage = replySource;
+      // Calculate counts if it's a grouped message
+      int imageCount = 0;
+      int videoCount = 0;
+      final String? groupId = replySource['group_message_id']?.toString();
+
+      if (groupId != null && groupId.isNotEmpty) {
+        // Find all messages in this group
+        final groupMessages = _allMessages
+            .where((m) =>
+                m['group_message_id']?.toString() == groupId &&
+                m['is_deleted'] != true)
+            .toList();
+
+        for (var m in groupMessages) {
+          final String fType = (m['mimeType'] ??
+                  m['fileType'] ??
+                  m['mimetype'] ??
+                  m['ContentType'] ??
+                  '')
+              .toString()
+              .toLowerCase();
+          final String mUrl =
+              (m['originalUrl'] ?? m['imageUrl'] ?? m['fileUrl'] ?? '')
+                  .toString()
+                  .toLowerCase();
+
+          if (fType.startsWith('video/') ||
+              mUrl.endsWith('.mp4') ||
+              mUrl.endsWith('.mov') ||
+              mUrl.endsWith('.mkv')) {
+            videoCount++;
+          } else if (fType.startsWith('image/') ||
+              mUrl.endsWith('.jpg') ||
+              mUrl.endsWith('.png') ||
+              mUrl.endsWith('.jpeg') ||
+              mUrl.endsWith('.webp')) {
+            imageCount++;
+          }
+        }
+      }
 
       _replyPreview = {
         'message_id': replySource['message_id'] ??
@@ -3434,6 +3493,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         'receiver': replySource['receiver'],
         'senderId': currentUserId,
         'isSendMe': isSendMe,
+        'imageCount': imageCount,
+        'videoCount': videoCount,
+        'group_message_id': groupId,
       };
 
       _focusNode.requestFocus();
