@@ -54,7 +54,7 @@ class UserProfileScreen extends StatefulWidget {
 class _UserProfileScreenState extends State<UserProfileScreen> {
   late final String fullName;
   late final MediaBloc _mediaBloc;
-  late bool _isFavourite;
+  bool _isFavourite = false; 
   bool _favInitialized = false;
 
   @override
