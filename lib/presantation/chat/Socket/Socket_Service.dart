@@ -847,7 +847,7 @@ class SocketService {
 
         final jsonString = await importChatUpdate(updateBytes: bytes);
         final decoded = jsonDecode(jsonString);
-        log("chatlistUpdate response: ${decoded.toString()}");
+        // log("chatlistUpdate response: ${decoded.toString()}");
         final List list = decoded["chatDataList"] ?? [];
 
         if (list.isEmpty) return;

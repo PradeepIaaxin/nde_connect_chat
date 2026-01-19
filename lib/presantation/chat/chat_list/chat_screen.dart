@@ -306,20 +306,20 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
   final normalMenuItems = [
     PopupMenuItemModel(value: 'new_group', label: 'New group'),
-    PopupMenuItemModel(value: 'new_community', label: 'New community'),
-    PopupMenuItemModel(value: 'broadcast', label: 'Broadcast lists'),
-    PopupMenuItemModel(value: 'linked_devices', label: 'Linked devices'),
-    PopupMenuItemModel(value: 'starred', label: 'Starred'),
-    PopupMenuItemModel(value: 'payments', label: 'Payments'),
-    PopupMenuItemModel(value: 'read_all', label: 'Read all'),
+    // PopupMenuItemModel(value: 'new_community', label: 'New community'),
+    // PopupMenuItemModel(value: 'broadcast', label: 'Broadcast lists'),
+    // PopupMenuItemModel(value: 'linked_devices', label: 'Linked devices'),
+    // PopupMenuItemModel(value: 'starred', label: 'Starred'),
+    // PopupMenuItemModel(value: 'payments', label: 'Payments'),
+    // PopupMenuItemModel(value: 'read_all', label: 'Read all'),
     PopupMenuItemModel(value: 'settings', label: 'Settings'),
   ];
 
   final selectionMenuItems = [
     PopupMenuItemModel(value: 'select_all', label: 'Select all'),
-    PopupMenuItemModel(value: 'lock_chats', label: 'Lock chats'),
-    PopupMenuItemModel(value: 'add_favourite', label: 'Add to favourites'),
-    PopupMenuItemModel(value: 'add_to_list', label: 'Add to list'),
+    // PopupMenuItemModel(value: 'lock_chats', label: 'Lock chats'),
+    // PopupMenuItemModel(value: 'add_favourite', label: 'Add to favourites'),
+    // PopupMenuItemModel(value: 'add_to_list', label: 'Add to list'),
     PopupMenuItemModel(value: 'mark_unread', label: 'Mark as unread'),
   ];
 
