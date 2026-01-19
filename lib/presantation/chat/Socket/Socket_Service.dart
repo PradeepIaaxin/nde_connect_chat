@@ -416,7 +416,10 @@ class SocketService {
     required String roomId,
     required String conversationId,
     required String messageId,
-  }) {
+    required String receiverId,
+    required String userId,
+  })
+  {
     if (socket == null || socket!.disconnected) {
       return Future.value(false);
     }
@@ -424,7 +427,7 @@ class SocketService {
     final completer = Completer<bool>();
     log("Emitting reaction: $emoji to messageId: $messageId in convoId: $conversationId");
     print("print : $roomId");
-
+    final rid = generateRoomId(userId, receiverId);
     socket!.emitWithAck(
       'update_reaction',
       <String, dynamic>{
@@ -435,7 +438,7 @@ class SocketService {
       },
       ack: (dynamic response) {
         if (completer.isCompleted) return;
-
+        log("resoonseeeeee ${response}");
         final bool success =
             response == true || (response is Map && response['ok'] == true);
 
@@ -1285,15 +1288,24 @@ class SocketService {
     required String userId,
     required String firstName,
     required String lastName,
-  }) {
-    if (!isConnected) return;
-    socket!.emit('remove_reaction', {
+  })
+  {
+    if (!isConnected) {
+      log("❌ Socket not connected");
+      return;
+    }
+
+    final payload = {
       "messageId": messageId,
       "conversationId": conversationId,
-      "emoji": emoji,
-      "userId": userId,
-    });
+      "roomId": userId,
+    };
+
+    log("📤 remove_reaction emit => $payload");
+
+    socket!.emit('remove_reaction', payload);
   }
+
 
   Future<void> toggleFavorite({
     required String targetId,
