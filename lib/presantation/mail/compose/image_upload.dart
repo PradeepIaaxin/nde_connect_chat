@@ -2,10 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-
-
 class ImagePickerWidget extends StatefulWidget {
-  const ImagePickerWidget({Key? key}) : super(key: key);
+  const ImagePickerWidget({super.key});
 
   @override
   _ImagePickerWidgetState createState() => _ImagePickerWidgetState();
@@ -50,4 +48,3 @@ class _ImagePickerWidgetState extends State<ImagePickerWidget> {
     );
   }
 }
- 

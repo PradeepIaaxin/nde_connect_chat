@@ -38,10 +38,10 @@ export 'package:nde_email/presantation/chat/chat_private_screen/localstorage/loc
 export 'package:nde_email/presantation/chat/Socket/socket_service.dart';
 
 // Mail
-export 'package:nde_email/presantation/mail/compose/api_service.dart';
-export 'package:nde_email/presantation/mail/compose/fatchname_bloc.dart';
-export 'package:nde_email/presantation/mail/compose/save_draft_bloc.dart';
-export 'package:nde_email/presantation/mail/compose/send_mail_bloc.dart';
+export 'package:nde_email/presantation/mail/compose/api/api_service.dart';
+export 'package:nde_email/presantation/mail/compose/bloc/fetchname_bloc/fatchname_bloc.dart';
+export 'package:nde_email/presantation/mail/compose/bloc/send_draft/save_draft_bloc.dart';
+export 'package:nde_email/presantation/mail/compose/bloc/send_mail_bloc/send_mail_bloc.dart';
 export 'package:nde_email/presantation/mail/mail_list/mail_list_bloc.dart';
 export 'package:nde_email/presantation/mail/mail_list/mail_list_api.dart';
 export 'package:nde_email/presantation/mail/mail_detail/mail_detail_bloc.dart';

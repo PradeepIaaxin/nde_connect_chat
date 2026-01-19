@@ -158,7 +158,7 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final responseBody = jsonDecode(response.body);
-        //log(" API Response: $responseBody");
+      
 
         if (responseBody['success'] == true &&
             responseBody['message'] == 'mail sent') {

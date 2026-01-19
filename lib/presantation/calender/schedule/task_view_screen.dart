@@ -446,13 +446,14 @@ class _TaskTabScreenState extends State<TaskTabScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[100],
       endDrawer: Endrawer(
         userName: userName ?? "",
         gmail: gmail ?? "",
         profileUrl: profilePicUrl,
       ),
       appBar: AppBar(
-          surfaceTintColor: Colors.white,
+        surfaceTintColor: Colors.white,
         backgroundColor: Colors.white,
         title: const Text('Tasks'),
         bottom: PreferredSize(

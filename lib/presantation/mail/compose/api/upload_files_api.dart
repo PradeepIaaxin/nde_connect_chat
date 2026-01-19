@@ -3,7 +3,7 @@ import 'dart:developer';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:nde_email/data/respiratory.dart';
-import 'package:nde_email/presantation/mail/compose/upload_response_model.dart';
+import 'package:nde_email/presantation/mail/compose/model/upload_response_model.dart';
 
 class AttachmentRepository {
   final Dio _dio = Dio();

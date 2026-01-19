@@ -20,7 +20,7 @@ import 'package:nde_email/presantation/widgets/mail_widgets/bottam_nav/bottom_na
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/error_display.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/floating_action/floating_action_ui.dart';
-import 'package:nde_email/presantation/mail/compose/compose_screen.dart';
+import 'package:nde_email/presantation/mail/compose/screen/compose_screen.dart';
 import 'package:nde_email/presantation/mail/mail_list/mail_list_bloc.dart';
 import 'package:nde_email/presantation/mail/mail_list/mail_list_state.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/floating_action/floating_action_event.dart';

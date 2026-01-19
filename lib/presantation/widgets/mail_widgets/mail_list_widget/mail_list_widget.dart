@@ -14,7 +14,7 @@ import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_style
 import 'package:nde_email/presantation/widgets/mail_widgets/gradient_avatar.dart';
 import 'package:nde_email/utils/router/router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:nde_email/presantation/mail/compose/compose_screen.dart';
+import 'package:nde_email/presantation/mail/compose/screen/compose_screen.dart';
 
 class MailListWidget extends StatefulWidget {
   final List<GMMailModels> mails;
