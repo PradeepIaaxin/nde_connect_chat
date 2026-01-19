@@ -181,7 +181,7 @@ class ChatListApiService {
 
       /// 🚫 snapshot == null OR empty → NORMAL JSON FLOW
       final List<dynamic> chatJson = jsonData["data"] ?? [];
-      log(chatJson.toString());
+      // log(chatJson.toString());
 
       return chatJson.map((e) => Datu.fromJson(e)).toList();
     }

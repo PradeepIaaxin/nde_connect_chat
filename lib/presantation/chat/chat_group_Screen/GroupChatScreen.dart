@@ -1033,7 +1033,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         senderData['avatar'] ??
         '';
 
-   final normalizedReply = (reply != null && reply is Map<String, dynamic>)
+    final normalizedReply = (reply != null && reply is Map<String, dynamic>)
         ? (() {
             // Extract URLs and fileName for extension check
             final String mediaUrl = reply["originalUrl"]?.toString() ??
@@ -1909,6 +1909,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       return;
     }
 
+    final bool isDeleted = message['is_deleted'] == true ||
+        message['isDeleted'] == true ||
+        message['messageStatus'] == 'deleted' ||
+        message['content'] == '🚫 This message was deleted';
+
+    if (isDeleted) return;
+
     debugPrint('📩 tapped message id: ${message['message_id']}');
 
     // 🔥 Fallback: If message failed, show resend dialog on tap
@@ -1960,6 +1967,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       }
     }
   }
+
   Map<String, dynamic> _mergeReplyData(dynamic replyData) {
     Map<String, dynamic> merged = {};
 
@@ -1977,7 +1985,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     return merged;
   }
 
-void _replyToMessage(Map<String, dynamic> message) {
+  void _replyToMessage(Map<String, dynamic> message) {
     if (message.isEmpty) return;
 
     // 🔹 Raw data from original message
@@ -2439,7 +2447,7 @@ void _replyToMessage(Map<String, dynamic> message) {
     });
   }
 
- Future<bool> _scrollToMessageById(String messageId,
+  Future<bool> _scrollToMessageById(String messageId,
       {bool fetchIfMissing = true}) async {
     if (messageId.isEmpty) return false;
 
@@ -2583,8 +2591,7 @@ void _replyToMessage(Map<String, dynamic> message) {
     return false;
   }
 
-
-/// Highlight message and scroll to its context
+  /// Highlight message and scroll to its context
   void _highlightAndScrollToContext(BuildContext ctx, String messageId) {
     if (!ctx.mounted) return;
 
@@ -2609,9 +2616,7 @@ void _replyToMessage(Map<String, dynamic> message) {
         setState(() => _highlightedMessageId = null);
       },
     );
-    
   }
-
 
   /// Estimate message height for scroll calculations
   double _estimateMessageHeight(Map<String, dynamic> message) {
@@ -2702,7 +2707,6 @@ void _replyToMessage(Map<String, dynamic> message) {
 
     return false;
   }
-  
 
   List<Map<String, dynamic>> flattenGroupedMessages(
       List<GroupMessageGroup> groups) {
@@ -3502,7 +3506,7 @@ void _replyToMessage(Map<String, dynamic> message) {
     );
   }
 
- Widget _buildMessageBubble(Map<String, dynamic> message, bool isSentByMe) {
+  Widget _buildMessageBubble(Map<String, dynamic> message, bool isSentByMe) {
     final String content = message['content']?.toString() ?? '';
     final String? imageUrl = message['imageUrl'] ?? _imageFile;
     final String? fileUrl = message['fileUrl'] ?? _fileUrl;
@@ -3661,7 +3665,7 @@ void _replyToMessage(Map<String, dynamic> message) {
                                           ),
                                           padding: hasReply
                                               ? EdgeInsets.only(
-                                                  left: 5, bottom: 3,right: 6)
+                                                  left: 5, bottom: 3, right: 6)
                                               : const EdgeInsets.only(
                                                   top: 8,
                                                   left: 10,
@@ -4280,7 +4284,8 @@ void _replyToMessage(Map<String, dynamic> message) {
                                                                               isExpanded =
                                                                               (message['isExpanded'] ?? false) == true;
                                                                           return Stack(
-                                                                            clipBehavior: Clip.none,
+                                                                            clipBehavior:
+                                                                                Clip.none,
                                                                             children: [
                                                                               Padding(
                                                                                 padding: const EdgeInsets.only(bottom: 3.0, top: 1.0),
@@ -4557,7 +4562,7 @@ void _replyToMessage(Map<String, dynamic> message) {
                                                     },
                                                   ),
                                                 ),
-                                                // TIMESTAMP & STATUS - Positioned at Container Stack level for replied messages
+                                              // TIMESTAMP & STATUS - Positioned at Container Stack level for replied messages
                                               if (hasReply &&
                                                   content.isNotEmpty)
                                                 Positioned(
@@ -4665,6 +4670,7 @@ void _replyToMessage(Map<String, dynamic> message) {
                 },
               );
   }
+
   void _openFile(String urlOrPath, String? fileType) async {
     if (urlOrPath.startsWith('http://') || urlOrPath.startsWith('https://')) {
       try {
@@ -5085,7 +5091,6 @@ void _replyToMessage(Map<String, dynamic> message) {
       onSearchTap: _hasLeftGroup ? () {} : () => toggleSearchAppBar(),
       onCloseSearch: _hasLeftGroup ? () {} : () => toggleSearchAppBar(),
       hasLeftGroup: _hasLeftGroup,
-
     );
   }
 

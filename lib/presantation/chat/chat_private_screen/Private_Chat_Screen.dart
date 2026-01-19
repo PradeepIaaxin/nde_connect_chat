@@ -2484,6 +2484,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       _toggleMessageSelection(message);
       return;
     }
+    final bool isDeleted =
+        message['is_deleted'] == true || message['messageStatus'] == 'deleted';
+
+    if (isDeleted) return;
 
     debugPrint('📩 tapped message id: ${_anyId(message)}');
     log('📩 tapped message raw: $message');
