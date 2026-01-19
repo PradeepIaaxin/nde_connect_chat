@@ -1,3 +1,4 @@
+
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
 import '../../../../../utils/reusbale/common_import.dart';
 
@@ -28,7 +29,8 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
     final replyContent =
         (widget.replied['replyContent'] ?? widget.replied['content'] ?? '')
             .toString();
-
+    final bool isGrouped = widget.replied['is_grouped_message'] == true &&
+        widget.replied['group_message_id'] != null;
     final mediaUrl = widget.replied['originalUrl'] ??
         widget.replied['imageUrl'] ??
         widget.replied['fileUrl'] ??
@@ -191,11 +193,15 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
                     ),
                   ),
                   const SizedBox(height: 2),
-                  if (isVideo)
+                  if(isGrouped)
                     Text(
-                      widget.groupMediaLength != null &&
-                              widget.groupMediaLength! > 1
-                          ? 'Video x ${widget.groupMediaLength}'
+                     replyContent
+                         ,
+                      style: const TextStyle(fontSize: 12),
+                    )
+                  else if (isVideo)
+                    Text(
+                      replyContent.isNotEmpty?replyContent
                           : 'Video',
                       style: const TextStyle(fontSize: 12),
                     )
@@ -223,9 +229,7 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
                       children: [
                          Flexible(
                           child: Text(
-                            widget.groupMediaLength != null &&
-                                    widget.groupMediaLength! > 1
-                                ? 'Photo x ${widget.groupMediaLength}'
+                            replyContent.isNotEmpty?replyContent
                                 : 'Photo',
                             style: const TextStyle(fontSize: 12),
                             overflow: TextOverflow.ellipsis,
@@ -262,12 +266,15 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
               ),
             ),
             if ((isImage || isVideo) && mediaUrl.isNotEmpty)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: SizedBox(
-                  width: 42,
-                  height: 42,
-                  child: buildThumb(),
+              isGrouped || replyContent.isNotEmpty?SizedBox():  Padding(
+                padding: const EdgeInsets.only(left: 30.0),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: SizedBox(
+                    width: 42,
+                    height: 42,
+                    child: buildThumb(),
+                  ),
                 ),
               ),
           ],

@@ -96,6 +96,7 @@ class SendMessageEvent extends MessagerEvent {
   final String? replyMessageId;
   final String? replyGroupMessageId;
   final bool? replyIsGroupMessage;
+  final String? replyGroupMessageCount;
 
   const SendMessageEvent(
       {required this.senderId,
@@ -108,7 +109,7 @@ class SendMessageEvent extends MessagerEvent {
       this.clientTempId,
       this.replyMessageId,
       this.replyIsGroupMessage,
-      this.replyGroupMessageId});
+      this.replyGroupMessageId, this.replyGroupMessageCount});
 
   @override
   List<Object?> get props => [
