@@ -542,6 +542,7 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
       final msgId = ObjectId().toString();
       log("isGroupMessage ${event.replyIsGroupMessage}");
       log("isGroupMessage ${event.replyGroupMessageId}");
+      log("replyGroupMessageCount ${event.replyGroupMessageCount}");
       final String? convoId = event.convoId!.isEmpty ? null : event.convoId;
       socketService.sendMessage(
         isGroupMessage: event.replyIsGroupMessage ?? false,
@@ -556,6 +557,8 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
         contentType: event.contentType,
         reply: event.replyTo,
         groupMessageId: event.replyGroupMessageId,
+          replyGroupImageCount:event.replyGroupMessageCount
+
       );
 
       final localMessage = Message(

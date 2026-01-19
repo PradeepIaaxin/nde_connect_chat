@@ -177,7 +177,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           convoId != _currentConversationId) {
         return;
       }
-
+     log("kkkkkkkkkkkkkkkkkkkkkkkk ${data['messages']}");
       _applyCrdtMessages(
         convoId,
         Map<String, dynamic>.from(data['messages'] ?? {}),
@@ -300,7 +300,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       );
 
     // final oldTotal = _allMessages.length;
-    log("mergedListsssssssss $mergedList");
+   // log("mergedListsssssssss $mergedList");
     _allMessages
       ..clear()
       ..addAll(mergedList);
@@ -1268,8 +1268,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         'content': rawReply['replyContent'] ?? rawReply['content'] ?? '',
         'fileName': rawReply['fileName'],
         'fileType': rawReply['fileType'] ?? rawReply['ContentType'],
-        'group_message_id': rawReply['group_message_id'],
-        'is_grouped_message': rawReply['is_grouped_message'] ?? false,
+        'group_message_id': rawReply['isGroupedMessageId'],
+        'is_grouped_message': rawReply['isGroupedMessage'] ?? false,
         'originalUrl': rawReply['originalUrl'],
         'imageUrl': rawReply['imageUrl'],
         'fileUrl': rawReply['fileUrl'],
@@ -1353,6 +1353,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     print('🔐 private chat screen : ${widget.convoId}');
 
     final reply = _replyMessage;
+    log("reeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee $reply");
     final text = _messageController.text.trim();
 
     // ---------- READ RECEIPTS ----------
@@ -1384,7 +1385,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             'is_grouped_message': reply['group_message_id'] != null,
             'content': (reply['content'] ?? reply['message'] ?? '').toString(),
             'replyContent':
-                (reply['content'] ?? reply['message'] ?? '').toString(),
+            _replyPreview?["content"]??  (reply['content'] ?? reply['message'] ?? '').toString(),
             'originalUrl': reply['originalUrl'] ??
                 reply['fileUrl'] ??
                 reply['imageUrl'] ??
@@ -1457,7 +1458,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     setState(() {});
     await _clearDraft();
     _replyMessage = null;
-    _replyPreview = null;
+
 
     // ---------- OFFLINE ----------
     if (!canSendNow) {
@@ -1479,7 +1480,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           completer.complete(state.sentMessage);
         }
       });
-
+log(" _replyPreview ${ _replyPreview}");
       _messagerBloc.add(
         SendMessageEvent(
           convoId: _currentConversationId,
@@ -1488,14 +1489,15 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           receiverId: widget.receiverId!,
           replyTo: reply,
           replyMessageId: replyMessageId,
-          replyGroupMessageId: replyGroupMessageId,
-          replyIsGroupMessage: replyIsGroupMessage,
+         // replyGroupMessageId: replyGroupMessageId,
+          //replyIsGroupMessage: replyIsGroupMessage,
+          replyGroupMessageCount: _replyPreview?["content"]
         ),
       );
 
       final sent = await completer.future;
       await sub.cancel();
-
+      _replyPreview = null;
       _replaceTempMessageWithReal(
         tempId: localId,
         realId: sent.messageId,
@@ -2406,56 +2408,124 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     return messages;
   }
 
+  // Map<String, dynamic>? resolveReplyOriginal(
+  //   Map<String, dynamic> message,
+  //   List<Map<String, dynamic>> allMessages,
+  // )
+  // {
+  //   final replyId = message['reply']?['message_id'] ??
+  //       message['reply']?['id'] ??
+  //       message['reply_message_id'] ??
+  //       message['replyMessageId'] ??
+  //       message['replyToMessageId'];
+  //
+  //   if (replyId == null) {
+  //     //   print("❌ replyId is null for message ${message['message_id']}");
+  //     return null;
+  //   }
+  //
+  //   // 1️⃣ Try direct message match
+  //   for (final m in allMessages) {
+  //     final id = (m['message_id'] ?? m['id'] ?? m['_id'] ?? m['messageId'])
+  //         ?.toString();
+  //
+  //     if (id == replyId.toString()) {
+  //       // print("✅ FOUND ORIGINAL MESSAGE => $m");
+  //       return _mapReply(m);
+  //     }
+  //   }
+  //
+  //   // 2️⃣ Fallback: try group_message_id match
+  //   for (final m in allMessages) {
+  //     final groupId = m['group_message_id']?.toString();
+  //     if (groupId == replyId.toString()) {
+  //       print("✅ FOUND GROUP ORIGINAL MESSAGE => $m");
+  //       return _mapReply(m);
+  //     }
+  //   }
+  //
+  //   print("❌ ORIGINAL MESSAGE NOT FOUND FOR => $replyId");
+  //   return null;
+  // }
+  //
+  // Map<String, dynamic> _mapReply(Map<String, dynamic> m) {
+  //   return {
+  //     'content':m['replyContent']?? m['content'],
+  //     'imageUrl': m['imageUrl'],
+  //     'fileUrl': m['fileUrl'],
+  //     'originalUrl': m['originalUrl'],
+  //     'fileName': m['fileName'],
+  //     'fileType': m['fileType'],
+  //     'mimeType': m['mimeType'],
+  //     'group_message_id': m['group_message_id'],
+  //     'is_grouped_message': m['is_grouped_message'] ?? false,
+  //   };
+  // }
   Map<String, dynamic>? resolveReplyOriginal(
-    Map<String, dynamic> message,
-    List<Map<String, dynamic>> allMessages,
-  ) {
-    final replyId = message['reply']?['message_id'] ??
-        message['reply']?['id'] ??
-        message['reply_message_id'] ??
-        message['replyMessageId'] ??
-        message['replyToMessageId'];
+      Map<String, dynamic> message,
+      List<Map<String, dynamic>> allMessages,
+      )
+  {
+    final reply = message['reply'];
 
-    if (replyId == null) {
-      //   print("❌ replyId is null for message ${message['message_id']}");
-      return null;
-    }
+    final replyId = reply?['message_id'] ??
+        reply?['id'] ??
+        message['reply_message_id'];
 
-    // 1️⃣ Try direct message match
+    if (replyId == null) return null;
+
     for (final m in allMessages) {
-      final id = (m['message_id'] ?? m['id'] ?? m['_id'] ?? m['messageId'])
-          ?.toString();
+      final id =
+      (m['message_id'] ?? m['id'] ?? m['_id'] ?? m['messageId'])?.toString();
 
       if (id == replyId.toString()) {
-        // print("✅ FOUND ORIGINAL MESSAGE => $m");
-        return _mapReply(m);
+        return _mapReplyWithReplyPayload(m, reply);
       }
     }
 
-    // 2️⃣ Fallback: try group_message_id match
-    for (final m in allMessages) {
-      final groupId = m['group_message_id']?.toString();
-      if (groupId == replyId.toString()) {
-        print("✅ FOUND GROUP ORIGINAL MESSAGE => $m");
-        return _mapReply(m);
-      }
-    }
-
-    print("❌ ORIGINAL MESSAGE NOT FOUND FOR => $replyId");
     return null;
   }
 
-  Map<String, dynamic> _mapReply(Map<String, dynamic> m) {
+
+  Map<String, dynamic> _mapReplyWithReplyPayload(
+      Map<String, dynamic> original,
+      Map<String, dynamic>? replyPayload,
+      )
+  {
+    String replyText =
+    (replyPayload?['replyContent'] ??
+        replyPayload?['content'] ??
+        original['replyContent'] ??
+        original['content'] ??
+        '')
+        .toString()
+        .trim();
+
+    // final fileType =
+    // (original['fileType'] ?? original['mimeType'] ?? '').toString();
+    //
+    // final hasImage =
+    //     (original['imageUrl'] ?? original['fileUrl'] ?? '').toString().isNotEmpty;
+    //
+    // if (replyText.isEmpty) {
+    //   if (fileType.startsWith('video')) {
+    //     replyText = 'Video';
+    //   } else if (hasImage) {
+    //     replyText = 'Photo';
+    //   }
+    // }
+
     return {
-      'content': m['content'],
-      'imageUrl': m['imageUrl'],
-      'fileUrl': m['fileUrl'],
-      'originalUrl': m['originalUrl'],
-      'fileName': m['fileName'],
-      'fileType': m['fileType'],
-      'mimeType': m['mimeType'],
-      'group_message_id': m['group_message_id'],
-      'is_grouped_message': m['is_grouped_message'] ?? false,
+      'replyContent': replyText,
+      'content': replyText,
+      'imageUrl': original['imageUrl'],
+      'fileUrl': original['fileUrl'],
+      'originalUrl': original['originalUrl'],
+      'fileName': original['fileName'],
+      'fileType': original['fileType'],
+      'mimeType': original['mimeType'],
+      'group_message_id': replyPayload?['group_message_id'],
+      'is_grouped_message': replyPayload?['is_grouped_message'] ?? false,
     };
   }
 
