@@ -9,7 +9,7 @@ import 'app_bar_state.dart';
 import 'package:nde_email/data/respiratory.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/error_display.dart';
-import 'package:cached_network_image/cached_network_image.dart'; // Add this package to your pubspec.yaml
+import 'package:cached_network_image/cached_network_image.dart'; 
 
 class CustomDrawer extends StatefulWidget {
   const CustomDrawer({super.key});
@@ -82,7 +82,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                       ...(state.trash),
                     ];
 
-                    final List<Mailbox> labels = [...(state.other ?? [])];
+                    final List<Mailbox> labels = [...(state.other)];
 
                     return Theme(
                       data: Theme.of(context).copyWith(
@@ -287,8 +287,8 @@ class _CustomDrawerState extends State<CustomDrawer> {
     Color mailboxColor = AppColors.secondaryText;
 
     try {
-      if (mailbox.color != null && mailbox.color!.startsWith('#')) {
-        mailboxColor = Color(int.parse(mailbox.color!.replaceAll('#', '0xff')));
+      if (mailbox.color.startsWith('#')) {
+        mailboxColor = Color(int.parse(mailbox.color.replaceAll('#', '0xff')));
       }
     } catch (e) {
       mailboxColor = AppColors.secondaryText;
@@ -336,8 +336,8 @@ class _CustomDrawerState extends State<CustomDrawer> {
     Color labelColor = AppColors.secondaryText;
 
     try {
-      if (mailbox.color != null && mailbox.color!.startsWith('#')) {
-        labelColor = Color(int.parse(mailbox.color!.replaceAll('#', '0xff')));
+      if (mailbox.color.startsWith('#')) {
+        labelColor = Color(int.parse(mailbox.color.replaceAll('#', '0xff')));
       }
     } catch (e) {
       labelColor = AppColors.secondaryText;

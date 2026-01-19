@@ -12,7 +12,7 @@ import 'mail_list_api.dart';
 import 'package:nde_email/data/base_url.dart';
 
 class MailListBloc extends Bloc<MailListEvent, MailListState> {
-  final fetchMailListapi apiService;
+  final FetchMailListapi apiService;
   final Map<String, List<GMMailModels>> cachedMailLists = {};
 
   MailListBloc({required this.apiService}) : super(MailListState.initial()) {
