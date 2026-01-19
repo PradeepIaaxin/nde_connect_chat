@@ -111,7 +111,7 @@ class MyRootApp extends StatelessWidget {
             create: (context) => CallBloc()..add(FetchCallHistoryEvent())),
         BlocProvider(create: (context) => BottomNavigationBloc()),
         BlocProvider(
-            create: (context) => MailListBloc(apiService: fetchMailListapi())),
+            create: (context) => MailListBloc(apiService: FetchMailListapi())),
         BlocProvider(
             create: (context) =>
                 MailDetailBloc(apiService: fatchdetailmailapi())),

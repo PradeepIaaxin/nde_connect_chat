@@ -10,7 +10,7 @@ import 'package:nde_email/data/token.dart';
 import 'package:nde_email/data/base_url.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class fetchMailListapi {
+class FetchMailListapi {
   Future<MailListResponse> fetchMailList(String mailboxId,
       {String? cursor}) async {
     String? accessToken = await UserPreferences.getAccessToken();
