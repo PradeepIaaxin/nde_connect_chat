@@ -271,7 +271,7 @@ class _MessageInputFieldState extends State<MessageInputField> {
           );
   }
 
-Widget _buildReplyPreviewInline() {
+  Widget _buildReplyPreviewInline() {
     if (widget.replyText == null) return const SizedBox();
 
     final String content = widget.replyText?['content']?.toString() ?? '';
@@ -352,7 +352,7 @@ Widget _buildReplyPreviewInline() {
             widget.replyText?['ContentType'] == 'document' ||
             widget.replyText?['contentType'] == 'document' ||
             (fileUrl != null && fileUrl.isNotEmpty));
-if (isGroupedMedia) {
+    if (isGroupedMedia) {
       if (localImageCount > 0 && localVideoCount > 0) {
         typeLabel = 'Media x ${localImageCount + localVideoCount}';
       } else if (localImageCount > 0) {
@@ -360,7 +360,7 @@ if (isGroupedMedia) {
       } else if (localVideoCount > 0) {
         typeLabel = 'Video x $localVideoCount';
       }
-    }else {
+    } else {
       if (isVideoReply) {
         typeLabel = 'Video';
       } else if (isAudio) {
@@ -647,12 +647,13 @@ if (isGroupedMedia) {
     // ---- existing typing indicator logic ----
     if (capitalized.trim().isNotEmpty) {
       final userId = await UserPreferences.getUserId() ?? "Unknown";
-      final roomId = widget.isGroupChat
-          ? widget.reciverID
-          : socketService.generateRoomId(userId, widget.reciverID);
+
       final userFullName = await UserPreferences.getUsername() ?? "Unknown";
       socketService.sendTyping(
-          roomId: roomId, convoId: widget.conversionId, userName: userFullName);
+          convoId: widget.conversionId,
+          userName: userFullName,
+          userId: userId,
+          recervirId: widget.reciverID);
     }
 
     // ---- draft debounce ----

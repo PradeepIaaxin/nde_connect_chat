@@ -10,7 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 import 'mail_detail_model.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
-import 'package:nde_email/presantation/mail/compose/compose_screen.dart';
+import 'package:nde_email/presantation/mail/compose/screen/compose_screen.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/attachment.dart';
 import 'mail_detail_event.dart';
 import 'mail_detail_state.dart';

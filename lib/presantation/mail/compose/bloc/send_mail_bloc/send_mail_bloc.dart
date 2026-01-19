@@ -4,7 +4,7 @@ import 'package:bloc/bloc.dart';
 import 'package:nde_email/data/mailboxid.dart';
 import 'send_mail_event.dart';
 import 'send_mail_state.dart';
-import 'package:nde_email/presantation/mail/compose/api_service.dart';
+import 'package:nde_email/presantation/mail/compose/api/api_service.dart';
 
 class SendMailBloc extends Bloc<SendMailEvent, SendMailState> {
   final ApiService apiService;

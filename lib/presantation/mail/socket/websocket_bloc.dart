@@ -1,36 +1,55 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:developer';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'websocket_event.dart';
-import 'websocket_state.dart';
+import 'package:nde_email/domain/sockets/mail_socket/nottification.dart';
 import 'package:nde_email/domain/sockets/mail_socket/socket.dart';
 import 'package:nde_email/presantation/mail/socket/websocket_model.dart';
-import 'dart:convert';
-import 'package:nde_email/domain/sockets/mail_socket/nottification.dart';
+
+import 'websocket_event.dart';
+import 'websocket_state.dart';
 
 class WebSocketBloc extends Bloc<WebSocketEvent, WebSocketState> {
   final WebSocketService socketService;
   final List<NotificationModel> notifications = [];
 
   WebSocketBloc(this.socketService) : super(WebSocketInitial()) {
+
+    /// 🔌 CONNECT SOCKET
     on<ConnectWebSocket>((event, emit) async {
+      log("🟢 Bloc: ConnectWebSocket triggered");
+
       await socketService.connect();
+
+      log("✅ Bloc: Socket connect() called");
       emit(WebSocketConnected());
 
-      // Add a delay before listening to avoid race conditions
-      Future.delayed(Duration(seconds: 1), () {
+      // Delay to avoid race condition
+      Future.delayed(const Duration(seconds: 1), () {
+        log("👂 Bloc: Listening to socket messages");
+
         socketService.messages.listen((message) {
+          log("📩 Bloc: RAW message received → $message");
           add(ReceiveMessage(message));
         });
       });
     });
 
+    /// 🔔 HANDLE NOTIFICATION
     Future<void> _handleNotification(
       Map<String, dynamic> data,
-      Emitter emit,
+      Emitter<WebSocketState> emit,
     ) async {
+      log("📦 Bloc: Handling notification JSON → $data");
+
       final newNotification = NotificationModel.fromJson(data);
       notifications.add(newNotification);
+
+      log("👤 From Name: ${newNotification.fromName}");
+      log("📧 From Email: ${newNotification.fromAddress}");
+      log("💬 Message: ${newNotification.message}");
+      log("📊 Total notifications: ${notifications.length}");
 
       String senderName = newNotification.fromName ?? "Unknown";
       String senderEmail = newNotification.fromAddress ?? "Unknown";
@@ -41,33 +60,43 @@ class WebSocketBloc extends Bloc<WebSocketEvent, WebSocketState> {
       );
 
       emit(WebSocketMessageReceived(List.from(notifications)));
+      log("📤 Bloc: WebSocketMessageReceived emitted");
     }
 
+    /// 📥 RECEIVE MESSAGE
     on<ReceiveMessage>((event, emit) async {
       try {
+        log("🧩 Bloc: Decoding message");
+
         final decoded = jsonDecode(event.message);
+        log("🔍 Decoded type: ${decoded.runtimeType}");
 
         if (decoded is List && decoded.isNotEmpty) {
-          // If the message is a LIST, take first element
+          log("📚 Bloc: Message is LIST (${decoded.length} items)");
+
           for (var item in decoded) {
             if (item is Map<String, dynamic>) {
               await _handleNotification(item, emit);
+            } else {
+              log("⚠️ Bloc: List item not Map → $item");
             }
           }
         } else if (decoded is Map<String, dynamic>) {
-          // If the message is a MAP (normal case)
+          log("🗂 Bloc: Message is MAP");
           await _handleNotification(decoded, emit);
         } else {
-          log("Unknown message format: $decoded");
+          log("❓ Bloc: Unknown message format → $decoded");
         }
-      } catch (e) {
-        log("  Error parsing message: $e");
+      } catch (e, stack) {
+        log("❌ Bloc: Error parsing message → $e");
+        log("📌 StackTrace → $stack");
       }
     });
   }
 
   @override
   Future<void> close() {
+    log("🔴 Bloc: Closing WebSocketBloc");
     socketService.dispose();
     return super.close();
   }

@@ -258,6 +258,3 @@ Future<void> initializeStorage() async {
   ]);
   await FlutterDownloader.initialize(debug: false);
 }
-
-
-

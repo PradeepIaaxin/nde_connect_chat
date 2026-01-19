@@ -7,14 +7,14 @@ import 'package:nde_email/presantation/contact/contact_screen.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/router/router.dart';
 import 'package:nde_email/utils/snackbar/snackbar.dart';
-import 'send_mail_bloc.dart';
-import 'send_mail_event.dart';
-import 'fatchname_event.dart';
-import 'fatchname_bloc.dart';
-import 'fatchname_state.dart';
-import 'save_draft_bloc.dart';
-import 'save_dratf_event.dart';
-import 'save_draft_state.dart';
+import '../bloc/send_mail_bloc/send_mail_bloc.dart';
+import '../bloc/send_mail_bloc/send_mail_event.dart';
+import '../bloc/fetchname_bloc/fatchname_event.dart';
+import '../bloc/fetchname_bloc/fatchname_bloc.dart';
+import '../bloc/fetchname_bloc/fatchname_state.dart';
+import '../bloc/send_draft/save_draft_bloc.dart';
+import '../bloc/send_draft/save_dratf_event.dart';
+import '../bloc/send_draft/save_draft_state.dart';
 import 'package:intl/intl.dart';
 import 'package:nde_email/presantation/mail/tosection/email_suggestions_state.dart';
 import 'package:nde_email/presantation/mail/tosection/email_suggestions_bloc.dart';
@@ -25,7 +25,7 @@ import 'package:nde_email/presantation/widgets/mail_widgets/attachment.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
-import 'package:nde_email/presantation/mail/compose/upload_files_api.dart';
+import 'package:nde_email/presantation/mail/compose/api/upload_files_api.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 
 enum ComposeAction {
@@ -41,7 +41,7 @@ class ComposeScreen extends StatefulWidget {
 
   final String? mailboxId;
 
-  ComposeScreen(
+  const ComposeScreen(
       {Key? key, this.draftData, this.mailDetail, this.mailboxId, this.action})
       : super(key: key);
 
@@ -64,9 +64,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
   bool isExpanded = false;
   String? fromEmail;
   bool showSuggestions = false;
-  File? _image;
   bool showCcBcc = false;
-
 
   void _addEmail(
       String email, List<String> emailList, TextEditingController controller) {
@@ -130,25 +128,6 @@ class _ComposeScreenState extends State<ComposeScreen> {
         showSuggestions = toCont.text.isNotEmpty;
       });
     });
-  }
-
-//  Future<void> _pickImage() async {
-//     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-
-//     if (pickedFile != null) {
-//       setState(() {
-//         _image = File(pickedFile.path);
-//       });
-//     }
-//   }
-
-  Future<void> _launchURL(String url) async {
-    final Uri uri = Uri.parse(url);
-    if (await canLaunch(uri.toString())) {
-      await launch(uri.toString());
-    } else {
-      throw 'Could not launch $url';
-    }
   }
 
   void _loadDraftData() {
@@ -449,15 +428,6 @@ class _ComposeScreenState extends State<ComposeScreen> {
                         ),
                       ],
                     ),
-
-                //  _image != null
-                //             ? Image.file(
-                //                 _image!,
-                //                 width: 250,
-                //                 height: 250,
-                //                 fit: BoxFit.cover,
-                //               )
-                //             : Center(child: Text("")),
                 if (attachments.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Wrap(

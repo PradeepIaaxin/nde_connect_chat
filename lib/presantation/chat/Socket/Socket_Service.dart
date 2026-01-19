@@ -126,11 +126,9 @@ class SocketService {
     _onFavouriteUpdated = callback;
   }
 
-  void setActiveConversation(String convoId) {
-  }
+  void setActiveConversation(String convoId) {}
 
-  void clearActiveConversation() {
-  }
+  void clearActiveConversation() {}
 
   Future<void> hardReconnect() async {
     _slog('🔁 HARD SOCKET RECONNECT');
@@ -203,11 +201,11 @@ class SocketService {
     socket?.disconnect();
     socket?.dispose();
     socket = null;
-    print("socket creating....");
+    log("socket creating....");
     const String socketUrl =
-        //   "https://945067be4009.ngrok-free.app/wschat";
+        //"https://e21750296c67.ngrok-free.app";
         'https://api.nowdigitaleasy.com/wschat';
-
+    log("socketUrl : $socketUrl");
     socket = IO.io(
       socketUrl,
       IO.OptionBuilder()
@@ -1030,17 +1028,21 @@ class SocketService {
   }
 
   void sendTyping({
-    required String roomId,
     required String convoId,
     required String userName,
+    required String userId,
+    required String recervirId,
   }) {
     if (!isConnected) return;
+
+    final roomId = generateRoomId(userId, recervirId);
 
     final typingData = {
       "roomId": roomId,
       "convoId": convoId,
       "userName": userName,
     };
+
     print("typing data : $typingData");
     socket!.emit('get_typing', typingData);
   }
