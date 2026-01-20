@@ -406,6 +406,15 @@ class _NewGroupChoosenState extends State<NewGroupChoosen> {
                       ),
                     ],
                   ),
+                  Positioned(
+                    bottom: 16,
+                    right: 16,
+                    child: FloatingActionButton(
+                      onPressed: _createGroup,
+                      backgroundColor: chatColor,
+                      child: const Icon(Icons.check, color: Colors.white),
+                    ),
+                  ),
                   if (isCreating)
                     Container(
                       color: Colors.black45,
@@ -437,13 +446,8 @@ class _NewGroupChoosenState extends State<NewGroupChoosen> {
                 ),
               ),
           ],
-        ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: _createGroup,
-          backgroundColor: chatColor,
-          child: const Icon(Icons.check, color: Colors.white),
-        ),
       ),
+    ),
     );
   }
 }

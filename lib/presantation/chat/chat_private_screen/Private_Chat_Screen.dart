@@ -60,6 +60,7 @@ class PrivateChatScreen extends StatefulWidget {
 class _PrivateChatScreenState extends State<PrivateChatScreen> {
   // Controllers / focus
   final TextEditingController _messageController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
 
@@ -102,6 +103,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   // State
   String currentUserId = '';
   bool _showSearchAppBar = false;
+  List<String> _searchMatchIds = [];
+  int _currentSearchMatchIndex = -1;
   late String _currentConversationId;
   bool _isRecording = false;
 
@@ -178,7 +181,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           convoId != _currentConversationId) {
         return;
       }
-     log("kkkkkkkkkkkkkkkkkkkkkkkk ${data['messages']}");
+      log("kkkkkkkkkkkkkkkkkkkkkkkk ${data['messages']}");
       _applyCrdtMessages(
         convoId,
         Map<String, dynamic>.from(data['messages'] ?? {}),
@@ -236,6 +239,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     _saveAllMessages();
     _statusSubscription?.cancel();
     _highlightTimer?.cancel();
+    _searchController.dispose();
 
     _scrollController.dispose();
     _messageController.dispose();
@@ -250,11 +254,71 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
     super.dispose();
   }
+
+  void _onSearchChanged(String query) {
+    if (query.isEmpty) {
+      setState(() {
+        _searchMatchIds = [];
+        _currentSearchMatchIndex = -1;
+      });
+      return;
+    }
+
+    final matches = _allMessages
+        .where((msg) {
+          final content = msg['content']?.toString().toLowerCase() ?? '';
+          return content.contains(query.toLowerCase()) &&
+              msg['is_deleted'] != true &&
+              msg['messageStatus'] != 'deleted';
+        })
+        .map((msg) => _anyId(msg).toString())
+        .toList();
+
+    setState(() {
+      _searchMatchIds = matches;
+      if (matches.isNotEmpty) {
+        _currentSearchMatchIndex = 0;
+        _scrollToMessageById(matches[0], fetchIfMissing: false);
+      } else {
+        _currentSearchMatchIndex = -1;
+      }
+    });
+  }
+
+  void _onSearchUp() {
+    if (_searchMatchIds.isEmpty) return;
+    setState(() {
+      _currentSearchMatchIndex =
+          (_currentSearchMatchIndex - 1 + _searchMatchIds.length) %
+              _searchMatchIds.length;
+      _scrollToMessageById(_searchMatchIds[_currentSearchMatchIndex],
+          fetchIfMissing: false);
+    });
+  }
+
+  void _onSearchDown() {
+    if (_searchMatchIds.isEmpty) return;
+    setState(() {
+      _currentSearchMatchIndex =
+          (_currentSearchMatchIndex + 1) % _searchMatchIds.length;
+      _scrollToMessageById(_searchMatchIds[_currentSearchMatchIndex],
+          fetchIfMissing: false);
+    });
+  }
+
+  void _hideSearchAppBar() {
+    setState(() {
+      _showSearchAppBar = false;
+      _searchController.clear();
+      _searchMatchIds = [];
+      _currentSearchMatchIndex = -1;
+    });
+  }
+
   void _applyCrdtMessages(
-      String convoId,
-      Map<String, dynamic> messagesMap,
-      )
-  {
+    String convoId,
+    Map<String, dynamic> messagesMap,
+  ) {
     // log("messssssssssssssss $messagesMap");
     if (convoId != widget.convoId) return;
 
@@ -287,21 +351,20 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       final id = m['message_id']?.toString();
 
       if (id != null && id.isNotEmpty) {
-        merged[id] = Map<String, dynamic>.from(m);// ALWAYS override
+        merged[id] = Map<String, dynamic>.from(m); // ALWAYS override
       }
     }
-
 
     /// 3️⃣ Sort Old → New (web behavior)
     final mergedList = merged.values.toList()
       ..sort(
-            (a, b) => handler
+        (a, b) => handler
             .parseTime(a['time'])
             .compareTo(handler.parseTime(b['time'])),
       );
 
     // final oldTotal = _allMessages.length;
-   // log("mergedListsssssssss $mergedList");
+    // log("mergedListsssssssss $mergedList");
     _allMessages
       ..clear()
       ..addAll(mergedList);
@@ -535,8 +598,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   void sendReaction({
     required String emoji,
     required String messageId,
-  })
-  {
+  }) {
     print('Sending reaction: $emoji to messageId: $messageId');
     print('Current convoId: ${widget.convoId}');
     SocketService().emitReaction(
@@ -544,10 +606,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         roomId: roomId,
         conversationId: widget.convoId,
         messageId: messageId,
-        receiverId:widget.receiverId!,
-        userId:currentUser!
-    );
+        receiverId: widget.receiverId!,
+        userId: currentUser!);
   }
+
   Future<void> _saveDraft(String draft) async {
     if (widget.convoId.isEmpty) return;
     await LocalChatStorage.saveDraftMessage(widget.convoId, draft);
@@ -1079,7 +1141,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     reactions.addAll(unique.values);
     m['reactions'] = reactions;
 
-
     // ================= EXTRACT SENDER =================
     dynamic senderRaw = rawMsg['sender'];
     String? senderId = rawMsg['senderId']?.toString();
@@ -1123,9 +1184,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     // ================= STATUS =================
     m['messageStatus'] = (rawMsg['messageStatus'] ??
-        rawMsg['status'] ??
-        rawMsg['deliveryStatus'] ??
-        'sent')
+            rawMsg['status'] ??
+            rawMsg['deliveryStatus'] ??
+            'sent')
         .toString();
 
     final rawReply = rawMsg['reply'] ?? rawMsg['repliedMessage'];
@@ -1213,7 +1274,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     if (m['ContentType'] == null || m['ContentType'].toString().isEmpty) {
       final fname = (m['fileName'] ?? '').toString().toLowerCase();
       final furl =
-      (m['fileUrl'] ?? m['originalUrl'] ?? '').toString().toLowerCase();
+          (m['fileUrl'] ?? m['originalUrl'] ?? '').toString().toLowerCase();
       if (fname.contains('audio_') ||
           fname.endsWith('.m4a') ||
           fname.endsWith('.mp3') ||
@@ -1262,7 +1323,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     // Set reply object if present
     if (rawReply is Map) {
       m['reply'] = {
-        'reply_message_id': rawReply['reply_message_id'] ?? rawReply['message_id'],
+        'reply_message_id':
+            rawReply['reply_message_id'] ?? rawReply['message_id'],
         'message_id': rawReply['reply_message_id'] ?? rawReply['message_id'],
         'id': rawReply['reply_message_id'] ?? rawReply['message_id'],
         'replyContent': rawReply['replyContent'] ?? rawReply['content'] ?? '',
@@ -1276,7 +1338,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         'fileUrl': rawReply['fileUrl'],
       };
     }
-
 
     // Set reply_message_id if present
     if (rawReplyId != null) {
@@ -1385,8 +1446,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             'group_message_id': reply['group_message_id'],
             'is_grouped_message': reply['group_message_id'] != null,
             'content': (reply['content'] ?? reply['message'] ?? '').toString(),
-            'replyContent':
-            _replyPreview?["content"]??  (reply['content'] ?? reply['message'] ?? '').toString(),
+            'replyContent': _replyPreview?["content"] ??
+                (reply['content'] ?? reply['message'] ?? '').toString(),
             'originalUrl': reply['originalUrl'] ??
                 reply['fileUrl'] ??
                 reply['imageUrl'] ??
@@ -1460,7 +1521,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     await _clearDraft();
     _replyMessage = null;
 
-
     // ---------- OFFLINE ----------
     if (!canSendNow) {
       _offlineQueue.add({
@@ -1481,19 +1541,18 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           completer.complete(state.sentMessage);
         }
       });
-log(" _replyPreview ${ _replyPreview}");
+      log(" _replyPreview ${_replyPreview}");
       _messagerBloc.add(
         SendMessageEvent(
-          convoId: _currentConversationId,
-          message: text,
-          senderId: currentUserId,
-          receiverId: widget.receiverId!,
-          replyTo: reply,
-          replyMessageId: replyMessageId,
-         // replyGroupMessageId: replyGroupMessageId,
-          //replyIsGroupMessage: replyIsGroupMessage,
-          replyGroupMessageCount: _replyPreview?["content"]
-        ),
+            convoId: _currentConversationId,
+            message: text,
+            senderId: currentUserId,
+            receiverId: widget.receiverId!,
+            replyTo: reply,
+            replyMessageId: replyMessageId,
+            // replyGroupMessageId: replyGroupMessageId,
+            //replyIsGroupMessage: replyIsGroupMessage,
+            replyGroupMessageCount: _replyPreview?["content"]),
       );
 
       final sent = await completer.future;
@@ -2311,8 +2370,7 @@ log(" _replyPreview ${ _replyPreview}");
   }
 
   List<Map<String, dynamic>> _inferGrouping(
-      List<Map<String, dynamic>> messages)
-  {
+      List<Map<String, dynamic>> messages) {
     if (messages.isEmpty) return messages;
 
     messages
@@ -2464,21 +2522,19 @@ log(" _replyPreview ${ _replyPreview}");
   //   };
   // }
   Map<String, dynamic>? resolveReplyOriginal(
-      Map<String, dynamic> message,
-      List<Map<String, dynamic>> allMessages,
-      )
-  {
+    Map<String, dynamic> message,
+    List<Map<String, dynamic>> allMessages,
+  ) {
     final reply = message['reply'];
 
-    final replyId = reply?['message_id'] ??
-        reply?['id'] ??
-        message['reply_message_id'];
+    final replyId =
+        reply?['message_id'] ?? reply?['id'] ?? message['reply_message_id'];
 
     if (replyId == null) return null;
 
     for (final m in allMessages) {
-      final id =
-      (m['message_id'] ?? m['id'] ?? m['_id'] ?? m['messageId'])?.toString();
+      final id = (m['message_id'] ?? m['id'] ?? m['_id'] ?? m['messageId'])
+          ?.toString();
 
       if (id == replyId.toString()) {
         return _mapReplyWithReplyPayload(m, reply);
@@ -2488,18 +2544,15 @@ log(" _replyPreview ${ _replyPreview}");
     return null;
   }
 
-
   Map<String, dynamic> _mapReplyWithReplyPayload(
-      Map<String, dynamic> original,
-      Map<String, dynamic>? replyPayload,
-      )
-  {
-    String replyText =
-    (replyPayload?['replyContent'] ??
-        replyPayload?['content'] ??
-        original['replyContent'] ??
-        original['content'] ??
-        '')
+    Map<String, dynamic> original,
+    Map<String, dynamic>? replyPayload,
+  ) {
+    String replyText = (replyPayload?['replyContent'] ??
+            replyPayload?['content'] ??
+            original['replyContent'] ??
+            original['content'] ??
+            '')
         .toString()
         .trim();
 
@@ -2655,6 +2708,7 @@ log(" _replyPreview ${ _replyPreview}");
         groupMediaLength: replyMediaCount > 0 ? replyMediaCount : length,
         allMessages: _getCombinedMessages(),
         stretchReply: true,
+        searchText: _searchController.text,
         recentEmojis: recentEmojis,
         onEmojiUpdated: (list) {
           setState(() => recentEmojis = list);
@@ -2667,8 +2721,8 @@ log(" _replyPreview ${ _replyPreview}");
 
   Widget _buildReactionsBar(Map<String, dynamic> message, bool sentByMe) {
     final messageId =
-    (message['message_id'] ?? message['messageId'] ?? message['id'] ?? '')
-        .toString();
+        (message['message_id'] ?? message['messageId'] ?? message['id'] ?? '')
+            .toString();
     final mergedReactions = messageId.isNotEmpty
         ? _collectMergedReactionsForMessage(messageId)
         : <Map<String, dynamic>>[];
@@ -3240,16 +3294,15 @@ log(" _replyPreview ${ _replyPreview}");
   }
 
   Future<void> _handleReactionTap(
-      Map<String, dynamic> message,
-      String emoji,
-      )
-  async {
+    Map<String, dynamic> message,
+    String emoji,
+  ) async {
     try {
       final rawId = (message['message_id'] ??
-          message['messageId'] ??
-          message['id'] ??
-          message['_id'] ??
-          '')
+              message['messageId'] ??
+              message['id'] ??
+              message['_id'] ??
+              '')
           .toString();
 
       if (rawId.isEmpty) {
@@ -3261,7 +3314,7 @@ log(" _replyPreview ${ _replyPreview}");
 
       // 🔥 Extract reactions safely
       final List<Map<String, dynamic>> reactions =
-      _extractReactionsFromMessage(message);
+          _extractReactionsFromMessage(message);
 
       int myIndex = -1;
       String? oldEmoji;
@@ -3338,8 +3391,7 @@ log(" _replyPreview ${ _replyPreview}");
   }
 
   List<Map<String, dynamic>> _extractReactionsFromMessage(
-      Map<String, dynamic> message)
-  {
+      Map<String, dynamic> message) {
     final List<Map<String, dynamic>> list = [];
 
     if (message['reactions'] is List) {
@@ -3363,7 +3415,6 @@ log(" _replyPreview ${ _replyPreview}");
 
     return list;
   }
-
 
   bool isValidUrl(String url) =>
       url.startsWith('http://') || url.startsWith('https://');
@@ -3804,8 +3855,18 @@ log(" _replyPreview ${ _replyPreview}");
       resvID: widget.receiverId ?? widget.datumId ?? "",
       favouitre: widget.favourite,
       grpChat: widget.grpChat,
-      onSearchTap: () => toggleSearchAppBar(),
-      onCloseSearch: () => toggleSearchAppBar(),
+      onSearchTap: () {
+        setState(() {
+          _showSearchAppBar = true;
+        });
+      },
+      onCloseSearch: _hideSearchAppBar,
+      searchController: _searchController,
+      onSearchChanged: _onSearchChanged,
+      onSearchUp: _onSearchUp,
+      onSearchDown: _onSearchDown,
+      searchMatchCount: _searchMatchIds.length,
+      searchMatchIndex: _currentSearchMatchIndex,
       hasLeftGroup: false,
       groupMembers: [],
     );
@@ -4032,6 +4093,7 @@ log(" _replyPreview ${ _replyPreview}");
   Map<String, dynamic> _resolveReplySource(Map<String, dynamic> message) {
     return message;
   }
+
   List<Map<String, dynamic>> buildGroupedMessages(List raw) {
     List<Map<String, dynamic>> result = [];
 
@@ -4050,13 +4112,11 @@ log(" _replyPreview ${ _replyPreview}");
       if (result.isNotEmpty) {
         final prev = result.last;
 
-        final bool sameSender =
-            prev['senderId'] == current['senderId'];
+        final bool sameSender = prev['senderId'] == current['senderId'];
 
-        final bool prevIsMedia =
-            prev['imageUrl'] != null ||
-                prev['originalUrl'] != null ||
-                prev['fileUrl'] != null;
+        final bool prevIsMedia = prev['imageUrl'] != null ||
+            prev['originalUrl'] != null ||
+            prev['fileUrl'] != null;
 
         final diff = _parseTime(current['time'])
             .difference(_parseTime(prev['time']))
@@ -4495,7 +4555,6 @@ log(" _replyPreview ${ _replyPreview}");
                           child: ListView.builder(
                             controller: _scrollController,
                             itemCount: groupedMessages.length,
-
                             reverse: true,
                             shrinkWrap: true,
                             itemBuilder: (context, index) {
@@ -4530,8 +4589,8 @@ log(" _replyPreview ${ _replyPreview}");
                               final showDate = realIndex == 0 ||
                                   !isSameDay(
                                     _parseTime(message['time']),
-                                    _parseTime(groupedMessages[realIndex - 1]
-                                        ['time']),
+                                    _parseTime(
+                                        groupedMessages[realIndex - 1]['time']),
                                   );
                               final isGroupMessage =
                                   message['is_grouped_message'] == true;
@@ -4617,8 +4676,10 @@ log(" _replyPreview ${ _replyPreview}");
                                         message['isForwarded'] ?? false;
                                     final messageId =
                                         _anyId(message)?.toString();
-                                    final isReaction = message['reactions'] != null &&
-                                        (message['reactions'] as List).isNotEmpty;
+                                    final isReaction =
+                                        message['reactions'] != null &&
+                                            (message['reactions'] as List)
+                                                .isNotEmpty;
                                     final String groupAnchorMessageId =
                                         message['message_id'] ?? message['id'];
 
@@ -4642,26 +4703,43 @@ log(" _replyPreview ${ _replyPreview}");
                                           padding: const EdgeInsets.symmetric(
                                               horizontal: 8.0, vertical: 4.0),
                                           child: GroupedMediaWidget(
-                                              buildReactionsBar: (msg, sentByMe) => _buildReactionsBar(msg, sentByMe),
+                                              buildReactionsBar: (msg,
+                                                      sentByMe) =>
+                                                  _buildReactionsBar(
+                                                      msg, sentByMe),
                                               onReact: (msg, emoji) {
                                                 setState(() {
-                                                  _handleReactionTap(msg, emoji);
+                                                  _handleReactionTap(
+                                                      msg, emoji);
                                                   _showSearchAppBar = false;
                                                   _isSelectionMode = false;
                                                   _selectedMessages.clear();
                                                   _selectedMessageKeys.clear();
                                                 });
                                               },
-                                              emojpicker: () => ReactionDialog.show(
-                                                context: context,
-                                                messageId: message['message_id']?.toString() ?? '',
-                                                reactions: message['reactions'] as List<Map<String, dynamic>>? ?? [],
-                                                currentUserId: currentUserId,
-                                                convoId: widget.convoId,
-                                                receiverId: widget.receiverId ?? "",
-                                                firstName: widget.firstname ?? "",
-                                                lastName: widget.lastname ?? "",
-                                              ),
+                                              emojpicker: () =>
+                                                  ReactionDialog.show(
+                                                    context: context,
+                                                    messageId:
+                                                        message['message_id']
+                                                                ?.toString() ??
+                                                            '',
+                                                    reactions: message[
+                                                                'reactions']
+                                                            as List<
+                                                                Map<String,
+                                                                    dynamic>>? ??
+                                                        [],
+                                                    currentUserId:
+                                                        currentUserId,
+                                                    convoId: widget.convoId,
+                                                    receiverId:
+                                                        widget.receiverId ?? "",
+                                                    firstName:
+                                                        widget.firstname ?? "",
+                                                    lastName:
+                                                        widget.lastname ?? "",
+                                                  ),
                                               message: message,
                                               isForwarded: isForwarded,
                                               isReaction: isReaction,
