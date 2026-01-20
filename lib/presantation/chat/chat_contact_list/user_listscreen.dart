@@ -201,7 +201,7 @@ class _UserListScreenState extends State<UserListScreen> {
                                 convoId: user.conversationId ?? "",
                                 profileAvatarUrl: "",
                                 firstname: user.firstName,
-                                        sharedFiles: [],
+                                sharedFiles: [],
                                 receiverId: user.userId,
                                 lastname: user.lastName,
                                 userName: user.firstName,
@@ -215,9 +215,13 @@ class _UserListScreenState extends State<UserListScreen> {
                           child: ListTile(
                             leading: CircleAvatar(
                               backgroundColor: ColorUtil.getColorFromAlphabet(
-                                  user.firstName[0]),
+                                  user.firstName.trim().characters.first),
                               child: Text(
-                                user.firstName[0].toUpperCase(),
+                                user.firstName
+                                    .trim()
+                                    .characters
+                                    .first
+                                    .toUpperCase(),
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,

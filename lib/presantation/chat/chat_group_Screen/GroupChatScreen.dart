@@ -5170,7 +5170,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   Widget _buildAvatarWithInitial(String name) {
-    final String initial = name.isNotEmpty ? name[0].toUpperCase() : "U";
+    final String initial =
+        name.isNotEmpty ? name.trim().characters.first.toUpperCase() : "U";
     return Container(
       width: 32,
       height: 32,
@@ -5603,7 +5604,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                     : null,
                             child: (avatarUrl == null || avatarUrl.isEmpty)
                                 ? Text(displayName.isNotEmpty
-                                    ? displayName[0].toUpperCase()
+                                    ? displayName
+                                        .trim()
+                                        .characters
+                                        .first
+                                        .toUpperCase()
                                     : '?')
                                 : null,
                           ),
