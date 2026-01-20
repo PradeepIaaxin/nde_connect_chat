@@ -202,15 +202,11 @@ class SocketService {
     socket?.dispose();
     socket = null;
     log("socket creating....");
-    const String socketUrl =
-        //"https://e21750296c67.ngrok-free.app";
-        'https://api.nowdigitaleasy.com/wschat';
+    const String socketUrl = 'https://api.nowdigitaleasy.com/wschat';
     log("socketUrl : $socketUrl");
     socket = IO.io(
       socketUrl,
       IO.OptionBuilder()
-
-          ///wschat
           .setPath('/wschat/socket.io')
           .setQuery({
             'token': 'Bearer $token',
@@ -303,9 +299,9 @@ class SocketService {
 
       print("soxket id : ${socket!.id}");
       print("socket : ${socket!.connected}");
-      socket!.onAny((event, data) {
-        print("🔥 RAW USER PRESENCE EVENT → $event : $data");
-      });
+      // socket!.onAny((event, data) {
+      //   print("🔥 RAW USER PRESENCE EVENT → $event : $data");
+      // });
     });
 
     // ========================

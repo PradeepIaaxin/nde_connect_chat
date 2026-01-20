@@ -22,7 +22,7 @@ class FetchMailListEvent extends MailListEvent {
     this.mailboxId, {
     this.filter,
     this.cursor,
-    this.isLoadMore = false,
+    this.isLoadMore = false, 
      
   });
 
@@ -32,6 +32,9 @@ class FetchMailListEvent extends MailListEvent {
 
 // mail_list_event.dart
 class ClearMailCacheEvent extends MailListEvent {}
+
+class ResetMailListEvent extends MailListEvent {}
+
 
 class FetchFilteredMailEvent extends MailListEvent {
   final String filterType;
@@ -93,7 +96,7 @@ class MoveToArchiveEvent extends MailListEvent {
 class MarkAsReadEvent extends MailListEvent {
   final String mailboxId;
   final List<String> mailIds;
-  MarkAsReadEvent(this.mailboxId, this.mailIds);
+  const MarkAsReadEvent(this.mailboxId, this.mailIds);
 
   @override
   List<Object> get props => [mailboxId, mailIds];
@@ -103,7 +106,7 @@ class MarkAsReadEvent extends MailListEvent {
 class MarkAsUnreadEvent extends MailListEvent {
   final String mailboxId;
   final List<String> mailIds;
-  MarkAsUnreadEvent(this.mailboxId, this.mailIds);
+  const MarkAsUnreadEvent(this.mailboxId, this.mailIds);
 
   @override
   List<Object> get props => [mailboxId, mailIds];
@@ -117,7 +120,7 @@ class ToggleFlagEvent extends MailListEvent {
   final List<int> ids;
   final bool isFlagged;
 
-  ToggleFlagEvent({
+  const ToggleFlagEvent({
     required this.mailboxId,
     required this.ids,
     required this.isFlagged,

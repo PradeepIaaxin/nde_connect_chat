@@ -145,6 +145,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   bool _initialScrollDone = false;
   bool _screenActive = false;
   StreamSubscription<Map<String, dynamic>>? _userStatusSub;
+  List<String> recentEmojis = ['👍','❤️','😂','😮','😢','🙏'];
 
   @override
   void initState() {
@@ -2586,7 +2587,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   // ------------------ UI builders ------------------
   Widget _buildMessageBubble(
       Map<String, dynamic> message, bool isSentByMe, bool isReply,
-      {int? length}) {
+      {int? length})
+  {
     final String? bubbleSenderId = _getMessageSenderId(message);
     final bool correctIsSentByMe = bubbleSenderId == currentUserId;
 
@@ -2707,6 +2709,12 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         allMessages: _getCombinedMessages(),
         stretchReply: true,
         searchText: _searchController.text,
+        recentEmojis: recentEmojis,
+        onEmojiUpdated: (list) {
+          setState(() => recentEmojis = list);
+        },
+
+        //isHighlighted: messageId == _highlightedMessageId,
       );
     });
   }
@@ -4759,29 +4767,24 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                                 final tappedItem =
                                                     groupMedia[tappedIndex];
 
-                                                final startIndex =
-                                                    conversationMedia
-                                                        .indexWhere(
-                                                  (m) =>
-                                                      m.uniqueId ==
-                                                      tappedItem.uniqueId,
+                                                final startIndex = conversationMedia.indexWhere(
+                                                      (m) => m.mediaUrl == tappedItem.mediaUrl,
                                                 );
 
-                                                //  if (startIndex == -1) return;
+
                                                 Navigator.push(
                                                   context,
                                                   PageRouteBuilder(
                                                     opaque: false,
-                                                    transitionDuration:
-                                                        const Duration(
-                                                            milliseconds: 300),
-                                                    pageBuilder: (_, __, ___) =>
-                                                        MixedMediaViewer(
+                                                    transitionDuration: const Duration(milliseconds: 300),
+                                                    pageBuilder: (_, __, ___) => MixedMediaViewer(
                                                       items: conversationMedia,
-                                                      initialIndex: tappedIndex,
+                                                      initialIndex: startIndex < 0 ? 0 : startIndex,
                                                     ),
                                                   ),
                                                 );
+
+
                                               },
                                               onForwardTap: () {
                                                 print("realIndexss $realIndex");

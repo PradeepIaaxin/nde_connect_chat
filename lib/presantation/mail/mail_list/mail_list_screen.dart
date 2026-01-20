@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
@@ -22,18 +21,30 @@ class _MailListScreenState extends State<MailListScreen> {
   final ScrollController _scrollController = ScrollController();
 
   @override
+  @override
   void initState() {
     super.initState();
     _mailListBloc = context.read<MailListBloc>();
     _scrollController.addListener(_onScroll);
+    _fetchMails();
+  }
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (["unread", "flagged", "all"].contains(widget.mailboxId)) {
-        _mailListBloc.add(FetchFilteredMailEvent(widget.mailboxId));
-      } else {
-        _mailListBloc.add(FetchMailListEvent(widget.mailboxId));
-      }
-    });
+  @override
+  void didUpdateWidget(covariant MailListScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.mailboxId != widget.mailboxId) {
+      _mailListBloc.add(ResetMailListEvent());
+      _fetchMails();
+    }
+  }
+
+  void _fetchMails() {
+    if (["unread", "flagged", "all"].contains(widget.mailboxId)) {
+      _mailListBloc.add(FetchFilteredMailEvent(widget.mailboxId));
+    } else {
+      _mailListBloc.add(FetchMailListEvent(widget.mailboxId));
+    }
   }
 
   void _onScroll() {

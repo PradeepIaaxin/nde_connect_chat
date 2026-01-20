@@ -24,7 +24,6 @@ class FetchMailListapi {
     final queryParameters = [
       'order=desc',
       'limit=50',
-      'page=2',
       'metaData=true',
       'threadCounters=true',
       'includeHeaders=message-id',
@@ -32,6 +31,7 @@ class FetchMailListapi {
     ].join('&');
 
     final url = '$baseUrl?$queryParameters';
+    print(url);
 
     try {
       final response = await http.get(
@@ -46,7 +46,7 @@ class FetchMailListapi {
         final Map<String, dynamic> data = json.decode(response.body);
         final mailListResponse = MailListResponse.fromJson(data);
 
-        log('Mail List Fetched: ${response.body}');
+        //log('Mail List Fetched: ${response.body}');
         log('Next Cursor: ${mailListResponse.nextCursor}');
 
         return mailListResponse;
