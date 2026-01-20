@@ -4682,29 +4682,24 @@ log(" _replyPreview ${ _replyPreview}");
                                                 final tappedItem =
                                                     groupMedia[tappedIndex];
 
-                                                final startIndex =
-                                                    conversationMedia
-                                                        .indexWhere(
-                                                  (m) =>
-                                                      m.uniqueId ==
-                                                      tappedItem.uniqueId,
+                                                final startIndex = conversationMedia.indexWhere(
+                                                      (m) => m.mediaUrl == tappedItem.mediaUrl,
                                                 );
 
-                                                //  if (startIndex == -1) return;
+
                                                 Navigator.push(
                                                   context,
                                                   PageRouteBuilder(
                                                     opaque: false,
-                                                    transitionDuration:
-                                                        const Duration(
-                                                            milliseconds: 300),
-                                                    pageBuilder: (_, __, ___) =>
-                                                        MixedMediaViewer(
+                                                    transitionDuration: const Duration(milliseconds: 300),
+                                                    pageBuilder: (_, __, ___) => MixedMediaViewer(
                                                       items: conversationMedia,
-                                                      initialIndex: tappedIndex,
+                                                      initialIndex: startIndex < 0 ? 0 : startIndex,
                                                     ),
                                                   ),
                                                 );
+
+
                                               },
                                               onForwardTap: () {
                                                 print("realIndexss $realIndex");

@@ -398,16 +398,7 @@ class MessageBubble extends StatelessWidget {
       receiverName: receiverName,
     );
 
-    print("📸 Opening viewer with tappedUrl: $tappedUrl");
-    final index = media.indexWhere((m) {
-      final bool match = (m.mediaUrl == tappedUrl) ||
-          (m.previewUrl == tappedUrl) ||
-          (m.mediaUrl.contains(tappedUrl)) || // Backup partial match
-          (tappedUrl.contains(m.mediaUrl));
-
-      if (match) print("   ✅ FOUND MATCH at index");
-      return match;
-    });
+    final index = media.indexWhere((m) => m.mediaUrl == tappedUrl);
 
     if (index == -1) {
       print("❌ NO MATCH FOUND for $tappedUrl in ${media.length} items");
