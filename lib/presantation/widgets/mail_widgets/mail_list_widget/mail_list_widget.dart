@@ -19,7 +19,7 @@ import 'package:nde_email/presantation/mail/compose/screen/compose_screen.dart';
 class MailListWidget extends StatefulWidget {
   final List<GMMailModels> mails;
   final String mailboxId;
-  final ScrollController controller; // <- Add this
+  final ScrollController controller;
   final int itemCount;
   final bool isPaginating;
 
@@ -29,9 +29,9 @@ class MailListWidget extends StatefulWidget {
     required this.controller,
     required this.itemCount,
     required this.isPaginating,
-    Key? key,
+    super.key,
     required AlwaysScrollableScrollPhysics physics,
-  }) : super(key: key);
+  });
 
   @override
   State<MailListWidget> createState() => _MailListWidgetState();
@@ -295,6 +295,7 @@ class _MailListWidgetState extends State<MailListWidget> {
 
   Widget _buildSelectionAppBar(BuildContext context, Set<int> selectedMailIds) {
     return AppBar(
+      backgroundColor: Colors.white,
       leading: IconButton(
         icon: const Icon(Icons.arrow_back),
         onPressed: () {

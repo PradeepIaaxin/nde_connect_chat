@@ -96,12 +96,30 @@ class _PasswordScreenState extends State<PasswordScreen> {
                       "Welcome ",
                       style: TextStyle(fontSize: 18, color: Colors.black87),
                     ),
-                    Text(
-                      widget.email,
-                      style: TextStyle(fontSize: 18, color: Colors.grey[700]),
+                    Flexible(
+                      child: Text(
+                        widget.email,
+                        style: TextStyle(fontSize: 18, color: Colors.grey[700]),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
                     ),
                   ],
                 ),
+
+                // Row(
+                //   mainAxisAlignment: MainAxisAlignment.center,
+                //   children: [
+                //     const Text(
+                //       "Welcome ",
+                //       style: TextStyle(fontSize: 18, color: Colors.black87),
+                //     ),
+                //     Text(
+                //       widget.email,
+                //       style: TextStyle(fontSize: 18, color: Colors.grey[700]),
+                //     ),
+                //   ],
+                // ),
                 const SizedBox(height: 24),
 
                 BlocBuilder<LoginBloc, LoginState>(

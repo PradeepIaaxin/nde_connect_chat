@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nde_email/presantation/mail/mail_list/mail_list_bloc.dart';
+import 'package:nde_email/presantation/mail/mail_list/mail_list_event.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/router/router.dart';
 import 'mailbox_model.dart';
@@ -9,12 +11,13 @@ import 'app_bar_state.dart';
 import 'package:nde_email/data/respiratory.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/error_display.dart';
-import 'package:cached_network_image/cached_network_image.dart'; 
+import 'package:cached_network_image/cached_network_image.dart';
 
 class CustomDrawer extends StatefulWidget {
   const CustomDrawer({super.key});
 
   @override
+  // ignore: library_private_types_in_public_api
   _CustomDrawerState createState() => _CustomDrawerState();
 }
 
@@ -325,8 +328,13 @@ class _CustomDrawerState extends State<CustomDrawer> {
             )
           : null,
       onTap: () {
-        MyRouter.pushReplace(
-          screen: HomeScreen(mailboxId: mailbox.id),
+        Navigator.pop(context);
+
+        final mailBloc = context.read<MailListBloc>();
+
+        mailBloc.add(ResetMailListEvent());
+        mailBloc.add(
+          FetchMailListEvent(mailbox.id),
         );
       },
     );
@@ -370,7 +378,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
           : null,
       onTap: () {
         MyRouter.pushReplace(
-          screen: HomeScreen(mailboxId: mailbox.id, filter: ''),
+          screen: HomeScreen(mailboxId: mailbox.id, filter: null),
         );
       },
     );

@@ -166,7 +166,7 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
       onTap: widget.onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 6),
-        padding: const EdgeInsets.only(right: 20, top: 5, bottom: 5),
+        padding: const EdgeInsets.only(right: 8, top: 5, bottom: 5),
         decoration: BoxDecoration(
           color: const Color.fromARGB(255, 231, 235, 249),
           border: Border(left: BorderSide(color: Colors.blueAccent, width: 5)),
@@ -267,7 +267,7 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
             ),
             if ((isImage || isVideo) && mediaUrl.isNotEmpty)
               isGrouped || replyContent.isNotEmpty?SizedBox():  Padding(
-                padding: const EdgeInsets.only(left: 30.0),
+                padding: const EdgeInsets.only(left: 15.0),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(6),
                   child: SizedBox(

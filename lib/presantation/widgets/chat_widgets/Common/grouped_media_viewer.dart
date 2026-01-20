@@ -328,7 +328,7 @@ class GroupedMediaWidget extends StatelessWidget {
                             color: Colors.black54,
                             alignment: Alignment.center,
                             child: Text(
-                              '+${media.length - 3}',
+                              '+4',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 24,

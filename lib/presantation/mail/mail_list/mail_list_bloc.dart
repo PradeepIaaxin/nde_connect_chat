@@ -27,78 +27,94 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
     on<RefreshMailListEvent>(_onRefreshMailList);
     on<FetchFilteredMailEvent>(_onFetchFilteredMail);
     on<ToggleFlagEvent>(_onToggleFlagEvent);
+    on<ResetMailListEvent>((event, emit) {
+      cachedMailLists.clear();
+      emit(state.copyWith(
+        mails: [],
+        nextCursor: null,
+        isPaginating: false,
+        status: MailListStatus.loading,
+      ));
+    });
   }
 
   Future<void> _onFetchMailList(
-      FetchMailListEvent event, Emitter<MailListState> emit) async {
+    FetchMailListEvent event,
+    Emitter<MailListState> emit,
+  ) async {
+    // 1️⃣ Serve cache (only for first load, not pagination)
     if (!event.isLoadMore && cachedMailLists.containsKey(event.mailboxId)) {
       final cachedMails = cachedMailLists[event.mailboxId]!;
-      if (cachedMails.isEmpty) {
-        emit(state.copyWith(
-          status: MailListStatus.empty,
-          mails: [],
-        ));
-      } else {
-        emit(state.copyWith(
-          status: MailListStatus.loaded,
-          mails: cachedMails,
-        ));
-      }
+
+      emit(state.copyWith(
+        status:
+            cachedMails.isEmpty ? MailListStatus.empty : MailListStatus.loaded,
+        mails: cachedMails,
+        nextCursor: null,
+        isPaginating: false,
+      ));
       return;
     }
 
+    // 2️⃣ Emit loading states
     if (event.isLoadMore) {
       emit(state.copyWith(isPaginating: true));
     } else {
       emit(state.copyWith(
         status: MailListStatus.loading,
         errorMessage: null,
+        mails: [],
+        nextCursor: null,
       ));
     }
 
     try {
-      final mailListResponse = await apiService.fetchMailList(
+      // 3️⃣ API call
+      final response = await apiService.fetchMailList(
         event.mailboxId,
         cursor: event.cursor,
       );
 
-      final fetchedMails = mailListResponse.mails;
-      final nextCursor = mailListResponse.nextCursor;
+      final List<GMMailModels> fetchedMails = response.mails;
 
-      if (fetchedMails.isEmpty || nextCursor == null) {
-        if (event.isLoadMore) {
-          emit(state.copyWith(
-            isPaginating: false,
-            nextCursor: null,
-          ));
-        } else {
-          emit(state.copyWith(
-            status: MailListStatus.empty,
-            mails: [],
-            isPaginating: false,
-            nextCursor: null,
-          ));
-        }
+      // Normalize cursor:
+      // API sends false | null | string
+      final String? nextCursor =
+          response.nextCursor is String ? response.nextCursor : null;
+
+      // 4️⃣ Empty inbox (ONLY based on mails)
+      if (fetchedMails.isEmpty) {
+        emit(state.copyWith(
+          status: MailListStatus.empty,
+          mails: [],
+          nextCursor: null,
+          isPaginating: false,
+        ));
         return;
       }
 
-      final updatedMails =
+      // 5️⃣ Merge pagination correctly
+      final List<GMMailModels> updatedMails =
           event.isLoadMore ? [...state.mails, ...fetchedMails] : fetchedMails;
 
+      // 6️⃣ Cache only first page
       if (!event.isLoadMore) {
         cachedMailLists[event.mailboxId] = updatedMails;
       }
 
+      // 7️⃣ Success
       emit(state.copyWith(
         status: MailListStatus.loaded,
         mails: updatedMails,
         nextCursor: nextCursor,
         isPaginating: false,
       ));
-    } catch (e) {
+    } catch (e, stack) {
+      log("Mail list fetch error", error: e, stackTrace: stack);
+
       emit(state.copyWith(
         status: MailListStatus.error,
-        errorMessage: "Oops! Something went wrong",
+        errorMessage: "Failed to load mails",
         isPaginating: false,
       ));
     }
@@ -333,6 +349,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
     FetchFilteredMailEvent event,
     Emitter<MailListState> emit,
   ) async {
+    cachedMailLists.clear();
     emit(state.copyWith(status: MailListStatus.loading));
     try {
       final mails = await apiService.fetchFilteredMails(event.filterType);
