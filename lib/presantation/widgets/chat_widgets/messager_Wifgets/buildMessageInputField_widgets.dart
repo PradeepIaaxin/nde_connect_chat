@@ -1,6 +1,7 @@
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart' as ep;
 import 'package:nde_email/data/respiratory.dart';
 import 'package:nde_email/main.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/VideoCacheService.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/whatapp_recoreder_widget.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart' hide Category;
@@ -378,7 +379,7 @@ class _MessageInputFieldState extends State<MessageInputField> {
         width: size,
         height: size,
         child: FutureBuilder<File?>(
-          future: VideoThumbUtil.generateFromUrl(videoPathOrUrl),
+          future: VideoCacheService.instance.getThumbnailFuture(videoPathOrUrl),
           builder: (context, snapshot) {
             // ⏳ Loading
             if (snapshot.connectionState == ConnectionState.waiting) {
