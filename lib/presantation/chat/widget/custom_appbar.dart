@@ -13,6 +13,8 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../../utils/imports/common_imports.dart';
 import '../chat_ userprofile_screen/bloc/profile_screen_state.dart';
+import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/model/contact_model.dart';
+import 'package:nde_email/presantation/chat/widget/profile_avatar.dart';
 
 class CommonAppBarBuilder {
   static PreferredSizeWidget build({
@@ -27,7 +29,6 @@ class CommonAppBarBuilder {
     required Function(Map<String, dynamic>) replyToMessage,
     required String profileAvatarUrl,
     required String convertionId,
-
     String? userName,
     String? firstname,
     String? lastname,
@@ -143,28 +144,41 @@ class CommonAppBarBuilder {
       );
     }
 
-
     ColorUtil.getColorFromAlphabet(userName ?? "");
 
     return PreferredSize(
       preferredSize: const Size.fromHeight(kToolbarHeight),
       child: BlocBuilder<MediaBloc, MediaState>(builder: (context, state) {
-        final contact = state is ContactLoaded && state.contacts.isNotEmpty
-            ? state.contacts.first
-            : null;
+        // 🔑 STRICT FILTER: Only use contact if it matches current GROUP chat
+        // ContactModel appears to be Group-specific based on its fields.
+        final contact =
+            (grpChat && state is ContactLoaded && state.contacts.isNotEmpty)
+                ? state.contacts.firstWhere(
+                    (c) => c.id == grpId,
+                    orElse: () => const ContactModel(id: ''), // Dummy fallback
+                  )
+                : null;
+
+        // If dummy (empty ID) or null, don't use it
+        final validContact = (contact?.id?.isNotEmpty == true) ? contact : null;
 
         final displayName = grpChat
-            ? contact?.groupName ?? "${firstname ?? ''} ${lastname ?? ''}"
+            ? validContact?.groupName ?? "${firstname ?? ''} ${lastname ?? ''}"
             : "${firstname ?? ''} ${lastname ?? ''}";
 
-        final avatar = grpChat
-            ? contact?.groupAvatar ?? profileAvatarUrl
+        // STRICT LOGIC:
+        // 1. If Group: use API groupAvatar safely, fallback to param.
+        // 2. If Private: strictly use param profileAvatarUrl.
+        final String effectiveAvatarUrl = grpChat
+            ? (validContact?.groupAvatar?.isNotEmpty == true
+                ? validContact!.groupAvatar!
+                : profileAvatarUrl)
             : profileAvatarUrl;
 
-        final initials =
-            displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U';
+        final initials = displayName.isNotEmpty
+            ? displayName.trim().characters.first.toUpperCase()
+            : 'U';
 
-        final avatarColor = ColorUtil.getColorFromAlphabet(displayName);
         return AppBar(
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.white,
@@ -207,45 +221,15 @@ class CommonAppBarBuilder {
                       children: [
                         CircleAvatar(
                           maxRadius: 20,
-                          backgroundColor: Colors.grey[300],
-                          child: avatar.isNotEmpty
-                              ? ClipOval(
-                                  child: Image.network(
-                                    avatar,
-                                    width: 40,
-                                    height: 40,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Container(
-                                        color: avatarColor,
-                                        alignment: Alignment.center,
-                                        child: Text(
-                                          initials,
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                )
-                              : Container(
-                                  width: 40,
-                                  height: 40,
-                                  decoration: BoxDecoration(
-                                    color: avatarColor,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  alignment: Alignment.center,
-                                  child: Text(
-                                    initials,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
+                          backgroundColor: effectiveAvatarUrl.isEmpty
+                              ? ColorUtil.getColorFromAlphabet(initials)
+                              : Colors.transparent,
+                          child: ProfileAvatar(
+                            imageUrl: effectiveAvatarUrl,
+                            name:
+                                initials, // ProfileAvatar handles trimming/sorting
+                            size: 40,
+                          ),
                         ),
                       ],
                     );

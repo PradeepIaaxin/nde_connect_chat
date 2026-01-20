@@ -456,6 +456,92 @@ class SocketService {
     return completer.future;
   }
 
+  Future<bool> emitGroupReaction({
+    required String emoji,
+    required String conversationId,
+    required String messageId,
+    required String userId,
+  }) {
+    if (socket == null || socket!.disconnected) {
+      return Future.value(false);
+    }
+
+    final completer = Completer<bool>();
+    log("Emitting GROUP reaction: $emoji to messageId: $messageId in convoId: $conversationId");
+
+    socket!.emitWithAck(
+      'update_reaction',
+      <String, dynamic>{
+        'emoji': emoji,
+        'roomId': conversationId, // For groups, roomId is the conversationId
+        'conversationId': conversationId,
+        'messageId': messageId,
+        'userId': userId,
+        'isGroupChat': true,
+      },
+      ack: (dynamic response) {
+        if (completer.isCompleted) return;
+
+        final bool success =
+            response == true || (response is Map && response['ok'] == true);
+
+        completer.complete(success);
+      },
+    );
+
+    /// Timeout safeguard
+    Future.delayed(const Duration(seconds: 3), () {
+      if (!completer.isCompleted) {
+        completer.complete(false);
+      }
+    });
+
+    return completer.future;
+  }
+
+  Future<bool> emitGroupRemoveReaction({
+    required String emoji,
+    required String conversationId,
+    required String messageId,
+    required String userId,
+  }) {
+    if (socket == null || socket!.disconnected) {
+      return Future.value(false);
+    }
+
+    final completer = Completer<bool>();
+    log("Emitting GROUP remove reaction: $emoji to messageId: $messageId in convoId: $conversationId");
+
+    socket!.emitWithAck(
+      'remove_reaction',
+      <String, dynamic>{
+        'emoji': emoji,
+        'roomId': conversationId, // For groups, roomId is the conversationId
+        'conversationId': conversationId,
+        'messageId': messageId,
+        'userId': userId,
+        'isGroupChat': true,
+      },
+      ack: (dynamic response) {
+        if (completer.isCompleted) return;
+
+        final bool success =
+            response == true || (response is Map && response['ok'] == true);
+
+        completer.complete(success);
+      },
+    );
+
+    /// Timeout safeguard
+    Future.delayed(const Duration(seconds: 3), () {
+      if (!completer.isCompleted) {
+        completer.complete(false);
+      }
+    });
+
+    return completer.future;
+  }
+
   void emitFavorites({
     required String conversationId,
     required bool isFavourite,

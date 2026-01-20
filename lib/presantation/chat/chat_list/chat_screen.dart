@@ -779,7 +779,11 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
                             final profileAvatar =
                                 (chat.name?.isNotEmpty == true)
-                                    ? chat.name![0].toUpperCase()
+                                    ? chat.name!
+                                        .trim()
+                                        .characters
+                                        .first
+                                        .toUpperCase()
                                     : 'U';
 
                             final displayName =
@@ -934,5 +938,3 @@ class _ChatListScreenState extends State<ChatListScreen> {
     );
   }
 }
-
-

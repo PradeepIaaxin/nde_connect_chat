@@ -5,7 +5,6 @@ import 'package:nde_email/presantation/chat/chat_list/chat_trailing_widget.dart'
 import 'package:nde_email/presantation/chat/widget/profile_avatar.dart';
 import 'package:nde_email/presantation/chat/widget/profile_dialog.dart';
 import 'package:nde_email/utils/datetime/text_utils.dart';
-import 'package:nde_email/utils/reusbale/colour_utlis.dart';
 
 class ChatListTile extends StatelessWidget {
   final Datu chat;
@@ -72,16 +71,11 @@ class ChatListTile extends StatelessWidget {
             transitionOnUserGestures: true,
             tag:
                 'prouuufile_hero_archive1_${chat.id ?? ""}_${chat.lastMessageId ?? ""}_$index',
-            child: CircleAvatar(
-                radius: 24,
-                backgroundColor: profileAvatarUrl.isEmpty
-                    ? ColorUtil.getColorFromAlphabet(profileAvatar)
-                    : Colors.transparent,
-                child: ProfileAvatar(
-                  imageUrl: profileAvatarUrl,
-                  name: chat.name,
-                  size: 48,
-                )),
+            child: ProfileAvatar(
+              imageUrl: profileAvatarUrl,
+              name: profileAvatar,
+              size: 48,
+            ),
           ),
         ),
 

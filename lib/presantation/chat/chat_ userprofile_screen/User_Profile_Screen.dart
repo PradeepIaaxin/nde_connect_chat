@@ -54,7 +54,7 @@ class UserProfileScreen extends StatefulWidget {
 class _UserProfileScreenState extends State<UserProfileScreen> {
   late final String fullName;
   late final MediaBloc _mediaBloc;
-  bool _isFavourite = false; 
+  bool _isFavourite = false;
   bool _favInitialized = false;
 
   @override
@@ -361,15 +361,38 @@ hasLeftGroup     : $hasLeftGroup
     return ListTile(
       leading: CircleAvatar(
         radius: 24,
-        backgroundColor: ColorUtil.getColorFromAlphabet(
-          group.groupName.isNotEmpty && group.groupName.isNotEmpty
-              ? group.groupName[0]
-              : 'A',
-        ),
-        child: Text(
-          group.groupName.isNotEmpty ? group.groupName[0].toUpperCase() : 'U',
-          style: const TextStyle(fontSize: 20, color: Colors.white),
-        ),
+        backgroundColor: group.groupAvatar.isEmpty
+            ? ColorUtil.getColorFromAlphabet(
+                group.groupName.isNotEmpty ? group.groupName.trim() : 'A',
+              )
+            : Colors.transparent,
+        child: group.groupAvatar.isNotEmpty
+            ? ClipOval(
+                child: Image.network(
+                  group.groupAvatar,
+                  width: 48,
+                  height: 48,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Text(
+                      group.groupName.isNotEmpty
+                          ? group.groupName
+                              .trim()
+                              .characters
+                              .first
+                              .toUpperCase()
+                          : 'U',
+                      style: const TextStyle(fontSize: 20, color: Colors.white),
+                    );
+                  },
+                ),
+              )
+            : Text(
+                group.groupName.isNotEmpty
+                    ? group.groupName.trim().characters.first.toUpperCase()
+                    : 'U',
+                style: const TextStyle(fontSize: 20, color: Colors.white),
+              ),
       ),
       title: Text(
         group.groupName,

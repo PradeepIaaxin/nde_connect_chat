@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:nde_email/utils/reusbale/colour_utlis.dart';
+
 class ProfileAvatar extends StatelessWidget {
   final String? imageUrl;
   final String? name;
@@ -16,7 +17,7 @@ class ProfileAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final initials = (name != null && name!.trim().isNotEmpty)
-        ? name!.trim()[0].toUpperCase()
+        ? name!.trim().characters.first.toUpperCase()
         : 'U';
 
     // If no URL → instantly show fallback (no flicker)
@@ -36,7 +37,7 @@ class ProfileAvatar extends StatelessWidget {
         fadeOutDuration: Duration(milliseconds: 0),
         placeholderFadeInDuration: Duration(milliseconds: 0),
 
-        memCacheWidth: 200,  // SPEED BOOST
+        memCacheWidth: 200, // SPEED BOOST
         memCacheHeight: 200,
 
         placeholder: (_, __) => _fallback(initials),
@@ -59,7 +60,7 @@ class ProfileAvatar extends StatelessWidget {
       alignment: Alignment.center,
       child: Text(
         initial,
-        style: TextStyle(
+        style: TextStyle( 
           fontSize: size * 0.40,
           color: Colors.white,
           fontWeight: FontWeight.bold,
