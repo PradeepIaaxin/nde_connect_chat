@@ -304,9 +304,10 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
   // REACTIONS
   // =====================================================
   Future<void> _onAddReaction(
-    AddReaction event,
-    Emitter<MessagerState> emit,
-  ) async {
+      AddReaction event,
+      Emitter<MessagerState> emit,
+      )
+  async {
     try {
       log('🔹 _onAddReaction called with: rawMessageId=${event.messageId}');
 
@@ -320,27 +321,28 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
       final bool isTemp = rawId.startsWith('temp_');
       print("receivarrr ${event.receiverId}");
       // 4️⃣ Only hit REST if this is a real server id
-      if (!isTemp) {
-        // await apiService.reactionUpdated(
-        //   conversationId: event.conversationId,
-        //   messageId: backendId, // 👈 normalized id
-        //   emoji: event.emoji,
-        //   userId: event.userId,
-        //   receiverId: event.receiverId,
-        // );
-      } else {
-        log('ℹ️ Skipping HTTP reactionUpdated for temp messageId=$rawId');
-      }
-
+      // if (!isTemp) {
+      //   await apiService.reactionUpdated(
+      //     conversationId: event.conversationId,
+      //     messageId: backendId, // 👈 normalized id
+      //     emoji: event.emoji,
+      //     userId: event.userId,
+      //     receiverId: event.receiverId,
+      //
+      //   );
+      // } else {
+      //   log('ℹ️ Skipping HTTP reactionUpdated for temp messageId=$rawId');
+      // }
+      final roomId = socketService.generateRoomId(event.userId, event.receiverId);
       // 5️⃣ Always send via socket so others see it
-      socketService.reactToMessage(
-        messageId: backendId, // 👈 normalized id
-        conversationId: event.conversationId,
-        emoji: event.emoji,
-        userId: event.userId,
-        firstName: event.firstName ?? "",
-        lastName: event.lastName ?? "",
-        receiverId: event.receiverId, // 👈 ADD THIS
+      log("rrrrrrrrrrrrr $roomId");
+      socketService.emitReaction(
+          messageId: backendId, // 👈 normalized id
+          conversationId: event.conversationId,
+          emoji: event.emoji,
+          roomId: roomId,
+          userId:event.userId,
+          receiverId:event.receiverId
       );
     } catch (e, st) {
       log('❌ Error adding reaction: $e');
@@ -350,9 +352,10 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
   }
 
   Future<void> _onRemoveReaction(
-    RemoveReaction event,
-    Emitter<MessagerState> emit,
-  ) async {
+      RemoveReaction event,
+      Emitter<MessagerState> emit,
+      )
+  async {
     try {
       log('🔹 _onRemoveReaction called with: rawMessageId=${event.messageId}');
 
@@ -360,22 +363,22 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
       final String backendId = _normalizeMessageIdForApi(rawId);
       final bool isTemp = rawId.startsWith('temp_');
 
-      if (!isTemp) {
-        await apiService.reactionRemove(
-          conversationId: event.conversationId,
-          messageId: backendId, // 👈 normalized id
-          userId: event.userId,
-          receiverId: event.receiverId,
-        );
-      } else {
-        log('ℹ️ Skipping HTTP reactionRemove for temp messageId=$rawId');
-      }
-
+      // if (!isTemp) {
+      //   await apiService.reactionRemove(
+      //     conversationId: event.conversationId,
+      //     messageId: backendId, // 👈 normalized id
+      //     userId: event.userId,
+      //     receiverId: event.receiverId,
+      //   );
+      // } else {
+      //   log('ℹ️ Skipping HTTP reactionRemove for temp messageId=$rawId');
+      // }
+      final roomId = socketService.generateRoomId(event.userId, event.receiverId);
       socketService.removeReaction(
         messageId: backendId, // 👈 normalized id
         conversationId: event.conversationId,
         emoji: event.emoji,
-        userId: event.userId,
+        userId:roomId,
         firstName: event.firstName ?? "",
         lastName: event.lastName ?? "",
       );
@@ -384,6 +387,7 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
       log(st.toString());
     }
   }
+
 
   Future<void> _forwardMessage(
     ForwardMessageEvent event,
@@ -538,6 +542,7 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
       final msgId = ObjectId().toString();
       log("isGroupMessage ${event.replyIsGroupMessage}");
       log("isGroupMessage ${event.replyGroupMessageId}");
+      log("replyGroupMessageCount ${event.replyGroupMessageCount}");
       final String? convoId = event.convoId!.isEmpty ? null : event.convoId;
       socketService.sendMessage(
         isGroupMessage: event.replyIsGroupMessage ?? false,
@@ -552,6 +557,8 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
         contentType: event.contentType,
         reply: event.replyTo,
         groupMessageId: event.replyGroupMessageId,
+          replyGroupImageCount:event.replyGroupMessageCount
+
       );
 
       final localMessage = Message(
