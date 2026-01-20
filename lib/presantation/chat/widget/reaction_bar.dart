@@ -112,7 +112,7 @@ void showReactionsDialog({
                           backgroundColor: Colors.grey[300],
                           child: Text(
                             userName.isNotEmpty
-                                ? userName[0].toUpperCase()
+                                ? userName.trim().characters.first.toUpperCase()
                                 : '?',
                             style: const TextStyle(color: Colors.black),
                           ),

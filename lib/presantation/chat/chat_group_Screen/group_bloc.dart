@@ -420,27 +420,24 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
   // ==========================================================
   //          📌 ADD / REMOVE REACTION
   // ==========================================================
-  Future<void> _onGroupAddReaction(
+ Future<void> _onGroupAddReaction(
       GroupAddReaction e, Emitter<GroupChatState> emit) async {
     try {
       if (!e.messageId.startsWith("temp_")) {
-        await api.reactionUpdated(
-          conversationId: e.conversationId,
-          messageId: e.messageId,
-          emoji: e.emoji,
-          userId: e.userId,
-          receiverId: e.receiverId,
-        );
+        // await api.reactionUpdated(
+        //   conversationId: e.conversationId,
+        //   messageId: e.messageId,
+        //   emoji: e.emoji,
+        //   userId: e.userId,
+        //   receiverId: e.receiverId,
+        // );
       }
 
-      grpSocket.reactToMessage(
+      grpSocket.emitGroupReaction(
         messageId: e.messageId,
         conversationId: e.conversationId,
         emoji: e.emoji,
         userId: e.userId,
-        firstName: e.firstName ?? "",
-        lastName: e.lastName ?? "",
-        receiverId: e.receiverId,
       );
     } catch (_) {}
   }
@@ -449,25 +446,22 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
       GroupRemoveReaction e, Emitter<GroupChatState> emit) async {
     try {
       if (!e.messageId.startsWith("temp_")) {
-        await api.reactionRemove(
-          conversationId: e.conversationId,
-          messageId: e.messageId,
-          userId: e.userId,
-          receiverId: e.receiverId,
-        );
+        // await api.reactionRemove(
+        //   conversationId: e.conversationId,
+        //   messageId: e.messageId,
+        //   userId: e.userId,
+        //   receiverId: e.receiverId,
+        // );
       }
 
-      grpSocket.removeReaction(
+      grpSocket.emitGroupRemoveReaction(
         messageId: e.messageId,
         conversationId: e.conversationId,
         emoji: e.emoji,
         userId: e.userId,
-        firstName: e.firstName ?? "",
-        lastName: e.lastName ?? "",
       );
     } catch (_) {}
   }
-
   // ==========================================================
   //             📌 FORWARD MESSAGE
   // ==========================================================

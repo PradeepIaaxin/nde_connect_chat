@@ -199,7 +199,10 @@ class _NewGroupState extends State<NewGroup> {
                                         radius: 24,
                                         backgroundColor: user.profilePic.isEmpty
                                             ? ColorUtil.getColorFromAlphabet(
-                                                user.firstName[0])
+                                                user.firstName
+                                                    .trim()
+                                                    .characters
+                                                    .first)
                                             : Colors.transparent,
                                         backgroundImage:
                                             user.profilePic.isNotEmpty
@@ -207,7 +210,11 @@ class _NewGroupState extends State<NewGroup> {
                                                 : null,
                                         child: user.profilePic.isEmpty
                                             ? Text(
-                                                user.firstName[0].toUpperCase(),
+                                                user.firstName
+                                                    .trim()
+                                                    .characters
+                                                    .first
+                                                    .toUpperCase(),
                                                 style: TextStyle(
                                                     color: Colors.white,
                                                     fontSize: 18),
@@ -290,10 +297,17 @@ class _NewGroupState extends State<NewGroup> {
                                   children: [
                                     CircleAvatar(
                                       backgroundColor:
-                                          ColorUtil.getColorFromAlphabet(
-                                              user.firstName[0]),
+                                          ColorUtil.getColorFromAlphabet(user
+                                              .firstName
+                                              .trim()
+                                              .characters
+                                              .first),
                                       child: Text(
-                                        user.firstName[0].toUpperCase(),
+                                        user.firstName
+                                            .trim()
+                                            .characters
+                                            .first
+                                            .toUpperCase(),
                                         style: TextStyle(
                                           color: Colors.white,
                                           fontWeight: FontWeight.bold,

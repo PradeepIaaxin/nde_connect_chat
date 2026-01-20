@@ -2970,7 +2970,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                     : null,
                             child: (avatarUrl == null || avatarUrl.isEmpty)
                                 ? Text(displayName.isNotEmpty
-                                    ? displayName[0].toUpperCase()
+                                    ? displayName
+                                        .trim()
+                                        .characters
+                                        .first
+                                        .toUpperCase()
                                     : '?')
                                 : null,
                           ),

@@ -242,10 +242,19 @@ class _AddMembersScreenState extends State<AddMembersScreen> {
                                             CircleAvatar(
                                               backgroundColor: ColorUtil
                                                   .getColorFromAlphabet(
-                                                      (user.firstName.isNotEmpty ? user.firstName[0] : 'U')
-),
+                                                      (user.firstName.isNotEmpty
+                                                          ? user.firstName
+                                                              .trim()
+                                                              .characters
+                                                              .first
+                                                          : 'U')),
                                               child: Text(
-                                                (user.firstName.isNotEmpty ? user.firstName[0] : 'U')
+                                                (user.firstName.isNotEmpty
+                                                        ? user.firstName
+                                                            .trim()
+                                                            .characters
+                                                            .first
+                                                        : 'U')
                                                     .toUpperCase(),
                                                 style: const TextStyle(
                                                     color: Colors.white),
@@ -328,11 +337,20 @@ class _AddMembersScreenState extends State<AddMembersScreen> {
                                       CircleAvatar(
                                         backgroundColor:
                                             ColorUtil.getColorFromAlphabet(
-                                                (user.firstName.isNotEmpty ? user.firstName[0] : 'U')
-),
+                                                (user.firstName.isNotEmpty
+                                                    ? user.firstName
+                                                        .trim()
+                                                        .characters
+                                                        .first
+                                                    : 'U')),
                                         child: Text(
-                                          (user.firstName.isNotEmpty ? user.firstName[0] : 'U')
-.toUpperCase(),
+                                          (user.firstName.isNotEmpty
+                                                  ? user.firstName
+                                                      .trim()
+                                                      .characters
+                                                      .first
+                                                  : 'U')
+                                              .toUpperCase(),
                                           style: const TextStyle(
                                             color: Colors.white,
                                             fontWeight: FontWeight.bold,

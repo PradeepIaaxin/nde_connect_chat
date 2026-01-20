@@ -3,10 +3,10 @@ import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/bloc/prof
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/bloc/profile_screen_state.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/model/contact_model.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/user_profile_image.dart';
+import 'package:nde_email/presantation/chat/widget/profile_avatar.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/widget/grp_create_screen.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_data_model.dart';
 import 'package:nde_email/presantation/chat/contact_new_group/add_member_screen.dart';
-import 'package:nde_email/utils/reusbale/colour_utlis.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
 
 class GroupProfileHeader extends StatelessWidget {
@@ -19,7 +19,6 @@ class GroupProfileHeader extends StatelessWidget {
   final List<ChatUserlist> groupMembers;
   final VoidCallback onAddMember;
 
-
   const GroupProfileHeader({
     super.key,
     required this.groupId,
@@ -29,7 +28,7 @@ class GroupProfileHeader extends StatelessWidget {
     required this.fullName,
     required this.grpChat,
     required this.groupMembers,
-     required this.onAddMember,
+    required this.onAddMember,
   });
 
   @override
@@ -45,7 +44,7 @@ class GroupProfileHeader extends StatelessWidget {
             : (userName.isNotEmpty ? userName : fullName);
 
         final String displayLetter = currentGroupName.isNotEmpty
-            ? currentGroupName[0].toUpperCase()
+            ? currentGroupName.trim().characters.first.toUpperCase()
             : 'G';
 
         return Container(
@@ -92,60 +91,18 @@ class GroupProfileHeader extends StatelessWidget {
           ),
         );
       },
-      child: CircleAvatar(
-        radius: 60,
-        backgroundColor: profileAvatarUrl.isEmpty
-            ? ColorUtil.getColorFromAlphabet(displayLetter)
-            : Colors.grey.shade300,
-        child: profileAvatarUrl.isNotEmpty
-            ? _buildNetworkAvatarImage(displayLetter)
-            : _buildAvatarInitial(displayLetter),
+      child: ProfileAvatar(
+        imageUrl: profileAvatarUrl,
+        name:
+            fullName, // Pass full name, ProfileAvatar handles sorting initials/color
+        size: 120,
       ),
     );
   }
 
-  Widget _buildNetworkAvatarImage(String displayLetter) {
-    return ClipOval(
-      child: Image.network(
-        profileAvatarUrl,
-        fit: BoxFit.cover,
-        width: 120,
-        height: 120,
-        errorBuilder: (_, __, ___) => _buildAvatarInitial(displayLetter),
-        loadingBuilder: (_, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return const SizedBox(
-            width: 24,
-            height: 24,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildAvatarInitial(String letter) {
-    return Container(
-      width: 120,
-      height: 120,
-      decoration: BoxDecoration(
-        color: ColorUtil.getColorFromAlphabet(letter),
-        shape: BoxShape.circle,
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        letter,
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-          fontSize: 40,
-        ),
-      ),
-    );
-  }
+  // Helper methods below are no longer needed if using ProfileAvatar,
+  // but keeping them comment-out or removing them if unused.
+  // ProfileAvatar handles network image, error builder, and initials background.
 
   Widget _buildProfileTextInfo(String currentGroupName) {
     return Column(
