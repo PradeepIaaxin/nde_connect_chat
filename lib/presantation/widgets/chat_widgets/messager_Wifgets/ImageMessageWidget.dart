@@ -5,7 +5,7 @@ import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 
 import 'CustomAppBar_Widget.dart';
-import 'buttombarWigate.dart';
+import 'buttombarwigate.dart';
 
 class ImageMessageWidget extends StatelessWidget {
   final String fileUrl;

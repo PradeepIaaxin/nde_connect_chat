@@ -14,6 +14,7 @@ import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/Me
 import 'package:nde_email/presantation/drive/common/search_bar_chat.dart';
 import 'package:nde_email/presantation/network/connectivity_servicer.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
+import 'package:nde_email/utils/reusbale/endrawer.dart';
 import 'package:nde_email/utils/reusbale/reusable_popup_menu.dart';
 import 'package:nde_email/utils/reusbale/whatsapp_banner.dart';
 import 'package:nde_email/utils/reusbale/whatsapp_offline_banner.dart';
@@ -280,10 +281,11 @@ class _ChatListScreenState extends State<ChatListScreen> {
     final searchText = _searchController.text.trim().toLowerCase();
     if (searchText.isNotEmpty) {
       filtered = filtered.where((chat) {
-        final name =
-            '${chat.firstName ?? ''} ${chat.lastName ?? ''} ${chat.name ?? ''}'
-                .toLowerCase();
-        return name.contains(searchText);
+        final displayName = chat.isGroupChat == true
+            ? (chat.name ?? '')
+            : '${chat.firstName ?? ''} ${chat.lastName ?? ''}';
+
+        return displayName.toLowerCase().contains(searchText);
       }).toList();
     }
 
@@ -306,20 +308,11 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
   final normalMenuItems = [
     PopupMenuItemModel(value: 'new_group', label: 'New group'),
-    // PopupMenuItemModel(value: 'new_community', label: 'New community'),
-    // PopupMenuItemModel(value: 'broadcast', label: 'Broadcast lists'),
-    // PopupMenuItemModel(value: 'linked_devices', label: 'Linked devices'),
-    // PopupMenuItemModel(value: 'starred', label: 'Starred'),
-    // PopupMenuItemModel(value: 'payments', label: 'Payments'),
-    // PopupMenuItemModel(value: 'read_all', label: 'Read all'),
     PopupMenuItemModel(value: 'settings', label: 'Settings'),
   ];
 
   final selectionMenuItems = [
     PopupMenuItemModel(value: 'select_all', label: 'Select all'),
-    // PopupMenuItemModel(value: 'lock_chats', label: 'Lock chats'),
-    // PopupMenuItemModel(value: 'add_favourite', label: 'Add to favourites'),
-    // PopupMenuItemModel(value: 'add_to_list', label: 'Add to list'),
     PopupMenuItemModel(value: 'mark_unread', label: 'Mark as unread'),
   ];
 
@@ -328,16 +321,14 @@ class _ChatListScreenState extends State<ChatListScreen> {
       case 'new_group':
         MyRouter.push(screen: const UserListScreen());
         break;
-      case 'linked_devices':
-        break;
-      case 'broadcast':
-        debugPrint('Broadcast clicked');
-        break;
-      case 'payments':
-        debugPrint('Payments clicked');
-        break;
 
       case 'settings':
+        MyRouter.push(
+            screen: Endrawer(
+          userName: userName ?? '',
+          gmail: gmail ?? '',
+          profileUrl: profilePicUrl,
+        ));
         break;
     }
   }
@@ -943,3 +934,5 @@ class _ChatListScreenState extends State<ChatListScreen> {
     );
   }
 }
+
+

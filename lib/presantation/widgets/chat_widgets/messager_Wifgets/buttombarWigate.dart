@@ -1,5 +1,4 @@
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 class BottomBarWidget extends StatelessWidget {
@@ -7,10 +6,10 @@ class BottomBarWidget extends StatelessWidget {
   final Function() onEmojiPressed;
 
   const BottomBarWidget({
-    Key? key,
+    super.key,
     required this.onReplyPressed,
     required this.onEmojiPressed,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
