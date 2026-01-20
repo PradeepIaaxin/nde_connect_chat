@@ -142,6 +142,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   bool _initialScrollDone = false;
   bool _screenActive = false;
   StreamSubscription<Map<String, dynamic>>? _userStatusSub;
+  List<String> recentEmojis = ['👍','❤️','😂','😮','😢','🙏'];
 
   @override
   void initState() {
@@ -2533,7 +2534,8 @@ log(" _replyPreview ${ _replyPreview}");
   // ------------------ UI builders ------------------
   Widget _buildMessageBubble(
       Map<String, dynamic> message, bool isSentByMe, bool isReply,
-      {int? length}) {
+      {int? length})
+  {
     final String? bubbleSenderId = _getMessageSenderId(message);
     final bool correctIsSentByMe = bubbleSenderId == currentUserId;
 
@@ -2653,6 +2655,11 @@ log(" _replyPreview ${ _replyPreview}");
         groupMediaLength: replyMediaCount > 0 ? replyMediaCount : length,
         allMessages: _getCombinedMessages(),
         stretchReply: true,
+        recentEmojis: recentEmojis,
+        onEmojiUpdated: (list) {
+          setState(() => recentEmojis = list);
+        },
+
         //isHighlighted: messageId == _highlightedMessageId,
       );
     });

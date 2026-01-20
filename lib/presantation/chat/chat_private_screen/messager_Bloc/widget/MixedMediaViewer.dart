@@ -6,6 +6,7 @@ import 'package:nde_email/utils/datetime/date_time_utils.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:video_player/video_player.dart';
 
 import '../../../../widgets/chat_widgets/Common/grouped_media_viewer.dart';
 import 'VideoPlayerScreen.dart';
@@ -506,11 +507,11 @@ class _MixedMediaViewerState extends State<MixedMediaViewer> {
             return PhotoViewGalleryPageOptions.customChild(
               disableGestures: true,
               child: Center(
-                child: VideoPlayerScreen(
+                child: InlineVideoPlayer(
                   path: item.mediaUrl,
                   isNetwork: item.mediaUrl.startsWith('http'),
-                  isVideo: true,
                 ),
+
               ),
             );
           }
@@ -660,6 +661,56 @@ class _MixedMediaViewerState extends State<MixedMediaViewer> {
           ),
         );
       },
+    );
+  }
+}
+
+class InlineVideoPlayer extends StatefulWidget {
+  final String path;
+  final bool isNetwork;
+
+  const InlineVideoPlayer({
+    super.key,
+    required this.path,
+    required this.isNetwork,
+  });
+
+  @override
+  State<InlineVideoPlayer> createState() => _InlineVideoPlayerState();
+}
+
+class _InlineVideoPlayerState extends State<InlineVideoPlayer> {
+  late VideoPlayerController _controller;
+  bool _ready = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _controller = widget.isNetwork
+        ? VideoPlayerController.networkUrl(Uri.parse(widget.path))
+        : VideoPlayerController.file(File(widget.path));
+
+    _controller.initialize().then((_) {
+      if (!mounted) return;
+      setState(() => _ready = true);
+      _controller.play();
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_ready) return const CircularProgressIndicator();
+
+    return AspectRatio(
+      aspectRatio: _controller.value.aspectRatio,
+      child: VideoPlayer(_controller),
     );
   }
 }
