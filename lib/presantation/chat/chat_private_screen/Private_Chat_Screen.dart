@@ -2310,7 +2310,8 @@ log(" _replyPreview ${ _replyPreview}");
   }
 
   List<Map<String, dynamic>> _inferGrouping(
-      List<Map<String, dynamic>> messages) {
+      List<Map<String, dynamic>> messages)
+  {
     if (messages.isEmpty) return messages;
 
     messages
@@ -4020,6 +4021,55 @@ log(" _replyPreview ${ _replyPreview}");
   Map<String, dynamic> _resolveReplySource(Map<String, dynamic> message) {
     return message;
   }
+  List<Map<String, dynamic>> buildGroupedMessages(List raw) {
+    List<Map<String, dynamic>> result = [];
+
+    for (int i = 0; i < raw.length; i++) {
+      final current = raw[i];
+
+      final bool isMedia = current['imageUrl'] != null ||
+          current['originalUrl'] != null ||
+          current['fileUrl'] != null;
+
+      if (!isMedia) {
+        result.add(current);
+        continue;
+      }
+
+      if (result.isNotEmpty) {
+        final prev = result.last;
+
+        final bool sameSender =
+            prev['senderId'] == current['senderId'];
+
+        final bool prevIsMedia =
+            prev['imageUrl'] != null ||
+                prev['originalUrl'] != null ||
+                prev['fileUrl'] != null;
+
+        final diff = _parseTime(current['time'])
+            .difference(_parseTime(prev['time']))
+            .inSeconds
+            .abs();
+
+        if (sameSender && prevIsMedia && diff <= 5) {
+          // 👉 merge into group
+          prev['is_grouped_message'] = true;
+          prev['group_message_id'] ??= prev['message_id'];
+
+          current['is_grouped_message'] = true;
+          current['group_message_id'] = prev['group_message_id'];
+
+          result.add(current);
+          continue;
+        }
+      }
+
+      result.add(current);
+    }
+
+    return result;
+  }
 
   // ------------------ Build ------------------
   @override
@@ -4035,6 +4085,7 @@ log(" _replyPreview ${ _replyPreview}");
           valueListenable: _messagesNotifier,
           builder: (context, combinedMessages, child) {
             _markVisibleMessagesAsRead(combinedMessages);
+            final groupedMessages = buildGroupedMessages(combinedMessages);
 
             return BlocConsumer<MessagerBloc, MessagerState>(
               listener: (context, state) {
@@ -4432,14 +4483,15 @@ log(" _replyPreview ${ _replyPreview}");
                           alignment: Alignment.topCenter,
                           child: ListView.builder(
                             controller: _scrollController,
-                            itemCount: combinedMessages.length,
+                            itemCount: groupedMessages.length,
+
                             reverse: true,
                             shrinkWrap: true,
                             itemBuilder: (context, index) {
                               // final message = combinedMessages[index];
                               final int realIndex =
-                                  combinedMessages.length - 1 - index;
-                              final message = combinedMessages[realIndex];
+                                  groupedMessages.length - 1 - index;
+                              final message = groupedMessages[realIndex];
                               final String? senderId =
                                   _getMessageSenderId(message);
 
@@ -4467,7 +4519,7 @@ log(" _replyPreview ${ _replyPreview}");
                               final showDate = realIndex == 0 ||
                                   !isSameDay(
                                     _parseTime(message['time']),
-                                    _parseTime(combinedMessages[realIndex - 1]
+                                    _parseTime(groupedMessages[realIndex - 1]
                                         ['time']),
                                   );
                               final isGroupMessage =
@@ -4480,7 +4532,7 @@ log(" _replyPreview ${ _replyPreview}");
                                   groupMessageId.isNotEmpty) {
                                 // Is this the first message in the group?
                                 final isFirstInGroup = realIndex == 0 ||
-                                    combinedMessages[realIndex - 1]
+                                    groupedMessages[realIndex - 1]
                                                 ['group_message_id']
                                             ?.toString() !=
                                         groupMessageId;
@@ -4491,9 +4543,9 @@ log(" _replyPreview ${ _replyPreview}");
                                 }
 
                                 for (int i = realIndex;
-                                    i < combinedMessages.length;
+                                    i < groupedMessages.length;
                                     i++) {
-                                  final nextMsg = combinedMessages[i];
+                                  final nextMsg = groupedMessages[i];
                                   final nextGrpId =
                                       nextMsg['group_message_id']?.toString();
                                   if (nextGrpId != groupMessageId) break;
@@ -4620,7 +4672,7 @@ log(" _replyPreview ${ _replyPreview}");
                                               onImageTap: (tappedIndex) {
                                                 final conversationMedia =
                                                     buildConversationMedia(
-                                                        combinedMessages);
+                                                        groupedMessages);
                                                 print(
                                                     "tappedIndex $tappedIndex");
                                                 final tappedItem =
@@ -4652,10 +4704,10 @@ log(" _replyPreview ${ _replyPreview}");
                                               },
                                               onForwardTap: () {
                                                 print("realIndexss $realIndex");
-                                                log("combinedMessages ${combinedMessages.length}");
+                                                log("combinedMessages ${groupedMessages.length}");
                                                 final forwardMessages =
                                                     _getGroupedMessages(
-                                                        combinedMessages,
+                                                        groupedMessages,
                                                         realIndex);
 
                                                 print(
@@ -4688,7 +4740,7 @@ log(" _replyPreview ${ _replyPreview}");
 
                                                   final grouped =
                                                       _getGroupedMessages(
-                                                          combinedMessages,
+                                                          groupedMessages,
                                                           realIndex);
 
                                                   final replyPreview =
