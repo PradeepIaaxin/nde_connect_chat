@@ -69,7 +69,8 @@ List<GroupMediaItem> buildConversationMedia(
   List<Map<String, dynamic>> allMessages, {
   String? currentUserId,
   String? receiverName,
-}) {
+})
+{
   final List<GroupMediaItem> media = [];
 
   print('🎬 buildConversationMedia called with ${allMessages.length} messages');
@@ -96,7 +97,7 @@ List<GroupMediaItem> buildConversationMedia(
     }
 
     // 🛑 STRICT FILTER: Exclude Documents (PDF, DOC, ZIP, etc.)
-    if (fileType.contains('application') ||
+    if (!contentType.contains('video') &&fileType.contains('application') ||
         fileType.contains('text') ||
         (fileName != null &&
             (fileName.endsWith('.pdf') ||
@@ -122,9 +123,16 @@ List<GroupMediaItem> buildConversationMedia(
       senderName = receiverName;
     }
 
-    final bool isVideo = fileType.startsWith('video/') ||
-        (fileUrl?.endsWith('.mp4') ?? false) ||
-        (fileUrl?.endsWith('.mov') ?? false);
+    final bool isVideo =
+        contentType.contains('video') ||
+            fileType.contains('video') ||
+            (fileName?.endsWith('.mp4') ?? false) ||
+            (fileName?.endsWith('.mov') ?? false) ||
+            (fileName?.endsWith('.mkv') ?? false) ||
+            (fileName?.endsWith('.webm') ?? false) ||
+            (fileUrl?.endsWith('.mp4') ?? false) ||
+            (fileUrl?.endsWith('.mov') ?? false);
+
     final String? time = msg['time']?.toString();
 
     // ✅ Only add Valid Video or Image
