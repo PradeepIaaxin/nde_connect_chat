@@ -1,5 +1,4 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:nde_email/data/mailboxid.dart';
 import 'package:nde_email/data/respiratory.dart';
@@ -27,7 +26,6 @@ import 'package:nde_email/presantation/widgets/mail_widgets/floating_action/floa
 import 'package:nde_email/presantation/widgets/mail_widgets/floating_action/floating_action_state.dart';
 import 'package:nde_email/utils/reusbale/endrawer.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-
 import '../update_screen/update_bloc/update_bloc.dart';
 import '../update_screen/update_bloc/update_state.dart';
 import '../update_screen/view/update_ui.dart';
@@ -67,16 +65,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   int? appVersion;
   String? appUpdateUrl;
- 
 
   @override
   void initState() {
     super.initState();
     selectedMailboxId = widget.mailboxId;
     _loadUserData();
-    //context.read<AppUpdateCubit>().checkForUpdate("NDE Connect");
-
-    //_initSocket();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final selectedIndex =
@@ -84,8 +78,6 @@ class _HomeScreenState extends State<HomeScreen> {
       context.read<FabBloc>().add(selectedIndex == 0 ? ShowFab() : HideFab());
     });
   }
-
- 
 
   @override
   Widget build(BuildContext context) {
