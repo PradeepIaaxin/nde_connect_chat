@@ -119,6 +119,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   bool _isRecordingLocked = false;
 
   final TextEditingController _messageController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
 
   final FlutterSoundPlayer _player = FlutterSoundPlayer();
   int _recordDuration = 0;
@@ -138,6 +139,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   final List<Map<String, dynamic>> _selectedMessages = [];
   bool _showEmoji = false;
   bool _showSearchAppBar = false;
+  List<String> _searchMatchIds = [];
+  int _currentSearchMatchIndex = -1;
   bool _permissionChecked = false;
 
   // Pagination / Windowing
@@ -188,9 +191,74 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     _statusSubscription?.cancel();
     _blocStateSubscription?.cancel();
     _connSub?.cancel();
+    _searchController.dispose();
 
     _clearSessionImagePath();
     super.dispose();
+  }
+
+  void _onSearchChanged(String query) {
+    if (query.isEmpty) {
+      setState(() {
+        _searchMatchIds = [];
+        _currentSearchMatchIndex = -1;
+      });
+      return;
+    }
+
+    final matches = _allMessages
+        .where((msg) {
+          final content = msg['content']?.toString().toLowerCase() ?? '';
+          return content.contains(query.toLowerCase()) &&
+              msg['is_deleted'] != true &&
+              msg['messageStatus'] != 'deleted';
+        })
+        .map((msg) => _anyId(msg).toString())
+        .toList();
+
+    setState(() {
+      _searchMatchIds = matches;
+      if (matches.isNotEmpty) {
+        _currentSearchMatchIndex = 0;
+        _scrollToMessageById(matches[0], fetchIfMissing: false);
+      } else {
+        _currentSearchMatchIndex = -1;
+      }
+    });
+  }
+
+  void _onSearchUp() {
+    if (_searchMatchIds.isEmpty) return;
+    setState(() {
+      _currentSearchMatchIndex =
+          (_currentSearchMatchIndex - 1 + _searchMatchIds.length) %
+              _searchMatchIds.length;
+      _scrollToMessageById(_searchMatchIds[_currentSearchMatchIndex],
+          fetchIfMissing: false);
+    });
+  }
+
+  void _onSearchDown() {
+    if (_searchMatchIds.isEmpty) return;
+    setState(() {
+      _currentSearchMatchIndex =
+          (_currentSearchMatchIndex + 1) % _searchMatchIds.length;
+      _scrollToMessageById(_searchMatchIds[_currentSearchMatchIndex],
+          fetchIfMissing: false);
+    });
+  }
+
+  void _hideSearchAppBar() {
+    setState(() {
+      _showSearchAppBar = false;
+      _searchController.clear();
+      _searchMatchIds = [];
+      _currentSearchMatchIndex = -1;
+    });
+  }
+
+  dynamic _anyId(Map<String, dynamic> m) {
+    return m['message_id'] ?? m['messageId'] ?? m['id'] ?? '';
   }
 
   List<String> extractGroupMembers(List<dynamic> messages) {
@@ -2991,317 +3059,323 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                       senderData['avatar']?.toString() ??
                                       message['profile_pic_path']?.toString() ??
                                       "";
+                              final messageId =
+                                  _anyId(message)?.toString() ?? '';
+                              final bool isHighlighted =
+                                  _highlightedMessageId == messageId;
+
                               return _hasLeftGroup
-                                  ? SizedBox()
-                                  : Column(
-                                      crossAxisAlignment: isSentByMe
-                                          ? CrossAxisAlignment.end
-                                          : CrossAxisAlignment.start,
-                                      children: [
-                                        if (realIndex == 0 ||
-                                            !isSameDay(currentTime, prevTime))
-                                          _buildDateSeparator(currentTime),
-                                        Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 8.0, vertical: 4.0),
-                                          child: SwipeToReply(
-                                            onReply: isDeleted
-                                                ? null
-                                                : () =>
-                                                    _replyToMessage(message),
-                                            child: Align(
-                                              alignment: isSentByMe
-                                                  ? Alignment.centerRight
-                                                  : Alignment.centerLeft,
-                                              child: Stack(
-                                                clipBehavior: Clip.none,
-                                                children: [
-                                                  Padding(
-                                                    padding: EdgeInsets.only(
-                                                        left: isSentByMe
-                                                            ? 0
-                                                            : 36),
-                                                    child: Container(
-                                                      padding:
-                                                          const EdgeInsets.all(
-                                                              7),
-                                                      constraints:
-                                                          BoxConstraints(
-                                                        maxWidth: MediaQuery.of(
-                                                                    context)
-                                                                .size
-                                                                .width *
-                                                            0.75,
-                                                      ),
-                                                      decoration: BoxDecoration(
-                                                        color: isSentByMe
-                                                            ? senderColor
-                                                            : receiverColor,
-                                                        borderRadius:
-                                                            BorderRadius.only(
-                                                          topLeft: const Radius
-                                                              .circular(18),
-                                                          topRight: const Radius
-                                                              .circular(18),
-                                                          bottomLeft: isSentByMe
-                                                              ? const Radius
-                                                                  .circular(18)
-                                                              : Radius.zero,
-                                                          bottomRight:
-                                                              isSentByMe
+                                  ? const SizedBox.shrink()
+                                  : AnimatedContainer(
+                                      duration:
+                                          const Duration(milliseconds: 300),
+                                      color: isHighlighted
+                                          ? Colors.blueAccent.withOpacity(0.1)
+                                          : Colors.transparent,
+                                      child: Column(
+                                        crossAxisAlignment: isSentByMe
+                                            ? CrossAxisAlignment.end
+                                            : CrossAxisAlignment.start,
+                                        children: [
+                                          if (realIndex == 0 ||
+                                              !isSameDay(currentTime, prevTime))
+                                            _buildDateSeparator(currentTime),
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8.0, vertical: 4.0),
+                                            child: SwipeToReply(
+                                              onReply: isDeleted
+                                                  ? null
+                                                  : () =>
+                                                      _replyToMessage(message),
+                                              child: Builder(builder: (ctx) {
+                                                for (var msg
+                                                    in groupMessagesList) {
+                                                  final mId =
+                                                      _anyId(msg)?.toString();
+                                                  if (mId != null &&
+                                                      mId.isNotEmpty) {
+                                                    _messageContexts[mId] = ctx;
+                                                  }
+                                                }
+
+                                                return Align(
+                                                  alignment: isSentByMe
+                                                      ? Alignment.centerRight
+                                                      : Alignment.centerLeft,
+                                                  child: Stack(
+                                                    clipBehavior: Clip.none,
+                                                    children: [
+                                                      Padding(
+                                                        padding:
+                                                            EdgeInsets.only(
+                                                                left: isSentByMe
+                                                                    ? 0
+                                                                    : 36),
+                                                        child: Container(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .all(7),
+                                                          constraints:
+                                                              BoxConstraints(
+                                                            maxWidth: MediaQuery.of(
+                                                                        context)
+                                                                    .size
+                                                                    .width *
+                                                                0.75,
+                                                          ),
+                                                          decoration:
+                                                              BoxDecoration(
+                                                            color: isSentByMe
+                                                                ? senderColor
+                                                                : receiverColor,
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .only(
+                                                              topLeft:
+                                                                  const Radius
+                                                                      .circular(
+                                                                      18),
+                                                              topRight:
+                                                                  const Radius
+                                                                      .circular(
+                                                                      18),
+                                                              bottomLeft: isSentByMe
+                                                                  ? const Radius
+                                                                      .circular(
+                                                                      18)
+                                                                  : Radius.zero,
+                                                              bottomRight: isSentByMe
                                                                   ? Radius.zero
                                                                   : const Radius
                                                                       .circular(
                                                                       16),
-                                                        ),
-                                                        boxShadow: [
-                                                          BoxShadow(
-                                                            color: Colors.black
-                                                                .withOpacity(
-                                                                    0.05),
-                                                            blurRadius: 4,
-                                                            offset:
-                                                                const Offset(
-                                                                    0, 2),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                      child: Column(
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .start,
-                                                        children: [
-                                                          if (!isSentByMe &&
-                                                              userName
-                                                                  .isNotEmpty)
-                                                            Padding(
-                                                              padding:
-                                                                  const EdgeInsets
-                                                                      .only(
-                                                                      bottom:
-                                                                          4.0),
-                                                              child: Text(
-                                                                userName,
-                                                                style:
-                                                                    TextStyle(
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .bold,
-                                                                  color: ColorUtil
-                                                                      .getColorFromAlphabet(
-                                                                          userName),
-                                                                  fontSize: 14,
-                                                                ),
-                                                              ),
                                                             ),
-                                                          Stack(
-                                                            children: [
-                                                              GroupedMediaWidget(
-                                                                mediaUrls:
-                                                                    groupImages,
-                                                                onMediaTap:
-                                                                    (index) {
-                                                                  final media =
-                                                                      buildConversationMedia(
-                                                                    combinedMessages,
-                                                                    currentUserId:
-                                                                        currentUserId,
-                                                                  );
-                                                                  final tappedUrl =
-                                                                      groupImages[
-                                                                          index];
-                                                                  final startIndex =
-                                                                      media.indexWhere((m) =>
-                                                                          m.mediaUrl ==
-                                                                          tappedUrl);
-
-                                                                  if (startIndex !=
-                                                                      -1) {
-                                                                    Navigator
-                                                                        .push(
-                                                                      context,
-                                                                      MaterialPageRoute(
-                                                                        builder:
-                                                                            (_) =>
-                                                                                MixedMediaViewer(
-                                                                          items:
-                                                                              media,
-                                                                          initialIndex:
-                                                                              startIndex,
-                                                                        ),
-                                                                      ),
-                                                                    );
-                                                                  }
-                                                                },
-                                                              ),
-                                                              // GroupedMediaWidget(
-                                                              //   mediaUrls:
-                                                              //       groupImages,
-                                                              //   onMediaTap:
-                                                              //       (index) {
-                                                              //     Navigator
-                                                              //         .push(
-                                                              //       context,
-                                                              //       MaterialPageRoute(
-                                                              //         builder:
-                                                              //             (_) =>
-                                                              //                 GroupedMediaViewer(
-                                                              //           mediaUrls:
-                                                              //               groupImages,
-                                                              //           initialIndex:
-                                                              //               index,
-                                                              //         ),
-                                                              //       ),
-                                                              //     );
-                                                              //   },
-                                                              // ),
-                                                              Positioned(
-                                                                bottom: 5,
-                                                                right: 5,
-                                                                child:
-                                                                    Container(
-                                                                  padding: const EdgeInsets
-                                                                      .symmetric(
-                                                                      horizontal:
-                                                                          6,
-                                                                      vertical:
-                                                                          2),
-                                                                  decoration:
-                                                                      BoxDecoration(
-                                                                    color: Colors
-                                                                        .black
-                                                                        .withOpacity(
-                                                                            0.45),
-                                                                    borderRadius:
-                                                                        BorderRadius
-                                                                            .circular(8),
-                                                                  ),
-                                                                  child: Row(
-                                                                    mainAxisSize:
-                                                                        MainAxisSize
-                                                                            .min,
-                                                                    children: [
-                                                                      Text(
-                                                                        TimeUtils.formatUtcToIst(
-                                                                            message['time']),
-                                                                        style: const TextStyle(
-                                                                            fontSize:
-                                                                                10,
-                                                                            color:
-                                                                                Colors.white),
-                                                                      ),
-                                                                      if (isSentByMe) ...[
-                                                                        const SizedBox(
-                                                                            width:
-                                                                                4),
-                                                                        Builder(builder:
-                                                                            (context) {
-                                                                          final status =
-                                                                              message['messageStatus']?.toString() ?? 'sent';
-                                                                          switch (
-                                                                              status) {
-                                                                            case 'sent':
-                                                                              return const Icon(Icons.check, size: 12, color: Colors.white);
-                                                                            case 'delivered':
-                                                                              return const Icon(Icons.done_all_rounded, size: 12, color: Colors.white);
-                                                                            case 'read':
-                                                                              return const Icon(Icons.done_all, size: 12, color: Colors.blueAccent);
-                                                                            default:
-                                                                              return const Icon(Icons.access_time, size: 12, color: Colors.white);
-                                                                          }
-                                                                        }),
-                                                                      ],
-                                                                    ],
-                                                                  ),
-                                                                ),
+                                                            boxShadow: [
+                                                              BoxShadow(
+                                                                color: Colors
+                                                                    .black
+                                                                    .withOpacity(
+                                                                        0.05),
+                                                                blurRadius: 4,
+                                                                offset:
+                                                                    const Offset(
+                                                                        0, 2),
                                                               ),
                                                             ],
                                                           ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  if (!isSentByMe)
-                                                    Positioned(
-                                                      left: 2,
-                                                      top: 10,
-                                                      child: CircleAvatar(
-                                                        radius: 16,
-                                                        backgroundColor:
-                                                            Colors.transparent,
-                                                        child: ClipOval(
-                                                          child: profileImageUrl
-                                                                  .isNotEmpty
-                                                              ? CachedNetworkImage(
-                                                                  imageUrl:
-                                                                      profileImageUrl,
-                                                                  fit: BoxFit
-                                                                      .cover,
-                                                                  width: 32,
-                                                                  height: 32,
-                                                                  errorWidget: (context,
-                                                                          url,
-                                                                          error) =>
-                                                                      _buildAvatarWithInitial(
-                                                                          userName),
-                                                                )
-                                                              : _buildAvatarWithInitial(
-                                                                  userName),
+                                                          child: Column(
+                                                            crossAxisAlignment:
+                                                                CrossAxisAlignment
+                                                                    .start,
+                                                            children: [
+                                                              if (!isSentByMe &&
+                                                                  userName
+                                                                      .isNotEmpty)
+                                                                Padding(
+                                                                  padding:
+                                                                      const EdgeInsets
+                                                                          .only(
+                                                                          bottom:
+                                                                              4.0),
+                                                                  child: Text(
+                                                                    userName,
+                                                                    style:
+                                                                        TextStyle(
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .bold,
+                                                                      color: ColorUtil
+                                                                          .getColorFromAlphabet(
+                                                                              userName),
+                                                                      fontSize:
+                                                                          14,
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                              Stack(
+                                                                children: [
+                                                                  GroupedMediaWidget(
+                                                                    mediaUrls:
+                                                                        groupImages,
+                                                                    onMediaTap:
+                                                                        (index) {
+                                                                      final media =
+                                                                          buildConversationMedia(
+                                                                        combinedMessages,
+                                                                        currentUserId:
+                                                                            currentUserId,
+                                                                      );
+                                                                      final tappedUrl =
+                                                                          groupImages[
+                                                                              index];
+                                                                      final startIndex = media.indexWhere((m) =>
+                                                                          m.mediaUrl ==
+                                                                          tappedUrl);
+
+                                                                      if (startIndex !=
+                                                                          -1) {
+                                                                        Navigator
+                                                                            .push(
+                                                                          context,
+                                                                          MaterialPageRoute(
+                                                                            builder: (_) =>
+                                                                                MixedMediaViewer(
+                                                                              items: media,
+                                                                              initialIndex: startIndex,
+                                                                            ),
+                                                                          ),
+                                                                        );
+                                                                      }
+                                                                    },
+                                                                  ),
+                                                                  Positioned(
+                                                                    bottom: 5,
+                                                                    right: 5,
+                                                                    child:
+                                                                        Container(
+                                                                      padding: const EdgeInsets
+                                                                          .symmetric(
+                                                                          horizontal:
+                                                                              6,
+                                                                          vertical:
+                                                                              2),
+                                                                      decoration:
+                                                                          BoxDecoration(
+                                                                        color: Colors
+                                                                            .black
+                                                                            .withOpacity(0.45),
+                                                                        borderRadius:
+                                                                            BorderRadius.circular(8),
+                                                                      ),
+                                                                      child:
+                                                                          Row(
+                                                                        mainAxisSize:
+                                                                            MainAxisSize.min,
+                                                                        children: [
+                                                                          Text(
+                                                                            TimeUtils.formatUtcToIst(message['time']),
+                                                                            style:
+                                                                                const TextStyle(fontSize: 10, color: Colors.white),
+                                                                          ),
+                                                                          if (isSentByMe) ...[
+                                                                            const SizedBox(width: 4),
+                                                                            Builder(builder:
+                                                                                (context) {
+                                                                              final status = message['messageStatus']?.toString() ?? 'sent';
+                                                                              switch (status) {
+                                                                                case 'sent':
+                                                                                  return const Icon(Icons.check, size: 12, color: Colors.white);
+                                                                                case 'delivered':
+                                                                                  return const Icon(Icons.done_all_rounded, size: 12, color: Colors.white);
+                                                                                case 'read':
+                                                                                  return const Icon(Icons.done_all, size: 12, color: Colors.blueAccent);
+                                                                                default:
+                                                                                  return const Icon(Icons.access_time, size: 12, color: Colors.white);
+                                                                              }
+                                                                            }),
+                                                                          ],
+                                                                        ],
+                                                                      ),
+                                                                    ),
+                                                                  ),
+                                                                ],
+                                                              ),
+                                                            ],
+                                                          ),
                                                         ),
                                                       ),
-                                                    ),
-                                                  Positioned(
-                                                    top: 0,
-                                                    bottom: 0,
-                                                    left:
-                                                        isSentByMe ? -60 : null,
-                                                    right:
-                                                        isSentByMe ? null : -50,
-                                                    child: Center(
-                                                      child: Material(
-                                                        color:
-                                                            Colors.transparent,
-                                                        child: InkWell(
-                                                          borderRadius:
-                                                              BorderRadius
-                                                                  .circular(20),
-                                                          onTap: () {
-                                                            MyRouter
-                                                                .pushReplace(
-                                                              screen:
-                                                                  ForwardMessageScreen(
-                                                                messages:
-                                                                    groupMessagesList,
-                                                                currentUserId:
-                                                                    currentUserId,
-                                                                conversionalid:
-                                                                    widget
-                                                                        .conversationId,
-                                                                username: widget
-                                                                    .groupName,
-                                                              ),
-                                                            );
-                                                          },
+                                                      if (!isSentByMe)
+                                                        Positioned(
+                                                          left: 2,
+                                                          top: 10,
                                                           child: CircleAvatar(
-                                                            maxRadius: 16,
+                                                            radius: 16,
                                                             backgroundColor:
-                                                                Colors.white,
-                                                            child: Image.asset(
-                                                              "assets/images/forward.png",
-                                                              height: 20,
-                                                              width: 20,
+                                                                Colors
+                                                                    .transparent,
+                                                            child: ClipOval(
+                                                              child: profileImageUrl
+                                                                      .isNotEmpty
+                                                                  ? CachedNetworkImage(
+                                                                      imageUrl:
+                                                                          profileImageUrl,
+                                                                      fit: BoxFit
+                                                                          .cover,
+                                                                      width: 32,
+                                                                      height:
+                                                                          32,
+                                                                      errorWidget: (context,
+                                                                              url,
+                                                                              error) =>
+                                                                          _buildAvatarWithInitial(
+                                                                              userName),
+                                                                    )
+                                                                  : _buildAvatarWithInitial(
+                                                                      userName),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      Positioned(
+                                                        top: 0,
+                                                        bottom: 0,
+                                                        left: isSentByMe
+                                                            ? -60
+                                                            : null,
+                                                        right: isSentByMe
+                                                            ? null
+                                                            : -50,
+                                                        child: Center(
+                                                          child: Material(
+                                                            color: Colors
+                                                                .transparent,
+                                                            child: InkWell(
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                          20),
+                                                              onTap: () {
+                                                                MyRouter
+                                                                    .pushReplace(
+                                                                  screen:
+                                                                      ForwardMessageScreen(
+                                                                    messages:
+                                                                        groupMessagesList,
+                                                                    currentUserId:
+                                                                        currentUserId,
+                                                                    conversionalid:
+                                                                        widget
+                                                                            .conversationId,
+                                                                    username: widget
+                                                                        .groupName,
+                                                                  ),
+                                                                );
+                                                              },
+                                                              child:
+                                                                  CircleAvatar(
+                                                                maxRadius: 16,
+                                                                backgroundColor:
+                                                                    Colors
+                                                                        .white,
+                                                                child:
+                                                                    Image.asset(
+                                                                  "assets/images/forward.png",
+                                                                  height: 20,
+                                                                  width: 20,
+                                                                ),
+                                                              ),
                                                             ),
                                                           ),
                                                         ),
                                                       ),
-                                                    ),
+                                                    ],
                                                   ),
-                                                ],
-                                              ),
+                                                );
+                                              }),
                                             ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     );
                             }
                           }
@@ -4299,20 +4373,36 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                                         children: [
                                                                                           ...(() {
                                                                                             final List<InlineSpan> spans = [];
-                                                                                            final RegExp urlRegExp = RegExp(r'((https?:\/\/)|(www\.))[^\s]+', caseSensitive: false);
+                                                                                            final String query = _searchController.text;
+                                                                                            final RegExp urlRegExp = RegExp(r'((https?:\/\/)|(www\.))[^s]+', caseSensitive: false);
                                                                                             final matches = urlRegExp.allMatches(content);
                                                                                             int start = 0;
+
+                                                                                            void addTextWithHighlight(String text) {
+                                                                                              if (query.isEmpty || !text.toLowerCase().contains(query.toLowerCase())) {
+                                                                                                spans.add(TextSpan(text: text, style: const TextStyle(fontSize: 15, color: Colors.black87)));
+                                                                                                return;
+                                                                                              }
+                                                                                              final highlightMatches = query.toLowerCase().allMatches(text.toLowerCase());
+                                                                                              int hStart = 0;
+                                                                                              for (final hMatch in highlightMatches) {
+                                                                                                if (hMatch.start > hStart) {
+                                                                                                  spans.add(TextSpan(text: text.substring(hStart, hMatch.start), style: const TextStyle(fontSize: 15, color: Colors.black87)));
+                                                                                                }
+                                                                                                spans.add(TextSpan(
+                                                                                                  text: text.substring(hMatch.start, hMatch.end),
+                                                                                                  style: const TextStyle(fontSize: 15, color: Colors.black, backgroundColor: Colors.yellow),
+                                                                                                ));
+                                                                                                hStart = hMatch.end;
+                                                                                              }
+                                                                                              if (hStart < text.length) {
+                                                                                                spans.add(TextSpan(text: text.substring(hStart), style: const TextStyle(fontSize: 15, color: Colors.black87)));
+                                                                                              }
+                                                                                            }
+
                                                                                             for (final match in matches) {
                                                                                               if (match.start > start) {
-                                                                                                spans.add(
-                                                                                                  TextSpan(
-                                                                                                    text: content.substring(start, match.start),
-                                                                                                    style: const TextStyle(
-                                                                                                      fontSize: 15,
-                                                                                                      color: Colors.black87,
-                                                                                                    ),
-                                                                                                  ),
-                                                                                                );
+                                                                                                addTextWithHighlight(content.substring(start, match.start));
                                                                                               }
 
                                                                                               final String url = content.substring(match.start, match.end);
@@ -4343,15 +4433,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                                             }
 
                                                                                             if (start < content.length) {
-                                                                                              spans.add(
-                                                                                                TextSpan(
-                                                                                                  text: content.substring(start),
-                                                                                                  style: const TextStyle(
-                                                                                                    fontSize: 15,
-                                                                                                    color: Colors.black87,
-                                                                                                  ),
-                                                                                                ),
-                                                                                              );
+                                                                                              addTextWithHighlight(content.substring(start));
                                                                                             }
 
                                                                                             return spans;
@@ -5088,8 +5170,20 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       resvID: widget.datumId,
       favouitre: widget.favorite,
       grpChat: widget.grpChat,
-      onSearchTap: _hasLeftGroup ? () {} : () => toggleSearchAppBar(),
-      onCloseSearch: _hasLeftGroup ? () {} : () => toggleSearchAppBar(),
+      onSearchTap: _hasLeftGroup
+          ? () {}
+          : () {
+              setState(() {
+                _showSearchAppBar = true;
+              });
+            },
+      onCloseSearch: _hasLeftGroup ? () {} : _hideSearchAppBar,
+      searchController: _searchController,
+      onSearchChanged: _onSearchChanged,
+      onSearchUp: _onSearchUp,
+      onSearchDown: _onSearchDown,
+      searchMatchCount: _searchMatchIds.length,
+      searchMatchIndex: _currentSearchMatchIndex,
       hasLeftGroup: _hasLeftGroup,
     );
   }

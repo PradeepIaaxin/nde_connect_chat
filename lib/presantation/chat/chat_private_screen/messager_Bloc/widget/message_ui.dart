@@ -37,6 +37,7 @@ class MessageBubble extends StatelessWidget {
   final String? currentUserId;
   final String? receiverName;
   final bool stretchReply;
+  final String? searchText;
 
   const MessageBubble(
       {super.key,
@@ -62,7 +63,8 @@ class MessageBubble extends StatelessWidget {
       required this.allMessages,
       this.currentUserId,
       this.receiverName,
-      this.stretchReply = false});
+      this.stretchReply = false,
+      this.searchText});
 
   @override
   Widget build(BuildContext context) {
@@ -128,7 +130,7 @@ class MessageBubble extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: emojpicker != null ? 6.0 : 0),
       child: GestureDetector(
-      //  onTap: onTap,
+        //  onTap: onTap,
         onTap: () {
           log("messsssssage ${message}");
           log("relosveeee ${message["resolvedReplys"]}");
@@ -1074,6 +1076,57 @@ class MessageBubble extends StatelessWidget {
                                   },
                               );
                             } else {
+                              if (searchText != null &&
+                                  searchText!.isNotEmpty &&
+                                  element.text
+                                      .toLowerCase()
+                                      .contains(searchText!.toLowerCase())) {
+                                final List<TextSpan> highlightedSpans = [];
+                                final String text = element.text;
+                                final String query = searchText!.toLowerCase();
+                                int start = 0;
+                                int indexOfMatch;
+
+                                while ((indexOfMatch = text
+                                        .toLowerCase()
+                                        .indexOf(query, start)) !=
+                                    -1) {
+                                  if (indexOfMatch > start) {
+                                    highlightedSpans.add(TextSpan(
+                                      text: text.substring(start, indexOfMatch),
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        color: Colors.black87,
+                                      ),
+                                    ));
+                                  }
+
+                                  highlightedSpans.add(TextSpan(
+                                    text: text.substring(indexOfMatch,
+                                        indexOfMatch + query.length),
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      color: Colors.black,
+                                      backgroundColor: Colors.yellow,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ));
+
+                                  start = indexOfMatch + query.length;
+                                }
+
+                                if (start < text.length) {
+                                  highlightedSpans.add(TextSpan(
+                                    text: text.substring(start),
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      color: Colors.black87,
+                                    ),
+                                  ));
+                                }
+
+                                return TextSpan(children: highlightedSpans);
+                              }
                               return TextSpan(
                                 text: element.text,
                                 style: const TextStyle(

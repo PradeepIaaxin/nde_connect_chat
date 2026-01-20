@@ -41,12 +41,22 @@ class CommonAppBarBuilder {
     required bool favouitre,
     required VoidCallback onSearchTap,
     required VoidCallback onCloseSearch,
+    TextEditingController? searchController,
+    ValueChanged<String>? onSearchChanged,
+    VoidCallback? onSearchUp,
+    VoidCallback? onSearchDown,
+    int searchMatchCount = 0,
+    int searchMatchIndex = 0,
   }) {
     if (showSearchAppBar) {
       return SearchAppBar(
-        onBack: () {
-          onCloseSearch();
-        },
+        onBack: onCloseSearch,
+        controller: searchController,
+        onChanged: onSearchChanged,
+        onUpPressed: onSearchUp,
+        onDownPressed: onSearchDown,
+        matchCount: searchMatchCount,
+        currentIndex: searchMatchIndex,
       );
     }
 
