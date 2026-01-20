@@ -128,7 +128,11 @@ class MessageBubble extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: emojpicker != null ? 6.0 : 0),
       child: GestureDetector(
-        onTap: onTap,
+      //  onTap: onTap,
+        onTap: () {
+          log("messsssssage ${message}");
+          log("relosveeee ${message["resolvedReplys"]}");
+        },
         onLongPress: () {
           log(message.toString());
           _showReactionPicker(context);

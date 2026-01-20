@@ -416,7 +416,10 @@ class SocketService {
     required String roomId,
     required String conversationId,
     required String messageId,
-  }) {
+    required String receiverId,
+    required String userId,
+  })
+  {
     if (socket == null || socket!.disconnected) {
       return Future.value(false);
     }
@@ -424,7 +427,7 @@ class SocketService {
     final completer = Completer<bool>();
     log("Emitting reaction: $emoji to messageId: $messageId in convoId: $conversationId");
     print("print : $roomId");
-
+    final rid = generateRoomId(userId, receiverId);
     socket!.emitWithAck(
       'update_reaction',
       <String, dynamic>{
@@ -435,7 +438,7 @@ class SocketService {
       },
       ack: (dynamic response) {
         if (completer.isCompleted) return;
-
+        log("resoonseeeeee ${response}");
         final bool success =
             response == true || (response is Map && response['ok'] == true);
 
@@ -1285,15 +1288,24 @@ class SocketService {
     required String userId,
     required String firstName,
     required String lastName,
-  }) {
-    if (!isConnected) return;
-    socket!.emit('remove_reaction', {
+  })
+  {
+    if (!isConnected) {
+      log("❌ Socket not connected");
+      return;
+    }
+
+    final payload = {
       "messageId": messageId,
       "conversationId": conversationId,
-      "emoji": emoji,
-      "userId": userId,
-    });
+      "roomId": userId,
+    };
+
+    log("📤 remove_reaction emit => $payload");
+
+    socket!.emit('remove_reaction', payload);
   }
+
 
   Future<void> toggleFavorite({
     required String targetId,
@@ -1370,12 +1382,13 @@ class SocketService {
     required bool isGroupMessage,
     String? groupMessageId,
     String? audioDuration,
+    String? replyGroupImageCount,
   }) {
     if (!isConnected) {
       _slog('sendMessage aborted: not connected');
       return;
     }
-
+log(" replygroup_message_id ${ reply?["group_message_id"]}");
     final messagePayload = {
       "messageId": messageId,
       "conversationId": conversationId,
@@ -1407,7 +1420,7 @@ class SocketService {
         "reply": {
           "replyToUser": reply["sender"]?["_id"],
           "replyToMessage": reply["message_id"] ?? reply["_id"] ?? reply["id"],
-          "replyContent": reply["content"] ?? reply["replyContent"] ?? "",
+          "replyContent": replyGroupImageCount??reply["content"] ?? reply["replyContent"] ?? "",
           "ContentType": reply["ContentType"] ?? "text",
           "fileName": reply["fileName"],
           "first_name": reply["sender"]?["first_name"] ?? "",

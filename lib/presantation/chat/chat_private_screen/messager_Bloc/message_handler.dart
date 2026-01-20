@@ -80,8 +80,8 @@ class MessageHandler {
           'replyUrl': reply['replyUrl'],
           'fileName': reply['fileName'],
           'ContentType': reply['ContentType'] ?? 'text',
-          'group_message_id': reply['group_message_id'],
-          'is_grouped_message': reply['is_grouped_message'] ?? false,
+          'group_message_id': reply['isGroupedMessageId'],
+          'is_grouped_message': reply['isGroupedMessage'] ?? false,
         };
       }
     }
