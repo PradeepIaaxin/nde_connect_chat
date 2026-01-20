@@ -3,8 +3,6 @@ import 'dart:developer';
 import 'package:http/http.dart' as http;
 import 'package:nde_email/data/respiratory.dart';
 import 'mail_list_model.dart';
-// import 'mail_list.req.dart';
-// import 'package:nde_email/domain/user_model/mailbox_model_req.dart';
 import 'package:nde_email/data/mailboxid.dart';
 import 'package:nde_email/data/token.dart';
 import 'package:nde_email/data/base_url.dart';

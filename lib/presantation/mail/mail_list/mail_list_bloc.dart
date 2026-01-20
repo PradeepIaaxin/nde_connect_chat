@@ -136,8 +136,8 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
 
   void _onMarkMailAsSeen(
       MarkMailAsSeenEvent event, Emitter<MailListState> emit) {
-    if (state.status == MailListStatus.loaded && state.mails != null) {
-      final updatedMails = state.mails!.map((mail) {
+    if (state.status == MailListStatus.loaded) {
+      final updatedMails = state.mails.map((mail) {
         if (mail.id == event.mailId) {
           return mail.copyWith(seen: true);
         }
@@ -224,7 +224,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
       );
 
       if (success) {
-        final updatedMails = (state.mails ?? [])
+        final updatedMails = (state.mails)
             .where((mail) => !event.mailIds.contains(mail.id))
             .toList();
 
