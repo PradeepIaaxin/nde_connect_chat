@@ -294,11 +294,11 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
                             chat.profilePic?.isNotEmpty == true
                                 ? chat.profilePic!
                                 : '';
-                        final profileAvatar = profileAvatarUrl.isNotEmpty
-                            ? profileAvatarUrl
-                            : (chat.name?.isNotEmpty == true
-                                ? chat.name![0].toUpperCase()
-                                : 'U');
+
+                        // FIX: Strictly use name for initials/emoji, NEVER use URL here.
+                        final profileAvatar = (chat.name?.isNotEmpty == true)
+                            ? chat.name!.trim().characters.first.toUpperCase()
+                            : 'U';
                         final isSelected = selectedUsers.contains(chat);
                         final displayName =
                             chat.firstName?.isNotEmpty == true &&

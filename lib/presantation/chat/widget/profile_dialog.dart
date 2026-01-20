@@ -1,8 +1,7 @@
 import 'dart:developer';
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/user_profile_image.dart';
-import 'package:nde_email/utils/reusbale/colour_utlis.dart';
+import 'package:nde_email/presantation/chat/widget/profile_avatar.dart';
 import 'package:nde_email/utils/router/router.dart';
 
 class ProfileAction {
@@ -65,7 +64,7 @@ class ProfileDialog extends StatelessWidget {
                 children: [
                   /// Avatar + Hero Animation
                   Hero(
-                  transitionOnUserGestures: true,
+                    transitionOnUserGestures: true,
                     tag: tag,
                     child: GestureDetector(
                       onTap: () {
@@ -77,40 +76,10 @@ class ProfileDialog extends StatelessWidget {
                           ),
                         );
                       },
-                      child: CircleAvatar(
-                        radius: 110,
-                        backgroundColor: imageUrl.isEmpty
-                            ? ColorUtil.getColorFromAlphabet(
-                                (userName.isNotEmpty
-                                        ? userName[0]
-                                        : fallbackText.isNotEmpty
-                                            ? fallbackText[0]
-                                            : 'A')
-                                    .toUpperCase(),
-                              )
-                            : Colors.transparent,
-                        child: imageUrl.isEmpty
-                            ? Text(
-                                fallbackText,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 40,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              )
-                            : ClipOval(
-                                child: CachedNetworkImage(
-                                  imageUrl: imageUrl,
-                                  width: 250,
-                                  height: 250,
-                                  fit: BoxFit.cover,
-                                  placeholder: (context, url) =>
-                                      const CircularProgressIndicator(
-                                          strokeWidth: 2),
-                                  errorWidget: (context, url, error) =>
-                                      const Icon(Icons.error, size: 48),
-                                ),
-                              ),
+                      child: ProfileAvatar(
+                        imageUrl: imageUrl,
+                        name: userName.isNotEmpty ? userName : fallbackText,
+                        size: 220,
                       ),
                     ),
                   ),

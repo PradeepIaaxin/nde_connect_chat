@@ -457,7 +457,7 @@ class _MessageInputFieldState extends State<MessageInputField> {
             : Image.network(imageUrl, width: 70, height: 70, fit: BoxFit.cover);
       }
     }
-    return Padding(
+  return Padding(
       padding: const EdgeInsets.all(8),
       child: Container(
         decoration: BoxDecoration(
@@ -474,57 +474,61 @@ class _MessageInputFieldState extends State<MessageInputField> {
             // text info
             Expanded(
               child: Stack(
+                clipBehavior: Clip.none,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        "You",
-                        style: TextStyle(
-                          color: AppColors.primaryButton,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      if (typeLabel.isNotEmpty)
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              typeLabel == 'Photo'
-                                  ? Icons.photo
-                                  : typeLabel == 'Video'
-                                      ? Icons.video_camera_back_rounded
-                                      : typeLabel.startsWith('Audio')
-                                          ? Icons.music_note
-                                          : typeLabel == 'Document'
-                                              ? Icons.insert_drive_file
-                                              : null,
-                              color: Colors.grey,
-                              size: 16,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              typeLabel,
-                              style: const TextStyle(
-                                color: Colors.black,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      if (content.isNotEmpty)
-                        Text(
-                          content,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.black,
+                  Padding(
+                    padding: const EdgeInsets.only(right: 24.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          "You",
+                          style: TextStyle(
+                            color: AppColors.primaryButton,
                             fontSize: 12,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                    ],
+                        if (typeLabel.isNotEmpty)
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                typeLabel == 'Photo'
+                                    ? Icons.photo
+                                    : typeLabel == 'Video'
+                                        ? Icons.video_camera_back_rounded
+                                        : typeLabel.startsWith('Audio')
+                                            ? Icons.music_note
+                                            : typeLabel == 'Document'
+                                                ? Icons.insert_drive_file
+                                                : null,
+                                color: Colors.grey,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                typeLabel,
+                                style: const TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        if (content.isNotEmpty)
+                          Text(
+                            content,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.black,
+                              fontSize: 12,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
 
                   /// ✅ Close icon at TOP RIGHT
@@ -532,7 +536,6 @@ class _MessageInputFieldState extends State<MessageInputField> {
                     Positioned(
                       top: -7,
                       right: 0,
-                      left: 258,
                       child: InkWell(
                         onTap: widget.onCancelReply,
                         borderRadius: BorderRadius.circular(20),

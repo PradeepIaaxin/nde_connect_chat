@@ -31,13 +31,34 @@ class ColorUtil {
     const Color.fromARGB(255, 21, 193, 153),
   ];
 
-  static Color getColorFromAlphabet(String letter) {
-    if (letter.isEmpty) return _alphabetColors[0];
+  static Color getColorFromAlphabet(String input) {
+    if (input.trim().isEmpty) return _alphabetColors[0];
 
-    int index = letter.toUpperCase().codeUnitAt(0) - 'A'.codeUnitAt(0);
-    if (index < 0 || index >= _alphabetColors.length) {
-      index = 0;
+    // Safely get the first grapheme cluster (letter/emoji)
+    final String firstGrapheme = input.trim().characters.first.toUpperCase();
+
+    // Check if it's a standard A-Z letter
+    int index = -1;
+    if (firstGrapheme.length == 1) {
+      final int code = firstGrapheme.codeUnitAt(0);
+      if (code >= 65 && code <= 90) {
+        // A-Z
+        index = code - 65;
+      }
     }
+
+    // If standard letter, use its index.
+    // If NOT standard (Emoji, Number, Symbol, or Multi-code-unit char),
+    // hash the ENTIRE input string to ensure uniqueness.
+    // e.g. "Group 1" vs "Group 2" should potentially differ if we passed full string,
+    // but typically we pass initials.
+    // However, for Emojis: "😀" vs "😁" should definitely differ.
+    // Using simple codeUnit sum of just the first grapheme is safer for consistency.
+    if (index < 0 || index >= _alphabetColors.length) {
+      index = firstGrapheme.codeUnits.fold(0, (p, c) => p + c) %
+          _alphabetColors.length;
+    }
+
     return _alphabetColors[index];
   }
 }

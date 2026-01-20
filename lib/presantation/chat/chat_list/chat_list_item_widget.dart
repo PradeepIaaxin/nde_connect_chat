@@ -28,9 +28,11 @@ class ChatListTileReusable extends StatelessWidget {
   Widget build(BuildContext context) {
     final profileAvatarUrl =
         chat.profilePic?.isNotEmpty == true ? chat.profilePic! : '';
-    final profileAvatar = profileAvatarUrl.isEmpty
-        ? (chat.name?.isNotEmpty == true ? chat.name![0].toUpperCase() : 'U')
-        : profileAvatarUrl;
+
+    // STRICT LOGIC: Do not mix. 'displayName' is for text/initials only.
+    final displayName = chat.name?.isNotEmpty == true
+        ? chat.name!.trim().characters.first.toUpperCase()
+        : 'U';
 
     return GestureDetector(
       onTap: onTap,
@@ -52,11 +54,11 @@ class ChatListTileReusable extends StatelessWidget {
                   child: CircleAvatar(
                     radius: 24,
                     backgroundColor: profileAvatarUrl.isEmpty
-                        ? ColorUtil.getColorFromAlphabet(profileAvatar)
+                        ? ColorUtil.getColorFromAlphabet(displayName)
                         : Colors.transparent,
                     child: ProfileAvatar(
                       imageUrl: profileAvatarUrl,
-                      name: profileAvatar,
+                      name: displayName,
                       size: 48,
                     ),
                   ),

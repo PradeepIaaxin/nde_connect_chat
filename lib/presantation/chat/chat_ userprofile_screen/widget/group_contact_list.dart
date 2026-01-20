@@ -159,7 +159,11 @@ class _GroupContactListState extends State<GroupContactList> {
                           final profileAvatar = profileAvatarUrl.isNotEmpty
                               ? profileAvatarUrl
                               : (nameText.isNotEmpty
-                                  ? nameText[0].toUpperCase()
+                                  ? nameText
+                                      .trim()
+                                      .characters
+                                      .first
+                                      .toUpperCase()
                                   : 'U');
 
                           return GestureDetector(
