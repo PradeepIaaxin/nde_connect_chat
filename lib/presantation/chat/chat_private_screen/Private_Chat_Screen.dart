@@ -2700,7 +2700,7 @@ log(" _replyPreview ${ _replyPreview}");
     String? extractReplyId(Map<String, dynamic> m) {
       final reply = m['reply'];
 
-      // 1️⃣ Check inside reply map
+
       if (reply is Map<String, dynamic>) {
         for (final key in [
           'reply_message_id',
