@@ -2738,7 +2738,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       message: message,
       currentUserId: currentUserId,
       onReactionTap: (msg, emoji) => _handleReactionTap(message, emoji),
-      onOpenReactors: (msg, emoji) => _showReactionsBottomSheet(message, emoji),
+      onOpenReactors: (msg, emoji) => _showReactionsBottomSheet(message, emoji), recentEmojis: recentEmojis, onEmojiUpdated: (list) {
+      setState(() => recentEmojis = list);
+    },
     );
   }
 
@@ -2889,7 +2891,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   Future<void> _showReactionsBottomSheet(
-      Map<String, dynamic> message, String initialEmoji) async {
+      Map<String, dynamic> message, String initialEmoji)
+  async {
     // helper to build normalized reactions list for a message object
     List<Map<String, dynamic>> _normalizeFromMap(Map<String, dynamic> msg) {
       final List<Map<String, dynamic>> out = [];

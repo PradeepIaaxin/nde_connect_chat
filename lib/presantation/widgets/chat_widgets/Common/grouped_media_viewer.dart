@@ -475,7 +475,7 @@ class GroupedMediaWidget extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             Hero(
-              tag: item.mediaUrl,
+              tag: item.uniqueId ?? '${item.mediaUrl}_$index',
               child: _thumb(item),
             ),
             if (item.isVideo)
