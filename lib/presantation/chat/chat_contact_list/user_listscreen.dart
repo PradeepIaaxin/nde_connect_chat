@@ -130,14 +130,14 @@ class _UserListScreenState extends State<UserListScreen> {
                 color: Colors.black,
               ),
             ),
-            _isSearching
-                ? SizedBox()
-                : IconButton(
-                    onPressed: () {
-                      showMainMenu(context);
-                    },
-                    icon: Icon(Icons.more_vert, color: Colors.black),
-                  ),
+            // _isSearching
+            //     ? SizedBox()
+            //     : IconButton(
+            //         onPressed: () {
+            //           showMainMenu(context);
+            //         },
+            //         icon: Icon(Icons.more_vert, color: Colors.black),
+            //       ),
           ],
         ),
         body: BlocListener<UserListBloc, UserListState>(

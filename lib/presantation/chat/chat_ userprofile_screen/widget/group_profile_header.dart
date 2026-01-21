@@ -6,7 +6,6 @@ import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/user_prof
 import 'package:nde_email/presantation/chat/widget/profile_avatar.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/widget/grp_create_screen.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_data_model.dart';
-import 'package:nde_email/presantation/chat/contact_new_group/add_member_screen.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
 
 class GroupProfileHeader extends StatelessWidget {
@@ -93,16 +92,11 @@ class GroupProfileHeader extends StatelessWidget {
       },
       child: ProfileAvatar(
         imageUrl: profileAvatarUrl,
-        name:
-            fullName, // Pass full name, ProfileAvatar handles sorting initials/color
+        name: fullName,
         size: 120,
       ),
     );
   }
-
-  // Helper methods below are no longer needed if using ProfileAvatar,
-  // but keeping them comment-out or removing them if unused.
-  // ProfileAvatar handles network image, error builder, and initials background.
 
   Widget _buildProfileTextInfo(String currentGroupName) {
     return Column(
@@ -115,14 +109,14 @@ class GroupProfileHeader extends StatelessWidget {
           ),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 4),
-        Text(
-          mailName,
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.grey[600],
-          ),
-        ),
+        // const SizedBox(height: 4),
+        // Text(
+        //   mailName,
+        //   style: TextStyle(
+        //     fontSize: 16,
+        //     color: Colors.grey[600],
+        //   ),
+        // ),
       ],
     );
   }
@@ -249,6 +243,8 @@ class GroupProfileHeader extends StatelessWidget {
                 group.description?.isNotEmpty == true
                     ? group.description!
                     : "Add group description",
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontSize: 16, color: chatColor),
               ),
             ),

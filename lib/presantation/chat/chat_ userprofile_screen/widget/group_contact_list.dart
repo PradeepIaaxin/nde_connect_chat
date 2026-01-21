@@ -88,6 +88,34 @@ class _GroupContactListState extends State<GroupContactList> {
         } else if (state is ContactLoaded) {
           final contacts = state.contacts;
 
+// ⬇️ ADD THIS BLOCK
+          final members = contacts.first.groupMembers;
+
+// 1️⃣ Separate admins & non-admins
+          final adminMembers = members.where((m) => m.isAdmin == true).toList();
+          final normalMembers =
+              members.where((m) => m.isAdmin != true).toList();
+
+// 2️⃣ Optional: keep "You" at correct place
+          final myId = _uid;
+
+// Remove "me" temporarily
+          final meAdmin =
+              adminMembers.where((m) => m.memberId == myId).toList();
+          final meNormal =
+              normalMembers.where((m) => m.memberId == myId).toList();
+
+          adminMembers.removeWhere((m) => m.memberId == myId);
+          normalMembers.removeWhere((m) => m.memberId == myId);
+
+// 3️⃣ Final ordered list
+          final sortedMembers = [
+            ...meAdmin, // you (admin) first
+            ...adminMembers, // other admins
+            ...meNormal, // you (normal)
+            ...normalMembers, // others
+          ];
+
           if (contacts.isEmpty) {
             return const Center(child: Text('No contacts found.'));
           }
@@ -108,7 +136,7 @@ class _GroupContactListState extends State<GroupContactList> {
                     const Divider(color: Colors.transparent),
                 itemBuilder: (context, index) {
                   final contact = contacts[index];
-                  final members = contact.groupMembers;
+                  final members = sortedMembers;
                   final count = members.length;
 
                   return Padding(
@@ -257,13 +285,47 @@ class _GroupContactListState extends State<GroupContactList> {
                                       )
                                     : null,
                               ),
-                              title: Text(
-                                isMe ? 'You' : nameText,
-                                style: const TextStyle(fontSize: 16),
+                              title: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      isMe ? 'You' : nameText,
+                                      style: const TextStyle(fontSize: 16),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (isAdmin) ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: const Text(
+                                        'Group Admin',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
                               subtitle: Text(
-                                member.role ?? '',
-                                style: const TextStyle(fontSize: 13),
+                                member.memberEmail ?? '',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                softWrap: false,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey,
+                                ),
                               ),
                             ),
                           );
