@@ -66,9 +66,9 @@ class MessageBubble extends StatefulWidget {
       required this.allMessages,
       this.currentUserId,
       this.receiverName,
-      this.stretchReply = false,
+      this.stretchReply = false, required this.recentEmojis, required this.onEmojiUpdated,
       this.searchText});
-      this.stretchReply = false, required this.recentEmojis, required this.onEmojiUpdated});
+
 
   @override
   State<MessageBubble> createState() => _MessageBubbleState();
@@ -1130,14 +1130,14 @@ class _MessageBubbleState extends State<MessageBubble> {
                                   },
                               );
                             } else {
-                              if (searchText != null &&
-                                  searchText!.isNotEmpty &&
+                              if (widget.searchText != null &&
+                                  widget.searchText!.isNotEmpty &&
                                   element.text
                                       .toLowerCase()
-                                      .contains(searchText!.toLowerCase())) {
+                                      .contains(widget.searchText!.toLowerCase())) {
                                 final List<TextSpan> highlightedSpans = [];
                                 final String text = element.text;
-                                final String query = searchText!.toLowerCase();
+                                final String query = widget.searchText!.toLowerCase();
                                 int start = 0;
                                 int indexOfMatch;
 
