@@ -157,11 +157,31 @@ class MessageHandler {
     return isMessageFromMe(msg) && msg['messageStatus'] != null;
   }
 
+  // DateTime parseTime(dynamic time) {
+  //   if (time is DateTime) return time;
+  //   if (time is String) return DateTime.tryParse(time) ?? DateTime.now();
+  //   if (time is int) return DateTime.fromMillisecondsSinceEpoch(time);
+  //   return DateTime.now();
+  // }
   DateTime parseTime(dynamic time) {
-    if (time is DateTime) return time;
-    if (time is String) return DateTime.tryParse(time) ?? DateTime.now();
-    if (time is int) return DateTime.fromMillisecondsSinceEpoch(time);
-    return DateTime.now();
+    try {
+      DateTime dt;
+
+      if (time is DateTime) {
+        dt = time;
+      } else if (time is String) {
+        dt = DateTime.tryParse(time) ?? DateTime.now();
+      } else if (time is int) {
+        dt = DateTime.fromMillisecondsSinceEpoch(time, isUtc: true);
+      } else {
+        dt = DateTime.now();
+      }
+
+      // 🔥 Always normalize to UTC
+      return dt.isUtc ? dt : dt.toUtc();
+    } catch (_) {
+      return DateTime.now().toUtc();
+    }
   }
 
   String generateMessageKey(Map<String, dynamic> msg) {

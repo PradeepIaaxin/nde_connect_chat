@@ -1353,6 +1353,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     return m;
   }
 
+
   DateTime _parseTime(dynamic time) {
     _ensureMessageHandler();
     return _messageHandler!.parseTime(time);
@@ -2640,8 +2641,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       }
 
       return MessageBubble(
+        key: ValueKey(_generateMessageKey(message)),
+        isSelectionMode: _isSelectionMode,
         message: bubbleMessage,
         isSentByMe: correctIsSentByMe,
+     //   isSelected: _selectedMessageKeys.contains(_generateMessageKey(message)),
         isSelected: _selectedMessageKeys.contains(_generateMessageKey(message)),
         onTap: () => _onMessageTap(message),
         onLongPress: () => _onMessageLongPress(message),
@@ -3736,11 +3740,13 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     final String? originalUrl = replySource['originalUrl'] ??
         replySource['imageUrl'] ??
         replySource['fileUrl'];
+    log("Reply replySource (swiped) => $replySource");
 
     final String fileType =
-        replySource['fileType'] ?? replySource['mimeType'] ?? '';
+        replySource['mimeType'] ?? replySource['fileType'] ??  '';
 
     final bool isVideo = fileType.toLowerCase().startsWith('video/');
+    log("Reply replySource (swiped) => $fileType");
 
     setState(() {
       _replyMessage = replySource;
@@ -3888,7 +3894,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     // 3. Check sender object
     if (message['sender'] is Map) {
-      final sender = message['sender'] as Map<String, dynamic>;
+      final sender = message['sender'] is Map
+          ? Map<String, dynamic>.from(message['sender'])
+          : <String, dynamic>{};
+
       senderId = sender['_id']?.toString() ??
           sender['id']?.toString() ??
           sender['userId']?.toString();
@@ -4100,6 +4109,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     for (int i = 0; i < raw.length; i++) {
       final current = raw[i];
 
+      final String currentType =
+      (current['fileType'] ?? current['mimeType'] ?? '').toString().toLowerCase();
+
       final bool isMedia = current['imageUrl'] != null ||
           current['originalUrl'] != null ||
           current['fileUrl'] != null;
@@ -4112,6 +4124,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       if (result.isNotEmpty) {
         final prev = result.last;
 
+        final String prevType =
+        (prev['fileType'] ?? prev['mimeType'] ?? '').toString().toLowerCase();
+
         final bool sameSender = prev['senderId'] == current['senderId'];
 
         final bool prevIsMedia = prev['imageUrl'] != null ||
@@ -4123,8 +4138,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             .inSeconds
             .abs();
 
-        if (sameSender && prevIsMedia && diff <= 5) {
-          // 👉 merge into group
+        final bool sameMediaType = _sameMediaType(prevType, currentType);
+
+        if (sameSender && prevIsMedia &&diff <= 60 && sameMediaType) {
           prev['is_grouped_message'] = true;
           prev['group_message_id'] ??= prev['message_id'];
 
@@ -4134,6 +4150,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           result.add(current);
           continue;
         }
+
       }
 
       result.add(current);
@@ -4141,15 +4158,84 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     return result;
   }
+  // bool _canGroupTogether(String a, String b) {
+  //   final bool aIsVisual = a.startsWith('image') || a.startsWith('video');
+  //   final bool bIsVisual = b.startsWith('image') || b.startsWith('video');
+  //
+  //   return aIsVisual && bIsVisual; // image+video allowed
+  // }
+
+  bool _sameMediaType(String a, String b) {
+    final bool aIsVisual = a.startsWith('image') || a.startsWith('video');
+    final bool bIsVisual = b.startsWith('image') || b.startsWith('video');
+
+    return aIsVisual && bIsVisual;
+  }
+  void _selectGroupedMessages(List<Map<String, dynamic>> grouped) {
+    final bool isGroupSelected = grouped.any(
+          (m) => _selectedMessageKeys.contains(_generateMessageKey(m)),
+    );
+
+    setState(() {
+      for (final m in grouped) {
+        final key = _generateMessageKey(m);
+        final id = m['message_id']?.toString();
+
+        if (isGroupSelected) {
+          _selectedMessageKeys.remove(key);
+          _selectedMessageIds.remove(id);
+          _selectedMessages.removeWhere(
+                  (x) => _generateMessageKey(x) == key);
+        } else {
+          _selectedMessageKeys.add(key);
+          if (id != null) _selectedMessageIds.add(id);
+          _selectedMessages.add(m);
+        }
+      }
+
+      _isSelectionMode = _selectedMessageKeys.isNotEmpty;
+    });
+  }
+
+
+  // void _selectGroupedMessages(List<Map<String, dynamic>> group) {
+  //   setState(() {
+  //     _isSelectionMode = true;
+  //
+  //     for (final msg in group) {
+  //       final key = _generateMessageKey(msg);
+  //       final id = (msg['message_id'] ?? msg['id'] ?? msg['messageId'])?.toString();
+  //
+  //       if (id == null) continue;
+  //
+  //       if (!_selectedMessageKeys.contains(key)) {
+  //         _selectedMessageKeys.add(key);
+  //         _selectedMessageIds.add(id);
+  //         _selectedMessages.add(msg);
+  //       }
+  //     }
+  //   });
+  // }
+
 
   // ------------------ Build ------------------
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        Navigator.pop(context, true);
-        return false; // prevent default pop
+        if (_isSelectionMode) {
+          setState(() {
+            _isSelectionMode = false;
+            _selectedMessageIds.clear();
+            _selectedMessageKeys.clear();
+            _selectedMessages.clear();
+          });
+          return false; // ⛔ don't exit screen
+        }
+
+        return true; // ✅ exit screen
       },
+
       child: ReusableChatScaffold(
         appBar: _buildAppBar(),
         chatBody: ValueListenableBuilder<List<Map<String, dynamic>>>(
@@ -4562,6 +4648,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                               final int realIndex =
                                   groupedMessages.length - 1 - index;
                               final message = groupedMessages[realIndex];
+                              log("messagessssssssssssssssssssssssss $message");
                               final String? senderId =
                                   _getMessageSenderId(message);
 
@@ -4703,6 +4790,18 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                           padding: const EdgeInsets.symmetric(
                                               horizontal: 8.0, vertical: 4.0),
                                           child: GroupedMediaWidget(
+                                              isSelectionMode: _isSelectionMode,
+                                              onLongPress: () {
+                                                final grouped = _getGroupedMessages(groupedMessages, realIndex);
+                                                _selectGroupedMessages(grouped);
+                                              },
+                                              selectedMessageColor: Colors.blue,
+                                              isSelected: _getGroupedMessages(groupedMessages, realIndex)
+                                                  .any((m) => _selectedMessageKeys.contains(_generateMessageKey(m))),
+                                              recentEmojis: recentEmojis,
+                                              onEmojiUpdated: (list) {
+                                                setState(() => recentEmojis = list);
+                                              },
                                               buildReactionsBar: (msg,
                                                       sentByMe) =>
                                                   _buildReactionsBar(
@@ -4923,9 +5022,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                                       const BoxConstraints(
                                                           maxWidth: 160),
                                                   decoration: BoxDecoration(
+                                                    border: Border.all(color: _selectedMessageKeys.contains(_generateMessageKey(message))?Colors.blue:Colors.transparent,width: 2),
                                                     color: (isSentByMe
                                                         ? const Color(
-                                                            0xFFD8E1FE)
+                                                        0xFFD8E1FE)
                                                         : Colors.white),
                                                     borderRadius:
                                                         BorderRadius.only(
