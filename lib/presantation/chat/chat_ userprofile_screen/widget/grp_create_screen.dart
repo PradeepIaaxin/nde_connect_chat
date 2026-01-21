@@ -77,7 +77,6 @@ class _GroupNameEditScreenState extends State<GroupNameEditScreen> {
     print(widget.groupId);
 
     final response = await Dio().put(
-    
       "https://api.nowdigitaleasy.com/wschat/v1/group/profile/${widget.groupId}",
       data: formData,
       options: Options(
@@ -226,11 +225,14 @@ class _GroupNameEditScreenState extends State<GroupNameEditScreen> {
                     backgroundColor: Colors.grey[300],
                     backgroundImage: _selectedImage != null
                         ? FileImage(_selectedImage!)
-                        : (widget.groupImage != null
+                        : (widget.groupImage != null &&
+                                widget.groupImage!.trim().isNotEmpty)
                             ? NetworkImage(widget.groupImage!)
-                            : null) as ImageProvider?,
-                    child: widget.groupImage == null && _selectedImage == null
-                        ? const Icon(Icons.group, size: 40, color: Colors.white)
+                            : null,
+                    child: (_selectedImage == null &&
+                            (widget.groupImage == null ||
+                                widget.groupImage!.trim().isEmpty))
+                        ? const Icon(Icons.group, size: 50, color: Colors.white)
                         : null,
                   ),
                   CircleAvatar(

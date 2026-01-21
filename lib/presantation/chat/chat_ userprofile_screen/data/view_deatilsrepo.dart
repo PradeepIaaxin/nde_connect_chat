@@ -78,13 +78,12 @@ class MediaRepository {
       final url =
           'https://api.nowdigitaleasy.com/wschat/v1/employees/$receiverId';
       final response = await _getRequest(url);
-      print(url);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        log(response.body.toString());
+        //  log(response.body.toString());
 
         final parsed = OnlineUserModel.fromJson(jsonDecode(response.body));
-        print(parsed);
+        // print(parsed);
 
         return parsed;
       } else {
