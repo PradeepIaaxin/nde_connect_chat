@@ -92,6 +92,22 @@ class MoveToArchiveEvent extends MailListEvent {
   List<Object> get props => [mailIds, mailboxId];
 }
 
+
+class MoveMailEvent extends MailListEvent {
+  final List<int> mailIds;
+  final String fromMailboxId;
+  final String toMailboxId;
+
+  const MoveMailEvent({
+    required this.mailIds,
+    required this.fromMailboxId,
+    required this.toMailboxId,
+  });
+
+  @override
+  List<Object> get props => [mailIds, fromMailboxId, toMailboxId];
+}
+
 // Mark Mail as Read
 class MarkAsReadEvent extends MailListEvent {
   final String mailboxId;
