@@ -89,6 +89,7 @@ class ApiService {
     required String to,
     required String subject,
     required String body,
+    required List<String> attachmentIds,
     String? ccEmail,
     String? bccEmail,
   }) async {
@@ -100,9 +101,6 @@ class ApiService {
         _handleUnauthorized();
         return Future.error('Access token is missing, logging out...');
       }
-
-      log("🔑 Access Token: $accessToken");
-      log("🏢 Workspace ID: $defaultWorkspace");
 
       String? mailboxId = await MailboxStorage.getDraftsMailboxId();
       if (mailboxId == null || mailboxId.isEmpty) {
@@ -117,10 +115,13 @@ class ApiService {
         "emailData": {
           "date": currentDateTime,
           "draft": true,
+          "files": attachmentIds,
           "from": {"name": "", "address": fromEmail},
           "to": to
               .split(",")
-              .map((email) => {"name": "", "address": email.trim()})
+              .map((email) => email.trim())
+              .where((email) => email.isNotEmpty)
+              .map((email) => {"name": "", "address": email})
               .toList(),
           "cc": (ccEmail?.isNotEmpty ?? false)
               ? ccEmail!
@@ -141,6 +142,8 @@ class ApiService {
       };
 
       log("📤 Sending Email Payload: ${jsonEncode(payload)}");
+      log("📎 Attachment IDs: $attachmentIds");
+
 
       final String apiUrl =
           '$baseUrl/user/mail/submit/draft/$mailboxId?deleteFiles=true';
@@ -158,7 +161,6 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final responseBody = jsonDecode(response.body);
-      
 
         if (responseBody['success'] == true &&
             responseBody['message'] == 'mail sent') {

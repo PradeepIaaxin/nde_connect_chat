@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:nde_email/utils/snackbar/snackbar.dart';
@@ -7,7 +8,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:nde_email/data/base_url.dart';
 import 'package:nde_email/data/respiratory.dart';
 import 'package:http/http.dart' as http;
-
 
 class AttachmentWidget extends StatefulWidget {
   final dynamic attachment;
@@ -121,17 +121,14 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
 
       if (await file.exists() && !forceRedownload) {
         if (isImage) {
-        
           _showImagePreview(file);
         } else {
-         
           await OpenFile.open(filePath);
         }
         return;
       }
 
       if (await file.exists() && forceRedownload) {
-       
         if (isImage) {
           bool? redownload = await showDialog<bool>(
             context: context,
@@ -152,17 +149,14 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
           );
 
           if (redownload == false) {
-            _showImagePreview(
-                file); 
+            _showImagePreview(file);
             return;
           }
         } else {
-     
           await OpenFile.open(filePath);
         }
       }
 
-  
       final downloadUrl =
           "${ApiService.baseUrl}/user/attachment/${widget.attachment.id}/mailboxes/${widget.mailboxId}/messages/${widget.messageId}";
 
@@ -176,13 +170,30 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
       );
 
       if (response.statusCode == 200) {
-        await file.writeAsBytes(response.bodyBytes);
+        // ✅ CHECK IF RESPONSE IS JSON (BASE64)
+        final contentType = response.headers['content-type'] ?? '';
+
+        if (contentType.contains('application/json')) {
+          // Backend sent base64 JSON
+          final decoded = jsonDecode(response.body);
+
+          if (decoded['content'] == null) {
+            throw Exception("Invalid attachment data");
+          }
+
+          final bytes = base64Decode(decoded['content']);
+          await file.writeAsBytes(bytes);
+        } else {
+          // Backend sent raw binary
+          await file.writeAsBytes(response.bodyBytes);
+        }
+
         Messenger.alertSuccess('Downloaded to: $filePath');
 
         if (isImage) {
           _showImagePreview(file);
         } else {
-          await OpenFile.open(filePath); 
+          await OpenFile.open(filePath);
         }
       } else {
         Messenger.alert(msg: 'Failed to download: ${response.statusCode}');
@@ -190,8 +201,23 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
     } catch (e) {
       Messenger.alert(msg: 'Error : ${e.toString()}');
     }
-  }
 
+    //   if (response.statusCode == 200) {
+    //     await file.writeAsBytes(response.bodyBytes);
+    //     Messenger.alertSuccess('Downloaded to: $filePath');
+
+    //     if (isImage) {
+    //       _showImagePreview(file);
+    //     } else {
+    //       await OpenFile.open(filePath);
+    //     }
+    //   } else {
+    //     Messenger.alert(msg: 'Failed to download: ${response.statusCode}');
+    //   }
+    // } catch (e) {
+    //   Messenger.alert(msg: 'Error : ${e.toString()}');
+    // }
+  }
 
   void _showImagePreview(File file) {
     showDialog(
@@ -250,8 +276,8 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
             ),
           ),
           GestureDetector(
-            onTap: () => _downloadFileFromBuffer(fileName,
-                forceRedownload: true), 
+            onTap: () =>
+                _downloadFileFromBuffer(fileName, forceRedownload: true),
             child: const Icon(Icons.download, color: Colors.blue),
           ),
         ],

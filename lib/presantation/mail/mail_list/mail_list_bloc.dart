@@ -22,6 +22,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
     on<ClearSelectionEvent>(_onClearSelection);
     on<DeleteMailEvent>(_onDeleteMail);
     on<MoveToArchiveEvent>(_onMoveToArchive);
+    on<MoveMailEvent>(_onMoveMail);
     on<MarkAsReadEvent>(_onMarkAsRead);
     on<MarkAsUnreadEvent>(_onMarkAsUnread);
     on<RefreshMailListEvent>(_onRefreshMailList);
@@ -116,6 +117,55 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
         status: MailListStatus.error,
         errorMessage: "Failed to load mails",
         isPaginating: false,
+      ));
+    }
+  }
+
+  Future<void> _onMoveMail(
+    MoveMailEvent event,
+    Emitter<MailListState> emit,
+  ) async {
+    if (event.mailIds.isEmpty) {
+      emit(state.copyWith(
+        status: MailListStatus.error,
+        errorMessage: "No emails selected to move.",
+      ));
+      return;
+    }
+
+    emit(state.copyWith(status: MailListStatus.archiving));
+
+    try {
+      final success = await apiService.moveMail(
+        mailIds: event.mailIds,
+        sourceMailboxId: event.fromMailboxId,
+        targetMailboxId: event.toMailboxId,
+      );
+
+      if (success) {
+        final updatedMails = state.mails
+            .where((mail) => !event.mailIds.contains(mail.id))
+            .toList();
+
+        cachedMailLists[event.fromMailboxId] = updatedMails;
+
+        emit(updatedMails.isEmpty
+            ? state.copyWith(status: MailListStatus.empty, mails: [])
+            : state.copyWith(
+                status: MailListStatus.loaded,
+                mails: updatedMails,
+              ));
+      } else {
+        emit(state.copyWith(
+          status: MailListStatus.error,
+          errorMessage: "Failed to move emails.",
+        ));
+      }
+    } catch (e) {
+      log("❌ Error moving emails: $e");
+      emit(state.copyWith(
+        status: MailListStatus.error,
+        errorMessage: "Error moving emails: $e",
       ));
     }
   }

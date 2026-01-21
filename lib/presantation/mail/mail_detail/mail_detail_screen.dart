@@ -2,7 +2,13 @@ import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nde_email/presantation/mail/common/dialogs/move_to_dialog.dart';
+import 'package:nde_email/presantation/mail/common/mail_more_menu.dart';
+import 'package:nde_email/presantation/mail/common/menuaction/mail_menu_action.dart';
+import 'package:nde_email/presantation/mail/compose/model/composemodel.dart';
 import 'package:nde_email/presantation/mail/mail_detail/mail_detail_api.dart';
+import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar_bloc.dart';
+import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar_state.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/error_display.dart';
 import 'package:nde_email/utils/router/router.dart';
@@ -70,19 +76,77 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
               MyRouter.pop();
             },
           ),
-          PopupMenuButton(
-            onSelected: (dynamic v) {},
-            itemBuilder: (BuildContext context) => [
-              const PopupMenuItem(value: 0, child: Text('Move to')),
-              const PopupMenuItem(value: 1, child: Text('Snooze')),
-              const PopupMenuItem(value: 2, child: Text('Change labels')),
-              const PopupMenuItem(value: 4, child: Text('Unsubscribe')),
-              const PopupMenuItem(value: 5, child: Text('Mute')),
-              const PopupMenuItem(value: 6, child: Text('Print')),
-              const PopupMenuItem(value: 7, child: Text('Report spam')),
-              const PopupMenuItem(value: 8, child: Text('Add to Tasks')),
-              const PopupMenuItem(value: 9, child: Text('Help and Feedback')),
-            ],
+          MailMoreMenu(
+            onSelected: (action) {
+              switch (action) {
+                case MailMenuAction.moveTo:
+                  final appBarState = context.read<AppBarBloc>().state;
+
+                  if (appBarState is AppBarMailboxesLoaded) {
+                    final folders = [
+                      ...appBarState.inbox,
+                      ...appBarState.archive,
+                      ...appBarState.drafts,
+                      ...appBarState.junk,
+                      ...appBarState.sent,
+                      ...appBarState.trash,
+                      ...appBarState.other,
+                    ];
+
+                    showMoveToMailboxDialog(
+                      context: context,
+                      mailboxes: folders,
+                      onSelected: (mailbox) {
+                        log("📁 Move mail to: ${mailbox.name}");
+                        log("📁 Target Mailbox ID: ${mailbox.id}");
+
+                        context.read<MailListBloc>().add(
+                              MoveMailEvent(
+                                mailIds: [int.parse(widget.messageId)],
+                                fromMailboxId: widget.mailboxId,
+                                toMailboxId: mailbox.id,
+                              ),
+                            );
+
+                        Navigator.pop(context);
+                      },
+                    );
+                  }
+                  break;
+
+                case MailMenuAction.snooze:
+                  debugPrint('Snooze');
+                  break;
+
+                case MailMenuAction.changeLabels:
+                  debugPrint('Change labels');
+                  break;
+
+                case MailMenuAction.unsubscribe:
+                  debugPrint('Unsubscribe');
+                  break;
+
+                case MailMenuAction.mute:
+                  debugPrint('Mute');
+                  break;
+
+                case MailMenuAction.printMail:
+                  debugPrint('Print');
+                  break;
+
+                case MailMenuAction.reportSpam:
+                  debugPrint('Report spam');
+                  break;
+
+                case MailMenuAction.addToTasks:
+                  debugPrint('Add to Tasks');
+                  break;
+
+                case MailMenuAction.help:
+                  debugPrint('Help & Feedback');
+                  break;
+              }
+            },
           ),
         ],
       ),
@@ -124,7 +188,7 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
                             child: Text(
                               mailDetail.from.name.isNotEmpty
                                   ? mailDetail.from.name[0].toUpperCase()
-                                  : "?",
+                                  : "U",
                               style: const TextStyle(
                                 fontFamily: 'Roboto',
                                 fontSize: 18,
@@ -134,8 +198,6 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
                             ),
                           ),
                           const SizedBox(width: 12),
-
-                          // From Name and Subtitle (Second Column)
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -185,7 +247,6 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
                               ],
                             ),
                           ),
-
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -268,11 +329,9 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
                             const SizedBox(height: 10),
                             _buildDetailRow(
                               "Date    :",
-                              DateFormat('d MMM yyyy')
-                                      .format(mailDetail.date.toLocal()) +
-                                  " , " +
-                                  DateFormat('hh:mm a')
-                                      .format(mailDetail.date.toLocal()),
+                              "${DateFormat('d MMM yyyy')
+                                      .format(mailDetail.date.toLocal())} , ${DateFormat('hh:mm a')
+                                      .format(mailDetail.date.toLocal())}",
                               "",
                             ),
                             const SizedBox(height: 10),
@@ -410,7 +469,7 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
                     const TextSpan(text: " "),
                   if (address.isNotEmpty)
                     TextSpan(
-                      text: "$address",
+                      text: address,
                       style: const TextStyle(
                           fontFamily: 'Roboto', color: AppColors.secondaryText),
                     ),

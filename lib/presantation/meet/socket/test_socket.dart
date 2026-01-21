@@ -1340,15 +1340,6 @@ class _VideoCallPageState extends State<VideoCallPage> {
     );
   }
 
-  String _getPeerUserIdByProducerId(String producerId) {
-    for (final streamInfo in _remoteStreams.values) {
-      if (streamInfo.producerId == producerId) {
-        final peer = _peers[streamInfo.socketId];
-        return peer?['userID']?.toString() ?? 'Unknown';
-      }
-    }
-    return 'Unknown';
-  }
 
   String _getPeerName(String producerId) {
     final streamInfo = _remoteStreams[producerId];
