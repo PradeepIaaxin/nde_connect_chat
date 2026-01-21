@@ -41,6 +41,7 @@ class MessageBubble extends StatefulWidget {
   final String? searchText;
   final List<String> recentEmojis;
   final Function(List<String>) onEmojiUpdated;
+  final bool isSelectionMode;
 
   const MessageBubble(
       {super.key,
@@ -67,7 +68,7 @@ class MessageBubble extends StatefulWidget {
       this.currentUserId,
       this.receiverName,
       this.stretchReply = false, required this.recentEmojis, required this.onEmojiUpdated,
-      this.searchText});
+      this.searchText, required this.isSelectionMode});
 
 
   @override
@@ -137,27 +138,38 @@ class _MessageBubbleState extends State<MessageBubble> {
         !isVideo) {
       return const SizedBox.shrink();
     }
+    bool _ignoreParentTap = false;
 
     return Padding(
       padding: EdgeInsets.symmetric(vertical: widget.emojpicker != null ? 6.0 : 0),
-      child: GestureDetector(
-        //  onTap: onTap,
-        onTap: () {
-          log("messsssssage ${widget.message}");
-          log("relosveeee ${widget.message["resolvedReplys"]}");
-        },
-        onLongPress: () {
-          log(widget.message.toString());
-          _showReactionPicker(context);
-          widget.onLongPress?.call();
-        },
-        child: Align(
-          alignment: widget.isSentByMe ? Alignment.centerRight : Alignment.centerLeft,
-          widthFactor: widget.isReply ? 1.0 : null,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
+      child: Align(
+        alignment: widget.isSentByMe ? Alignment.centerRight : Alignment.centerLeft,
+        widthFactor: widget.isReply ? 1.0 : null,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            GestureDetector(
+              onTap: () {
+                if (widget.isSelectionMode) {
+                  widget.onLongPress?.call();
+                } else if (widget.isReply) {
+                  widget.onReplyTap?.call();
+                } else {
+                  widget.onTap?.call();
+                }
+              },
+
+
+              // onTap: () {
+              //   log("messsssssage ${widget.message}");
+              //   log("relosveeee ${widget.message["resolvedReplys"]}");
+              // },
+              onLongPress: () {
+                log(widget.message.toString());
+                _showReactionPicker(context);
+                widget.onLongPress?.call();
+              },
+              child: Container(
                 clipBehavior: Clip.antiAlias,
                 margin: EdgeInsets.only(
                   left: 9,
@@ -192,7 +204,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                     bottomRight:
                         widget.isSentByMe ? Radius.zero : const Radius.circular(16),
                   ),
-                  border: widget.isSelected
+                  border: widget.isReply?null:widget.isSelected
                       ? Border.all(color: widget.borderColor, width: 2)
                       : null,
                 ),
@@ -212,7 +224,13 @@ class _MessageBubbleState extends State<MessageBubble> {
                                 ? Map<String, dynamic>.from(widget.message['sender'])
                                 : {},
                             isSender: widget.isSentByMe,
-                            onTap: null,
+                            onTap: () {
+                              if (widget.isSelectionMode) {
+                                widget.onLongPress?.call();
+                              } else {
+                                widget.onReplyTap?.call();
+                              }
+                            },
                             groupMediaLength: widget.groupMediaLength,
                           ),
 
@@ -276,6 +294,46 @@ class _MessageBubbleState extends State<MessageBubble> {
                           _buildTextMessage(content, messageStatus),
                       ],
                     ),
+                    if (isVideo ||
+                        hasImageContent ||
+                        hasFile ||
+                        (content.isNotEmpty &&
+                            RegExp(r'((https?:\/\/)|(www\.))[^\s]+',
+                                caseSensitive: false)
+                                .hasMatch(content)))Positioned(
+                      top: 160,
+                      right: widget.isSentByMe ? 420 : null,
+                      left:  widget.isSentByMe ? null : 420,
+                      child: Center(
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(20),
+                            onTap: () {
+                              log("hhhhhhhhhhh");
+                              MyRouter.pushReplace(
+                                screen: ForwardMessageScreen(
+                                  isForward: widget.isSentByMe,
+                                  messages: [widget.message],
+                                  currentUserId: widget.message['senderId'] ?? '',
+                                  conversionalid: "",
+                                  username: widget.message['senderName'] ?? '',
+                                ),
+                              );
+                            },
+                            child: CircleAvatar(
+                              radius: 16,
+                              backgroundColor: Colors.white,
+                              child: Image.asset(
+                                "assets/images/forward.png",
+                                height: 20,
+                                width: 20,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                     if (hasReply && widget.stretchReply)
                       Positioned(
                         top: 0,
@@ -291,7 +349,13 @@ class _MessageBubbleState extends State<MessageBubble> {
                               ? Map<String, dynamic>.from(widget.message['sender'])
                               : {},
                           isSender: widget.isSentByMe,
-                          onTap: widget.onReplyTap,
+                          onTap: () {
+                            if (widget.isSelectionMode) {
+                              widget.onLongPress?.call();
+                            } else {
+                              widget.onReplyTap?.call();
+                            }
+                          },
                           groupMediaLength: widget.groupMediaLength,
                         ),
                       )
@@ -306,72 +370,80 @@ class _MessageBubbleState extends State<MessageBubble> {
                             ? Map<String, dynamic>.from(widget.message['sender'])
                             : {},
                         isSender: widget.isSentByMe,
-                        onTap: widget.onReplyTap,
+                        onTap: () {
+                          if (widget.isSelectionMode) {
+                            widget.onLongPress?.call();
+                          } else {
+                            widget.onReplyTap?.call();
+                          }
+                        },
                         groupMediaLength: widget.groupMediaLength,
                       ),
                   ],
                 ),
               ),
-              if (widget.message['reactions'] != null &&
-                  (widget.message['reactions'] as List).isNotEmpty &&
-                  widget.buildReactionsBar != null)
-                Positioned(
-                  bottom: (isReplyMessage ?? false) ? -40 : -28,
-                  right: widget.isSentByMe ? 12 : null,
-                  left: widget.isSentByMe ? null : 12,
-                  child: Padding(
-                    padding: EdgeInsets.only(bottom: 12),
-                    child: GestureDetector(
-                      onTap: () {
-                        // show reaction picker on tap too
-                        _showReactionPicker(context);
-                      },
-                      child: widget.buildReactionsBar!(widget.message, widget.isSentByMe),
-                    ),
+            ),
+            if (widget.message['reactions'] != null &&
+                (widget.message['reactions'] as List).isNotEmpty &&
+                widget.buildReactionsBar != null)
+              Positioned(
+                bottom: (isReplyMessage ?? false) ? -40 : -28,
+                right: widget.isSentByMe ? 12 : null,
+                left: widget.isSentByMe ? null : 12,
+                child: Padding(
+                  padding: EdgeInsets.only(bottom: 12),
+                  child: GestureDetector(
+                    onTap: () {
+                      // show reaction picker on tap too
+                      _showReactionPicker(context);
+                    },
+                    child: widget.buildReactionsBar!(widget.message, widget.isSentByMe),
                   ),
                 ),
-              if (isVideo ||
-                  hasImageContent ||
-                  hasFile ||
-                  (content.isNotEmpty &&
-                      RegExp(r'((https?:\/\/)|(www\.))[^\s]+',
-                              caseSensitive: false)
-                          .hasMatch(content)))
-                Positioned(
-                  top: 0,
-                  bottom: 0,
-                  left: widget.isSentByMe ? -35 : screenWidth * 0.65,
-                  right: widget.isSentByMe ? null : -52,
-                  child: Center(
-                    child: Material(
-                      color: Colors.transparent,
-                      child: GestureDetector(
-                        onTap: () {
-                          MyRouter.pushReplace(
-                            screen: ForwardMessageScreen(
-                              isForward: widget.isSentByMe,
-                              messages: [widget.message],
-                              currentUserId: widget.message['senderId'] ?? '',
-                              conversionalid: "",
-                              username: widget.message['senderName'] ?? '',
-                            ),
-                          );
-                        },
-                        child: CircleAvatar(
-                          radius: 16,
-                          backgroundColor: Colors.white,
-                          child: Image.asset(
-                            "assets/images/forward.png",
-                            height: 20,
-                            width: 20,
+              ),
+            if (isVideo ||
+                hasImageContent ||
+                hasFile ||
+                (content.isNotEmpty &&
+                    RegExp(r'((https?:\/\/)|(www\.))[^\s]+',
+                            caseSensitive: false)
+                        .hasMatch(content)))
+              Positioned(
+                top: 0,
+                bottom: 0,
+                left: widget.isSentByMe ? -35 : screenWidth * 0.65,
+                right: widget.isSentByMe ? null : -52,
+                child: Center(
+                  child: Material(
+                    color: Colors.transparent,
+                    child: GestureDetector(
+
+                      onTap: () {
+                        log("hhhhhhhhhhh");
+                        MyRouter.pushReplace(
+                          screen: ForwardMessageScreen(
+                            isForward: widget.isSentByMe,
+                            messages: [widget.message],
+                            currentUserId: widget.message['senderId'] ?? '',
+                            conversionalid: "",
+                            username: widget.message['senderName'] ?? '',
                           ),
+                        );
+                      },
+                      child: CircleAvatar(
+                        radius: 16,
+                        backgroundColor: Colors.white,
+                        child: Image.asset(
+                          "assets/images/forward.png",
+                          height: 20,
+                          width: 20,
                         ),
                       ),
                     ),
                   ),
                 ),
-            ],
-          ),
+              ),
+          ],
         ),
       ),
     );
@@ -694,12 +766,20 @@ class _MessageBubbleState extends State<MessageBubble> {
             // openSingleMediaViewer(context);
           },
           onTap: () async {
-            if (looksImage) {
-             _openConversationViewer(context, imageUrl);
-            } else {
+            if (widget.isSelectionMode) {
+              widget.onLongPress?.call();
+            } else if(looksImage) {
+              _openConversationViewer(context, imageUrl);
+            }else {
               // treat as file
               widget.onFileTap?.call(imageUrl, null);
             }
+            // if (looksImage) {
+            //  _openConversationViewer(context, imageUrl);
+            // } else {
+            //   // treat as file
+            //   widget.onFileTap?.call(imageUrl, null);
+            // }
           },
           child: ClipRRect(
             borderRadius: BorderRadius.circular(10),
@@ -1360,7 +1440,12 @@ class _MessageBubbleState extends State<MessageBubble> {
     return GestureDetector(
       onTap: () {
         // 👇 open your full-screen player
-       _openConversationViewer(context, videoUrl);
+        if (widget.isSelectionMode) {
+          widget.onLongPress?.call();
+        } else {
+          _openConversationViewer(context, videoUrl);
+        }
+
       },
       child: Container(
         width: 250,
@@ -1394,7 +1479,11 @@ class _MessageBubbleState extends State<MessageBubble> {
               child: GestureDetector(
                 onTap: () {
                   // 👇 open your full-screen player
-                  _openConversationViewer(context, videoUrl);
+                  if (widget.isSelectionMode) {
+                    widget.onLongPress?.call();
+                  } else {
+                    _openConversationViewer(context, videoUrl);
+                  }
                   // Navigator.push(
                   //   context,
                   //   _bottomToTopRoute(
