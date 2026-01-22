@@ -29,6 +29,7 @@ import 'package:nde_email/presantation/chat/widget/delete_dialogue.dart';
 import 'package:nde_email/presantation/chat/widget/scaffold.dart';
 import 'package:nde_email/presantation/chat/widget/voicerec_ui.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/grouped_media_widget.dart';
+import 'package:nde_email/presantation/widgets/chat_widgets/Common/message_caption.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/AudioMessageWidget.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/grp_showbottom_sheet.dart';
 import 'package:nde_email/utils/const/consts.dart';
@@ -2442,6 +2443,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           : currentMsg['sender']?.toString();
       final currentTime = _parseTime(currentMsg['time']);
 
+      // Check if current message has a caption - don't group if it does
+      final bool currentHasCaption =
+          (currentMsg['content']?.toString() ?? '').isNotEmpty;
+
       for (int j = i + 1; j < messages.length; j++) {
         final nextMsg = messages[j];
         final nextSender = nextMsg['sender'] is Map
@@ -2452,10 +2457,17 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         // Detect media for next message
         // Detect media for next message
         final bool nextIsMedia = _isGroupableMedia(nextMsg);
+        final bool nextHasCaption =
+            (nextMsg['content']?.toString() ?? '').isNotEmpty;
 
         if (nextSender != currentSender ||
             !nextIsMedia ||
             nextTime.difference(currentTime).inMinutes.abs() > 1) {
+          break;
+        }
+
+        // Don't group if either message has a caption
+        if (currentHasCaption || nextHasCaption) {
           break;
         }
 
@@ -2497,6 +2509,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
     return messages;
   }
+
   /// Persist grouping info to source message arrays
   void _applyGroupingToSource(String messageId, String groupId) {
     void applyToList(List<Map<String, dynamic>> list) {
@@ -4363,31 +4376,31 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                         ],
                                                                       ),
                                                                     ),
-                                                                    Padding(
-                                                                      padding: const EdgeInsets
-                                                                          .only(
-                                                                          top:
-                                                                              0,
-                                                                          right:
-                                                                              0),
-                                                                      child:
-                                                                          Row(
-                                                                        mainAxisSize:
-                                                                            MainAxisSize.min,
-                                                                        children: [
-                                                                          Text(
-                                                                            TimeUtils.formatUtcToIst(message['time']),
-                                                                            style:
-                                                                                const TextStyle(fontSize: 10, color: Colors.black54),
-                                                                          ),
-                                                                          const SizedBox(
-                                                                              width: 4),
-                                                                          if (isSentByMe)
-                                                                            _buildStatusIcon(messageStatus,
-                                                                                message),
-                                                                        ],
+                                                                    // Only show time/status for documents without caption
+                                                                    if (content
+                                                                        .isEmpty)
+                                                                      Padding(
+                                                                        padding: const EdgeInsets
+                                                                            .only(
+                                                                            top:
+                                                                                0,
+                                                                            right:
+                                                                                0),
+                                                                        child:
+                                                                            Row(
+                                                                          mainAxisSize:
+                                                                              MainAxisSize.min,
+                                                                          children: [
+                                                                            Text(
+                                                                              TimeUtils.formatUtcToIst(message['time']),
+                                                                              style: const TextStyle(fontSize: 10, color: Colors.black54),
+                                                                            ),
+                                                                            const SizedBox(width: 4),
+                                                                            if (isSentByMe)
+                                                                              _buildStatusIcon(messageStatus, message),
+                                                                          ],
+                                                                        ),
                                                                       ),
-                                                                    ),
                                                                   ],
                                                                 ),
                                                                 Positioned(
@@ -4451,82 +4464,255 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                 .shrink(),
                                                           if (content
                                                               .isNotEmpty)
-                                                            Padding(
-                                                              padding:
-                                                                  const EdgeInsets
-                                                                      .only(
-                                                                      top: 0),
-                                                              child: Column(
-                                                                crossAxisAlignment: hasReply
-                                                                    ? CrossAxisAlignment
-                                                                        .start
-                                                                    : CrossAxisAlignment
-                                                                        .start,
-                                                                mainAxisSize:
-                                                                    MainAxisSize
-                                                                        .min,
-                                                                children: [
-                                                                  if (RegExp(
-                                                                          r'((https?:\/\/)|(www\.))[^\s]+',
-                                                                          caseSensitive:
-                                                                              false)
-                                                                      .hasMatch(
-                                                                          content))
-                                                                    Stack(
-                                                                      clipBehavior:
-                                                                          Clip.none,
-                                                                      children: [
-                                                                        Padding(
-                                                                          padding: const EdgeInsets
-                                                                              .symmetric(
-                                                                              vertical: 0.0),
-                                                                          child:
-                                                                              ClipRRect(
-                                                                            borderRadius:
-                                                                                BorderRadius.circular(12),
+                                                            // Use MessageCaption for image/video/document captions to position time/status in the right corner
+                                                            if ((isImage &&
+                                                                    (imageUrl !=
+                                                                            null &&
+                                                                        imageUrl
+                                                                            .isNotEmpty)) ||
+                                                                (isVideo &&
+                                                                    fileUrl !=
+                                                                        null &&
+                                                                    fileUrl
+                                                                        .isNotEmpty) ||
+                                                                (fileUrl !=
+                                                                        null &&
+                                                                    fileUrl
+                                                                        .isNotEmpty &&
+                                                                    !isImage &&
+                                                                    !isVideo &&
+                                                                    !isAudio))
+                                                              MessageCaption(
+                                                                content:
+                                                                    content,
+                                                                time: TimeUtils
+                                                                    .formatUtcToIst(
+                                                                        message[
+                                                                            'time']),
+                                                                isSentByMe:
+                                                                    isSentByMe,
+                                                                messageStatus:
+                                                                    messageStatus,
+                                                                buildStatusIcon:
+                                                                    (status) =>
+                                                                        _buildStatusIcon(
+                                                                            status,
+                                                                            message),
+                                                              )
+                                                            else
+                                                              Padding(
+                                                                padding:
+                                                                    const EdgeInsets
+                                                                        .only(
+                                                                        top: 0),
+                                                                child: Column(
+                                                                  crossAxisAlignment: hasReply
+                                                                      ? CrossAxisAlignment
+                                                                          .start
+                                                                      : CrossAxisAlignment
+                                                                          .start,
+                                                                  mainAxisSize:
+                                                                      MainAxisSize
+                                                                          .min,
+                                                                  children: [
+                                                                    if (RegExp(
+                                                                            r'((https?:\/\/)|(www\.))[^\s]+',
+                                                                            caseSensitive:
+                                                                                false)
+                                                                        .hasMatch(
+                                                                            content))
+                                                                      Stack(
+                                                                        clipBehavior:
+                                                                            Clip.none,
+                                                                        children: [
+                                                                          Padding(
+                                                                            padding:
+                                                                                const EdgeInsets.symmetric(vertical: 0.0),
                                                                             child:
-                                                                                AnyLinkPreview(
-                                                                              link: (() {
-                                                                                final match = RegExp(r'((https?:\/\/)|(www\.))[^\s]+', caseSensitive: false).firstMatch(content);
-                                                                                if (match == null) {
-                                                                                  return '';
-                                                                                }
-                                                                                String url = match.group(0)!;
-                                                                                try {
-                                                                                  final uri = Uri.parse(url.startsWith('www.') ? 'https://$url' : url);
-                                                                                  return uri.toString();
-                                                                                } catch (e) {
-                                                                                  return url;
-                                                                                }
-                                                                              })(),
-                                                                              displayDirection: UIDirection.uiDirectionVertical,
-                                                                              showMultimedia: true,
-                                                                              backgroundColor: Colors.grey.shade100,
-                                                                              bodyStyle: const TextStyle(
-                                                                                color: Colors.black87,
-                                                                                fontSize: 12,
-                                                                                fontWeight: FontWeight.w400,
-                                                                              ),
-                                                                              titleStyle: const TextStyle(
-                                                                                color: Colors.black,
-                                                                                fontSize: 14,
-                                                                                fontWeight: FontWeight.bold,
-                                                                              ),
-                                                                              cache: const Duration(hours: 1),
-                                                                              borderRadius: 12,
-                                                                              errorBody: 'Could not load link preview',
-                                                                              errorTitle: 'Link Preview',
-                                                                              errorWidget: Container(
-                                                                                height: 100,
-                                                                                color: Colors.grey[200],
-                                                                                child: const Center(child: Icon(Icons.link_off)),
+                                                                                ClipRRect(
+                                                                              borderRadius: BorderRadius.circular(12),
+                                                                              child: AnyLinkPreview(
+                                                                                link: (() {
+                                                                                  final match = RegExp(r'((https?:\/\/)|(www\.))[^\s]+', caseSensitive: false).firstMatch(content);
+                                                                                  if (match == null) {
+                                                                                    return '';
+                                                                                  }
+                                                                                  String url = match.group(0)!;
+                                                                                  try {
+                                                                                    final uri = Uri.parse(url.startsWith('www.') ? 'https://$url' : url);
+                                                                                    return uri.toString();
+                                                                                  } catch (e) {
+                                                                                    return url;
+                                                                                  }
+                                                                                })(),
+                                                                                displayDirection: UIDirection.uiDirectionVertical,
+                                                                                showMultimedia: true,
+                                                                                backgroundColor: Colors.grey.shade100,
+                                                                                bodyStyle: const TextStyle(
+                                                                                  color: Colors.black87,
+                                                                                  fontSize: 12,
+                                                                                  fontWeight: FontWeight.w400,
+                                                                                ),
+                                                                                titleStyle: const TextStyle(
+                                                                                  color: Colors.black,
+                                                                                  fontSize: 14,
+                                                                                  fontWeight: FontWeight.bold,
+                                                                                ),
+                                                                                cache: const Duration(hours: 1),
+                                                                                borderRadius: 12,
+                                                                                errorBody: 'Could not load link preview',
+                                                                                errorTitle: 'Link Preview',
+                                                                                errorWidget: Container(
+                                                                                  height: 100,
+                                                                                  color: Colors.grey[200],
+                                                                                  child: const Center(child: Icon(Icons.link_off)),
+                                                                                ),
                                                                               ),
                                                                             ),
                                                                           ),
+                                                                          Positioned(
+                                                                            top:
+                                                                                20,
+                                                                            bottom:
+                                                                                0,
+                                                                            left: isSentByMe
+                                                                                ? -60
+                                                                                : null,
+                                                                            right: isSentByMe
+                                                                                ? null
+                                                                                : -60,
+                                                                            child:
+                                                                                Center(
+                                                                              child: Material(
+                                                                                color: Colors.transparent,
+                                                                                child: InkWell(
+                                                                                  borderRadius: BorderRadius.circular(20),
+                                                                                  onTap: () {
+                                                                                    MyRouter.pushReplace(
+                                                                                      screen: ForwardMessageScreen(
+                                                                                        messages: [
+                                                                                          normalizeMessage(message)
+                                                                                        ],
+                                                                                        currentUserId: currentUserId,
+                                                                                        conversionalid: widget.conversationId,
+                                                                                        username: widget.groupName,
+                                                                                      ),
+                                                                                    );
+                                                                                  },
+                                                                                  child: CircleAvatar(
+                                                                                    maxRadius: 16,
+                                                                                    backgroundColor: Colors.white,
+                                                                                    child: Image.asset(
+                                                                                      "assets/images/forward.png",
+                                                                                      height: 20,
+                                                                                      width: 20,
+                                                                                    ),
+                                                                                  ),
+                                                                                ),
+                                                                              ),
+                                                                            ),
+                                                                          ),
+                                                                        ],
+                                                                      ),
+                                                                    Stack(
+                                                                      children: [
+                                                                        StatefulBuilder(
+                                                                          builder:
+                                                                              (context, setState) {
+                                                                            const maxCharsPerLine =
+                                                                                30;
+                                                                            final bool
+                                                                                isTextLong =
+                                                                                (content.length / maxCharsPerLine).ceil() > 10;
+                                                                            bool
+                                                                                isExpanded =
+                                                                                (message['isExpanded'] ?? false) == true;
+                                                                            return Stack(
+                                                                              clipBehavior: Clip.none,
+                                                                              children: [
+                                                                                Padding(
+                                                                                  padding: const EdgeInsets.only(bottom: 3.0, top: 1.0),
+                                                                                  child: Column(
+                                                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                                                    children: [
+                                                                                      RichText(
+                                                                                        maxLines: !isExpanded && isTextLong ? 9 : null,
+                                                                                        overflow: !isExpanded && isTextLong ? TextOverflow.ellipsis : TextOverflow.visible,
+                                                                                        text: TextSpan(
+                                                                                          children: [
+                                                                                            ..._buildMessageTextSpans(content),
+                                                                                            WidgetSpan(
+                                                                                              child: SizedBox(width: isSentByMe ? 75 : 60, height: 20),
+                                                                                            ),
+                                                                                          ],
+                                                                                        ),
+                                                                                      ),
+                                                                                      if (!isExpanded && isTextLong)
+                                                                                        GestureDetector(
+                                                                                          onTap: () => setState(() => message['isExpanded'] = true),
+                                                                                          child: const Padding(
+                                                                                            padding: EdgeInsets.symmetric(vertical: 4),
+                                                                                            child: Text(
+                                                                                              "Read more",
+                                                                                              style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                                                                                            ),
+                                                                                          ),
+                                                                                        ),
+                                                                                      if (isExpanded)
+                                                                                        GestureDetector(
+                                                                                          onTap: () => setState(() => message['isExpanded'] = false),
+                                                                                          child: const Padding(
+                                                                                            padding: EdgeInsets.symmetric(vertical: 4),
+                                                                                            child: Text(
+                                                                                              "Read less",
+                                                                                              style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                                                                                            ),
+                                                                                          ),
+                                                                                        ),
+                                                                                      if (!isExpanded && isTextLong)
+                                                                                        Align(
+                                                                                          alignment: Alignment.centerRight,
+                                                                                          child: Row(
+                                                                                            mainAxisSize: MainAxisSize.min,
+                                                                                            children: [
+                                                                                              Text(
+                                                                                                TimeUtils.formatUtcToIst(message['time']),
+                                                                                                style: const TextStyle(fontSize: 10, color: Colors.black54),
+                                                                                              ),
+                                                                                              const SizedBox(width: 4),
+                                                                                              if (isSentByMe && content != "Message Deleted") _buildStatusIcon(messageStatus, message),
+                                                                                            ],
+                                                                                          ),
+                                                                                        ),
+                                                                                    ],
+                                                                                  ),
+                                                                                ),
+
+                                                                                /// ---- TIMESTAMP & STATUS (Positioned like private chat) ----
+                                                                                if (!(!isExpanded && isTextLong) && !hasReply)
+                                                                                  Positioned(
+                                                                                    bottom: 3,
+                                                                                    right: 3,
+                                                                                    child: Row(
+                                                                                      mainAxisAlignment: MainAxisAlignment.end,
+                                                                                      mainAxisSize: MainAxisSize.min,
+                                                                                      children: [
+                                                                                        Text(
+                                                                                          TimeUtils.formatUtcToIst(message['time']),
+                                                                                          style: const TextStyle(fontSize: 10, color: Colors.black54),
+                                                                                        ),
+                                                                                        const SizedBox(width: 4),
+                                                                                        if (isSentByMe && content != "Message Deleted") _buildStatusIcon(messageStatus, message),
+                                                                                      ],
+                                                                                    ),
+                                                                                  ),
+                                                                              ],
+                                                                            );
+                                                                          },
                                                                         ),
                                                                         Positioned(
                                                                           top:
-                                                                              20,
+                                                                              0,
                                                                           bottom:
                                                                               0,
                                                                           left: isSentByMe
@@ -4569,153 +4755,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                         ),
                                                                       ],
                                                                     ),
-                                                                  Stack(
-                                                                    children: [
-                                                                      StatefulBuilder(
-                                                                        builder:
-                                                                            (context,
-                                                                                setState) {
-                                                                          const maxCharsPerLine =
-                                                                              30;
-                                                                          final bool
-                                                                              isTextLong =
-                                                                              (content.length / maxCharsPerLine).ceil() > 10;
-                                                                          bool
-                                                                              isExpanded =
-                                                                              (message['isExpanded'] ?? false) == true;
-                                                                          return Stack(
-                                                                            clipBehavior:
-                                                                                Clip.none,
-                                                                            children: [
-                                                                              Padding(
-                                                                                padding: const EdgeInsets.only(bottom: 3.0, top: 1.0),
-                                                                                child: Column(
-                                                                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                                                                  children: [
-                                                                                    RichText(
-                                                                                      maxLines: !isExpanded && isTextLong ? 9 : null,
-                                                                                      overflow: !isExpanded && isTextLong ? TextOverflow.ellipsis : TextOverflow.visible,
-                                                                                      text: TextSpan(
-                                                                                        children: [
-                                                                                          ..._buildMessageTextSpans(content),
-                                                                                          WidgetSpan(
-                                                                                            child: SizedBox(width: isSentByMe ? 75 : 60, height: 20),
-                                                                                          ),
-                                                                                        ],
-                                                                                      ),
-                                                                                    ),
-                                                                                    if (!isExpanded && isTextLong)
-                                                                                      GestureDetector(
-                                                                                        onTap: () => setState(() => message['isExpanded'] = true),
-                                                                                        child: const Padding(
-                                                                                          padding: EdgeInsets.symmetric(vertical: 4),
-                                                                                          child: Text(
-                                                                                            "Read more",
-                                                                                            style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
-                                                                                          ),
-                                                                                        ),
-                                                                                      ),
-                                                                                    if (isExpanded)
-                                                                                      GestureDetector(
-                                                                                        onTap: () => setState(() => message['isExpanded'] = false),
-                                                                                        child: const Padding(
-                                                                                          padding: EdgeInsets.symmetric(vertical: 4),
-                                                                                          child: Text(
-                                                                                            "Read less",
-                                                                                            style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
-                                                                                          ),
-                                                                                        ),
-                                                                                      ),
-                                                                                    if (!isExpanded && isTextLong)
-                                                                                      Align(
-                                                                                        alignment: Alignment.centerRight,
-                                                                                        child: Row(
-                                                                                          mainAxisSize: MainAxisSize.min,
-                                                                                          children: [
-                                                                                            Text(
-                                                                                              TimeUtils.formatUtcToIst(message['time']),
-                                                                                              style: const TextStyle(fontSize: 10, color: Colors.black54),
-                                                                                            ),
-                                                                                            const SizedBox(width: 4),
-                                                                                            if (isSentByMe && content != "Message Deleted") _buildStatusIcon(messageStatus, message),
-                                                                                          ],
-                                                                                        ),
-                                                                                      ),
-                                                                                  ],
-                                                                                ),
-                                                                              ),
-
-                                                                              /// ---- TIMESTAMP & STATUS (Positioned like private chat) ----
-                                                                              if (!(!isExpanded && isTextLong) && !hasReply)
-                                                                                Positioned(
-                                                                                  bottom: 3,
-                                                                                  right: 3,
-                                                                                  child: Row(
-                                                                                    mainAxisAlignment: MainAxisAlignment.end,
-                                                                                    mainAxisSize: MainAxisSize.min,
-                                                                                    children: [
-                                                                                      Text(
-                                                                                        TimeUtils.formatUtcToIst(message['time']),
-                                                                                        style: const TextStyle(fontSize: 10, color: Colors.black54),
-                                                                                      ),
-                                                                                      const SizedBox(width: 4),
-                                                                                      if (isSentByMe && content != "Message Deleted") _buildStatusIcon(messageStatus, message),
-                                                                                    ],
-                                                                                  ),
-                                                                                ),
-                                                                            ],
-                                                                          );
-                                                                        },
-                                                                      ),
-                                                                      Positioned(
-                                                                        top: 0,
-                                                                        bottom:
-                                                                            0,
-                                                                        left: isSentByMe
-                                                                            ? -60
-                                                                            : null,
-                                                                        right: isSentByMe
-                                                                            ? null
-                                                                            : -60,
-                                                                        child:
-                                                                            Center(
-                                                                          child:
-                                                                              Material(
-                                                                            color:
-                                                                                Colors.transparent,
-                                                                            child:
-                                                                                InkWell(
-                                                                              borderRadius: BorderRadius.circular(20),
-                                                                              onTap: () {
-                                                                                MyRouter.pushReplace(
-                                                                                  screen: ForwardMessageScreen(
-                                                                                    messages: [
-                                                                                      normalizeMessage(message)
-                                                                                    ],
-                                                                                    currentUserId: currentUserId,
-                                                                                    conversionalid: widget.conversationId,
-                                                                                    username: widget.groupName,
-                                                                                  ),
-                                                                                );
-                                                                              },
-                                                                              child: CircleAvatar(
-                                                                                maxRadius: 16,
-                                                                                backgroundColor: Colors.white,
-                                                                                child: Image.asset(
-                                                                                  "assets/images/forward.png",
-                                                                                  height: 20,
-                                                                                  width: 20,
-                                                                                ),
-                                                                              ),
-                                                                            ),
-                                                                          ),
-                                                                        ),
-                                                                      ),
-                                                                    ],
-                                                                  ),
-                                                                ],
+                                                                  ],
+                                                                ),
                                                               ),
-                                                            ),
                                                         ],
                                                       ),
                                                     ),

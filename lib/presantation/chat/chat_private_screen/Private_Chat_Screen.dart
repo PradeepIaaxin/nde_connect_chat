@@ -4144,7 +4144,19 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
         final bool sameMediaType = _sameMediaType(prevType, currentType);
 
-        if (sameSender && prevIsMedia && diff <= 60 && sameMediaType) {
+        // Check if either message has a caption - don't group if they do
+        final bool prevHasCaption =
+            (prev['content']?.toString() ?? '').isNotEmpty;
+        final bool currentHasCaption =
+            (current['content']?.toString() ?? '').isNotEmpty;
+
+        // Group only if: same sender, both media, within time window, same type, AND neither has a caption
+        if (sameSender &&
+            prevIsMedia &&
+            diff <= 60 &&
+            sameMediaType &&
+            !prevHasCaption &&
+            !currentHasCaption) {
           prev['is_grouped_message'] = true;
           prev['group_message_id'] ??= prev['message_id'];
 

@@ -185,12 +185,30 @@ class ShowAltDialog {
                               () async {
                             final result = await FilePicker.platform
                                 .pickFiles(type: FileType.audio);
-                            if (result != null &&
-                                result.files.single.path != null) {
-                              setState(() {
-                                selectedFile = XFile(result.files.single.path!);
-                                selectedLabel = 'Audio';
-                              });
+                            if (result == null ||
+                                result.files.single.path == null) return;
+
+                            final xfile = XFile(result.files.single.path!);
+
+                            Navigator.of(context).pop();
+
+                            final localMessages = await Navigator.push<
+                                List<Map<String, dynamic>>>(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => MediaPreviewScreen(
+                                  files: [xfile],
+                                  conversationId: conversationId!,
+                                  senderId: senderId!,
+                                  receiverId: receiverId!,
+                                  isGroupChat: isGroupChat ?? false,
+                                ),
+                              ),
+                            );
+
+                            if (localMessages != null &&
+                                localMessages.isNotEmpty) {
+                              onOptionSelected(localMessages);
                             }
                           }),
                           _buildOption(context, Icons.location_on, "Location",
