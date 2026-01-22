@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nde_email/data/mailboxid.dart';
 import 'package:nde_email/presantation/contact/contact_screen.dart';
+import 'package:nde_email/presantation/mail/compose/model/composemodel.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/router/router.dart';
 import 'package:nde_email/utils/snackbar/snackbar.dart';
@@ -28,12 +29,6 @@ import 'dart:io';
 import 'package:nde_email/presantation/mail/compose/api/upload_files_api.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 
-enum ComposeAction {
-  reply,
-  replyAll,
-  forward,
-}
-
 class ComposeScreen extends StatefulWidget {
   final Map<String, dynamic>? draftData;
   final MailDetailModel? mailDetail;
@@ -42,8 +37,11 @@ class ComposeScreen extends StatefulWidget {
   final String? mailboxId;
 
   const ComposeScreen(
-      {Key? key, this.draftData, this.mailDetail, this.mailboxId, this.action})
-      : super(key: key);
+      {super.key,
+      this.draftData,
+      this.mailDetail,
+      this.mailboxId,
+      this.action});
 
   @override
   _ComposeScreenState createState() => _ComposeScreenState();
@@ -61,6 +59,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
   List<String> ccEmails = [];
   List<String> bccEmails = [];
   List<UploadedAttachment> attachments = [];
+
   bool isExpanded = false;
   String? fromEmail;
   bool showSuggestions = false;
@@ -299,28 +298,33 @@ class _ComposeScreenState extends State<ComposeScreen> {
             IconButton(
               icon: const Icon(Icons.send),
               onPressed: () async {
+                /// ✅ FORCE last typed email → chip
+                _flushPendingEmail(toCont, toEmails);
+                _flushPendingEmail(ccCont, ccEmails);
+                _flushPendingEmail(bccCont, bccEmails);
+
+                log("📤 FINAL TO EMAILS: $toEmails");
+                log("📤 FINAL CC EMAILS: $ccEmails");
+                log("📤 FINAL BCC EMAILS: $bccEmails");
+
                 if (fromEmail == null) {
                   Messenger.alert(msg: "Sender email not loaded. Please wait");
-
                   return;
                 }
+                final attachmentIds =
+                    attachments.map((e) => e.id).whereType<String>().toList();
 
-                String? draftMailboxId =
-                    await MailboxStorage.getDraftsMailboxId();
-                if (draftMailboxId == null || draftMailboxId.isEmpty) {
-                  Messenger.alert(msg: "No drafts mailbox ID found");
-
-                  return;
-                }
-
-                context.read<SendMailBloc>().add(SendMailRequest(
-                      fromEmail: fromEmail!,
-                      to: toCont.text,
-                      subject: subjectCont.text,
-                      body: composeMailCont.text,
-                      cc: ccCont.text.isNotEmpty ? ccCont.text : null,
-                      bcc: bccCont.text.isNotEmpty ? bccCont.text : null,
-                    ));
+                context.read<SendMailBloc>().add(
+                      SendMailRequest(
+                        fromEmail: fromEmail!,
+                        to: toEmails.join(','),
+                        subject: subjectCont.text,
+                        body: composeMailCont.text,
+                        attachmentIds: attachmentIds,
+                        cc: ccEmails.isNotEmpty ? ccEmails.join(',') : null,
+                        bcc: bccEmails.isNotEmpty ? bccEmails.join(',') : null,
+                      ),
+                    );
 
                 MyRouter.pop();
               },
@@ -463,7 +467,13 @@ class _ComposeScreenState extends State<ComposeScreen> {
                         label: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(inline.fileName),
+                            Flexible(
+                              child: Text(
+                                inline.fileName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                             if (inline.isInline)
                               const Padding(
                                 padding: EdgeInsets.only(left: 4),
@@ -488,6 +498,18 @@ class _ComposeScreenState extends State<ComposeScreen> {
         ));
   }
 
+  void _flushPendingEmail(
+    TextEditingController controller,
+    List<String> emailList,
+  ) {
+    final value = controller.text.trim();
+
+    if (value.isNotEmpty && !emailList.contains(value)) {
+      emailList.add(value);
+      controller.clear();
+    }
+  }
+
   Widget _buildSenderField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -506,7 +528,10 @@ class _ComposeScreenState extends State<ComposeScreen> {
   }
 
   Widget _buildEmailField(
-      String label, TextEditingController controller, List<String> emailList) {
+    String label,
+    TextEditingController controller,
+    List<String> emailList,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -521,7 +546,11 @@ class _ComposeScreenState extends State<ComposeScreen> {
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.zero,
                 ),
+
+                /// 🔹 NEW: space / comma / enter → chip
                 onChanged: (value) {
+                  _handleTypedEmail(value, controller, emailList);
+
                   if (value.isNotEmpty) {
                     context
                         .read<EmailSuggestionsBloc>()
@@ -529,51 +558,68 @@ class _ComposeScreenState extends State<ComposeScreen> {
                     setState(() => showSuggestions = true);
                   }
                 },
+
+                /// 🔹 ENTER key support
+                onFieldSubmitted: (_) {
+                  _handleTypedEmail(
+                      '${controller.text} ', controller, emailList);
+                },
               ),
             ),
             IconButton(
               icon: Icon(
-                  isExpanded ? Icons.arrow_drop_up : Icons.arrow_drop_down,
-                  color: AppColors.iconDefault),
+                isExpanded ? Icons.arrow_drop_up : Icons.arrow_drop_down,
+                color: AppColors.iconDefault,
+              ),
               onPressed: () => setState(() => isExpanded = !isExpanded),
             ),
             IconButton(
-              icon: const Icon(Icons.contacts,
-                  color: AppColors.iconActive, size: 20),
+              icon: const Icon(
+                Icons.contacts,
+                color: AppColors.iconActive,
+                size: 20,
+              ),
               onPressed: () {
                 MyRouter.push(screen: ContactsScreen());
               },
             ),
           ],
         ),
+
+        /// 🔹 EMAIL CHIPS (OLD UI – UNCHANGED)
         Wrap(
           spacing: 4.0,
           runSpacing: 2.0,
           children: [
-            ...emailList.take(3).map((email) => Chip(
-                  avatar: CircleAvatar(
-                    radius: 16,
-                    backgroundColor: AppColors.profile,
-                    child: Text(
-                      _getInitial(email),
-                      style: const TextStyle(
+            ...emailList.take(3).map(
+                  (email) => Chip(
+                    avatar: CircleAvatar(
+                      radius: 16,
+                      backgroundColor: AppColors.profile,
+                      child: Text(
+                        _getInitial(email),
+                        style: const TextStyle(
                           color: AppColors.bg,
                           fontSize: 14,
-                          fontWeight: FontWeight.bold),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
-                  ),
-                  label: Text(email),
-                  onDeleted: () => setState(() => emailList.remove(email)),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                    side: const BorderSide(
-                      color: AppColors.secondaryText,
-                      width: 1.0,
+                    label: Text(email),
+                    onDeleted: () => setState(() => emailList.remove(email)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      side: const BorderSide(
+                        color: AppColors.secondaryText,
+                        width: 1.0,
+                      ),
                     ),
+                    backgroundColor: Colors.white,
+                    elevation: 0,
                   ),
-                  backgroundColor: Colors.white,
-                  elevation: 0,
-                )),
+                ),
+
+            /// 🔹 +N MORE CHIP (OLD LOGIC)
             if (emailList.length > 3)
               GestureDetector(
                 onTap: () => _showEmailDialog(context, emailList),
@@ -598,11 +644,16 @@ class _ComposeScreenState extends State<ComposeScreen> {
               ),
           ],
         ),
+
+        /// 🔹 EMAIL SUGGESTIONS (OLD LOGIC – UNCHANGED)
         if (showSuggestions)
           BlocBuilder<EmailSuggestionsBloc, EmailSuggestionsState>(
             builder: (context, state) {
               if (state is EmailSuggestionsLoading) {
-                return const CircularProgressIndicator();
+                return const Padding(
+                  padding: EdgeInsets.all(8),
+                  child: CircularProgressIndicator(),
+                );
               } else if (state is EmailSuggestionsLoaded) {
                 return ListView.builder(
                   shrinkWrap: true,
@@ -616,7 +667,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
                         child: Text(
                           user.userName.isNotEmpty
                               ? user.userName[0].toUpperCase()
-                              : '?',
+                              : 'U',
                           style: const TextStyle(color: AppColors.bg),
                         ),
                       ),
@@ -635,6 +686,32 @@ class _ComposeScreenState extends State<ComposeScreen> {
           ),
       ],
     );
+  }
+
+  bool _isValidEmail(String email) {
+    return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email);
+  }
+
+  void _handleTypedEmail(
+    String value,
+    TextEditingController controller,
+    List<String> emailList,
+  ) {
+    if (value.endsWith(' ') || value.endsWith(',') || value.endsWith('\n')) {
+      final email = value.replaceAll(',', '').trim();
+
+      if (email.isNotEmpty && !emailList.contains(email)) {
+        if (_isValidEmail(email)) {
+          setState(() {
+            emailList.add(email);
+            controller.clear();
+            showSuggestions = false;
+          });
+        } else {
+          Messenger.alert(msg: "Invalid email: $email");
+        }
+      }
+    }
   }
 
   void _showEmailDialog(BuildContext context, List<String> emailList) {
@@ -689,43 +766,100 @@ class _ComposeScreenState extends State<ComposeScreen> {
     if (email.contains('@')) {
       return email.split('@').first[0].toUpperCase();
     }
-    return email.isNotEmpty ? email[0].toUpperCase() : '?';
+    return email.isNotEmpty ? email[0].toUpperCase() : 'U';
   }
 
   Widget _buildCCBCCFields() {
     return Column(
       children: [
-        _buildCCBCCField("Cc", ccCont),
-        _buildCCBCCField("Bcc", bccCont),
+        _buildCCBCCField("Cc", ccCont, ccEmails),
+        _buildCCBCCField("Bcc", bccCont, bccEmails),
       ],
     );
   }
 
-  Widget _buildCCBCCField(String label, TextEditingController controller) {
-    return Row(
+  Widget _buildCCBCCField(
+    String label,
+    TextEditingController controller,
+    List<String> emailList,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        /// 🛠️ Apply proper gray color with full opacity
-        Text(
-          label,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: AppColors.secondaryText,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: TextFormField(
-            controller: controller,
-            decoration: const InputDecoration(
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.zero,
+        Row(
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppColors.secondaryText,
+              ),
             ),
-            onChanged: (value) {
-              context
-                  .read<EmailSuggestionsBloc>()
-                  .add(FetchEmailSuggestions(value));
-            },
-          ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextFormField(
+                controller: controller,
+                decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                ),
+
+                /// 🔹 same behavior as TO
+                onChanged: (value) {
+                  _handleTypedEmail(value, controller, emailList);
+
+                  if (value.isNotEmpty) {
+                    context
+                        .read<EmailSuggestionsBloc>()
+                        .add(FetchEmailSuggestions(value));
+                    setState(() => showSuggestions = true);
+                  }
+                },
+
+                onFieldSubmitted: (_) {
+                  _handleTypedEmail(
+                    '${controller.text} ',
+                    controller,
+                    emailList,
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+
+        /// 🔹 CC / BCC CHIPS (SAME AS TO)
+        Wrap(
+          spacing: 4,
+          runSpacing: 2,
+          children: emailList.map((email) {
+            return Chip(
+              avatar: CircleAvatar(
+                radius: 16,
+                backgroundColor: AppColors.profile,
+                child: Text(
+                  _getInitial(email),
+                  style: const TextStyle(
+                    color: AppColors.bg,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              label: Text(email),
+              onDeleted: () {
+                setState(() => emailList.remove(email));
+              },
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+                side: const BorderSide(
+                  color: AppColors.secondaryText,
+                ),
+              ),
+              backgroundColor: Colors.white,
+              elevation: 0,
+            );
+          }).toList(),
         ),
       ],
     );
@@ -755,20 +889,4 @@ class _ComposeScreenState extends State<ComposeScreen> {
       onChanged: (value) => _onTextChanged(),
     );
   }
-}
-
-class UploadedAttachment {
-  final String? id;
-  final String fileName;
-  final String filePath;
-  final bool isInline;
-  final String? mimeType;
-
-  UploadedAttachment({
-    this.id,
-    required this.fileName,
-    required this.filePath,
-    required this.isInline,
-    this.mimeType,
-  });
 }

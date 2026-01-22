@@ -1,5 +1,7 @@
+import 'dart:developer';
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/VideoCacheService.dart';
 import 'package:nde_email/utils/const/consts.dart';
@@ -44,11 +46,32 @@ class GroupedMediaWidget extends StatelessWidget {
       this.emojpicker,
       this.onReact,
       required this.message});
+  buildReactionsBar;
+  final List<String> recentEmojis;
+  final Function(List<String>) onEmojiUpdated;
+  final bool isSelected;
+  final Color selectedMessageColor;
+  final VoidCallback? onLongPress;
+  final bool isSelectionMode;
+
+  const GroupedMediaWidget(
+      {super.key,
+        required this.media,
+        required this.isSentByMe,
+        required this.time,
+        this.onImageTap,
+        required this.messageStatus,
+        this.buildStatusIcon,
+        this.onForwardTap,
+        this.onRightSwipe,
+        this.messageId,
+        this.isHighlighted = false,  this.isForwarded=false, this.isReaction, this.buildReactionsBar, this.emojpicker, this.onReact, required this.message, required this.recentEmojis, required this.onEmojiUpdated, required this.isSelected, required this.selectedMessageColor, this.onLongPress, required this.isSelectionMode});
 
   static const double _statusBarHeight = 20;
 
   @override
   Widget build(BuildContext context) {
+    print("isSelected $isSelected");
     if (media.isEmpty) return const SizedBox.shrink();
 
     final screenWidth = MediaQuery.of(context).size.width;
@@ -111,24 +134,93 @@ class GroupedMediaWidget extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Image.asset(
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    margin: EdgeInsets.only(
+                      left: isSentByMe ? 60 : 0,
+                      right: isSentByMe ? 1 : 60,
+                      bottom: 8,
+                    ),
+                    width: bubbleWidth,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.only(
+                        topLeft: const Radius.circular(18),
+                        topRight: const Radius.circular(18),
+                        bottomLeft:
+                        isSentByMe ? const Radius.circular(18) : Radius.zero,
+                        bottomRight:
+                        isSentByMe ? Radius.zero : const Radius.circular(16),
+                      ),
+                      border: Border.all(
+                          color: isSelected
+                              ? selectedMessageColor:isSentByMe ? senderColor : receiverColor,
+                          width: 5),
+                      color: isSelected
+                          ? selectedMessageColor
+                          : isSentByMe
+                          ? senderColor
+                          : receiverColor,
+
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 🔹 MEDIA AREA
+
+                        if ( isForwarded==true)
+                          Padding(
+                            padding: const EdgeInsets.all(2.0),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Image.asset(
+                                  "assets/images/forward.png",
+                                  height: 14,
+                                  width: 14,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  "Forwarded",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[700],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        AspectRatio(
+                          aspectRatio: _aspectRatio(visibleCount),
+                          child: _buildMediaLayout(context, visibleCount),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Positioned(
+                    top: 160,
+                    right: isSentByMe ? 420 : null,
+                    left: isSentByMe ? null : 420,
+                    child: Center(
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: onForwardTap,
+                          child: CircleAvatar(
+                            radius: 16,
+                            backgroundColor: Colors.white,
+                            child: Image.asset(
                               "assets/images/forward.png",
-                              height: 14,
-                              width: 14,
+                              height: 20,
+                              width: 20,
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              "Forwarded",
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[700],
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
-                    AspectRatio(
-                      aspectRatio: _aspectRatio(visibleCount),
-                      child: _buildMediaLayout(context, visibleCount),
                     ),
                     if (message['content'] != null &&
                         message['content'].toString().isNotEmpty &&
@@ -142,6 +234,8 @@ class GroupedMediaWidget extends StatelessWidget {
                       ),
                   ],
                 ),
+                  ),
+                ],
               ),
               if (message['content'] == null ||
                   message['content'].toString().isEmpty ||
@@ -197,6 +291,32 @@ class GroupedMediaWidget extends StatelessWidget {
                 ),
               ),
               if (isReaction! && buildReactionsBar != null)
+              ),
+              // Positioned(
+              //   top: 8,
+              //   right: isSentByMe ? 8 : null,
+              //   left: isSentByMe ? null : 8,
+              //   child: Center(
+              //     child: Material(
+              //       color: Colors.transparent,
+              //       child: InkWell(
+              //         borderRadius: BorderRadius.circular(20),
+              //         onTap: onForwardTap,
+              //         child: CircleAvatar(
+              //           radius: 16,
+              //           backgroundColor: Colors.white,
+              //           child: Image.asset(
+              //             "assets/images/forward.png",
+              //             height: 20,
+              //             width: 20,
+              //           ),
+              //         ),
+              //       ),
+              //     ),
+              //   ),
+              // ),
+              if (isReaction! &&
+                  buildReactionsBar != null)
                 Positioned(
                   bottom: -37,
                   right: isSentByMe ? 12 : null,
@@ -222,7 +342,7 @@ class GroupedMediaWidget extends StatelessWidget {
   // ----------------- Aspect Ratios -----------------
   void _showReactionPicker(BuildContext context) {
     if (onReact == null) return;
-    final List<String> emojis = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -246,6 +366,65 @@ class GroupedMediaWidget extends StatelessWidget {
                       child: Text(emoji, style: const TextStyle(fontSize: 26)),
                     ))
                 .toList(),
+            children: [
+              ...recentEmojis.map((emoji) => GestureDetector(
+                onTap: () {
+                  Navigator.pop(ctx);
+                onReact?.call(message, emoji);
+                },
+                child: Text(emoji, style: const TextStyle(fontSize: 26)),
+              )),
+
+              GestureDetector(
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _openFullEmojiPicker(context);
+                },
+                child: const Icon(Icons.add_circle_outline, size: 26),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _openFullEmojiPicker(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) {
+        return SizedBox(
+          height: 350,
+          child: EmojiPicker(
+            onEmojiSelected: (category, emoji) {
+
+              final list = List<String>.from(recentEmojis);
+
+              if (!list.contains(emoji.emoji)) {
+                if (list.length >= 6) list.removeAt(0);
+                list.add(emoji.emoji);
+              }
+
+            onEmojiUpdated(list);
+
+             onReact?.call(message, emoji.emoji);
+
+              Navigator.pop(context);
+            },
+
+            // onEmojiSelected: (category, emoji) {
+            //   Navigator.pop(context);
+            //
+            //   setState(() {
+            //     if (!_recentEmojis.contains(emoji.emoji)) {
+            //       _recentEmojis.removeAt(0); // keep max 6
+            //       _recentEmojis.add(emoji.emoji);
+            //     }
+            //   });
+            //
+            //   widget.onReact?.call(widget.message, emoji.emoji);
+            // },
           ),
         );
       },
@@ -257,9 +436,9 @@ class GroupedMediaWidget extends StatelessWidget {
       case 1:
         return 1;
       case 2:
-        return 2 / 2;
+        return 2 / 1.7;
       case 3:
-        return 3 / 2;
+        return 3 / 2.6;
       default:
         return 1;
     }
@@ -379,18 +558,35 @@ class GroupedMediaWidget extends StatelessWidget {
     return ClipRRect(
       borderRadius: const BorderRadius.all(Radius.circular(10)),
       child: GestureDetector(
-        onTap: () {
-          debugPrint("Tapped index $index => ${item.mediaUrl}");
-          onImageTap?.call(index);
-        },
+        // onTap: () {
+        //   debugPrint("Tapped index $index => ${item.mediaUrl}");
+        //   onImageTap?.call(index);
+        // },
+        // onLongPress: () {
+        //   log("lllllllllllllll $message");
+        //   _showReactionPicker(context);
+        //  onLongPress?.call();
+        // },
         onLongPress: () {
-          _showReactionPicker(context);
+          if (!isSelectionMode) {
+            _showReactionPicker(context);
+          }
+          onLongPress?.call();
         },
+        onTap: () {
+          if (isSelectionMode) {
+            onLongPress?.call(); // toggle selection
+          } else {
+            onImageTap?.call(index);
+          }
+        },
+
+
         child: Stack(
           fit: StackFit.expand,
           children: [
             Hero(
-              tag: item.mediaUrl,
+              tag: item.uniqueId ?? '${item.mediaUrl}_$index',
               child: _thumb(item),
             ),
             if (item.isVideo)

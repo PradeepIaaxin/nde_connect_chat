@@ -61,6 +61,48 @@ class FetchMailListapi {
     }
   }
 
+  Future<bool> moveMail({
+    required List<int> mailIds,
+    required String sourceMailboxId,
+    required String targetMailboxId,
+  }) async {
+    if (mailIds.isEmpty) {
+      log("❌ No mail IDs provided");
+      return false;
+    }
+
+    final accessToken = await UserPreferences.getAccessToken();
+    final workspace = await UserPreferences.getDefaultWorkspace();
+
+    final messageIds = mailIds.map((id) => id.toString()).toList();
+
+    final url = Uri.parse(
+      "${ApiService.baseUrl}/user/message/move/mailboxes/$sourceMailboxId?all=false",
+    );
+
+    final payload = {
+      "moveTo": targetMailboxId,
+      "messageIds": messageIds,
+    };
+
+    log("📤 MOVE PAYLOAD: ${jsonEncode(payload)}");
+
+    final response = await http.put(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $accessToken",
+        "X-WorkSpace": workspace ?? '',
+      },
+      body: jsonEncode(payload),
+    );
+
+    log("📥 Status: ${response.statusCode}");
+    log("📥 Body: ${response.body}");
+
+    return response.statusCode == 200;
+  }
+
   Future<void> _handleUnauthorized() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
 
@@ -118,24 +160,32 @@ class FetchMailListapi {
     }
   }
 
-  Future<bool> moveToArchive(List<int> mailIds, String mailboxId) async {
+  Future<bool> moveToArchive(List<int> mailIds, String sourceMailboxId) async {
     if (mailIds.isEmpty) {
-      log("Error: No emails selected to archive!");
+      log("❌ Error: No emails selected to archive!");
       return false;
     }
 
-    String? accessToken = await UserPreferences.getAccessToken();
-    String? defaultWorkspace = await UserPreferences.getDefaultWorkspace();
-    String? archiveMailboxId = await MailboxStorage.getArchiveMailboxId();
+    final accessToken = await UserPreferences.getAccessToken();
+    final defaultWorkspace = await UserPreferences.getDefaultWorkspace();
+    final archiveMailboxId = await MailboxStorage.getArchiveMailboxId();
 
-    if (archiveMailboxId == null) {
-      log("Error: Archive mailbox ID not found!");
+    if (archiveMailboxId == null || archiveMailboxId.isEmpty) {
+      log("❌ Error: Archive mailbox ID not found!");
       return false;
     }
+
+    /// ✅ Convert int → string
+    final messageIds = mailIds.map((id) => id.toString()).toList();
 
     final url = Uri.parse(
-      "${ApiService.baseUrl}/user/message/move/mailboxes/$mailboxId?all=false",
+      "${ApiService.baseUrl}/user/message/move/mailboxes/$sourceMailboxId?all=false",
     );
+
+    log("📤 MOVE PAYLOAD: ${jsonEncode({
+          "moveTo": archiveMailboxId,
+          "messageIds": messageIds,
+        })}");
 
     final response = await http.put(
       url,
@@ -145,19 +195,19 @@ class FetchMailListapi {
         "X-WorkSpace": defaultWorkspace ?? '',
       },
       body: jsonEncode({
-        "messageIds": mailIds,
         "moveTo": archiveMailboxId,
+        "messageIds": messageIds,
       }),
     );
 
-    log("Response Status Code: ${response.statusCode}");
-    log("Response Body: ${response.body}");
+    log("📥 Response Status Code: ${response.statusCode}");
+    log("📥 Response Body: ${response.body}");
 
     if (response.statusCode == 200) {
-      log("Emails moved to archive successfully.");
+      log("✅ Emails moved to Archive successfully");
       return true;
     } else {
-      log("Error: Failed to move emails to archive.");
+      log("❌ Failed to move emails");
       return false;
     }
   }
