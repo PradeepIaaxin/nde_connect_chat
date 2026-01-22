@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import 'mail_list_model.dart';
+import '../model/mail_list_model.dart';
 
 enum MailListStatus {
   initial,

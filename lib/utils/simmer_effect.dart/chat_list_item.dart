@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:nde_email/presantation/chat/chat_list/chat_screen.dart';
 import 'package:nde_email/presantation/chat/widget/profile_dialog.dart';
 import 'package:nde_email/utils/reusbale/colour_utlis.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';

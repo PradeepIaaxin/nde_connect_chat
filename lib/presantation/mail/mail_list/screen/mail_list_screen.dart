@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/mail_list_widget/mail_list_widget.dart';
-import 'mail_list_bloc.dart';
-import 'mail_list_event.dart';
-import 'mail_list_state.dart';
+import '../bloc/mail_list_bloc.dart';
+import '../bloc/mail_list_event.dart';
+import '../bloc/mail_list_state.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/error_display.dart';
 
 class MailListScreen extends StatefulWidget {
