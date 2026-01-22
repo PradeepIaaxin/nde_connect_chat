@@ -304,10 +304,9 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
   // REACTIONS
   // =====================================================
   Future<void> _onAddReaction(
-      AddReaction event,
-      Emitter<MessagerState> emit,
-      )
-  async {
+    AddReaction event,
+    Emitter<MessagerState> emit,
+  ) async {
     try {
       log('🔹 _onAddReaction called with: rawMessageId=${event.messageId}');
 
@@ -333,7 +332,8 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
       // } else {
       //   log('ℹ️ Skipping HTTP reactionUpdated for temp messageId=$rawId');
       // }
-      final roomId = socketService.generateRoomId(event.userId, event.receiverId);
+      final roomId =
+          socketService.generateRoomId(event.userId, event.receiverId);
       // 5️⃣ Always send via socket so others see it
       log("rrrrrrrrrrrrr $roomId");
       socketService.emitReaction(
@@ -341,9 +341,8 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
           conversationId: event.conversationId,
           emoji: event.emoji,
           roomId: roomId,
-          userId:event.userId,
-          receiverId:event.receiverId
-      );
+          userId: event.userId,
+          receiverId: event.receiverId);
     } catch (e, st) {
       log('❌ Error adding reaction: $e');
       log(st.toString());
@@ -352,10 +351,9 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
   }
 
   Future<void> _onRemoveReaction(
-      RemoveReaction event,
-      Emitter<MessagerState> emit,
-      )
-  async {
+    RemoveReaction event,
+    Emitter<MessagerState> emit,
+  ) async {
     try {
       log('🔹 _onRemoveReaction called with: rawMessageId=${event.messageId}');
 
@@ -373,12 +371,13 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
       // } else {
       //   log('ℹ️ Skipping HTTP reactionRemove for temp messageId=$rawId');
       // }
-      final roomId = socketService.generateRoomId(event.userId, event.receiverId);
+      final roomId =
+          socketService.generateRoomId(event.userId, event.receiverId);
       socketService.removeReaction(
         messageId: backendId, // 👈 normalized id
         conversationId: event.conversationId,
         emoji: event.emoji,
-        userId:roomId,
+        userId: roomId,
         firstName: event.firstName ?? "",
         lastName: event.lastName ?? "",
       );
@@ -387,7 +386,6 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
       log(st.toString());
     }
   }
-
 
   Future<void> _forwardMessage(
     ForwardMessageEvent event,
@@ -483,7 +481,7 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
                 );
 
           socketService.sendMessage(
-            isGroupMessage: event.isGroupMessageChat??false,
+            isGroupMessage: event.isGroupMessageChat ?? false,
             groupMessageId: event.groupMesageId,
             messageId: tempMessageId,
             conversationId: event.convoId,
@@ -545,21 +543,19 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
       log("replyGroupMessageCount ${event.replyGroupMessageCount}");
       final String? convoId = event.convoId!.isEmpty ? null : event.convoId;
       socketService.sendMessage(
-        isGroupMessage: event.replyIsGroupMessage ?? false,
-        messageId: msgId,
-        conversationId: convoId,
-        senderId: event.senderId,
-        receiverId: event.receiverId,
-        message: event.message,
-        roomId: roomId,
-        workspaceId: workspaceID!,
-        isGroupChat: false,
-        contentType: event.contentType,
-        reply: event.replyTo,
-        groupMessageId: event.replyGroupMessageId,
-          replyGroupImageCount:event.replyGroupMessageCount
-
-      );
+          isGroupMessage: event.replyIsGroupMessage ?? false,
+          messageId: msgId,
+          conversationId: convoId,
+          senderId: event.senderId,
+          receiverId: event.receiverId,
+          message: event.message,
+          roomId: roomId,
+          workspaceId: workspaceID!,
+          isGroupChat: false,
+          contentType: event.contentType,
+          reply: event.replyTo,
+          groupMessageId: event.replyGroupMessageId,
+          replyGroupImageCount: event.replyGroupMessageCount);
 
       final localMessage = Message(
         senderId: event.senderId,
