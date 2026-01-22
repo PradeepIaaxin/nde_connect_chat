@@ -3,14 +3,24 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
 
+import 'package:nde_email/presantation/widgets/chat_widgets/Common/message_caption.dart';
+
 class GroupedMediaWidget extends StatelessWidget {
   final List<String> mediaUrls;
   final Function(int index)? onMediaTap;
+  final String? caption;
+  final bool isSentByMe;
+  final String time;
+  final String messageStatus;
 
   const GroupedMediaWidget({
     super.key,
     required this.mediaUrls,
     this.onMediaTap,
+    this.caption,
+    this.isSentByMe = false,
+    this.time = '',
+    this.messageStatus = '',
   });
 
   @override
@@ -25,9 +35,21 @@ class GroupedMediaWidget extends StatelessWidget {
 
     return ConstrainedBox(
       constraints: BoxConstraints(maxWidth: bubbleWidth),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: _buildLayout(context),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: _buildLayout(context),
+          ),
+          if (caption != null && caption!.isNotEmpty && caption != "null")
+            MessageCaption(
+              content: caption!,
+              time: time,
+              isSentByMe: isSentByMe,
+              messageStatus: messageStatus,
+            ),
+        ],
       ),
     );
   }

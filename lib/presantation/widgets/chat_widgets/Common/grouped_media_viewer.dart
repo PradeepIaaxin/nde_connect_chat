@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/VideoCacheService.dart';
 import 'package:nde_email/utils/const/consts.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/whatsapp_swipe_to_reply.dart';
+import 'package:nde_email/presantation/widgets/chat_widgets/Common/message_caption.dart';
 
 class GroupedMediaWidget extends StatelessWidget {
   final List<GroupMediaItem> media;
@@ -25,6 +26,26 @@ class GroupedMediaWidget extends StatelessWidget {
   final Map<String, dynamic> message;
 
   final Widget Function(Map<String, dynamic> msg, bool isSentByMe)?
+      buildReactionsBar;
+
+  const GroupedMediaWidget(
+      {super.key,
+      required this.media,
+      required this.isSentByMe,
+      required this.time,
+      this.onImageTap,
+      required this.messageStatus,
+      this.buildStatusIcon,
+      this.onForwardTap,
+      this.onRightSwipe,
+      this.messageId,
+      this.isHighlighted = false,
+      this.isForwarded = false,
+      this.isReaction,
+      this.buildReactionsBar,
+      this.emojpicker,
+      this.onReact,
+      required this.message});
   buildReactionsBar;
   final List<String> recentEmojis;
   final Function(List<String>) onEmojiUpdated;
@@ -57,7 +78,7 @@ class GroupedMediaWidget extends StatelessWidget {
 
     // ✅ WhatsApp-like bubble width
     final double bubbleWidth =
-    screenWidth < 600 ? screenWidth * 0.72 : screenWidth * 0.5;
+        screenWidth < 600 ? screenWidth * 0.72 : screenWidth * 0.5;
 
     final visibleCount = media.length > 4 ? 4 : media.length;
 
@@ -68,7 +89,8 @@ class GroupedMediaWidget extends StatelessWidget {
         key: ValueKey(messageId),
         duration: const Duration(milliseconds: 600),
         curve: Curves.easeOut,
-        margin:  EdgeInsets.only(bottom: isReaction!?20:2,top:isReaction!?0: 5),
+        margin: EdgeInsets.only(
+            bottom: isReaction! ? 20 : 2, top: isReaction! ? 0 : 5),
         color: isHighlighted!
             ? Colors.blueAccent.withValues(alpha: 0.3)
             : Colors.transparent,
@@ -77,6 +99,41 @@ class GroupedMediaWidget extends StatelessWidget {
           child: Stack(
             clipBehavior: Clip.none,
             children: [
+              Container(
+                margin: EdgeInsets.only(
+                  left: isSentByMe ? 60 : 0,
+                  right: isSentByMe ? 1 : 60,
+                  bottom: 8,
+                ),
+                width: bubbleWidth,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.only(
+                    topLeft: const Radius.circular(18),
+                    topRight: const Radius.circular(18),
+                    bottomLeft:
+                        isSentByMe ? const Radius.circular(18) : Radius.zero,
+                    bottomRight:
+                        isSentByMe ? Radius.zero : const Radius.circular(16),
+                  ),
+                  border: Border.all(
+                      color: isSentByMe ? senderColor : receiverColor,
+                      width: 5),
+                  color: isSentByMe ? senderColor : receiverColor,
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 🔹 MEDIA AREA
+
+                    if (isForwarded == true)
+                      Padding(
+                        padding: const EdgeInsets.all(2.0),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Image.asset(
               Stack(
                 clipBehavior: Clip.none,
                 children: [
@@ -165,32 +222,75 @@ class GroupedMediaWidget extends StatelessWidget {
                         ),
                       ),
                     ),
+                    if (message['content'] != null &&
+                        message['content'].toString().isNotEmpty &&
+                        message['content'].toString() != "null")
+                      MessageCaption(
+                        content: message['content'].toString(),
+                        time: time,
+                        isSentByMe: isSentByMe,
+                        messageStatus: messageStatus,
+                        buildStatusIcon: buildStatusIcon,
+                      ),
+                  ],
+                ),
                   ),
                 ],
               ),
-              Positioned(
-                height: _statusBarHeight,
-                bottom: 18,
-                right:isSentByMe? 10:70,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.45),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Row(
-                    children: [
-                      Text(
-                        time,
-                        style: const TextStyle(fontSize: 11, color: Colors.white),
-                      ),
-                      if (isSentByMe && buildStatusIcon != null) ...[
-                        const SizedBox(width: 4),
-                        buildStatusIcon!(messageStatus),
+              if (message['content'] == null ||
+                  message['content'].toString().isEmpty ||
+                  message['content'].toString() == "null")
+                Positioned(
+                  height: _statusBarHeight,
+                  bottom: 18,
+                  right: isSentByMe ? 10 : 70,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.45),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      children: [
+                        Text(
+                          time,
+                          style: const TextStyle(
+                              fontSize: 11, color: Colors.white),
+                        ),
+                        if (isSentByMe && buildStatusIcon != null) ...[
+                          const SizedBox(width: 4),
+                          buildStatusIcon!(messageStatus),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
+              Positioned(
+                top: 0,
+                bottom: 0,
+                left: isSentByMe ? 25 : screenWidth * 0.58,
+                right: isSentByMe ? null : -52,
+                child: Center(
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(20),
+                      onTap: onForwardTap,
+                      child: CircleAvatar(
+                        radius: 16,
+                        backgroundColor: Colors.white,
+                        child: Image.asset(
+                          "assets/images/forward.png",
+                          height: 20,
+                          width: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              if (isReaction! && buildReactionsBar != null)
               ),
               // Positioned(
               //   top: 8,
@@ -218,17 +318,17 @@ class GroupedMediaWidget extends StatelessWidget {
               if (isReaction! &&
                   buildReactionsBar != null)
                 Positioned(
-                  bottom:  -37,
+                  bottom: -37,
                   right: isSentByMe ? 12 : null,
-                  left:isSentByMe ? null : 12,
+                  left: isSentByMe ? null : 12,
                   child: Padding(
-                    padding: EdgeInsets.only(bottom: 20,top: 20),
+                    padding: EdgeInsets.only(bottom: 20, top: 20),
                     child: GestureDetector(
                       onTap: () {
                         // show reaction picker on tap too
                         _showReactionPicker(context);
                       },
-                      child:buildReactionsBar!(message,isSentByMe),
+                      child: buildReactionsBar!(message, isSentByMe),
                     ),
                   ),
                 ),
@@ -256,6 +356,16 @@ class GroupedMediaWidget extends StatelessWidget {
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: emojis
+                .map((emoji) => GestureDetector(
+                      onTap: () {
+                        Navigator.pop(ctx);
+
+                        onReact?.call(message, emoji);
+                      },
+                      child: Text(emoji, style: const TextStyle(fontSize: 26)),
+                    ))
+                .toList(),
             children: [
               ...recentEmojis.map((emoji) => GestureDetector(
                 onTap: () {
@@ -320,6 +430,7 @@ class GroupedMediaWidget extends StatelessWidget {
       },
     );
   }
+
   double _aspectRatio(int count) {
     switch (count) {
       case 1:
@@ -368,7 +479,7 @@ class GroupedMediaWidget extends StatelessWidget {
                 Container(
                   height: 4,
                   color:
-                  isSentByMe ? senderColor : receiverColor, // divider line
+                      isSentByMe ? senderColor : receiverColor, // divider line
                 ),
                 Expanded(child: _tile(context, 2)),
               ],
@@ -607,13 +718,14 @@ class GroupMediaItem {
   final String? time;
   final String? uniqueId; // 🔥 ADD THIS
 
-
   GroupMediaItem({
     required this.previewUrl,
     required this.mediaUrl,
     required this.isVideo,
     this.senderName,
     this.senderId,
-    this.time,  this.uniqueId,  this.isReactions,
+    this.time,
+    this.uniqueId,
+    this.isReactions,
   });
 }

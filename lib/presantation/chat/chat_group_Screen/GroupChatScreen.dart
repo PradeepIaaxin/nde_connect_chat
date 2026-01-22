@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_sound/public/flutter_sound_player.dart';
 import 'package:flutter_sound/public/flutter_sound_recorder.dart';
+import 'package:gallery_saver_plus/files.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mime/mime.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/local_strorage.dart';
@@ -33,6 +34,7 @@ import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/grp
 import 'package:nde_email/utils/const/consts.dart';
 import 'package:nde_email/utils/datetime/date_time_utils.dart';
 import 'package:nde_email/utils/reusbale/colour_utlis.dart';
+import 'package:nde_email/utils/reusbale/common_import.dart';
 import 'package:nde_email/utils/router/router.dart';
 import 'package:nde_email/utils/snackbar/snackbar.dart';
 import 'package:nde_email/utils/spacer/spacer.dart';
@@ -69,6 +71,7 @@ class GroupChatScreen extends StatefulWidget {
     required this.grpChat,
     required this.favorite,
     required this.groupMembers,
+    this.groupId,
   });
 
   final String conversationId;
@@ -79,6 +82,7 @@ class GroupChatScreen extends StatefulWidget {
   final List<String>? groupMembers;
   final bool grpChat;
   final bool favorite;
+  final String? groupId;
 
   @override
   State<GroupChatScreen> createState() => _GroupChatScreenState();
@@ -118,7 +122,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   // Locked Recording State
   bool _isRecordingLocked = false;
 
-  final TextEditingController _messageController = TextEditingController();
+  final MentionTextEditingController _messageController =
+      MentionTextEditingController();
   final TextEditingController _searchController = TextEditingController();
 
   final FlutterSoundPlayer _player = FlutterSoundPlayer();
@@ -342,7 +347,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     groupMembers = widget.groupMembers ?? [];
 
     // Fetch fresh group details to ensure we have all members
-    _groupBloc.add(FetchGroupDetails(groupId: widget.datumId));
+    _groupBloc
+        .add(FetchGroupDetails(groupId: widget.groupId ?? widget.datumId));
     _loadCurrentUserName();
 
     // Listen to BLoC states for instant status updates
@@ -356,6 +362,19 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               '📤 Message sent successfully: $serverMessageId with status: $serverStatus');
           _updateMessageStatus(serverMessageId, serverStatus);
         }
+      } else if (state is GrpMessageAckReceived) {
+        debugPrint(
+            '✅ ACK Received: ${state.tempId} -> ${state.realId} (${state.status})');
+        _replaceTempMessageWithReal(
+          tempId: state.tempId,
+          realId: state.realId,
+          status: state.status,
+        );
+      } else if (state is GroupDetailsLoaded) {
+        _updateGroupMembers(state.groupDetails);
+      } else if (state is GroupChatLoaded) {
+        debugPrint(
+            "📨 GroupChatLoaded received in initState! knownMemberIds: ${_knownMemberIds.length}");
       }
     });
 
@@ -567,6 +586,30 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         final mid = (m['message_id'] ?? m['messageId'] ?? m['_id'])?.toString();
         return mid == messageId;
       });
+
+      // If not found by ID, but it's from me, attempt heuristic match with pending messages
+      if (existingIndex == -1 &&
+          (sender['_id']?.toString() == currentUserId ||
+              newMessage['senderId'] == currentUserId)) {
+        existingIndex = socketMessages.indexWhere((m) {
+          final isPending = m['messageStatus'] == 'sending' ||
+              m['messageStatus'] == 'pending_offline' ||
+              m['messageStatus'] == 'sent';
+          if (!isPending) return false;
+
+          // Match by content for text
+          if (newMessage['ContentType'] == 'text') {
+            return m['content']?.toString().trim() ==
+                newMessage['content']?.toString().trim();
+          }
+          // Match by fileName for media
+          if (newMessage['fileName'] != null &&
+              m['fileName'] == newMessage['fileName']) {
+            return true;
+          }
+          return false;
+        });
+      }
 
       if (existingIndex != -1) {
         // Update existing message with server data
@@ -1506,36 +1549,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
   }
 
-  Future<void> _loadSessionImagePath() async {
-    final prefs = await SharedPreferences.getInstance();
-    final imagePath = prefs.getString('chat_image_path');
-
-    if (imagePath != null && imagePath.isNotEmpty) {
-      setState(() {
-        _imageFile = File(imagePath);
-        log(" -----image-- $_imageFile");
-      });
-    }
-  }
-
-  Future<void> _clearSessionPaths() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('chat_image_path');
-    await prefs.remove('chat_file_path');
-  }
-
-  Future<void> _loadSessionFilePath() async {
-    final prefs = await SharedPreferences.getInstance();
-    final filePath = prefs.getString('chat_file_path');
-
-    if (filePath != null && filePath.isNotEmpty) {
-      setState(() {
-        _fileUrl = File(filePath);
-        log(" ------- $_fileUrl");
-      });
-    }
-  }
-
   void _sendMessage() async {
     if (_messageController.text.trim().isEmpty || widget.datumId.isEmpty) {
       return;
@@ -1657,46 +1670,243 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
   }
 
-  void _sendMessageImage() async {
-    await _loadSessionImagePath();
-    await _loadSessionFilePath();
+// ------------------ Group Members Logic ------------------
+  List<Map<String, dynamic>> _groupMembersList = [];
+  List<String> _knownMemberIds = [];
 
-    log("Sending message with image and file");
-    final nowIso = DateTime.now().toIso8601String();
-    final messageId = ObjectId().toString(); // Generate ID
-    final String? mimeType =
-        _fileUrl != null ? lookupMimeType(_fileUrl!.path) : null;
+  void _updateGroupMembers(Map<String, dynamic> groupDetails) {
+    debugPrint("👥 _updateGroupMembers called with keys: ${groupDetails.keys}");
 
-    final message = {
-      'message_id': messageId, // Add ID
-      'localImagePath': _imageFile?.path, // Add localImagePath for consistency
-      'content': _messageController.text.trim(),
-      'sender': {'_id': currentUserId},
-      'receiver': {'_id': widget.datumId},
-      'messageStatus': 'sent',
-      'time': nowIso,
-      'fileName': _fileUrl?.path.split('/').last,
-      'fileType': mimeType,
-      'imageUrl': _imageFile?.path,
-      'fileUrl': _fileUrl?.path,
-    };
+    // Try to extract member IDs from various possible keys
+    List<dynamic>? memberData;
+    if (groupDetails['groupMembers'] is List) {
+      memberData = groupDetails['groupMembers'];
+      debugPrint("✅ Found 'groupMembers' key with ${memberData!.length} items");
+    } else if (groupDetails['members'] is List) {
+      memberData = groupDetails['members'];
+      debugPrint("✅ Found 'members' key with ${memberData!.length} items");
+    } else if (groupDetails['participants'] is List) {
+      memberData = groupDetails['participants'];
+      debugPrint("✅ Found 'participants' key with ${memberData!.length} items");
+    } else if (groupDetails['users'] is List) {
+      memberData = groupDetails['users'];
+      debugPrint("✅ Found 'users' key with ${memberData!.length} items");
+    } else if (groupDetails['data'] is Map &&
+        groupDetails['data']['members'] is List) {
+      memberData = groupDetails['data']['members'];
+      debugPrint(
+          "✅ Found nested 'data.members' with ${memberData!.length} items");
+    } else if (groupDetails['group'] is Map &&
+        groupDetails['group']['members'] is List) {
+      memberData = groupDetails['group']['members'];
+      debugPrint(
+          "✅ Found nested 'group.members' with ${memberData!.length} items");
+    }
+
+    if (memberData != null && memberData.isNotEmpty) {
+      debugPrint("🔍 First element type: ${memberData.first.runtimeType}");
+
+      final List<String> ids = [];
+      final List<Map<String, dynamic>> normalizedMembers = [];
+
+      for (var m in memberData) {
+        if (m is String) {
+          ids.add(m);
+        } else if (m is Map) {
+          final id = (m['member_id'] ?? m['id'] ?? m['_id'] ?? "").toString();
+          if (id.isNotEmpty) {
+            ids.add(id);
+            // Extract full details if available
+            final String firstName = m['first_name'] ?? m['firstName'] ?? '';
+            final String lastName = m['last_name'] ?? m['lastName'] ?? '';
+            final String fullName = '${firstName} ${lastName}'.trim();
+            normalizedMembers.add({
+              '_id': id,
+              'first_name': firstName,
+              'last_name': lastName,
+              'full_name': fullName,
+              'username': m['username'] ?? m['name'] ?? m['memberEmail'] ?? '',
+              'profile_pic': m['profile_pic'] ?? m['profilePic'] ?? '',
+            });
+          }
+        }
+      }
+
+      _knownMemberIds = ids;
+      if (normalizedMembers.isNotEmpty) {
+        setState(() {
+          _groupMembersList = normalizedMembers;
+          _messageController.setMembers(_groupMembersList);
+        });
+        debugPrint(
+            "✅ Populated ${_groupMembersList.length} members from API details");
+      }
+
+      // Always try to supplement/update from messages to get most recent names/pics
+      _buildMemberDetailsFromMessages(_knownMemberIds);
+
+      debugPrint("💾 Stored ${_knownMemberIds.length} member IDs");
+    } else {
+      log("⚠️ No members found in group details. Keys: ${groupDetails.keys}");
+      // Try to extract from messages as fallback
+      _buildMemberDetailsFromMessages(
+          _knownMemberIds.isNotEmpty ? _knownMemberIds : null);
+    }
+  }
+
+  void _buildMemberDetailsFromMessages(List<String>? knownMemberIds) {
+    debugPrint("🔍 Building member list from messages...");
+    debugPrint("   - dbMessages: ${dbMessages.length}");
+    debugPrint("   - messages: ${messages.length}");
+    debugPrint("   - socketMessages: ${socketMessages.length}");
+    debugPrint("   - knownMemberIds: ${knownMemberIds?.length ?? 'null'}");
+
+    // Extract unique member details from all messages
+    final Map<String, Map<String, dynamic>> membersMap = {};
+
+    // 0. Start with existing members from API (if any)
+    for (var m in _groupMembersList) {
+      final id = m['_id']?.toString();
+      if (id != null) membersMap[id] = m;
+    }
+
+    // Combine all message sources
+    final allMessages = [
+      ...dbMessages,
+      ...messages,
+      ...socketMessages,
+    ];
+
+    for (var msg in allMessages) {
+      final sender = msg['sender'];
+      if (sender is Map && sender['_id'] != null) {
+        final userId = sender['_id'].toString();
+
+        // If we have a known list, only include those IDs
+        if (knownMemberIds != null && !knownMemberIds.contains(userId)) {
+          continue;
+        }
+
+        if (!membersMap.containsKey(userId)) {
+          final String firstName =
+              sender['first_name'] ?? sender['firstName'] ?? '';
+          final String lastName =
+              sender['last_name'] ?? sender['lastName'] ?? '';
+          final String fullName = '${firstName} ${lastName}'.trim();
+          membersMap[userId] = {
+            '_id': userId,
+            'first_name': firstName,
+            'last_name': lastName,
+            'full_name': fullName,
+            'username': sender['username'] ?? sender['name'] ?? '',
+            'profile_pic': sender['profile_pic'] ?? sender['profilePic'] ?? '',
+          };
+        }
+      }
+    }
 
     setState(() {
-      socketMessages.add(message);
-      _scrollToBottom();
-      if (_visibleCount > 0) _visibleCount++;
-      final combined = [...dbMessages, ...messages, ...socketMessages];
-      GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
-      _updateNotifier();
-    });
-    setState(() {
-      _messageController.clear();
-      _imageFile = null;
-      _fileUrl = null;
+      _groupMembersList = membersMap.values.toList();
+      _messageController.setMembers(_groupMembersList);
     });
 
-    await _clearSessionPaths();
-    await _clearDraft();
+    debugPrint(
+        "✅ Built group members list from messages: ${_groupMembersList.length} members");
+  }
+
+  List<InlineSpan> _buildMessageTextSpans(String content) {
+    final List<InlineSpan> spans = [];
+    if (content.isEmpty) return spans;
+
+    // 1. Prepare mention regex from group members
+    // Sort by length descending to match longer names first (e.g., "John Doe" before "John")
+    final List<String> memberNames = _groupMembersList
+        .map((m) => m['full_name']?.toString() ?? "")
+        .where((name) => name.isNotEmpty)
+        .toList();
+    memberNames.sort((a, b) => b.length.compareTo(a.length));
+
+    // Escape special characters in names for regex
+    final String escapedNames = memberNames.map(RegExp.escape).join('|');
+    // Pattern matches @ followed by one of the member names
+    final String mentionPattern =
+        memberNames.isEmpty ? r'(?! )' : '@($escapedNames)';
+
+    // 2. Combined regex for URLs and Mentions
+    final String urlPattern = r'((https?:\/\/)|(www\.))[^\s]+';
+    final RegExp combinedRegExp =
+        RegExp('$urlPattern|$mentionPattern', caseSensitive: false);
+
+    final matches = combinedRegExp.allMatches(content);
+    int start = 0;
+
+    for (final match in matches) {
+      // Add text before the match
+      if (match.start > start) {
+        spans.add(
+          TextSpan(
+            text: content.substring(start, match.start),
+            style: const TextStyle(fontSize: 15, color: Colors.black87),
+          ),
+        );
+      }
+
+      final String matchText = content.substring(match.start, match.end);
+
+      if (matchText.startsWith('@')) {
+        // It's a mention
+        spans.add(
+          TextSpan(
+            text: matchText,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: chatColor,
+            ),
+          ),
+        );
+      } else {
+        // It's a URL
+        spans.add(
+          TextSpan(
+            text: matchText,
+            style: const TextStyle(
+              color: Colors.blue,
+              decoration: TextDecoration.underline,
+              fontSize: 15,
+            ),
+            recognizer: TapGestureRecognizer()
+              ..onTap = () async {
+                try {
+                  final url = matchText;
+                  final uri =
+                      Uri.parse(url.startsWith('www.') ? 'https://$url' : url);
+                  if (!await launchUrl(uri,
+                      mode: LaunchMode.externalApplication)) {
+                    throw 'Could not launch $uri';
+                  }
+                } catch (e) {
+                  debugPrint('Could not launch url: $e');
+                }
+              },
+          ),
+        );
+      }
+
+      start = match.end;
+    }
+
+    // Add remaining text
+    if (start < content.length) {
+      spans.add(
+        TextSpan(
+          text: content.substring(start),
+          style: const TextStyle(fontSize: 15, color: Colors.black87),
+        ),
+      );
+    }
+
+    return spans;
   }
 
   void _sendMultipleFiles(List<XFile> files) async {
@@ -2287,7 +2497,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
     return messages;
   }
-
   /// Persist grouping info to source message arrays
   void _applyGroupingToSource(String messageId, String groupId) {
     void applyToList(List<Map<String, dynamic>> list) {
@@ -2877,6 +3086,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             // 3. Rebuild dbMessages from merged map
             dbMessages = messagesMap.values.toList();
             log('   ✅ After merge, dbMessages count: ${dbMessages.length}');
+            if (_knownMemberIds.isNotEmpty && _groupMembersList.isEmpty) {
+              debugPrint(
+                  "🔄 Rebuilding member list after dbMessages population");
+              _buildMemberDetailsFromMessages(_knownMemberIds);
+            }
           });
 
           for (var m in incomingNormalized) {
@@ -3198,6 +3412,17 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                   GroupedMediaWidget(
                                                                     mediaUrls:
                                                                         groupImages,
+                                                                    caption:
+                                                                        message[
+                                                                            'content'],
+                                                                    isSentByMe:
+                                                                        isSentByMe,
+                                                                    time: message[
+                                                                            'time'] ??
+                                                                        '',
+                                                                    messageStatus:
+                                                                        message['messageStatus']?.toString() ??
+                                                                            'sent',
                                                                     onMediaTap:
                                                                         (index) {
                                                                       final media =
@@ -3229,56 +3454,59 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                       }
                                                                     },
                                                                   ),
-                                                                  Positioned(
-                                                                    bottom: 5,
-                                                                    right: 5,
-                                                                    child:
-                                                                        Container(
-                                                                      padding: const EdgeInsets
-                                                                          .symmetric(
-                                                                          horizontal:
-                                                                              6,
-                                                                          vertical:
-                                                                              2),
-                                                                      decoration:
-                                                                          BoxDecoration(
-                                                                        color: Colors
-                                                                            .black
-                                                                            .withOpacity(0.45),
-                                                                        borderRadius:
-                                                                            BorderRadius.circular(8),
-                                                                      ),
+                                                                  if (message['content'] ==
+                                                                          null ||
+                                                                      message['content']
+                                                                          .toString()
+                                                                          .isEmpty)
+                                                                    Positioned(
+                                                                      bottom: 5,
+                                                                      right: 5,
                                                                       child:
-                                                                          Row(
-                                                                        mainAxisSize:
-                                                                            MainAxisSize.min,
-                                                                        children: [
-                                                                          Text(
-                                                                            TimeUtils.formatUtcToIst(message['time']),
-                                                                            style:
-                                                                                const TextStyle(fontSize: 10, color: Colors.white),
-                                                                          ),
-                                                                          if (isSentByMe) ...[
-                                                                            const SizedBox(width: 4),
-                                                                            Builder(builder:
-                                                                                (context) {
-                                                                              final status = message['messageStatus']?.toString() ?? 'sent';
-                                                                              switch (status) {
-                                                                                case 'sent':
-                                                                                  return const Icon(Icons.check, size: 12, color: Colors.white);
-                                                                                case 'delivered':
-                                                                                  return const Icon(Icons.done_all_rounded, size: 12, color: Colors.white);
-                                                                                case 'read':
-                                                                                  return const Icon(Icons.done_all, size: 12, color: Colors.blueAccent);
-                                                                                default:
-                                                                                  return const Icon(Icons.access_time, size: 12, color: Colors.white);
-                                                                              }
-                                                                            }),
+                                                                          Container(
+                                                                        padding: const EdgeInsets
+                                                                            .symmetric(
+                                                                            horizontal:
+                                                                                6,
+                                                                            vertical:
+                                                                                2),
+                                                                        decoration:
+                                                                            BoxDecoration(
+                                                                          color: Colors
+                                                                              .black
+                                                                              .withOpacity(0.45),
+                                                                          borderRadius:
+                                                                              BorderRadius.circular(8),
+                                                                        ),
+                                                                        child:
+                                                                            Row(
+                                                                          mainAxisSize:
+                                                                              MainAxisSize.min,
+                                                                          children: [
+                                                                            Text(
+                                                                              TimeUtils.formatUtcToIst(message['time']),
+                                                                              style: const TextStyle(fontSize: 10, color: Colors.white),
+                                                                            ),
+                                                                            if (isSentByMe) ...[
+                                                                              const SizedBox(width: 4),
+                                                                              Builder(builder: (context) {
+                                                                                final status = message['messageStatus']?.toString() ?? 'sent';
+                                                                                switch (status) {
+                                                                                  case 'sent':
+                                                                                    return const Icon(Icons.check, size: 12, color: Colors.white);
+                                                                                  case 'delivered':
+                                                                                    return const Icon(Icons.done_all_rounded, size: 12, color: Colors.white);
+                                                                                  case 'read':
+                                                                                    return const Icon(Icons.done_all, size: 12, color: Colors.blueAccent);
+                                                                                  default:
+                                                                                    return const Icon(Icons.access_time, size: 12, color: Colors.white);
+                                                                                }
+                                                                              }),
+                                                                            ],
                                                                           ],
-                                                                        ],
+                                                                        ),
                                                                       ),
                                                                     ),
-                                                                  ),
                                                                 ],
                                                               ),
                                                             ],
@@ -3535,46 +3763,47 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               ),
             ),
           ),
-          Positioned(
-            bottom: 6,
-            right: 6,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.45),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    TimeUtils.formatUtcToIst(message['time']),
-                    style: const TextStyle(fontSize: 10, color: Colors.white),
-                  ),
-                  if (isSentByMe) ...[
-                    const SizedBox(width: 4),
-                    Builder(builder: (context) {
-                      final status =
-                          message['messageStatus']?.toString() ?? 'sent';
-                      switch (status) {
-                        case 'sent':
-                          return const Icon(Icons.check,
-                              size: 12, color: Colors.white);
-                        case 'delivered':
-                          return const Icon(Icons.done_all_rounded,
-                              size: 12, color: Colors.white);
-                        case 'read':
-                          return const Icon(Icons.done_all,
-                              size: 12, color: Colors.blue);
-                        default:
-                          return const SizedBox.shrink();
-                      }
-                    }),
+          if ((message['content']?.toString() ?? '').isEmpty)
+            Positioned(
+              bottom: 6,
+              right: 6,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.45),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      TimeUtils.formatUtcToIst(message['time']),
+                      style: const TextStyle(fontSize: 10, color: Colors.white),
+                    ),
+                    if (isSentByMe) ...[
+                      const SizedBox(width: 4),
+                      Builder(builder: (context) {
+                        final status =
+                            message['messageStatus']?.toString() ?? 'sent';
+                        switch (status) {
+                          case 'sent':
+                            return const Icon(Icons.check,
+                                size: 12, color: Colors.white);
+                          case 'delivered':
+                            return const Icon(Icons.done_all_rounded,
+                                size: 12, color: Colors.white);
+                          case 'read':
+                            return const Icon(Icons.done_all,
+                                size: 12, color: Colors.blue);
+                          default:
+                            return const SizedBox.shrink();
+                        }
+                      }),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -3968,62 +4197,59 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                           ),
                                                                         ),
                                                                       ),
-                                                                      Positioned(
-                                                                        bottom:
-                                                                            5,
-                                                                        right:
-                                                                            4,
-                                                                        child:
-                                                                            Container(
-                                                                          padding: const EdgeInsets
-                                                                              .symmetric(
-                                                                              horizontal: 6,
-                                                                              vertical: 2),
-                                                                          decoration:
-                                                                              BoxDecoration(
-                                                                            boxShadow: [
-                                                                              BoxShadow(
-                                                                                color: Colors.black.withOpacity(0.2),
-                                                                                blurRadius: 2,
-                                                                                offset: const Offset(0, 1),
-                                                                              ),
-                                                                            ],
-                                                                            color:
-                                                                                Colors.black45.withOpacity(0.1),
-                                                                            borderRadius:
-                                                                                BorderRadius.circular(8),
-                                                                          ),
+                                                                      if (content
+                                                                          .isEmpty)
+                                                                        Positioned(
+                                                                          bottom:
+                                                                              5,
+                                                                          right:
+                                                                              4,
                                                                           child:
-                                                                              Row(
-                                                                            mainAxisSize:
-                                                                                MainAxisSize.min,
-                                                                            children: [
-                                                                              Text(
-                                                                                TimeUtils.formatUtcToIst(message['time']),
-                                                                                style: const TextStyle(
-                                                                                  fontSize: 10,
-                                                                                  color: Colors.white,
+                                                                              Container(
+                                                                            padding:
+                                                                                const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                                            decoration:
+                                                                                BoxDecoration(
+                                                                              boxShadow: [
+                                                                                BoxShadow(
+                                                                                  color: Colors.black.withOpacity(0.2),
+                                                                                  blurRadius: 2,
+                                                                                  offset: const Offset(0, 1),
                                                                                 ),
-                                                                              ),
-                                                                              if (isSentByMe) ...[
-                                                                                const SizedBox(width: 4),
-                                                                                Builder(builder: (context) {
-                                                                                  switch (messageStatus) {
-                                                                                    case 'sent':
-                                                                                      return const Icon(Icons.check, size: 12, color: Colors.white);
-                                                                                    case 'delivered':
-                                                                                      return const Icon(Icons.done_all_rounded, size: 12, color: Colors.white);
-                                                                                    case 'read':
-                                                                                      return const Icon(Icons.done_all, size: 12, color: Colors.blue);
-                                                                                    default:
-                                                                                      return const SizedBox.shrink();
-                                                                                  }
-                                                                                }),
                                                                               ],
-                                                                            ],
+                                                                              color: Colors.black45.withOpacity(0.1),
+                                                                              borderRadius: BorderRadius.circular(8),
+                                                                            ),
+                                                                            child:
+                                                                                Row(
+                                                                              mainAxisSize: MainAxisSize.min,
+                                                                              children: [
+                                                                                Text(
+                                                                                  TimeUtils.formatUtcToIst(message['time']),
+                                                                                  style: const TextStyle(
+                                                                                    fontSize: 10,
+                                                                                    color: Colors.white,
+                                                                                  ),
+                                                                                ),
+                                                                                if (isSentByMe) ...[
+                                                                                  const SizedBox(width: 4),
+                                                                                  Builder(builder: (context) {
+                                                                                    switch (messageStatus) {
+                                                                                      case 'sent':
+                                                                                        return const Icon(Icons.check, size: 12, color: Colors.white);
+                                                                                      case 'delivered':
+                                                                                        return const Icon(Icons.done_all_rounded, size: 12, color: Colors.white);
+                                                                                      case 'read':
+                                                                                        return const Icon(Icons.done_all, size: 12, color: Colors.blue);
+                                                                                      default:
+                                                                                        return const SizedBox.shrink();
+                                                                                    }
+                                                                                  }),
+                                                                                ],
+                                                                              ],
+                                                                            ),
                                                                           ),
                                                                         ),
-                                                                      ),
                                                                     ],
                                                                   ),
                                                           if (fileUrl != null &&
@@ -4371,73 +4597,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                                       overflow: !isExpanded && isTextLong ? TextOverflow.ellipsis : TextOverflow.visible,
                                                                                       text: TextSpan(
                                                                                         children: [
-                                                                                          ...(() {
-                                                                                            final List<InlineSpan> spans = [];
-                                                                                            final String query = _searchController.text;
-                                                                                            final RegExp urlRegExp = RegExp(r'((https?:\/\/)|(www\.))[^s]+', caseSensitive: false);
-                                                                                            final matches = urlRegExp.allMatches(content);
-                                                                                            int start = 0;
-
-                                                                                            void addTextWithHighlight(String text) {
-                                                                                              if (query.isEmpty || !text.toLowerCase().contains(query.toLowerCase())) {
-                                                                                                spans.add(TextSpan(text: text, style: const TextStyle(fontSize: 15, color: Colors.black87)));
-                                                                                                return;
-                                                                                              }
-                                                                                              final highlightMatches = query.toLowerCase().allMatches(text.toLowerCase());
-                                                                                              int hStart = 0;
-                                                                                              for (final hMatch in highlightMatches) {
-                                                                                                if (hMatch.start > hStart) {
-                                                                                                  spans.add(TextSpan(text: text.substring(hStart, hMatch.start), style: const TextStyle(fontSize: 15, color: Colors.black87)));
-                                                                                                }
-                                                                                                spans.add(TextSpan(
-                                                                                                  text: text.substring(hMatch.start, hMatch.end),
-                                                                                                  style: const TextStyle(fontSize: 15, color: Colors.black, backgroundColor: Colors.yellow),
-                                                                                                ));
-                                                                                                hStart = hMatch.end;
-                                                                                              }
-                                                                                              if (hStart < text.length) {
-                                                                                                spans.add(TextSpan(text: text.substring(hStart), style: const TextStyle(fontSize: 15, color: Colors.black87)));
-                                                                                              }
-                                                                                            }
-
-                                                                                            for (final match in matches) {
-                                                                                              if (match.start > start) {
-                                                                                                addTextWithHighlight(content.substring(start, match.start));
-                                                                                              }
-
-                                                                                              final String url = content.substring(match.start, match.end);
-
-                                                                                              spans.add(
-                                                                                                TextSpan(
-                                                                                                  text: url,
-                                                                                                  style: const TextStyle(
-                                                                                                    color: Colors.blue,
-                                                                                                    decoration: TextDecoration.underline,
-                                                                                                    fontSize: 15,
-                                                                                                  ),
-                                                                                                  recognizer: TapGestureRecognizer()
-                                                                                                    ..onTap = () async {
-                                                                                                      try {
-                                                                                                        final uri = Uri.parse(url.startsWith('www.') ? 'https://$url' : url);
-                                                                                                        if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-                                                                                                          throw 'Could not launch $uri';
-                                                                                                        }
-                                                                                                      } catch (e) {
-                                                                                                        debugPrint('Could not launch url: $e');
-                                                                                                      }
-                                                                                                    },
-                                                                                                ),
-                                                                                              );
-
-                                                                                              start = match.end;
-                                                                                            }
-
-                                                                                            if (start < content.length) {
-                                                                                              addTextWithHighlight(content.substring(start));
-                                                                                            }
-
-                                                                                            return spans;
-                                                                                          })(),
+                                                                                          ..._buildMessageTextSpans(content),
                                                                                           WidgetSpan(
                                                                                             child: SizedBox(width: isSentByMe ? 75 : 60, height: 20),
                                                                                           ),
@@ -5056,7 +5216,23 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         senderId: currentUserId,
         receiverId: widget.datumId,
         isGroupChat: true,
-        onOptionSelected: _sendMessageImage,
+        groupBloc: _groupBloc,
+        onOptionSelected:
+            () {}, // Changed from _sendMessageImage to empty callback to prevent duplicate sending. onMessageSent handles the UI/send logic.
+        onMessageSent: (List<Map<String, dynamic>> messages) {
+          if (messages.isEmpty) return;
+
+          setState(() {
+            for (var msg in messages) {
+              _seenMessageIds.add(msg['message_id'] ?? msg['messageId'] ?? '');
+              // Add to socketMessages for immediate UI update
+              socketMessages.add(msg);
+            }
+          });
+
+          _updateNotifier();
+          _scrollToBottom();
+        },
         onFilesSelected: _sendMultipleFiles,
       ),
       onCameraPressed: _openCamera,
@@ -5088,6 +5264,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         });
         _sendAudioMessage(path, duration);
       },
+      groupMembers: _groupMembersList,
     );
   }
 
@@ -5213,6 +5390,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 if (mounted) {
                   setState(() {
                     final members = state.groupDetails['groupMembers'];
+                    if (members.isNotEmpty) {
+                      debugPrint("🔍 First member object: ${members.first}");
+                      debugPrint(
+                          "🔍 First member type: ${members.first.runtimeType}");
+                    }
                     if (members is List) {
                       groupMembers = members.map((m) {
                         if (m is Map) {
@@ -5221,6 +5403,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                         }
                         return m.toString();
                       }).toList();
+                      // CRITICAL FIX: Store member IDs for later rebuild
+                      _knownMemberIds = List<String>.from(groupMembers);
+
                       print("✅ Updated Group Members from API: $groupMembers");
                     }
                   });
@@ -5930,5 +6115,64 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         _updateMessageStatus(tempId, 'failed');
       }
     }
+  }
+}
+
+class MentionTextEditingController extends TextEditingController {
+  List<Map<String, dynamic>> _members = [];
+
+  void setMembers(List<Map<String, dynamic>> members) {
+    _members = members;
+    notifyListeners();
+  }
+
+  @override
+  TextSpan buildTextSpan(
+      {required BuildContext context,
+      TextStyle? style,
+      required bool withComposing}) {
+    final List<InlineSpan> children = [];
+    final String content = text;
+
+    if (content.isEmpty) {
+      return super.buildTextSpan(
+          context: context, style: style, withComposing: withComposing);
+    }
+
+    final List<String> memberNames = _members
+        .map((m) => m['full_name']?.toString() ?? '')
+        .where((name) => name.isNotEmpty)
+        .toList();
+    memberNames.sort((a, b) => b.length.compareTo(a.length));
+
+    final String escapedNames = memberNames.map(RegExp.escape).join('|');
+    final String mentionPattern =
+        memberNames.isEmpty ? r'(?! )' : '@($escapedNames)';
+    final RegExp mentionRegExp = RegExp(mentionPattern, caseSensitive: false);
+
+    final matches = mentionRegExp.allMatches(content);
+    int start = 0;
+
+    for (final match in matches) {
+      if (match.start > start) {
+        children.add(TextSpan(
+            text: content.substring(start, match.start), style: style));
+      }
+
+      children.add(
+        TextSpan(
+          text: content.substring(match.start, match.end),
+          style: style?.copyWith(color: chatColor, fontWeight: FontWeight.bold),
+        ),
+      );
+
+      start = match.end;
+    }
+
+    if (start < content.length) {
+      children.add(TextSpan(text: content.substring(start), style: style));
+    }
+
+    return TextSpan(style: style, children: children);
   }
 }
