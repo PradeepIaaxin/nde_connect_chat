@@ -2,7 +2,6 @@ import 'package:equatable/equatable.dart';
 
 // maillist event
 
-
 abstract class MailListEvent extends Equatable {
   const MailListEvent();
 
@@ -10,31 +9,31 @@ abstract class MailListEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-
 class FetchMailListEvent extends MailListEvent {
   final String mailboxId;
   final String? filter;
   final String? cursor;
   final bool isLoadMore;
- 
 
   const FetchMailListEvent(
     this.mailboxId, {
     this.filter,
     this.cursor,
-    this.isLoadMore = false, 
-     
+    this.isLoadMore = false,
   });
 
   @override
-  List<Object?> get props => [mailboxId, filter, cursor,];
+  List<Object?> get props => [
+        mailboxId,
+        filter,
+        cursor,
+      ];
 }
 
 // mail_list_event.dart
 class ClearMailCacheEvent extends MailListEvent {}
 
 class ResetMailListEvent extends MailListEvent {}
-
 
 class FetchFilteredMailEvent extends MailListEvent {
   final String filterType;
@@ -92,7 +91,6 @@ class MoveToArchiveEvent extends MailListEvent {
   List<Object> get props => [mailIds, mailboxId];
 }
 
-
 class MoveMailEvent extends MailListEvent {
   final List<int> mailIds;
   final String fromMailboxId;
@@ -135,10 +133,12 @@ class ToggleFlagEvent extends MailListEvent {
   final String mailboxId;
   final List<int> ids;
   final bool isFlagged;
+  final bool isFromFlaggedScreen;
 
   const ToggleFlagEvent({
     required this.mailboxId,
     required this.ids,
     required this.isFlagged,
+    this.isFromFlaggedScreen = false,
   });
 }

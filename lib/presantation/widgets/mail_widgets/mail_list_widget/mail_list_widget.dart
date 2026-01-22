@@ -71,6 +71,7 @@ class _MailListWidgetState extends State<MailListWidget> {
   Widget build(BuildContext context) {
     return BlocBuilder<MailListBloc, MailListState>(
       builder: (context, state) {
+        final bool isFlaggedScreen = widget.mailboxId == "flagged";
         return Column(
           children: [
             if (state.selectedMailIds.isNotEmpty)
@@ -254,6 +255,7 @@ class _MailListWidgetState extends State<MailListWidget> {
                                         style: TextStyles.intro,
                                       ),
                                       const SizedBox(height: 6),
+
                                       IconButton(
                                         icon: Icon(
                                           mail.flagged == true
@@ -270,12 +272,38 @@ class _MailListWidgetState extends State<MailListWidget> {
                                                   mailboxId: mail.mailboxId ??
                                                       widget.mailboxId,
                                                   ids: [mail.id],
+                                                  isFromFlaggedScreen:
+                                                      isFlaggedScreen, // ✅ ONLY TRUE in flagged screen
                                                   isFlagged:
                                                       !(mail.flagged ?? false),
                                                 ),
                                               );
                                         },
                                       ),
+
+                                      // IconButton(
+                                      //   icon: Icon(
+                                      //     mail.flagged == true
+                                      //         ? Icons.star
+                                      //         : Icons.star_border,
+                                      //     color: mail.flagged == true
+                                      //         ? Colors.amber
+                                      //         : AppColors.secondaryText,
+                                      //     size: 15,
+                                      //   ),
+                                      //   onPressed: () {
+                                      //     context.read<MailListBloc>().add(
+                                      //           ToggleFlagEvent(
+                                      //             mailboxId: mail.mailboxId ??
+                                      //                 widget.mailboxId,
+                                      //             ids: [mail.id],
+                                      //             isFromFlaggedScreen: true,
+                                      //             isFlagged:
+                                      //                 !(mail.flagged ?? false),
+                                      //           ),
+                                      //         );
+                                      //   },
+                                      // ),
                                     ],
                                   ),
                                 ],
