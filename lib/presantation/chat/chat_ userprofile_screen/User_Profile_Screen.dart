@@ -432,6 +432,7 @@ hasLeftGroup     : $hasLeftGroup
             currentUserId: firstMember?.lastName ?? '',
             groupAvatarUrl: group.groupAvatar,
             groupMembers: [],
+            groupId: group.id,
           ),
         );
       },

@@ -311,7 +311,6 @@ class ShowAltDialog {
                           backgroundColor: Colors.green,
                         ),
                         onPressed: () async {
-
                           localMessages.clear();
                           if (selectedImages.isNotEmpty) {
                             final groupMessageId = ObjectId().toString();
@@ -417,6 +416,7 @@ class ShowAltDialog {
     required bool isGroupChat,
     required bool isGroupMessage,
     String? groupMessageId,
+    String? caption, // ✅ Added caption param
   }) async {
     try {
       final File localFile = File(file.path);
@@ -472,7 +472,7 @@ class ShowAltDialog {
       }
       final localMessageId = ObjectId().toString();
       final message = {
-        'content': '',
+        'content': caption ?? '', // ✅ Use caption here
         'message_id': localMessageId,
         'sender': {'_id': senderId},
         'receiver': {'_id': receiverId},
@@ -487,6 +487,7 @@ class ShowAltDialog {
         'isLocal': true,
         'is_grouped_message': isGroupMessage,
         'group_message_id': groupMessageId,
+        'ContentType': isVideo ? 'video' : (isImage ? 'image' : 'file'),
       };
 
       log("🟢 Local message metadata: $message");
@@ -500,7 +501,7 @@ class ShowAltDialog {
                 senderId: senderId,
                 receiverId: receiverId,
                 groupId: receiverId,
-                message: "",
+                message: caption ?? "", // ✅ Pass caption here
                 isGroupMessage: isGroupMessage,
                 groupMessageId: groupMessageId,
                 messageId: localMessageId,
@@ -514,6 +515,7 @@ class ShowAltDialog {
                 conversationId,
                 senderId,
                 receiverId: receiverId,
+                message: caption ?? "", // ✅ Pass caption here
                 isGroupMessage: isGroupChat,
                 isGroupMessageChat: isGroupMessage,
                 groupMesageId: groupMessageId,

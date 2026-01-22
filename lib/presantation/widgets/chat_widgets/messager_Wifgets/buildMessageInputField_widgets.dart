@@ -1,7 +1,6 @@
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart' as ep;
 import 'package:nde_email/data/respiratory.dart';
 import 'package:nde_email/main.dart';
-import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/VideoCacheService.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/whatapp_recoreder_widget.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart' hide Category;
@@ -28,6 +27,7 @@ class MessageInputField extends StatefulWidget {
   final VoidCallback? onCancelRecording;
   final Function(String path, int duration)? onSendRecording;
   final bool isRecordingLocked;
+  final List<Map<String, dynamic>>? groupMembers;
 
   const MessageInputField({
     super.key,
@@ -50,6 +50,7 @@ class MessageInputField extends StatefulWidget {
     this.onCancelRecording,
     this.onSendRecording,
     this.isRecordingLocked = false,
+    this.groupMembers,
   });
 
   @override
@@ -62,6 +63,12 @@ class _MessageInputFieldState extends State<MessageInputField> {
   Timer? _draftDebounceTimer;
 
   final mq = MediaQueryData.fromView(WidgetsBinding.instance.window);
+
+  // Mention Logic
+  final LayerLink _layerLink = LayerLink();
+  OverlayEntry? _overlayEntry;
+  List<Map<String, dynamic>> _filteredMembers = [];
+  String _mentionQuery = "";
 
   void _toggleEmojiKeyboard() {
     if (_showEmoji) {
@@ -98,11 +105,118 @@ class _MessageInputFieldState extends State<MessageInputField> {
       if (widget.focusNode.hasFocus && _showEmoji) {
         setState(() => _showEmoji = false);
       }
+      if (!widget.focusNode.hasFocus) {
+        _removeOverlay();
+      }
     });
 
     widget.messageController.addListener(() {
       setState(() {});
     });
+  }
+
+  void _showOverlay() {
+    if (_overlayEntry != null) return;
+
+    final overlay = Overlay.of(context);
+    _overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        width: MediaQuery.of(context).size.width * 0.9,
+        child: CompositedTransformFollower(
+          link: _layerLink,
+          showWhenUnlinked: false,
+          offset: const Offset(0, -200), // Adjust to show above input
+          child: Material(
+            elevation: 4.0,
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              constraints: const BoxConstraints(maxHeight: 200),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                shrinkWrap: true,
+                itemCount: _filteredMembers.length,
+                itemBuilder: (context, index) {
+                  final member = _filteredMembers[index];
+                  final user = member['user'] ?? member;
+                  final firstName =
+                      user['first_name'] ?? user['firstName'] ?? '';
+                  final lastName = user['last_name'] ?? user['lastName'] ?? '';
+                  String name = "$firstName $lastName".trim();
+                  if (name.isEmpty) {
+                    name = user['username'] ?? user['name'] ?? 'Unknown';
+                  }
+                  final username = user['username'] ?? user['name'] ?? name;
+
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: Colors.blueAccent,
+                      child: Text(
+                        name.isNotEmpty ? name[0].toUpperCase() : "?",
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
+                    title: Text(name.isNotEmpty ? name : "Unknown"),
+                    subtitle: Text("@$username"),
+                    onTap: () => _onMemberSelected(member),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    overlay.insert(_overlayEntry!);
+  }
+
+  void _removeOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
+
+  void _updateOverlay() {
+    if (_filteredMembers.isEmpty) {
+      _removeOverlay();
+    } else {
+      if (_overlayEntry == null) {
+        _showOverlay();
+      } else {
+        _overlayEntry!.markNeedsBuild();
+      }
+    }
+  }
+
+  void _onMemberSelected(Map<String, dynamic> member) {
+    final user = member['user'] ?? member;
+    final firstName = user['first_name'] ?? user['firstName'] ?? '';
+    final lastName = user['last_name'] ?? user['lastName'] ?? '';
+    String name = "$firstName $lastName".trim();
+
+    if (name.isEmpty) {
+      name = user['username'] ?? user['name'] ?? 'Unknown';
+    }
+
+    final text = widget.messageController.text;
+    final selection = widget.messageController.selection;
+    final cursorPos = selection.baseOffset;
+
+    // Find the start of the mention query
+    final lastAt = text.lastIndexOf('@', cursorPos - 1);
+    if (lastAt != -1) {
+      final newText = text.replaceRange(lastAt, cursorPos, "@$name ");
+      widget.messageController.value = TextEditingValue(
+        text: newText,
+        selection: TextSelection.collapsed(offset: lastAt + name.length + 2),
+      );
+    }
+
+    _removeOverlay();
   }
 
   @override
@@ -144,62 +258,67 @@ class _MessageInputFieldState extends State<MessageInputField> {
                       Row(
                         children: [
                           Expanded(
-                            child: Card(
-                              color: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(25),
-                              ),
-                              margin: EdgeInsets.zero,
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (widget.replyText != null)
-                                    _buildReplyPreviewInline(),
-                                  Row(
-                                    children: [
-                                      IconButton(
-                                        onPressed: _toggleEmojiKeyboard,
-                                        icon: const Icon(
-                                          Icons.emoji_emotions_outlined,
-                                          color: Colors.grey,
-                                          size: 24,
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: TextField(
-                                          controller: widget.messageController,
-                                          focusNode: widget.focusNode,
-                                          decoration: const InputDecoration(
-                                            hintText: 'Message',
-                                            hintStyle:
-                                                TextStyle(color: Colors.black),
-                                            border: InputBorder.none,
+                            child: CompositedTransformTarget(
+                              link: _layerLink,
+                              child: Card(
+                                color: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(25),
+                                ),
+                                margin: EdgeInsets.zero,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (widget.replyText != null)
+                                      _buildReplyPreviewInline(),
+                                    Row(
+                                      children: [
+                                        IconButton(
+                                          onPressed: _toggleEmojiKeyboard,
+                                          icon: const Icon(
+                                            Icons.emoji_emotions_outlined,
+                                            color: Colors.grey,
+                                            size: 24,
                                           ),
-                                          style: const TextStyle(
-                                              color: Colors.black),
-                                          minLines: 1,
-                                          maxLines: 5,
-                                          onChanged: _onTextChanged,
                                         ),
-                                      ),
-                                      IconButton(
-                                        onPressed: widget.onAttachmentPressed,
-                                        icon: const Icon(Icons.attach_file,
-                                            color: Colors.grey, size: 24),
-                                      ),
-                                      widget.messageController.text.isEmpty
-                                          ? IconButton(
-                                              onPressed: widget.onCameraPressed,
-                                              icon: const Icon(
-                                                  Icons.camera_alt_rounded,
-                                                  color: Colors.grey,
-                                                  size: 24),
-                                            )
-                                          : const SizedBox(),
-                                      const SizedBox(width: 4),
-                                    ],
-                                  ),
-                                ],
+                                        Expanded(
+                                          child: TextField(
+                                            controller:
+                                                widget.messageController,
+                                            focusNode: widget.focusNode,
+                                            decoration: const InputDecoration(
+                                              hintText: 'Message',
+                                              hintStyle: TextStyle(
+                                                  color: Colors.black),
+                                              border: InputBorder.none,
+                                            ),
+                                            style: const TextStyle(
+                                                color: Colors.black),
+                                            minLines: 1,
+                                            maxLines: 5,
+                                            onChanged: _onTextChanged,
+                                          ),
+                                        ),
+                                        IconButton(
+                                          onPressed: widget.onAttachmentPressed,
+                                          icon: const Icon(Icons.attach_file,
+                                              color: Colors.grey, size: 24),
+                                        ),
+                                        widget.messageController.text.isEmpty
+                                            ? IconButton(
+                                                onPressed:
+                                                    widget.onCameraPressed,
+                                                icon: const Icon(
+                                                    Icons.camera_alt_rounded,
+                                                    color: Colors.grey,
+                                                    size: 24),
+                                              )
+                                            : const SizedBox(),
+                                        const SizedBox(width: 4),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -380,7 +499,7 @@ class _MessageInputFieldState extends State<MessageInputField> {
         width: size,
         height: size,
         child: FutureBuilder<File?>(
-          future: VideoCacheService.instance.getThumbnailFuture(videoPathOrUrl),
+          future: VideoThumbUtil.generateFromUrl(videoPathOrUrl),
           builder: (context, snapshot) {
             // ⏳ Loading
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -459,7 +578,7 @@ class _MessageInputFieldState extends State<MessageInputField> {
             : Image.network(imageUrl, width: 70, height: 70, fit: BoxFit.cover);
       }
     }
-  return Padding(
+    return Padding(
       padding: const EdgeInsets.all(8),
       child: Container(
         decoration: BoxDecoration(
@@ -647,6 +766,59 @@ class _MessageInputFieldState extends State<MessageInputField> {
       );
     }
 
+    // Mention Logic
+    if (widget.isGroupChat && widget.groupMembers != null) {
+      final cursorPosition = widget.messageController.selection.baseOffset;
+      if (cursorPosition > 0) {
+        final textBeforeCursor = value.substring(0, cursorPosition);
+        final lastAt = textBeforeCursor.lastIndexOf('@');
+
+        if (lastAt != -1) {
+          final query = textBeforeCursor.substring(lastAt + 1);
+          // Check if there's a space after @, if so, stop mentioning unless it's part of a name
+          // For simplicity, let's assume mentions don't have spaces for now or handle it smarter
+          // Actually WhatsApp allows spaces in names.
+          // Let's check if there is a space before @ or if it's the start of the string
+          bool isValidStart =
+              lastAt == 0 || textBeforeCursor[lastAt - 1] == ' ';
+
+          if (isValidStart) {
+            setState(() {
+              _mentionQuery = query.toLowerCase();
+              debugPrint("🔎 Mention Query: $_mentionQuery");
+              debugPrint("👥 Total Members: ${widget.groupMembers?.length}");
+
+              _filteredMembers = widget.groupMembers!.where((member) {
+                // Handle both direct keys and nested 'user' object
+                final user = member['user'] ?? member;
+
+                // Check for various name keys
+                final firstName = user['first_name'] ?? user['firstName'] ?? '';
+                final lastName = user['last_name'] ?? user['lastName'] ?? '';
+                final name = "$firstName $lastName".trim();
+                final username =
+                    (user['username'] ?? user['name'] ?? '').toString();
+
+                final matches = name.toLowerCase().contains(_mentionQuery) ||
+                    username.toLowerCase().contains(_mentionQuery);
+
+                // debugPrint("Checking member: $name ($username) -> $matches");
+                return matches;
+              }).toList();
+              debugPrint("✅ Filtered Members: ${_filteredMembers.length}");
+            });
+            _updateOverlay();
+          } else {
+            _removeOverlay();
+          }
+        } else {
+          _removeOverlay();
+        }
+      } else {
+        _removeOverlay();
+      }
+    }
+
     setState(() {});
 
     // ---- existing typing indicator logic ----
@@ -670,6 +842,7 @@ class _MessageInputFieldState extends State<MessageInputField> {
 
   @override
   void dispose() {
+    _removeOverlay();
     _draftDebounceTimer?.cancel();
     super.dispose();
   }

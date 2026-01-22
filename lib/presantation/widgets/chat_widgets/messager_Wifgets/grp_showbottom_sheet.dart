@@ -1,9 +1,11 @@
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_event.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/MessagerBloc.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/MessagerEvent.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/MediaPreviewScreen.dart';
 
 class GrpShowAltDialog {
   static void grpshowOptionsDialog(
@@ -12,9 +14,11 @@ class GrpShowAltDialog {
     required String senderId,
     required String receiverId,
     required bool isGroupChat,
+    required Function(List<Map<String, dynamic>>) onMessageSent,
     required VoidCallback onOptionSelected,
     Function(List<XFile>)? onFilesSelected,
     String? groupId,
+    GroupChatBloc? groupBloc,
   }) {
     List<XFile>? selectedFiles;
     String? selectedLabel;
@@ -56,13 +60,36 @@ class GrpShowAltDialog {
                               Icons.photo_library,
                               "Gallery",
                               () async {
-                                final files =
-                                    await ImagePicker().pickMultiImage();
-                                if (files.isNotEmpty) {
-                                  setState(() {
-                                    selectedFiles = files;
-                                    selectedLabel = 'Image';
-                                  });
+                                final picker = ImagePicker();
+                                final List<XFile> images =
+                                    await picker.pickMultiImage();
+
+                                if (images.isEmpty) return;
+
+                                Navigator.of(context).pop();
+
+                                final localMessages = await Navigator.push<
+                                    List<Map<String, dynamic>>>(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => BlocProvider.value(
+                                      value: groupBloc ??
+                                          context.read<GroupChatBloc>(),
+                                      child: MediaPreviewScreen(
+                                        files: images,
+                                        conversationId: conversationId,
+                                        senderId: senderId,
+                                        receiverId: receiverId,
+                                        isGroupChat: isGroupChat,
+                                      ),
+                                    ),
+                                  ),
+                                );
+
+                                if (localMessages != null &&
+                                    localMessages.isNotEmpty) {
+                                  onMessageSent(localMessages);
+                                  onOptionSelected();
                                 }
                               },
                             ),
@@ -73,13 +100,52 @@ class GrpShowAltDialog {
                               Icons.videocam,
                               "Video",
                               () async {
-                                final files =
-                                    await ImagePicker().pickMultiVideo();
-                                if (files.isNotEmpty) {
-                                  setState(() {
-                                    selectedFiles = files;
-                                    selectedLabel = 'Video';
-                                  });
+                                final picker = ImagePicker();
+                                // ✅ Opens GALLERY UI (NOT document UI)
+                                final List<XFile> allMedia =
+                                    await picker.pickMultiVideo();
+
+                                if (allMedia.isEmpty) return;
+
+                                // ✅ Keep ONLY videos
+                                final List<XFile> videoFiles =
+                                    allMedia.where((file) {
+                                  final mime = lookupMimeType(file.path) ?? '';
+                                  return mime.startsWith('video/');
+                                }).toList();
+
+                                if (videoFiles.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text("No videos selected")),
+                                  );
+                                  return;
+                                }
+
+                                Navigator.of(context).pop();
+
+                                final localMessages = await Navigator.push<
+                                    List<Map<String, dynamic>>>(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => BlocProvider.value(
+                                      value: groupBloc ??
+                                          context.read<GroupChatBloc>(),
+                                      child: MediaPreviewScreen(
+                                        files: videoFiles,
+                                        conversationId: conversationId,
+                                        senderId: senderId,
+                                        receiverId: receiverId,
+                                        isGroupChat: isGroupChat,
+                                      ),
+                                    ),
+                                  ),
+                                );
+
+                                if (localMessages != null &&
+                                    localMessages.isNotEmpty) {
+                                  onMessageSent(localMessages);
+                                  onOptionSelected();
                                 }
                               },
                             ),
@@ -112,14 +178,40 @@ class GrpShowAltDialog {
                                     await FilePicker.platform.pickFiles(
                                   allowMultiple: true,
                                 );
-                                if (result != null) {
-                                  setState(() {
-                                    selectedFiles = result.paths
-                                        .whereType<String>()
-                                        .map((e) => XFile(e))
-                                        .toList();
-                                    selectedLabel = 'File';
-                                  });
+                                if (result == null) return;
+
+                                final files = result.paths
+                                    .whereType<String>()
+                                    .map((e) => XFile(e))
+                                    .toList();
+
+                                if (files.isEmpty) return;
+
+                                Navigator.of(context).pop();
+
+                                final localMessages = await Navigator.push<
+                                    List<Map<String, dynamic>>>(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => BlocProvider.value(
+                                      value: groupBloc ??
+                                          context.read<GroupChatBloc>(),
+                                      child: MediaPreviewScreen(
+                                        files: files,
+                                        conversationId: conversationId,
+                                        senderId: senderId,
+                                        receiverId: receiverId,
+                                        isGroupChat: isGroupChat,
+                                        isDocument: true,
+                                      ),
+                                    ),
+                                  ),
+                                );
+
+                                if (localMessages != null &&
+                                    localMessages.isNotEmpty) {
+                                  onMessageSent(localMessages);
+                                  onOptionSelected();
                                 }
                               },
                             ),
@@ -159,11 +251,11 @@ class GrpShowAltDialog {
                           ],
                         )
                       ]
-                      // ---------------- PREVIEW -------------------
+                      // ---------------- PREVIEW (CAMERA / AUDIO) -------------------
                       else ...[
                         const SizedBox(height: 10),
 
-                        // IMAGE OR VIDEO PREVIEW
+                        // IMAGE OR VIDEO PREVIEW (For Camera)
                         if (selectedLabel == "Image" ||
                             selectedLabel == "Video")
                           SizedBox(
@@ -259,6 +351,12 @@ class GrpShowAltDialog {
                                 isGroupMessage: isGrouped,
                                 groupMessageId: groupMessageId,
                               );
+                              // Mocking local message for legacy path if needed,
+                              // but _sendFile returns void currently.
+                              // I'll update _sendFile signature if needed or reconstruct msg.
+                              // Actually _sendFile calls BLoC, so we don't get the msg back easily here
+                              // unless we update _sendFile too.
+                              // However, for Audio/Camera inline, existing logic used _sendFile.
                             }
 
                             onOptionSelected();
@@ -289,7 +387,7 @@ class GrpShowAltDialog {
 
   // --------------------------------------------------
 
-  static Future<void> _sendFile({
+  static Future<Map<String, dynamic>?> _sendFile({
     required BuildContext context,
     required XFile file,
     required String conversationId,
@@ -305,7 +403,7 @@ class GrpShowAltDialog {
 
       if (!localFile.existsSync()) {
         log("❌ File Missing: ${file.path}");
-        return;
+        return null;
       }
 
       final mimeType = lookupMimeType(file.path);
@@ -362,8 +460,10 @@ class GrpShowAltDialog {
               ),
             );
       }
+      return localMessage;
     } catch (e, s) {
       log("ERROR: $e\n$s");
+      return null;
     }
   }
 
