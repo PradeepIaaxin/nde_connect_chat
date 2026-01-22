@@ -165,7 +165,7 @@ class GroupedMediaWidget extends StatelessWidget {
                             caption != "null")
                           Padding(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 8.0, vertical: 6.0),
+                                horizontal: 8.0, vertical: 5.0),
                             child: MessageCaption(
                               content: caption!,
                               time: time,

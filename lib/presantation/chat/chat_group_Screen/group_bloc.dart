@@ -459,12 +459,12 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
         // );
       }
 
-      // grpSocket.emitGroupReaction(
-      //   messageId: e.messageId,
-      //   conversationId: e.conversationId,
-      //   emoji: e.emoji,
-      //   userId: e.userId,
-      // );
+      grpSocket.emitGroupReaction(
+        messageId: e.messageId,
+        conversationId: e.conversationId,
+        emoji: e.emoji,
+        userId: e.userId,
+      );
     } catch (_) {}
   }
 
@@ -480,12 +480,12 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
         // );
       }
 
-      // grpSocket.emitGroupRemoveReaction(
-      //   messageId: e.messageId,
-      //   conversationId: e.conversationId,
-      //   emoji: e.emoji,
-      //   userId: e.userId,
-      // );
+      grpSocket.emitGroupRemoveReaction(
+        messageId: e.messageId,
+        conversationId: e.conversationId,
+        emoji: e.emoji,
+        userId: e.userId,
+      );
     } catch (_) {}
   }
 
