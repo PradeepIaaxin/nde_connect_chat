@@ -4651,7 +4651,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                               final int realIndex =
                                   groupedMessages.length - 1 - index;
                               final message = groupedMessages[realIndex];
-                              log("messagessssssssssssssssssssssssss $message");
+                         //     log("messagessssssssssssssssssssssssss $message");
                               final String? senderId =
                                   _getMessageSenderId(message);
 

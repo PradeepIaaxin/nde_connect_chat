@@ -1,4 +1,3 @@
-
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
 import '../../../../../utils/reusbale/common_import.dart';
 
@@ -82,7 +81,6 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
       return const SizedBox.shrink();
     }
 
-    print("urrrrrrrrrrrrrr $mediaUrl");
     Widget? buildThumb() {
       if (isImage && mediaUrl.startsWith('/')) {
         return Image.file(
@@ -193,16 +191,14 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
                     ),
                   ),
                   const SizedBox(height: 2),
-                  if(isGrouped)
+                  if (isGrouped)
                     Text(
-                     replyContent
-                         ,
+                      replyContent,
                       style: const TextStyle(fontSize: 12),
                     )
                   else if (isVideo)
                     Text(
-                      replyContent.isNotEmpty?replyContent
-                          : 'Video',
+                      replyContent.isNotEmpty ? replyContent : 'Video',
                       style: const TextStyle(fontSize: 12),
                     )
                   else if (isAudio)
@@ -227,10 +223,9 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                         Flexible(
+                        Flexible(
                           child: Text(
-                            replyContent.isNotEmpty?replyContent
-                                : 'Photo',
+                            replyContent.isNotEmpty ? replyContent : 'Photo',
                             style: const TextStyle(fontSize: 12),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -266,17 +261,19 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
               ),
             ),
             if ((isImage || isVideo) && mediaUrl.isNotEmpty)
-              isGrouped || replyContent.isNotEmpty?SizedBox():  Padding(
-                padding: const EdgeInsets.only(left: 15.0),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: SizedBox(
-                    width: 42,
-                    height: 42,
-                    child: buildThumb(),
-                  ),
-                ),
-              ),
+              isGrouped || replyContent.isNotEmpty
+                  ? SizedBox()
+                  : Padding(
+                      padding: const EdgeInsets.only(left: 15.0),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: SizedBox(
+                          width: 42,
+                          height: 42,
+                          child: buildThumb(),
+                        ),
+                      ),
+                    ),
           ],
         ),
       ),
