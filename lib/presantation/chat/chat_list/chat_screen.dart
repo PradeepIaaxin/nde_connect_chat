@@ -851,6 +851,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                                   grpChat: true,
                                                   favorite:
                                                       chat.isFavourite ?? false,
+                                               groupId: chat.groupId,
                                                 )
                                               : PrivateChatScreen(
                                                   userName: chat.name ??
