@@ -227,14 +227,39 @@ class GrpShowAltDialog {
                                   type: FileType.audio,
                                   allowMultiple: true,
                                 );
-                                if (result != null) {
-                                  setState(() {
-                                    selectedFiles = result.paths
-                                        .whereType<String>()
-                                        .map((e) => XFile(e))
-                                        .toList();
-                                    selectedLabel = 'Audio';
-                                  });
+                                if (result == null) return;
+
+                                final files = result.paths
+                                    .whereType<String>()
+                                    .map((e) => XFile(e))
+                                    .toList();
+
+                                if (files.isEmpty) return;
+
+                                Navigator.of(context).pop();
+
+                                final localMessages = await Navigator.push<
+                                    List<Map<String, dynamic>>>(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => BlocProvider.value(
+                                      value: groupBloc ??
+                                          context.read<GroupChatBloc>(),
+                                      child: MediaPreviewScreen(
+                                        files: files,
+                                        conversationId: conversationId,
+                                        senderId: senderId,
+                                        receiverId: receiverId,
+                                        isGroupChat: isGroupChat,
+                                      ),
+                                    ),
+                                  ),
+                                );
+
+                                if (localMessages != null &&
+                                    localMessages.isNotEmpty) {
+                                  onMessageSent(localMessages);
+                                  onOptionSelected();
                                 }
                               },
                             ),

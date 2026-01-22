@@ -197,9 +197,9 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
                       style: const TextStyle(fontSize: 12),
                     )
                   else if (isVideo)
-                    Text(
-                      replyContent.isNotEmpty ? replyContent : 'Video',
-                      style: const TextStyle(fontSize: 12),
+                    const Text(
+                      'Video',
+                      style: TextStyle(fontSize: 12),
                     )
                   else if (isAudio)
                     Row(
@@ -220,13 +220,13 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
                       ],
                     )
                   else if (isImage)
-                    Row(
+                    const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Flexible(
                           child: Text(
-                            replyContent.isNotEmpty ? replyContent : 'Photo',
-                            style: const TextStyle(fontSize: 12),
+                            'Photo',
+                            style: TextStyle(fontSize: 12),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -261,8 +261,8 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
               ),
             ),
             if ((isImage || isVideo) && mediaUrl.isNotEmpty)
-              isGrouped || replyContent.isNotEmpty
-                  ? SizedBox()
+              isGrouped
+                  ? const SizedBox()
                   : Padding(
                       padding: const EdgeInsets.only(left: 15.0),
                       child: ClipRRect(

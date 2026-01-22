@@ -395,7 +395,8 @@ class _MessageInputFieldState extends State<MessageInputField> {
     if (widget.replyText == null) return const SizedBox();
 
     final String content = widget.replyText?['content']?.toString() ?? '';
-    final String? imageUrl = widget.replyText?['originalUrl']??widget.replyText?['imageUrl'] ;
+    final String? imageUrl =
+        widget.replyText?['originalUrl'] ?? widget.replyText?['imageUrl'];
     final String? fileName = widget.replyText?['fileName'];
     final String? fileType = widget.replyText?['fileType'] ??
         widget.replyText?['mimeType'] ??
@@ -638,7 +639,11 @@ class _MessageInputFieldState extends State<MessageInputField> {
                               ),
                             ],
                           ),
-                        if (content.isNotEmpty)
+                        // Only show caption for non-media messages
+                        if (content.isNotEmpty &&
+                            !isImage &&
+                            !isVideoReply &&
+                            !isDocument)
                           Text(
                             content,
                             maxLines: 1,
