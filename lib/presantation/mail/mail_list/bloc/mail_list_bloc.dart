@@ -2,13 +2,13 @@ import 'dart:async';
 import 'dart:developer';
 import 'package:bloc/bloc.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'mail_list_model.dart';
+import '../model/mail_list_model.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:nde_email/data/respiratory.dart';
 import 'mail_list_event.dart';
 import 'mail_list_state.dart';
-import 'mail_list_api.dart';
+import '../api/mail_list_api.dart';
 import 'package:nde_email/data/base_url.dart';
 
 class MailListBloc extends Bloc<MailListEvent, MailListState> {
@@ -637,34 +637,40 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
       if (response.statusCode == 200) {
         List<GMMailModels> updatedMails;
 
-        // ✅ REMOVE mail when UNSTAR in Flagged screen only
+        // ✅ FLAGGED SCREEN REMOVE
         if (!event.isFlagged && event.isFromFlaggedScreen) {
           updatedMails = state.mails
               .where((mail) => !event.ids.contains(mail.id))
               .toList();
-        }
-        // ✅ Normal toggle in Inbox / All / Other screens
-        else {
-          updatedMails = state.mails.map((mail) {
-            if (event.ids.contains(mail.id)) {
-              return mail.copyWith(flagged: event.isFlagged);
-            }
-            return mail;
-          }).toList();
+
+          emit(state.copyWith(
+            mails: updatedMails,
+            status: updatedMails.isEmpty ? MailListStatus.empty : state.status,
+          ));
+          return;
         }
 
-        // ✅ Emit UI update
+        // ✅ Normal screens toggle
+        updatedMails = state.mails.map((mail) {
+          if (event.ids.contains(mail.id)) {
+            return mail.copyWith(flagged: event.isFlagged);
+          }
+          return mail;
+        }).toList();
+
         emit(state.copyWith(mails: updatedMails));
 
-        // ✅ Update cache
-        cachedMailLists[event.mailboxId] = updatedMails;
+        // ✅ Update cache only for real mailbox
+        if (!event.isFromFlaggedScreen) {
+          cachedMailLists[event.mailboxId] = updatedMails;
+        }
 
-        log("⭐ Flag updated: ${event.ids} -> ${event.isFlagged}");
+        log("⭐ Flag updated ${event.ids} => ${event.isFlagged}");
       } else {
-        log("❌ Flag API failed: ${response.body}");
+        log("❌ Flag API failed");
       }
-    } catch (e, stack) {
-      log("❌ Flag toggle error", error: e, stackTrace: stack);
+    } catch (e) {
+      log("❌ Flag toggle error: $e");
     }
   }
 }

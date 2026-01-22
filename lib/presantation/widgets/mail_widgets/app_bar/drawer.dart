@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:nde_email/presantation/mail/mail_list/mail_list_bloc.dart';
-import 'package:nde_email/presantation/mail/mail_list/mail_list_event.dart';
+import 'package:nde_email/data/mailboxid.dart';
+import 'package:nde_email/presantation/mail/mail_list/bloc/mail_list_bloc.dart';
+import 'package:nde_email/presantation/mail/mail_list/bloc/mail_list_event.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/router/router.dart';
 import 'mailbox_model.dart';
@@ -25,6 +26,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
   String? userName;
   String? userEmail;
   String? profilePicUrl;
+  String? selectedMailboxId;
 
   final Map<String, String> mailboxIcons = {
     'inbox': 'assets/images/inbox.svg',
@@ -39,6 +41,14 @@ class _CustomDrawerState extends State<CustomDrawer> {
   void initState() {
     super.initState();
     _loadUserData();
+    _loadSelectedMailbox();
+  }
+
+  Future<void> _loadSelectedMailbox() async {
+    final id = await MailboxStorage.getMailboxId();
+    setState(() {
+      selectedMailboxId = id;
+    });
   }
 
   Future<void> _loadUserData() async {
@@ -293,58 +303,142 @@ class _CustomDrawerState extends State<CustomDrawer> {
       if (mailbox.color.startsWith('#')) {
         mailboxColor = Color(int.parse(mailbox.color.replaceAll('#', '0xff')));
       }
-    } catch (e) {
-      mailboxColor = AppColors.secondaryText;
-    }
+    } catch (_) {}
 
     final mailListState = context.watch<MailListBloc>().state;
-
-// Get unread count from MailListBloc if available
     final int liveUnread =
         mailListState.unreadCountByMailbox[mailbox.id] ?? mailbox.unseen;
 
     final String unseenText = liveUnread > 99 ? "99+" : liveUnread.toString();
 
-    return ListTile(
-      dense: true,
-      visualDensity: const VisualDensity(vertical: -3),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 0),
-      leading: SvgPicture.asset(
-        mailboxIcons[mailbox.name.toLowerCase()] ?? 'assets/images/Sent.svg',
-        height: 20,
-        width: 20,
-        colorFilter: ColorFilter.mode(mailboxColor, BlendMode.srcIn),
-      ),
-      title: Text(
-        mailbox.name,
-        style: const TextStyle(fontSize: 16, height: 1.0),
-      ),
-      trailing: liveUnread > 0
-          ? Container(
-              width: 24,
-              height: 24,
-              alignment: Alignment.center,
-              child: Text(
-                unseenText,
-                style: const TextStyle(
-                  color: AppColors.secondaryText,
-                  fontSize: 12,
+    // ✅ CHECK SELECTED MAILBOX
+    final bool isSelected = mailbox.id == selectedMailboxId;
+
+    return Container(
+      // ✅ Gmail Style Indicator Bar
+      decoration: BoxDecoration(
+        color: isSelected ? AppColors.sectiontool : Colors.transparent,
+        border: isSelected
+            ? Border(
+                left: BorderSide(
+                  color: AppColors.iconActive, // Blue bar
+                  width: 4,
                 ),
-              ),
-            )
-          : null,
-      onTap: () {
-        Navigator.pop(context);
+              )
+            : null,
+      ),
 
-        final mailBloc = context.read<MailListBloc>();
+      child: ListTile(
+        dense: true,
+        visualDensity: const VisualDensity(vertical: -3),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16.0, vertical: 0),
+        leading: SvgPicture.asset(
+          mailboxIcons[mailbox.name.toLowerCase()] ?? 'assets/images/Sent.svg',
+          height: 20,
+          width: 20,
+          colorFilter: ColorFilter.mode(
+            isSelected ? AppColors.iconActive : mailboxColor,
+            BlendMode.srcIn,
+          ),
+        ),
+        title: Text(
+          mailbox.name,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            color: isSelected ? AppColors.iconActive : Colors.black,
+          ),
+        ),
+        trailing: liveUnread > 0
+            ? Text(
+                unseenText,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: isSelected
+                      ? AppColors.iconActive
+                      : AppColors.secondaryText,
+                ),
+              )
+            : null,
+        onTap: () async {
+          Navigator.pop(context);
 
-        mailBloc.add(ResetMailListEvent());
-        mailBloc.add(
-          FetchMailListEvent(mailbox.id),
-        );
-      },
+          // ✅ SAVE SELECTED MAILBOX
+          await MailboxStorage.saveMailboxId(mailbox.id);
+
+          setState(() {
+            selectedMailboxId = mailbox.id;
+          });
+
+          final mailBloc = context.read<MailListBloc>();
+          mailBloc.add(ResetMailListEvent());
+          mailBloc.add(FetchMailListEvent(mailbox.id));
+        },
+      ),
     );
   }
+
+  // Widget _buildMailboxTile(BuildContext context, Mailbox mailbox) {
+  //   Color mailboxColor = AppColors.secondaryText;
+
+  //   try {
+  //     if (mailbox.color.startsWith('#')) {
+  //       mailboxColor = Color(int.parse(mailbox.color.replaceAll('#', '0xff')));
+  //     }
+  //   } catch (e) {
+  //     mailboxColor = AppColors.secondaryText;
+  //   }
+
+  //   final mailListState = context.watch<MailListBloc>().state;
+
+  //  // Get unread count from MailListBloc if available
+  //   final int liveUnread =
+  //       mailListState.unreadCountByMailbox[mailbox.id] ?? mailbox.unseen;
+
+  //   final String unseenText = liveUnread > 99 ? "99+" : liveUnread.toString();
+
+  //   return ListTile(
+  //     dense: true,
+  //     visualDensity: const VisualDensity(vertical: -3),
+  //     contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 0),
+  //     leading: SvgPicture.asset(
+  //       mailboxIcons[mailbox.name.toLowerCase()] ?? 'assets/images/Sent.svg',
+  //       height: 20,
+  //       width: 20,
+  //       colorFilter: ColorFilter.mode(mailboxColor, BlendMode.srcIn),
+  //     ),
+  //     title: Text(
+  //       mailbox.name,
+  //       style: const TextStyle(fontSize: 16, height: 1.0),
+  //     ),
+  //     trailing: liveUnread > 0
+  //         ? Container(
+  //             width: 24,
+  //             height: 24,
+  //             alignment: Alignment.center,
+  //             child: Text(
+  //               unseenText,
+  //               style: const TextStyle(
+  //                 color: AppColors.secondaryText,
+  //                 fontSize: 12,
+  //               ),
+  //             ),
+  //           )
+  //         : null,
+  //     onTap: () {
+  //       Navigator.pop(context);
+
+  //       final mailBloc = context.read<MailListBloc>();
+
+  //       mailBloc.add(ResetMailListEvent());
+  //       mailBloc.add(
+  //         FetchMailListEvent(mailbox.id),
+  //       );
+  //     },
+  //   );
+  // }
 
   Widget _buildLabelTile(BuildContext context, Mailbox mailbox) {
     Color labelColor = AppColors.secondaryText;
