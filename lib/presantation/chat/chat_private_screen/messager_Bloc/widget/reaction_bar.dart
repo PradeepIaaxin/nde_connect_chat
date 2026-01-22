@@ -1,3 +1,4 @@
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
 
 class ReactionBar extends StatelessWidget {
@@ -5,14 +6,16 @@ class ReactionBar extends StatelessWidget {
   final String currentUserId;
   final void Function(Map<String, dynamic> message, String emoji)? onReactionTap;
   final void Function(Map<String, dynamic> message, String emoji)? onOpenReactors;
-
+  final List<String> recentEmojis;
+  final Function(List<String>) onEmojiUpdated;
   const ReactionBar({
-    Key? key,
+    super.key,
     required this.message,
     required this.currentUserId,
     this.onReactionTap,
-    this.onOpenReactors,
-  }) : super(key: key);
+    this.onOpenReactors, required this.recentEmojis, required this.onEmojiUpdated,
+
+  });
 
   List<Map<String, dynamic>> _extractReactions(dynamic raw) {
     final List<Map<String, dynamic>> out = [];
@@ -39,42 +42,85 @@ class ReactionBar extends StatelessWidget {
   }
 
   // simple built-in emoji set — adjust to match your UI
-  static const List<String> defaultEmojis = ['👍','❤️','😂','😮','😢','👏'];
+ // static const List<String> defaultEmojis = ['👍','❤️','😂','😮','😢','😍'];
 
   void _openEmojiPicker(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(12))),
+      backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-            child: Wrap(
-              spacing: 12,
-              children: defaultEmojis.map((e) {
-                return GestureDetector(
-                  onTap: () {
-                    Navigator.of(ctx).pop();
-                    if (onReactionTap != null) onReactionTap!(message, e);
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      color: Colors.grey.shade100,
-                    ),
-                    child: Text(e, style: const TextStyle(fontSize: 22)),
-                  ),
-                );
-              }).toList(),
-            ),
+        return Container(
+          margin: const EdgeInsets.all(40),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(30),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              ...recentEmojis.map((emoji) => GestureDetector(
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  if (onReactionTap != null) onReactionTap!(message, emoji);
+                },
+                child: Text(emoji, style: const TextStyle(fontSize: 26)),
+              )),
+
+              GestureDetector(
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _openFullEmojiPicker(context);
+                },
+                child: const Icon(Icons.add_circle_outline, size: 26),
+              ),
+            ],
           ),
         );
       },
     );
   }
+  void _openFullEmojiPicker(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) {
+        return SizedBox(
+          height: 350,
+          child: EmojiPicker(
+            onEmojiSelected: (category, emoji) {
 
+              final list = List<String>.from(recentEmojis);
+
+              if (!list.contains(emoji.emoji)) {
+                if (list.length >= 6) list.removeAt(0);
+                list.add(emoji.emoji);
+              }
+
+             onEmojiUpdated(list);
+
+              if (onReactionTap != null) onReactionTap!(message, emoji.emoji);
+
+              Navigator.pop(context);
+            },
+
+            // onEmojiSelected: (category, emoji) {
+            //   Navigator.pop(context);
+            //
+            //   setState(() {
+            //     if (!_recentEmojis.contains(emoji.emoji)) {
+            //       _recentEmojis.removeAt(0); // keep max 6
+            //       _recentEmojis.add(emoji.emoji);
+            //     }
+            //   });
+            //
+            //   widget.onReact?.call(widget.message, emoji.emoji);
+            // },
+          ),
+        );
+      },
+    );
+  }
   @override
   Widget build(BuildContext context) {
     final reactions = _extractReactions(message['reactions']);
@@ -138,11 +184,7 @@ class ReactionBar extends StatelessWidget {
       final isMyReaction = userReacted[emoji] ?? false;
       return GestureDetector(
         onTap: () {
-          if (onOpenReactors != null) {
-            onOpenReactors!(message, emoji);
-            return;
-          }
-          _openEmojiPicker(context);
+          onOpenReactors!(message, emoji);
         },
         onLongPress: () {
           if (onReactionTap != null) onReactionTap!(message, emoji);

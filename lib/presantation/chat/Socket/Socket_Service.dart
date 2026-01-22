@@ -203,7 +203,7 @@ class SocketService {
     socket = null;
     log("socket creating....");
     const String socketUrl = 'https://api.nowdigitaleasy.com/wschat';
-    log("socketUrl : $socketUrl");
+    
     socket = IO.io(
       socketUrl,
       IO.OptionBuilder()
@@ -1251,7 +1251,7 @@ class SocketService {
 
           /// 🔵 LOG → RAW ACK
           log("📥 RAW ACK → receiver=$receiverId");
-          log(ackResponse.toString());
+          log("Ack Res: ${ackResponse.toString()}");
 
           try {
             final entry = <String, dynamic>{

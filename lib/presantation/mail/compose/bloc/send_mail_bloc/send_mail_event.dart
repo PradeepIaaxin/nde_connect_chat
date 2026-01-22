@@ -1,9 +1,3 @@
-
-
-
-
-
-// Events
 abstract class SendMailEvent {}
 
 class SendMailRequest extends SendMailEvent {
@@ -11,6 +5,11 @@ class SendMailRequest extends SendMailEvent {
   final String to;
   final String subject;
   final String body;
+
+
+final List<String> attachmentIds;
+
+
   final String? cc;
   final String? bcc;
 
@@ -19,6 +18,7 @@ class SendMailRequest extends SendMailEvent {
     required this.to,
     required this.subject,
     required this.body,
+    required this.attachmentIds, 
     this.cc,
     this.bcc,
   });

@@ -395,7 +395,7 @@ class _MessageInputFieldState extends State<MessageInputField> {
     if (widget.replyText == null) return const SizedBox();
 
     final String content = widget.replyText?['content']?.toString() ?? '';
-    final String? imageUrl = widget.replyText?['imageUrl'];
+    final String? imageUrl = widget.replyText?['originalUrl']??widget.replyText?['imageUrl'] ;
     final String? fileName = widget.replyText?['fileName'];
     final String? fileType = widget.replyText?['fileType'] ??
         widget.replyText?['mimeType'] ??
@@ -410,7 +410,8 @@ class _MessageInputFieldState extends State<MessageInputField> {
     final String userId = widget.replyText?['sender']?["_id"]?.toString() ?? "";
 
     log("sssssssss $senderId");
-    log("userId $userId");
+    log("sssssssss $senderId");
+    log("originalUrl $originalUrl");
 
 // 🔥 Detect grouped media safely
     final bool hasGroupId = widget.replyText?['group_message_id'] != null;

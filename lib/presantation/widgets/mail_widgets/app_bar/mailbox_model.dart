@@ -50,7 +50,7 @@ class Mailbox {
   factory Mailbox.fromJson(Map<String, dynamic> json) {
     return Mailbox(
       id: json['id'] ?? '',
-      name: json['name'] ?? 'Unknown',
+      name: json['name'] ?? '',
       path: json['path'] ?? '',
       specialUse: json['specialUse'],
       modifyIndex: json['modifyIndex'] ?? 0,

@@ -346,11 +346,11 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
                             message["message_id"]?.toString() ?? "";
                         if (originalMessageId.isEmpty) continue;
                         final String? imageUrl =
-                            message['imageUrl'] ?? message['originalUrl'];
+                        message['originalUrl']?? message['imageUrl'];
                         final String? fileUrl =
                             message['fileUrl'] ?? message['originalUrl'];
                         final String? fileType =
-                            message['fileType'] ?? message['mimeType'];
+                        message['mimeType']?? message['fileType'] ?? message['mimeType'];
                         final String? originalKey =
                             message['originalKey'] ?? message['originalKey'];
                         final String? mimeType = message['mimeType'] ?? "";
@@ -430,6 +430,7 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
 
                         //optimisticMessagesForUI.add(optimisticMessage);
                         print("foewardddd ${widget.isForward}");
+                        print("mimeType ${mimeType}");
                         widget.isForward!
                             ? null
                             : await _saveOptimisticMessage(
