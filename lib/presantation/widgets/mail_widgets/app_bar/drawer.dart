@@ -297,7 +297,13 @@ class _CustomDrawerState extends State<CustomDrawer> {
       mailboxColor = AppColors.secondaryText;
     }
 
-    String unseenText = mailbox.unseen > 99 ? "99+" : mailbox.unseen.toString();
+    final mailListState = context.watch<MailListBloc>().state;
+
+// Get unread count from MailListBloc if available
+    final int liveUnread =
+        mailListState.unreadCountByMailbox[mailbox.id] ?? mailbox.unseen;
+
+    final String unseenText = liveUnread > 99 ? "99+" : liveUnread.toString();
 
     return ListTile(
       dense: true,
@@ -313,7 +319,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
         mailbox.name,
         style: const TextStyle(fontSize: 16, height: 1.0),
       ),
-      trailing: mailbox.unseen > 0
+      trailing: liveUnread > 0
           ? Container(
               width: 24,
               height: 24,
