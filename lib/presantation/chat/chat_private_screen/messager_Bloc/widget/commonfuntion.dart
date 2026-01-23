@@ -145,6 +145,7 @@ List<GroupMediaItem> buildConversationMedia(
           senderName: senderName,
           senderId: senderId,
           time: time,
+          message: msg,
         ),
       );
     } else {
@@ -173,6 +174,7 @@ List<GroupMediaItem> buildConversationMedia(
               senderName: senderName,
               senderId: senderId,
               time: time,
+              message: msg,
             ),
           );
         }

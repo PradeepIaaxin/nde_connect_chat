@@ -162,6 +162,28 @@ class MessagerApiService {
       rethrow;
     }
   }
+  Future<Map<String, String>> refreshAttachmentUrls(List<String> keys) async {
+    final token = await UserPreferences.getAccessToken();
+    final workspace = await UserPreferences.getDefaultWorkspace();
+
+    final res = await http.post(
+      Uri.parse(
+          "https://api.nowdigitaleasy.com/wschat/v1/messages/attachments/refresh-urls"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "x-workspace": workspace ?? "",
+        "Content-Type": "application/json",
+      },
+      body: jsonEncode({
+        "originalKeys": keys,
+        "profilePic": false,
+      }),
+    );
+
+    final data = jsonDecode(res.body);
+
+    return Map<String, String>.from(data["urls"]);
+  }
 
   // Future<List<Datum>> fetchMessages({
   //   required String convoId,

@@ -497,6 +497,7 @@ class _MessageBubbleState extends State<MessageBubble> {
         builder: (_) => MixedMediaViewer(
           items: media,
           initialIndex: index,
+          currentUserId: widget.currentUserId,
         ),
       ),
     );
@@ -962,6 +963,7 @@ class _MessageBubbleState extends State<MessageBubble> {
             ),
           ],
           initialIndex: 0,
+          currentUserId: widget.currentUserId,
         ),
       ),
     );

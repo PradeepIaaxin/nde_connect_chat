@@ -1,4 +1,3 @@
-import 'dart:developer';
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
@@ -215,8 +214,9 @@ class GroupedMediaWidget extends StatelessWidget {
               //     ),
               //   ),
               // ),
-              if (isReaction! &&
-                  buildReactionsBar != null)
+              if (message['reactions'] != null &&
+                  (message['reactions'] as List).isNotEmpty &&
+                 buildReactionsBar != null)
                 Positioned(
                   bottom:  -37,
                   right: isSentByMe ? 12 : null,
@@ -606,7 +606,7 @@ class GroupMediaItem {
   final bool? isReactions;
   final String? time;
   final String? uniqueId; // 🔥 ADD THIS
-
+  final Map<String, dynamic>? message;
 
   GroupMediaItem({
     required this.previewUrl,
@@ -614,6 +614,6 @@ class GroupMediaItem {
     required this.isVideo,
     this.senderName,
     this.senderId,
-    this.time,  this.uniqueId,  this.isReactions,
+    this.time,  this.uniqueId,  this.isReactions, this.message,
   });
 }

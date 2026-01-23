@@ -231,6 +231,7 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
             size: data["size"] ?? 0,
             fileWithText: false,
             audioDuration: event.duration,
+            originalKey: data["originalKey"] ?? "",
             originalUrl: data["originalUrl"] ?? data["location"] ?? "",
             ackCallback: (ack) {
               final tempId = ack['tempId'] ?? tempMessageId;
@@ -617,6 +618,28 @@ List<MessageGroup> _convertFlatToGroups(List<Datum> messages) {
   return map.entries
       .map((e) => MessageGroup(label: e.key, messages: e.value))
       .toList();
+}
+bool _isPresignedExpired(String url) {
+  try {
+    final u = Uri.parse(url);
+    final xDate = u.queryParameters['X-Amz-Date'];
+    final expires = int.tryParse(u.queryParameters['X-Amz-Expires'] ?? '') ?? 0;
+    if (xDate == null || expires == 0) return false;
+
+    final signedAt = DateTime.utc(
+      int.parse(xDate.substring(0, 4)),
+      int.parse(xDate.substring(4, 6)),
+      int.parse(xDate.substring(6, 8)),
+      int.parse(xDate.substring(9, 11)),
+      int.parse(xDate.substring(11, 13)),
+      int.parse(xDate.substring(13, 15)),
+    );
+
+    return DateTime.now().toUtc()
+        .isAfter(signedAt.add(Duration(seconds: expires)));
+  } catch (_) {
+    return false;
+  }
 }
 
 String _extractDateLabel(DateTime? time) {

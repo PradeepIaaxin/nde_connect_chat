@@ -8,7 +8,9 @@ import 'package:photo_view/photo_view_gallery.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:video_player/video_player.dart';
 
+import '../../../../../utils/router/router.dart';
 import '../../../../widgets/chat_widgets/Common/grouped_media_viewer.dart';
+import '../../../../widgets/chat_widgets/messager_Wifgets/ForwardMessageScreen_widget.dart';
 import 'VideoPlayerScreen.dart';
 
 // class MixedMediaViewer extends StatefulWidget {
@@ -354,11 +356,11 @@ import 'VideoPlayerScreen.dart';
 class MixedMediaViewer extends StatefulWidget {
   final List<GroupMediaItem> items;
   final int initialIndex;
-
+  final String? currentUserId;
   const MixedMediaViewer({
     super.key,
     required this.items,
-    this.initialIndex = 0,
+    this.initialIndex = 0, this.currentUserId,
   });
 
   @override
@@ -434,89 +436,7 @@ class _MixedMediaViewerState extends State<MixedMediaViewer> {
       curve: Curves.easeInOut,
     );
   }
-  Widget _buildTopBar() {
-    final item = widget.items[_currentIndex];
 
-    return SafeArea(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.black54, Colors.transparent],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: Row(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: () => Navigator.pop(context),
-            ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.senderName ?? "Media",
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
-                  ),
-                  if (item.time != null)
-                    Text(
-                      _formatDateTime(item.time),
-                      style: const TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                ],
-              ),
-            ),
-            IconButton(icon: const Icon(Icons.star_border, color: Colors.white), onPressed: () {}),
-            IconButton(icon: const Icon(Icons.share, color: Colors.white), onPressed: () {}),
-            IconButton(icon: const Icon(Icons.more_vert, color: Colors.white), onPressed: () {}),
-          ],
-        ),
-      ),
-    );
-  }
-  Widget _buildBottomBar() {
-    return Positioned(
-      bottom: 0,
-      left: 0,
-      right: 0,
-      child: SafeArea(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.transparent, Colors.black54],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.emoji_emotions_outlined, color: Colors.white),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white24,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    "Reply",
-                    style: TextStyle(color: Colors.white70),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Icon(Icons.send, color: Colors.white),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   // ==========================================================
   // MAIN BUILD
@@ -524,7 +444,9 @@ class _MixedMediaViewerState extends State<MixedMediaViewer> {
   @override
   Widget build(BuildContext context) {
     final currentItem = widget.items[_currentIndex];
-
+    final currentMessage = currentItem.message;
+    final bool isSentByMe =
+        currentMessage?['senderId']?.toString() == widget.currentUserId;
     return Scaffold(
       backgroundColor: Colors.black,
       extendBodyBehindAppBar: true,
@@ -562,11 +484,27 @@ class _MixedMediaViewerState extends State<MixedMediaViewer> {
             Icons.star_border
           ),
           SizedBox(width: 20,),
-          Image.asset(
-            "assets/images/forward.png",
-            height: 20,
-            width: 20,
-            color: Colors.white,
+          GestureDetector(
+            onTap: () {
+              if (currentMessage == null) return;
+              Navigator.pop(context);
+              MyRouter.pushReplace(
+                screen: ForwardMessageScreen(
+                  isForward: isSentByMe,
+                  messages: [currentMessage],
+                  currentUserId: currentMessage['senderId'] ?? '',
+                  conversionalid: "",
+                  username: currentMessage['senderName'] ?? '',
+                ),
+              );
+            },
+
+            child: Image.asset(
+              "assets/images/forward.png",
+              height: 20,
+              width: 20,
+              color: Colors.white,
+            ),
           ),
           SizedBox(width: 20,),
           Icon(
