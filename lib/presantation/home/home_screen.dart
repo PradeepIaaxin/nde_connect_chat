@@ -9,7 +9,7 @@ import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar.dart
 import 'package:nde_email/presantation/widgets/mail_widgets/bottam_nav/bottam_nav_bloc.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/drawer.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/bottam_nav/bottom_nav.dart';
-import 'package:nde_email/presantation/mail/mail_list/mail_list_screen.dart';
+import 'package:nde_email/presantation/mail/mail_list/screen/mail_list_screen.dart';
 import 'package:nde_email/presantation/chat/chat_list/chat_screen.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar_state.dart';
@@ -19,8 +19,8 @@ import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_color
 import 'package:nde_email/presantation/widgets/mail_widgets/error_display.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/floating_action/floating_action_ui.dart';
 import 'package:nde_email/presantation/mail/compose/screen/compose_screen.dart';
-import 'package:nde_email/presantation/mail/mail_list/mail_list_bloc.dart';
-import 'package:nde_email/presantation/mail/mail_list/mail_list_state.dart';
+import 'package:nde_email/presantation/mail/mail_list/bloc/mail_list_bloc.dart';
+import 'package:nde_email/presantation/mail/mail_list/bloc/mail_list_state.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/floating_action/floating_action_event.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/floating_action/floating_action_bloc.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/floating_action/floating_action_state.dart';

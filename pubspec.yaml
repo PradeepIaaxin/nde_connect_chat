@@ -173,4 +173,5 @@ flutter:
   assets:
       - assets/images/
       - assets/audio/message_sent.mp3
+      - assets/gif/
   
