@@ -2717,6 +2717,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         onEmojiUpdated: (list) {
           setState(() => recentEmojis = list);
         },
+        currentUserId: currentUser,
 
         //isHighlighted: messageId == _highlightedMessageId,
       );
@@ -3468,6 +3469,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
               ),
             ],
             initialIndex: 0,
+            currentUserId: currentUser,
           ),
         ),
       );
@@ -4743,7 +4745,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                         previewUrl: mediaUrl,
                                         mediaUrl: mediaUrl,
                                         isVideo: false,
-                                        uniqueId: uniqueId));
+                                        uniqueId: uniqueId,   message: nextMsg));
                                   } else if (isVideo) {
                                     final preview = previewUrl ?? fileUrl ?? '';
                                     final media = fileUrl ?? mediaUrl ?? '';
@@ -4752,7 +4754,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                           previewUrl: preview,
                                           mediaUrl: media,
                                           isVideo: true,
-                                          uniqueId: uniqueId));
+                                          uniqueId: uniqueId,   message: nextMsg));
                                     }
                                   }
                                 }
@@ -4882,6 +4884,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                                     pageBuilder: (_, __, ___) => MixedMediaViewer(
                                                       items: conversationMedia,
                                                       initialIndex: startIndex < 0 ? 0 : startIndex,
+                                                      currentUserId: currentUser,
                                                     ),
                                                   ),
                                                 );
