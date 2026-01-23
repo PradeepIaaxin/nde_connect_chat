@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:hive/hive.dart';
 import 'package:nde_email/bridge_generated.dart/api.dart';
 import 'package:nde_email/convo_list_crdt.dart';
@@ -203,7 +204,7 @@ class SocketService {
     socket = null;
     log("socket creating....");
     const String socketUrl = 'https://api.nowdigitaleasy.com/wschat';
-    
+
     socket = IO.io(
       socketUrl,
       IO.OptionBuilder()
@@ -236,6 +237,7 @@ class SocketService {
   void _registerGlobalHandlers() {
     socket!.onConnect((_) async {
       await resetGlobalDoc();
+
       _socketCreationCount++;
       _slog('✅ Socket connected: ${socket!.id} (total: $_socketCreationCount)');
       if (_connectCompleter != null && !_connectCompleter!.isCompleted) {
@@ -245,7 +247,9 @@ class SocketService {
       Future.microtask(() async {
         try {
           final deviceId = await UserPreferences.getDeviceId();
+          final token = await FirebaseMessaging.instance.getToken() ?? "";
           log("device_id : $deviceId");
+          log("device token  : $token");
           final keys = await getOrCreateDeviceKeys();
           final publicKeyJwk = ecPublicKeyToJwk(keys.publicKey);
           // device info
@@ -253,12 +257,34 @@ class SocketService {
 
           print("device info: $deviceInfo");
 
-          socket!.emit('register_device', {
-            'deviceId': deviceId,
-            'userId': _currentUserId,
-            'publicKey': publicKeyJwk,
-            'deviceInfo': deviceInfo,
+          log("login : $token");
+
+          socket!.emit("register_device", {
+            "deviceId": deviceId,
+            "userId": _currentUserId,
+            "fcmToken": token,
+            "fcmPlatform": Platform.isIOS ? "ios" : "android",
+            "publicKey": publicKeyJwk,
+            "deviceInfo": deviceInfo,
           });
+
+          // socket!.emit('register_device', {
+          //   'deviceId': deviceId,
+          //   'userId': _currentUserId,
+          //   'publicKey': publicKeyJwk,
+          //   'deviceInfo': deviceInfo,
+          // });
+
+          // socket!.emit("register_device", {
+          //   "deviceId": deviceId,
+          //   "fcmToken": await FirebaseMessaging.instance.getToken(),
+          //   "fcmPlatform": Platform.isIOS ? "ios" : "android",
+          //   "deviceInfo": {
+          //     "platform": "mobile",
+          //     "os": Platform.operatingSystem,
+          //     "model": deviceInfo,
+          //   }
+          // });
 
           _slog('[SOCKET] register_device emitted');
           _slog('Socket register_device: ${socket!.connected}');
@@ -414,8 +440,7 @@ class SocketService {
     required String messageId,
     required String receiverId,
     required String userId,
-  })
-  {
+  }) {
     if (socket == null || socket!.disconnected) {
       return Future.value(false);
     }
@@ -1370,8 +1395,7 @@ class SocketService {
     required String userId,
     required String firstName,
     required String lastName,
-  })
-  {
+  }) {
     if (!isConnected) {
       log("❌ Socket not connected");
       return;
@@ -1387,7 +1411,6 @@ class SocketService {
 
     socket!.emit('remove_reaction', payload);
   }
-
 
   Future<void> toggleFavorite({
     required String targetId,
@@ -1470,7 +1493,7 @@ class SocketService {
       _slog('sendMessage aborted: not connected');
       return;
     }
-log(" replygroup_message_id ${ reply?["group_message_id"]}");
+    log(" replygroup_message_id ${reply?["group_message_id"]}");
     final messagePayload = {
       "messageId": messageId,
       "conversationId": conversationId,
@@ -1502,7 +1525,10 @@ log(" replygroup_message_id ${ reply?["group_message_id"]}");
         "reply": {
           "replyToUser": reply["sender"]?["_id"],
           "replyToMessage": reply["message_id"] ?? reply["_id"] ?? reply["id"],
-          "replyContent": replyGroupImageCount??reply["content"] ?? reply["replyContent"] ?? "",
+          "replyContent": replyGroupImageCount ??
+              reply["content"] ??
+              reply["replyContent"] ??
+              "",
           "ContentType": reply["ContentType"] ?? "text",
           "fileName": reply["fileName"],
           "first_name": reply["sender"]?["first_name"] ?? "",

@@ -1,6 +1,3 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nde_email/presantation/chat/device/bloc/device_bloc.dart';
 import 'package:nde_email/presantation/chat/device/bloc/device_event.dart';
 import 'package:nde_email/presantation/chat/device/bloc/device_state.dart';
@@ -61,26 +58,21 @@ class _DeviceScreenState extends State<DeviceScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const SizedBox(height: 20),
-
-                  
                   Image.asset(
                     "assets/gif/LinkDevice.gif",
+                    width: double.infinity,
                     height: 200,
-                    fit: BoxFit.contain,
+                    fit: BoxFit.cover,
                   ),
 
-                  // const SizedBox(height: 12),
-                  // const Padding(
-                  //   padding: EdgeInsets.symmetric(horizontal: 20),
-                  //   child: Text(
-                  //     "You can link other devices to this account.",
-                  //     textAlign: TextAlign.center,
-                  //     style: TextStyle(fontSize: 14, color: Colors.black87),
-                  //   ),
-                  // ),
+                 
 
-                  const SizedBox(height: 20),
+                  // Image.asset(
+                  //   "assets/gif/LinkDevice.gif",
+                  //   height: 200,
+                  //   width: 300,
+                  //   fit: BoxFit.contain,
+                  // ),
 
                   // 🔥 DEVICE STATUS TITLE
                   const Padding(

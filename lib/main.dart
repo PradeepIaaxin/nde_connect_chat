@@ -1,3 +1,4 @@
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:nde_email/bridge_generated.dart/frb_generated.dart';
@@ -11,12 +12,13 @@ import 'package:nde_email/presantation/update_screen/update_bloc/update_bloc.dar
 import 'package:nde_email/presantation/update_screen/update_repo/update_repo.dart';
 import 'package:nde_email/utils/app_state/app_lifecycle_service.dart';
 import 'package:nde_email/utils/appsharescreen/sharepreviewscreen.dart';
+import 'package:nde_email/utils/fcm_handler/fcm_handler.dart';
+import 'package:nde_email/utils/fcm_handler/local_notification_service.dart';
 import 'package:nde_email/utils/imports/common_imports.dart';
 import 'dart:io';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
-
-// import 'firebase_options.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 // GLOBAL SINGLETONS
 late final SocketService socketService;
@@ -27,9 +29,29 @@ void main() async {
   AppLifecycleService().init();
   await InternetService.initialize();
 
-  // await Firebase.initializeApp(
-  //   options: DefaultFirebaseOptions.currentPlatform,
-  // );
+  await Firebase.initializeApp();
+
+//background
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
+//local notification
+  await LocalNotificationService.initialize();
+
+//forground listrner
+  FirebaseMessaging.onMessage.listen((message) {
+    LocalNotificationService.show(message);
+  });
+
+//Notification click log
+  FirebaseMessaging.onMessageOpenedApp.listen((message) {
+    print("👆 Notification clicked: ${message.data}");
+  });
+
+  FirebaseMessaging.instance.getInitialMessage().then((message) {
+    if (message != null) {
+      print("🚀 Opened from killed state: ${message.data}");
+    }
+  });
 
   SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
@@ -78,6 +100,26 @@ void main() async {
   }
 
   runApp(MyRootApp(isLoggedIn: isLoggedIn, isFirstOpen: isFirstOpen));
+}
+
+Future<void> getFcmToken() async {
+  FirebaseMessaging messaging = FirebaseMessaging.instance;
+
+  // Request permission (Android 13 & iOS)
+  await messaging.requestPermission(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+
+  // Get token
+  String? token = await messaging.getToken();
+  print("🔥 FCM TOKEN: $token");
+
+  // Listen token refresh
+  FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
+    print("🔄 NEW FCM TOKEN: $newToken");
+  });
 }
 
 // Background connection — doesn't block UI
