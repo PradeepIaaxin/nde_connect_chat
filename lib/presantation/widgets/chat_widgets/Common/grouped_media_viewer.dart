@@ -64,7 +64,7 @@ class GroupedMediaWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    print("isSelected $isSelected");
+  //  print("isSelected $isSelected");
     if (media.isEmpty) return const SizedBox.shrink();
 
     final screenWidth = MediaQuery.of(context).size.width;
