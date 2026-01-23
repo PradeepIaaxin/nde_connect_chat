@@ -37,7 +37,7 @@ class WebSocketBloc extends Bloc<WebSocketEvent, WebSocketState> {
     });
 
     /// 🔔 HANDLE NOTIFICATION
-    Future<void> _handleNotification(
+    Future<void> handleNotification(
       Map<String, dynamic> data,
       Emitter<WebSocketState> emit,
     ) async {
@@ -51,8 +51,8 @@ class WebSocketBloc extends Bloc<WebSocketEvent, WebSocketState> {
       log("💬 Message: ${newNotification.message}");
       log("📊 Total notifications: ${notifications.length}");
 
-      String senderName = newNotification.fromName ?? "Unknown";
-      String senderEmail = newNotification.fromAddress ?? "Unknown";
+      String senderName = newNotification.fromName;
+      String senderEmail = newNotification.fromAddress;
 
       await NotificationService.showNotification(
         title: '📧 $senderName',
@@ -76,14 +76,14 @@ class WebSocketBloc extends Bloc<WebSocketEvent, WebSocketState> {
 
           for (var item in decoded) {
             if (item is Map<String, dynamic>) {
-              await _handleNotification(item, emit);
+              await handleNotification(item, emit);
             } else {
               log("⚠️ Bloc: List item not Map → $item");
             }
           }
         } else if (decoded is Map<String, dynamic>) {
           log("🗂 Bloc: Message is MAP");
-          await _handleNotification(decoded, emit);
+          await handleNotification(decoded, emit);
         } else {
           log("❓ Bloc: Unknown message format → $decoded");
         }

@@ -5,6 +5,7 @@ import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/wi
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/commonfuntion.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/replymessgae.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/grouped_media_viewer.dart';
+import 'package:nde_email/presantation/widgets/chat_widgets/Common/message_caption.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/AudioMessageWidget.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/ForwardMessageScreen_widget.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
@@ -67,16 +68,18 @@ class MessageBubble extends StatefulWidget {
       required this.allMessages,
       this.currentUserId,
       this.receiverName,
-      this.stretchReply = false, required this.recentEmojis, required this.onEmojiUpdated,
-      this.searchText, required this.isSelectionMode});
-
+      this.stretchReply = false,
+      required this.recentEmojis,
+      required this.onEmojiUpdated,
+      this.searchText,
+      required this.isSelectionMode});
 
   @override
   State<MessageBubble> createState() => _MessageBubbleState();
 }
 
 class _MessageBubbleState extends State<MessageBubble> {
-   List<String> _recentEmojis = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+  List<String> _recentEmojis = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
   @override
   Widget build(BuildContext context) {
@@ -112,14 +115,16 @@ class _MessageBubbleState extends State<MessageBubble> {
 
     final bool? isForwarded = widget.message['isForwarded'] ?? false;
     final bool? isReplyMessage = widget.message['isReplyMessage'];
-    final String messageStatus = widget.message['messageStatus']?.toString() ?? 'sent';
+    final String messageStatus =
+        widget.message['messageStatus']?.toString() ?? 'sent';
 
     final replyData = widget.message['reply'];
-    final replyId = widget.message['reply_message_id'] ?? widget.message['replyMessageId'];
+    final replyId =
+        widget.message['reply_message_id'] ?? widget.message['replyMessageId'];
     final replyContent = widget.message['replyContent'];
     final screenWidth = MediaQuery.of(context).size.width;
-    final bool isDeleted =
-        widget.message['is_deleted'] == true || widget.message['messageStatus'] == 'deleted';
+    final bool isDeleted = widget.message['is_deleted'] == true ||
+        widget.message['messageStatus'] == 'deleted';
 
     bool hasReply = ((replyData is Map && replyData.isNotEmpty) ||
             (replyId != null && replyId.toString().isNotEmpty) ||
@@ -141,9 +146,11 @@ class _MessageBubbleState extends State<MessageBubble> {
     bool _ignoreParentTap = false;
 
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: widget.emojpicker != null ? 6.0 : 0),
+      padding:
+          EdgeInsets.symmetric(vertical: widget.emojpicker != null ? 6.0 : 0),
       child: Align(
-        alignment: widget.isSentByMe ? Alignment.centerRight : Alignment.centerLeft,
+        alignment:
+            widget.isSentByMe ? Alignment.centerRight : Alignment.centerLeft,
         widthFactor: widget.isReply ? 1.0 : null,
         child: Stack(
           clipBehavior: Clip.none,
@@ -158,7 +165,6 @@ class _MessageBubbleState extends State<MessageBubble> {
                   widget.onTap?.call();
                 }
               },
-
 
               // onTap: () {
               //   log("messsssssage ${widget.message}");
@@ -199,14 +205,18 @@ class _MessageBubbleState extends State<MessageBubble> {
                     topRight: widget.isSentByMe
                         ? const Radius.circular(18)
                         : const Radius.circular(18),
-                    bottomLeft:
-                        widget.isSentByMe ? const Radius.circular(18) : Radius.zero,
-                    bottomRight:
-                        widget.isSentByMe ? Radius.zero : const Radius.circular(16),
+                    bottomLeft: widget.isSentByMe
+                        ? const Radius.circular(18)
+                        : Radius.zero,
+                    bottomRight: widget.isSentByMe
+                        ? Radius.zero
+                        : const Radius.circular(16),
                   ),
-                  border: widget.isReply?null:widget.isSelected
-                      ? Border.all(color: widget.borderColor, width: 2)
-                      : null,
+                  border: widget.isReply
+                      ? null
+                      : widget.isSelected
+                          ? Border.all(color: widget.borderColor, width: 2)
+                          : null,
                 ),
                 child: Stack(
                   children: [
@@ -221,7 +231,8 @@ class _MessageBubbleState extends State<MessageBubble> {
                                 widget.message['reply'] ??
                                 _buildSyntheticReply(widget.message),
                             receiver: widget.message['sender'] is Map
-                                ? Map<String, dynamic>.from(widget.message['sender'])
+                                ? Map<String, dynamic>.from(
+                                    widget.message['sender'])
                                 : {},
                             isSender: widget.isSentByMe,
                             onTap: () {
@@ -265,23 +276,29 @@ class _MessageBubbleState extends State<MessageBubble> {
                                 '',
                             isSender: widget.isSentByMe,
                             duration: widget.message['duration']?.toString(),
-                            timestamp:
-                                TimeUtils.formatUtcToIst(widget.message['time']),
+                            timestamp: TimeUtils.formatUtcToIst(
+                                widget.message['time']),
                             status:
-                                widget.message['messageStatus']?.toString() ?? 'sent',
+                                widget.message['messageStatus']?.toString() ??
+                                    'sent',
                             showContainer: false,
                           )
 
                         // 2. Video Preview
                         else if (isVideo && hasFile)
-                          _buildVideoPreviewTile(context, fileUrl,
-                              fileName ?? "", widget.isSentByMe, content.isEmpty)
+                          _buildVideoPreviewTile(
+                              context,
+                              fileUrl,
+                              fileName ?? "",
+                              widget.isSentByMe,
+                              content.isEmpty)
 
                         // 3. Image preview
                         else if (isImage && (hasImageContent || hasFile))
                           _buildImage(context, content,
                               displayImageUrl ?? fileUrl ?? "", fileName,
-                              isSentByMe: widget.isSentByMe, showTime: content.isEmpty)
+                              isSentByMe: widget.isSentByMe,
+                              showTime: content.isEmpty)
 
                         // 4. General File preview (Document)
                         else if (hasFile)
@@ -291,7 +308,24 @@ class _MessageBubbleState extends State<MessageBubble> {
 
                         // Text content
                         if (content.isNotEmpty)
-                          _buildTextMessage(content, messageStatus),
+                          // Use MessageCaption for image/video/document captions to position time/status in the right corner
+                          if ((isImage && (hasImageContent || hasFile)) ||
+                              (isVideo && hasFile) ||
+                              (hasFile &&
+                                  !isImage &&
+                                  !isVideo &&
+                                  !isAudio)) // Document
+                            MessageCaption(
+                              content: content,
+                              time: TimeUtils.formatUtcToIst(
+                                  widget.message['time']),
+                              isSentByMe: widget.isSentByMe,
+                              messageStatus: messageStatus,
+                              buildStatusIcon: widget.buildStatusIcon,
+                              searchText: widget.searchText,
+                            )
+                          else
+                            _buildTextMessage(content, messageStatus),
                       ],
                     ),
                     if (isVideo ||
@@ -299,41 +333,44 @@ class _MessageBubbleState extends State<MessageBubble> {
                         hasFile ||
                         (content.isNotEmpty &&
                             RegExp(r'((https?:\/\/)|(www\.))[^\s]+',
-                                caseSensitive: false)
-                                .hasMatch(content)))Positioned(
-                      top: 160,
-                      right: widget.isSentByMe ? 420 : null,
-                      left:  widget.isSentByMe ? null : 420,
-                      child: Center(
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(20),
-                            onTap: () {
-                              log("hhhhhhhhhhh");
-                              MyRouter.pushReplace(
-                                screen: ForwardMessageScreen(
-                                  isForward: widget.isSentByMe,
-                                  messages: [widget.message],
-                                  currentUserId: widget.message['senderId'] ?? '',
-                                  conversionalid: "",
-                                  username: widget.message['senderName'] ?? '',
+                                    caseSensitive: false)
+                                .hasMatch(content)))
+                      Positioned(
+                        top: 160,
+                        right: widget.isSentByMe ? 420 : null,
+                        left: widget.isSentByMe ? null : 420,
+                        child: Center(
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(20),
+                              onTap: () {
+                                log("hhhhhhhhhhh");
+                                MyRouter.pushReplace(
+                                  screen: ForwardMessageScreen(
+                                    isForward: widget.isSentByMe,
+                                    messages: [widget.message],
+                                    currentUserId:
+                                        widget.message['senderId'] ?? '',
+                                    conversionalid: "",
+                                    username:
+                                        widget.message['senderName'] ?? '',
+                                  ),
+                                );
+                              },
+                              child: CircleAvatar(
+                                radius: 16,
+                                backgroundColor: Colors.white,
+                                child: Image.asset(
+                                  "assets/images/forward.png",
+                                  height: 20,
+                                  width: 20,
                                 ),
-                              );
-                            },
-                            child: CircleAvatar(
-                              radius: 16,
-                              backgroundColor: Colors.white,
-                              child: Image.asset(
-                                "assets/images/forward.png",
-                                height: 20,
-                                width: 20,
                               ),
                             ),
                           ),
                         ),
                       ),
-                    ),
                     if (hasReply && widget.stretchReply)
                       Positioned(
                         top: 0,
@@ -346,7 +383,8 @@ class _MessageBubbleState extends State<MessageBubble> {
                               widget.message['reply'] ??
                               _buildSyntheticReply(widget.message),
                           receiver: widget.message['sender'] is Map
-                              ? Map<String, dynamic>.from(widget.message['sender'])
+                              ? Map<String, dynamic>.from(
+                                  widget.message['sender'])
                               : {},
                           isSender: widget.isSentByMe,
                           onTap: () {
@@ -367,7 +405,8 @@ class _MessageBubbleState extends State<MessageBubble> {
                             widget.message['reply'] ??
                             _buildSyntheticReply(widget.message),
                         receiver: widget.message['sender'] is Map
-                            ? Map<String, dynamic>.from(widget.message['sender'])
+                            ? Map<String, dynamic>.from(
+                                widget.message['sender'])
                             : {},
                         isSender: widget.isSentByMe,
                         onTap: () {
@@ -397,7 +436,8 @@ class _MessageBubbleState extends State<MessageBubble> {
                       // show reaction picker on tap too
                       _showReactionPicker(context);
                     },
-                    child: widget.buildReactionsBar!(widget.message, widget.isSentByMe),
+                    child: widget.buildReactionsBar!(
+                        widget.message, widget.isSentByMe),
                   ),
                 ),
               ),
@@ -417,7 +457,6 @@ class _MessageBubbleState extends State<MessageBubble> {
                   child: Material(
                     color: Colors.transparent,
                     child: GestureDetector(
-
                       onTap: () {
                         log("hhhhhhhhhhh");
                         MyRouter.pushReplace(
@@ -505,44 +544,43 @@ class _MessageBubbleState extends State<MessageBubble> {
 
   // void _showReactionPicker(BuildContext context) {
 
-   void _showReactionPicker(BuildContext context) {
-     if (widget.onReact == null) return;
+  void _showReactionPicker(BuildContext context) {
+    if (widget.onReact == null) return;
 
-     showModalBottomSheet(
-       context: context,
-       backgroundColor: Colors.transparent,
-       builder: (ctx) {
-         return Container(
-           margin: const EdgeInsets.all(40),
-           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-           decoration: BoxDecoration(
-             color: Colors.white,
-             borderRadius: BorderRadius.circular(30),
-           ),
-           child: Row(
-             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-             children: [
-               ...widget.recentEmojis.map((emoji) => GestureDetector(
-                 onTap: () {
-                   Navigator.pop(ctx);
-                   widget.onReact?.call(widget.message, emoji);
-                 },
-                 child: Text(emoji, style: const TextStyle(fontSize: 26)),
-               )),
-
-               GestureDetector(
-                 onTap: () {
-                   Navigator.pop(ctx);
-                   _openFullEmojiPicker(context);
-                 },
-                 child: const Icon(Icons.add_circle_outline, size: 26),
-               ),
-             ],
-           ),
-         );
-       },
-     );
-   }
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          margin: const EdgeInsets.all(40),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(30),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              ...widget.recentEmojis.map((emoji) => GestureDetector(
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      widget.onReact?.call(widget.message, emoji);
+                    },
+                    child: Text(emoji, style: const TextStyle(fontSize: 26)),
+                  )),
+              GestureDetector(
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _openFullEmojiPicker(context);
+                },
+                child: const Icon(Icons.add_circle_outline, size: 26),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   void _openFullEmojiPicker(BuildContext context) {
     showModalBottomSheet(
@@ -553,7 +591,6 @@ class _MessageBubbleState extends State<MessageBubble> {
           height: 350,
           child: EmojiPicker(
             onEmojiSelected: (category, emoji) {
-
               final list = List<String>.from(widget.recentEmojis);
 
               if (!list.contains(emoji.emoji)) {
@@ -769,9 +806,9 @@ class _MessageBubbleState extends State<MessageBubble> {
           onTap: () async {
             if (widget.isSelectionMode) {
               widget.onLongPress?.call();
-            } else if(looksImage) {
+            } else if (looksImage) {
               _openConversationViewer(context, imageUrl);
-            }else {
+            } else {
               // treat as file
               widget.onFileTap?.call(imageUrl, null);
             }
@@ -822,7 +859,8 @@ class _MessageBubbleState extends State<MessageBubble> {
                   if (isSentByMe) ...[
                     const SizedBox(width: 4),
                     widget.buildStatusIcon?.call(
-                            widget.message['messageStatus']?.toString() ?? 'sent') ??
+                            widget.message['messageStatus']?.toString() ??
+                                'sent') ??
                         const Icon(Icons.done, size: 12, color: Colors.white),
                   ],
                 ],
@@ -938,9 +976,12 @@ class _MessageBubbleState extends State<MessageBubble> {
   }
 
   void openSingleMediaViewer(BuildContext context) {
-    final String? imageUrl = widget.message['imageUrl'] ?? widget.message['originalUrl'];
-    final String? fileUrl = widget.message['fileUrl'] ?? widget.message['originalUrl'];
-    final String? fileType = widget.message['fileType']?.toString().toLowerCase();
+    final String? imageUrl =
+        widget.message['imageUrl'] ?? widget.message['originalUrl'];
+    final String? fileUrl =
+        widget.message['fileUrl'] ?? widget.message['originalUrl'];
+    final String? fileType =
+        widget.message['fileType']?.toString().toLowerCase();
 
     if (imageUrl == null && fileUrl == null) return;
 
@@ -1061,7 +1102,8 @@ class _MessageBubbleState extends State<MessageBubble> {
                 if (isSentByMe) ...[
                   const SizedBox(width: 4),
                   widget.buildStatusIcon?.call(
-                          widget.message['messageStatus']?.toString() ?? 'sent') ??
+                          widget.message['messageStatus']?.toString() ??
+                              'sent') ??
                       const Icon(Icons.done, size: 12, color: Colors.black54),
                 ],
               ],
@@ -1214,12 +1256,12 @@ class _MessageBubbleState extends State<MessageBubble> {
                             } else {
                               if (widget.searchText != null &&
                                   widget.searchText!.isNotEmpty &&
-                                  element.text
-                                      .toLowerCase()
-                                      .contains(widget.searchText!.toLowerCase())) {
+                                  element.text.toLowerCase().contains(
+                                      widget.searchText!.toLowerCase())) {
                                 final List<TextSpan> highlightedSpans = [];
                                 final String text = element.text;
-                                final String query = widget.searchText!.toLowerCase();
+                                final String query =
+                                    widget.searchText!.toLowerCase();
                                 int start = 0;
                                 int indexOfMatch;
 
@@ -1295,8 +1337,9 @@ class _MessageBubbleState extends State<MessageBubble> {
                         if (widget.isSentByMe)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 1),
-                            child: widget.buildStatusIcon?.call(messageStatus) ??
-                                const SizedBox(),
+                            child:
+                                widget.buildStatusIcon?.call(messageStatus) ??
+                                    const SizedBox(),
                           ),
                       ],
                     ),
@@ -1434,8 +1477,7 @@ class _MessageBubbleState extends State<MessageBubble> {
     String fileName,
     bool isSentByMe,
     bool showTime,
-  )
-  {
+  ) {
     final isNetwork =
         videoUrl.startsWith('http://') || videoUrl.startsWith('https://');
 
@@ -1447,7 +1489,6 @@ class _MessageBubbleState extends State<MessageBubble> {
         } else {
           _openConversationViewer(context, videoUrl);
         }
-
       },
       child: Container(
         width: 250,
@@ -1563,7 +1604,8 @@ class _MessageBubbleState extends State<MessageBubble> {
                       if (isSentByMe) ...[
                         const SizedBox(width: 4),
                         widget.buildStatusIcon?.call(
-                              widget.message['messageStatus']?.toString() ?? 'sent',
+                              widget.message['messageStatus']?.toString() ??
+                                  'sent',
                             ) ??
                             const Icon(Icons.done,
                                 size: 12, color: Colors.white),

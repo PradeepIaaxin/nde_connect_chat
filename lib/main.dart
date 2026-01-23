@@ -3,6 +3,8 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:nde_email/bridge_generated.dart/frb_generated.dart';
 import 'package:nde_email/convo_list_crdt.dart';
 import 'package:nde_email/message_list_crdt.dart';
+import 'package:nde_email/presantation/chat/device/api/device_api.dart';
+import 'package:nde_email/presantation/chat/device/bloc/device_bloc.dart';
 import 'package:nde_email/presantation/login/login_screen.dart';
 import 'package:nde_email/presantation/network/connectivity_servicer.dart';
 import 'package:nde_email/presantation/update_screen/update_bloc/update_bloc.dart';
@@ -170,6 +172,8 @@ class MyRootApp extends StatelessWidget {
         BlocProvider(create: (context) => MediaBloc(MediaRepository())),
         BlocProvider(
             create: (context) => AppUpdateCubit(AppUpdateRepository())),
+        BlocProvider(
+            create: (context) => LinkedDeviceBloc(FetchLinkedDeviceApi())),
       ],
       child: MyApp(isLoggedIn: isLoggedIn, isFirstOpen: isFirstOpen),
     );
