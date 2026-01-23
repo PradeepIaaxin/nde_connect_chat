@@ -230,8 +230,6 @@ class FetchMailListapi {
         "X-WorkSpace": defaultWorkspace,
       });
 
-      // log('Filtered Mail API Response: ${response.body}');
-
       if (response.statusCode == 200) {
         final jsonMap = json.decode(response.body);
 
@@ -246,6 +244,7 @@ class FetchMailListapi {
             .map<GMMailModels>((item) => GMMailModels.fromJson(item))
             .toList();
         log("Filtered mails count: ${mails.length}");
+
         return mails;
       } else {
         throw Exception('Failed to load mails');

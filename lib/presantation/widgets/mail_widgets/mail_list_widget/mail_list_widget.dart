@@ -72,261 +72,228 @@ class _MailListWidgetState extends State<MailListWidget> {
     return BlocBuilder<MailListBloc, MailListState>(
       builder: (context, state) {
         final bool isFlaggedScreen = widget.mailboxId == "flagged";
-        return Column(
-          children: [
-            if (state.selectedMailIds.isNotEmpty)
-              _buildSelectionAppBar(context, state.selectedMailIds),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 10),
-                child: ListView.builder(
-                  key: ValueKey(widget.mailboxId),
-                  controller: widget.controller,
-                  itemCount:
-                      widget.mails.length + (widget.isPaginating ? 1 : 0),
-                  itemBuilder: (context, index) {
-                    if (index >= widget.mails.length) {
-                      return const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 16),
-                        child: Center(child: CircularProgressIndicator()),
-                      );
+        return Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: ListView.builder(
+            key: ValueKey(widget.mailboxId),
+            controller: widget.controller,
+            itemCount: widget.mails.length + (widget.isPaginating ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (index >= widget.mails.length) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+
+              final mail = widget.mails[index];
+              final isSelected = state.selectedMailIds.contains(mail.id);
+
+              return KeyedSubtree(
+                key: ValueKey(mail.id),
+                child: GestureDetector(
+                  onLongPress: () {
+                    debugPrint("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+                    debugPrint("🟢 LONG PRESS MAIL SELECTED");
+                    debugPrint("📩 Mail ID      = ${mail.id}");
+                    debugPrint("📦 Mailbox ID   = ${mail.mailboxId}");
+                    debugPrint("✉️ Subject      = ${mail.subject}");
+                    debugPrint("👤 From         = ${mail.fromAddress}");
+                    debugPrint("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+                    context
+                        .read<MailListBloc>()
+                        .add(ToggleMailSelectionEvent(mail.id));
+                  },
+                  onTap: () {
+                    debugPrint("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+                    debugPrint("🟢 ontap PRESS MAIL SELECTED");
+                    debugPrint("📩 Mail ID      = ${mail.id}");
+                    debugPrint("📦 Mailbox ID   = ${mail.mailboxId}");
+                    debugPrint("✉️ Subject      = ${mail.subject}");
+                     debugPrint("✉️ Subject      = ${mail.mailboxId}");
+                    debugPrint("👤 From         = ${mail.fromAddress}");
+                    debugPrint("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+                    if (state.selectedMailIds.isNotEmpty) {
+                      context
+                          .read<MailListBloc>()
+                          .add(ToggleMailSelectionEvent(mail.id));
+                    } else {
+                      if (widget.mailboxId == draftsMailboxId) {
+                        MyRouter.push(
+                          screen: ComposeScreen(
+                            draftData: {
+                              'to':
+                                  mail.to.isNotEmpty ? mail.to[0].address : '',
+                              'cc': '',
+                              'bcc': '',
+                              'subject': mail.subject,
+                              'body': mail.intro,
+                            },
+                          ),
+                        );
+                      } else {
+                        final actualMailboxId =
+                            mail.mailboxId ?? widget.mailboxId;
+
+                        context
+                            .read<MailListBloc>()
+                            .add(MarkMailAsSeenEvent(actualMailboxId, mail.id));
+
+                        MyRouter.push(
+                          screen: BlocProvider(
+                            create: (context) =>
+                                MailDetailBloc(apiService: fatchdetailmailapi())
+                                  ..add(FetchMailDetailEvent(
+                                      actualMailboxId, mail.id.toString())),
+                            child: MailDetailScreen(
+                              mailboxId: actualMailboxId,
+                              messageId: mail.id.toString(),
+                            ),
+                          ),
+                        );
+                      }
                     }
-
-                    final mail = widget.mails[index];
-                    final isSelected = state.selectedMailIds.contains(mail.id);
-
-                    return KeyedSubtree(
-                      key: ValueKey(mail.id),
-                      child: GestureDetector(
-                        onLongPress: () {
-                          context
-                              .read<MailListBloc>()
-                              .add(ToggleMailSelectionEvent(mail.id));
-                        },
-                        onTap: () {
-                          if (state.selectedMailIds.isNotEmpty) {
-                            context
-                                .read<MailListBloc>()
-                                .add(ToggleMailSelectionEvent(mail.id));
-                          } else {
-                            if (widget.mailboxId == draftsMailboxId) {
-                              MyRouter.push(
-                                screen: ComposeScreen(
-                                  draftData: {
-                                    'to': mail.to.isNotEmpty
-                                        ? mail.to[0].address
-                                        : '',
-                                    'cc': '',
-                                    'bcc': '',
-                                    'subject': mail.subject,
-                                    'body': mail.intro,
-                                  },
-                                ),
-                              );
-                            } else {
-                              final actualMailboxId =
-                                  mail.mailboxId ?? widget.mailboxId;
-
-                              context.read<MailListBloc>().add(
-                                  MarkMailAsSeenEvent(
-                                      actualMailboxId, mail.id));
-
-                              MyRouter.push(
-                                screen: BlocProvider(
-                                  create: (context) => MailDetailBloc(
-                                      apiService: fatchdetailmailapi())
-                                    ..add(FetchMailDetailEvent(
-                                        actualMailboxId, mail.id.toString())),
-                                  child: MailDetailScreen(
-                                    mailboxId: actualMailboxId,
-                                    messageId: mail.id.toString(),
-                                  ),
-                                ),
-                              );
-                            }
+                  },
+                  child: Container(
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      color: isSelected ? AppColors.sectiontool : AppColors.bg,
+                      child: Dismissible(
+                        key: ValueKey(mail.id),
+                        background: Container(
+                          color: AppColors.iconActive,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: const Align(
+                            alignment: Alignment.center,
+                            child: Icon(Icons.archive, color: AppColors.bg),
+                          ),
+                        ),
+                        secondaryBackground: Container(
+                          color: AppColors.red,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: const Align(
+                            alignment: Alignment.center,
+                            child: Icon(Icons.delete, color: Colors.white),
+                          ),
+                        ),
+                        confirmDismiss: (direction) async {
+                          if (direction == DismissDirection.startToEnd) {
+                            context.read<MailListBloc>().add(MoveToArchiveEvent(
+                                [mail.id], widget.mailboxId));
+                          } else if (direction == DismissDirection.endToStart) {
+                            context.read<MailListBloc>().add(
+                                DeleteMailEvent(widget.mailboxId, [mail.id]));
                           }
+                          return false;
                         },
                         child: Container(
-                            margin: const EdgeInsets.symmetric(vertical: 4),
-                            color: isSelected
-                                ? AppColors.sectiontool
-                                : AppColors.bg,
-                            child: Dismissible(
-                              key: ValueKey(mail.id),
-                              background: Container(
-                                color: AppColors.iconActive,
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 20),
-                                child: const Align(
-                                  alignment: Alignment.center,
-                                  child:
-                                      Icon(Icons.archive, color: AppColors.bg),
-                                ),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 3),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              GradientAvatar(
+                                name: mail.fromName,
                               ),
-                              secondaryBackground: Container(
-                                color: AppColors.red,
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 20),
-                                child: const Align(
-                                  alignment: Alignment.center,
-                                  child:
-                                      Icon(Icons.delete, color: Colors.white),
-                                ),
-                              ),
-                              confirmDismiss: (direction) async {
-                                if (direction == DismissDirection.startToEnd) {
-                                  context.read<MailListBloc>().add(
-                                      MoveToArchiveEvent(
-                                          [mail.id], widget.mailboxId));
-                                } else if (direction ==
-                                    DismissDirection.endToStart) {
-                                  context.read<MailListBloc>().add(
-                                      DeleteMailEvent(
-                                          widget.mailboxId, [mail.id]));
-                                }
-                                return false;
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 14, vertical: 3),
-                                child: Row(
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    GradientAvatar(
-                                      name: mail.fromName,
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              if (!mail.seen)
-                                                Container(
-                                                  margin: const EdgeInsets.only(
-                                                      right: 6),
-                                                  width: 12,
-                                                  height: 12,
-                                                  decoration:
-                                                      const BoxDecoration(
-                                                    color: AppColors.profile,
-                                                    shape: BoxShape.circle,
-                                                  ),
-                                                ),
-                                              Expanded(
-                                                child: Text(
-                                                  mail.fromName.isNotEmpty
-                                                      ? mail.fromName
-                                                      : 'Unknown',
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: TextStyles.fromName
-                                                      .copyWith(
-                                                    color: mail.seen
-                                                        ? const Color.fromARGB(
-                                                            255, 35, 35, 35)
-                                                        : Colors.black,
-                                                  ),
-                                                ),
-                                              ),
-                                              if (mail.attachments)
-                                                Icon(
-                                                  Icons.attach_file,
-                                                  color: const Color.fromARGB(
-                                                      255, 94, 95, 96),
-                                                  size: 20,
-                                                ),
-                                            ],
-                                          ),
-                                          Text(
-                                              mail.subject.isNotEmpty
-                                                  ? mail.subject
-                                                  : '(No Subject)',
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyles.subject),
-                                          Text(mail.intro,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyles.intro),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.end,
+                                    Row(
                                       children: [
-                                        Text(
-                                          _formatDate(mail.date),
-                                          style: TextStyles.intro,
-                                        ),
-                                        const SizedBox(height: 6),
-
-                                        IconButton(
-                                          icon: Icon(
-                                            mail.flagged == true
-                                                ? Icons.star
-                                                : Icons.star_border,
-                                            color: mail.flagged == true
-                                                ? Colors.amber
-                                                : AppColors.secondaryText,
-                                            size: 15,
+                                        if (!mail.seen)
+                                          Container(
+                                            margin:
+                                                const EdgeInsets.only(right: 6),
+                                            width: 12,
+                                            height: 12,
+                                            decoration: const BoxDecoration(
+                                              color: AppColors.profile,
+                                              shape: BoxShape.circle,
+                                            ),
                                           ),
-                                          onPressed: () {
-                                            context.read<MailListBloc>().add(
-                                                  ToggleFlagEvent(
-                                                    mailboxId: mail.mailboxId ??
-                                                        widget.mailboxId,
-                                                    ids: [mail.id],
-                                                    isFromFlaggedScreen:
-                                                        isFlaggedScreen, // ✅ ONLY TRUE in flagged screen
-                                                    isFlagged: !(mail.flagged ??
-                                                        false),
-                                                  ),
-                                                );
-                                          },
+                                        Expanded(
+                                          child: Text(
+                                            mail.fromName.isNotEmpty
+                                                ? mail.fromName
+                                                : 'Unknown',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyles.fromName.copyWith(
+                                              color: mail.seen
+                                                  ? const Color.fromARGB(
+                                                      255, 35, 35, 35)
+                                                  : Colors.black,
+                                            ),
+                                          ),
                                         ),
-
-                                        // IconButton(
-                                        //   icon: Icon(
-                                        //     mail.flagged == true
-                                        //         ? Icons.star
-                                        //         : Icons.star_border,
-                                        //     color: mail.flagged == true
-                                        //         ? Colors.amber
-                                        //         : AppColors.secondaryText,
-                                        //     size: 15,
-                                        //   ),
-                                        //   onPressed: () {
-                                        //     context.read<MailListBloc>().add(
-                                        //           ToggleFlagEvent(
-                                        //             mailboxId: mail.mailboxId ??
-                                        //                 widget.mailboxId,
-                                        //             ids: [mail.id],
-                                        //             isFromFlaggedScreen: true,
-                                        //             isFlagged:
-                                        //                 !(mail.flagged ?? false),
-                                        //           ),
-                                        //         );
-                                        //   },
-                                        // ),
+                                        if (mail.attachments)
+                                          Icon(
+                                            Icons.attach_file,
+                                            color: const Color.fromARGB(
+                                                255, 94, 95, 96),
+                                            size: 20,
+                                          ),
                                       ],
                                     ),
+                                    Text(
+                                        mail.subject.isNotEmpty
+                                            ? mail.subject
+                                            : '(No Subject)',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyles.subject),
+                                    Text(mail.intro,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyles.intro),
                                   ],
                                 ),
                               ),
-                            )),
-                      ),
-                    );
-                  },
+                              const SizedBox(width: 8),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    _formatDate(mail.date),
+                                    style: TextStyles.intro,
+                                  ),
+                                  const SizedBox(height: 6),
+                                  IconButton(
+                                    icon: Icon(
+                                      mail.flagged == true
+                                          ? Icons.star
+                                          : Icons.star_border,
+                                      color: mail.flagged == true
+                                          ? Colors.amber
+                                          : AppColors.secondaryText,
+                                      size: 15,
+                                    ),
+                                    onPressed: () {
+                                      context.read<MailListBloc>().add(
+                                            ToggleFlagEvent(
+                                              mailboxId: mail.mailboxId ??
+                                                  widget.mailboxId,
+                                              ids: [mail.id],
+                                              isFromFlaggedScreen:
+                                                  isFlaggedScreen, // ✅ ONLY TRUE in flagged screen
+                                              isFlagged:
+                                                  !(mail.flagged ?? false),
+                                            ),
+                                          );
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      )),
                 ),
-              ),
-            ),
-          ],
+              );
+            },
+          ),
         );
       },
     );
