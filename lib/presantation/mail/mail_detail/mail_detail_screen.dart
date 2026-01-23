@@ -21,8 +21,8 @@ import 'package:nde_email/presantation/widgets/mail_widgets/attachment.dart';
 import 'mail_detail_event.dart';
 import 'mail_detail_state.dart';
 import 'mail_detail_bloc.dart';
-import 'package:nde_email/presantation/mail/mail_list/mail_list_event.dart';
-import 'package:nde_email/presantation/mail/mail_list/mail_list_bloc.dart';
+import 'package:nde_email/presantation/mail/mail_list/bloc/mail_list_event.dart';
+import 'package:nde_email/presantation/mail/mail_list/bloc/mail_list_bloc.dart';
 
 class MailDetailScreen extends StatefulWidget {
   final String mailboxId;

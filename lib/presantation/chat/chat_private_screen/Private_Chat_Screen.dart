@@ -145,7 +145,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   bool _initialScrollDone = false;
   bool _screenActive = false;
   StreamSubscription<Map<String, dynamic>>? _userStatusSub;
-  List<String> recentEmojis = ['👍','❤️','😂','😮','😢','🙏'];
+  List<String> recentEmojis = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
   @override
   void initState() {
@@ -1352,7 +1352,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     return m;
   }
-
 
   DateTime _parseTime(dynamic time) {
     _ensureMessageHandler();
@@ -2588,8 +2587,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   // ------------------ UI builders ------------------
   Widget _buildMessageBubble(
       Map<String, dynamic> message, bool isSentByMe, bool isReply,
-      {int? length})
-  {
+      {int? length}) {
     final String? bubbleSenderId = _getMessageSenderId(message);
     final bool correctIsSentByMe = bubbleSenderId == currentUserId;
 
@@ -2645,7 +2643,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         isSelectionMode: _isSelectionMode,
         message: bubbleMessage,
         isSentByMe: correctIsSentByMe,
-     //   isSelected: _selectedMessageKeys.contains(_generateMessageKey(message)),
+        //   isSelected: _selectedMessageKeys.contains(_generateMessageKey(message)),
         isSelected: _selectedMessageKeys.contains(_generateMessageKey(message)),
         onTap: () => _onMessageTap(message),
         onLongPress: () => _onMessageLongPress(message),
@@ -2739,9 +2737,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       message: message,
       currentUserId: currentUserId,
       onReactionTap: (msg, emoji) => _handleReactionTap(message, emoji),
-      onOpenReactors: (msg, emoji) => _showReactionsBottomSheet(message, emoji), recentEmojis: recentEmojis, onEmojiUpdated: (list) {
-      setState(() => recentEmojis = list);
-    },
+      onOpenReactors: (msg, emoji) => _showReactionsBottomSheet(message, emoji),
+      recentEmojis: recentEmojis,
+      onEmojiUpdated: (list) {
+        setState(() => recentEmojis = list);
+      },
     );
   }
 
@@ -2760,7 +2760,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     String? extractReplyId(Map<String, dynamic> m) {
       final reply = m['reply'];
-
 
       if (reply is Map<String, dynamic>) {
         for (final key in [
@@ -2892,8 +2891,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   Future<void> _showReactionsBottomSheet(
-      Map<String, dynamic> message, String initialEmoji)
-  async {
+      Map<String, dynamic> message, String initialEmoji) async {
     // helper to build normalized reactions list for a message object
     List<Map<String, dynamic>> _normalizeFromMap(Map<String, dynamic> msg) {
       final List<Map<String, dynamic>> out = [];
@@ -3748,7 +3746,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     log("Reply replySource (swiped) => $replySource");
 
     final String fileType =
-        replySource['mimeType'] ?? replySource['fileType'] ??  '';
+        replySource['mimeType'] ?? replySource['fileType'] ?? '';
 
     final bool isVideo = fileType.toLowerCase().startsWith('video/');
     log("Reply replySource (swiped) => $fileType");
@@ -4115,7 +4113,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       final current = raw[i];
 
       final String currentType =
-      (current['fileType'] ?? current['mimeType'] ?? '').toString().toLowerCase();
+          (current['fileType'] ?? current['mimeType'] ?? '')
+              .toString()
+              .toLowerCase();
 
       final bool isMedia = current['imageUrl'] != null ||
           current['originalUrl'] != null ||
@@ -4129,8 +4129,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       if (result.isNotEmpty) {
         final prev = result.last;
 
-        final String prevType =
-        (prev['fileType'] ?? prev['mimeType'] ?? '').toString().toLowerCase();
+        final String prevType = (prev['fileType'] ?? prev['mimeType'] ?? '')
+            .toString()
+            .toLowerCase();
 
         final bool sameSender = prev['senderId'] == current['senderId'];
 
@@ -4145,7 +4146,19 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
         final bool sameMediaType = _sameMediaType(prevType, currentType);
 
-        if (sameSender && prevIsMedia &&diff <= 60 && sameMediaType) {
+        // Check if either message has a caption - don't group if they do
+        final bool prevHasCaption =
+            (prev['content']?.toString() ?? '').isNotEmpty;
+        final bool currentHasCaption =
+            (current['content']?.toString() ?? '').isNotEmpty;
+
+        // Group only if: same sender, both media, within time window, same type, AND neither has a caption
+        if (sameSender &&
+            prevIsMedia &&
+            diff <= 60 &&
+            sameMediaType &&
+            !prevHasCaption &&
+            !currentHasCaption) {
           prev['is_grouped_message'] = true;
           prev['group_message_id'] ??= prev['message_id'];
 
@@ -4155,7 +4168,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           result.add(current);
           continue;
         }
-
       }
 
       result.add(current);
@@ -4176,9 +4188,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     return aIsVisual && bIsVisual;
   }
+
   void _selectGroupedMessages(List<Map<String, dynamic>> grouped) {
     final bool isGroupSelected = grouped.any(
-          (m) => _selectedMessageKeys.contains(_generateMessageKey(m)),
+      (m) => _selectedMessageKeys.contains(_generateMessageKey(m)),
     );
 
     setState(() {
@@ -4189,8 +4202,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         if (isGroupSelected) {
           _selectedMessageKeys.remove(key);
           _selectedMessageIds.remove(id);
-          _selectedMessages.removeWhere(
-                  (x) => _generateMessageKey(x) == key);
+          _selectedMessages.removeWhere((x) => _generateMessageKey(x) == key);
         } else {
           _selectedMessageKeys.add(key);
           if (id != null) _selectedMessageIds.add(id);
@@ -4201,7 +4213,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       _isSelectionMode = _selectedMessageKeys.isNotEmpty;
     });
   }
-
 
   // void _selectGroupedMessages(List<Map<String, dynamic>> group) {
   //   setState(() {
@@ -4222,7 +4233,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   //   });
   // }
 
-
   // ------------------ Build ------------------
   @override
   Widget build(BuildContext context) {
@@ -4240,7 +4250,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
         return true; // ✅ exit screen
       },
-
       child: ReusableChatScaffold(
         appBar: _buildAppBar(),
         chatBody: ValueListenableBuilder<List<Map<String, dynamic>>>(
@@ -4653,7 +4662,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                               final int realIndex =
                                   groupedMessages.length - 1 - index;
                               final message = groupedMessages[realIndex];
-                              log("messagessssssssssssssssssssssssss $message");
+                              //     log("messagessssssssssssssssssssssssss $message");
                               final String? senderId =
                                   _getMessageSenderId(message);
 
@@ -4797,20 +4806,26 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                           child: GroupedMediaWidget(
                                               isSelectionMode: _isSelectionMode,
                                               onLongPress: () {
-                                                final grouped = _getGroupedMessages(groupedMessages, realIndex);
+                                                final grouped =
+                                                    _getGroupedMessages(
+                                                        groupedMessages,
+                                                        realIndex);
                                                 _selectGroupedMessages(grouped);
                                               },
                                               selectedMessageColor: Colors.blue,
-                                              isSelected: _getGroupedMessages(groupedMessages, realIndex)
-                                                  .any((m) => _selectedMessageKeys.contains(_generateMessageKey(m))),
+                                              isSelected: _getGroupedMessages(
+                                                      groupedMessages, realIndex)
+                                                  .any((m) => _selectedMessageKeys.contains(
+                                                      _generateMessageKey(m))),
                                               recentEmojis: recentEmojis,
                                               onEmojiUpdated: (list) {
-                                                setState(() => recentEmojis = list);
+                                                setState(
+                                                    () => recentEmojis = list);
                                               },
-                                              buildReactionsBar: (msg,
-                                                      sentByMe) =>
-                                                  _buildReactionsBar(
-                                                      msg, sentByMe),
+                                              buildReactionsBar:
+                                                  (msg, sentByMe) =>
+                                                      _buildReactionsBar(
+                                                          msg, sentByMe),
                                               onReact: (msg, emoji) {
                                                 setState(() {
                                                   _handleReactionTap(
@@ -4850,6 +4865,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                               isHighlighted: isHighlighted,
                                               messageId: groupAnchorMessageId,
                                               media: groupMedia,
+                                              caption: message['content']
+                                                  ?.toString(),
                                               isSentByMe: isSentByMe,
                                               time: TimeUtils.formatUtcToIst(
                                                   message['time']),
@@ -4871,25 +4888,33 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                                 final tappedItem =
                                                     groupMedia[tappedIndex];
 
-                                                final startIndex = conversationMedia.indexWhere(
-                                                      (m) => m.mediaUrl == tappedItem.mediaUrl,
+                                                final startIndex =
+                                                    conversationMedia
+                                                        .indexWhere(
+                                                  (m) =>
+                                                      m.mediaUrl ==
+                                                      tappedItem.mediaUrl,
                                                 );
-
 
                                                 Navigator.push(
                                                   context,
                                                   PageRouteBuilder(
                                                     opaque: false,
-                                                    transitionDuration: const Duration(milliseconds: 300),
-                                                    pageBuilder: (_, __, ___) => MixedMediaViewer(
+                                                    transitionDuration:
+                                                        const Duration(
+                                                            milliseconds: 300),
+                                                    pageBuilder: (_, __, ___) =>
+                                                        MixedMediaViewer(
                                                       items: conversationMedia,
+
                                                       initialIndex: startIndex < 0 ? 0 : startIndex,
                                                       currentUserId: currentUser,
+
+
+
                                                     ),
                                                   ),
                                                 );
-
-
                                               },
                                               onForwardTap: () {
                                                 print("realIndexss $realIndex");
@@ -5028,10 +5053,18 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                                       const BoxConstraints(
                                                           maxWidth: 160),
                                                   decoration: BoxDecoration(
-                                                    border: Border.all(color: _selectedMessageKeys.contains(_generateMessageKey(message))?Colors.blue:Colors.transparent,width: 2),
+                                                    border: Border.all(
+                                                        color: _selectedMessageKeys
+                                                                .contains(
+                                                                    _generateMessageKey(
+                                                                        message))
+                                                            ? Colors.blue
+                                                            : Colors
+                                                                .transparent,
+                                                        width: 2),
                                                     color: (isSentByMe
                                                         ? const Color(
-                                                        0xFFD8E1FE)
+                                                            0xFFD8E1FE)
                                                         : Colors.white),
                                                     borderRadius:
                                                         BorderRadius.only(

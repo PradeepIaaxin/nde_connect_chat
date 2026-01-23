@@ -3,12 +3,10 @@ import 'package:flutter/material.dart';
 class MessageStatusIcon extends StatelessWidget {
   final String status;
   final bool? isStatus;
+  final String? caption;
 
-  const MessageStatusIcon({
-    super.key,
-    required this.status,
-    this.isStatus = false,
-  });
+  const MessageStatusIcon(
+      {super.key, required this.status, this.isStatus = false, this.caption});
 
   @override
   Widget build(BuildContext context) {
@@ -17,7 +15,7 @@ class MessageStatusIcon extends StatelessWidget {
       child: _getStatusIcon(status),
     );
   }
-
+ 
   Widget _getStatusIcon(String status) {
     switch (status.toLowerCase()) {
       case 'pending':
@@ -25,12 +23,16 @@ class MessageStatusIcon extends StatelessWidget {
         return Icon(Icons.access_time, size: 14); // clock
 
       case 'sent':
-        return Icon(Icons.check, size: 14,color: Colors.grey.shade600,);       // single tick (grey)
+        return Icon(
+          Icons.check,
+          size: 14,
+          color: Colors.grey.shade600,
+        ); // single tick (grey)
       case 'delivered':
         return Icon(
           Icons.done_all,
           key: const ValueKey('delivered'),
-          size: 16,
+          size: 16,  
           color: Colors.grey.shade600,
         );
       case 'read':
@@ -38,7 +40,7 @@ class MessageStatusIcon extends StatelessWidget {
           Icons.done_all,
           key: const ValueKey('read'),
           size: 16,
-          color: isStatus! ? Colors.white : Colors.blue,
+          color: caption == null ? Colors.blue : Colors.white,
         );
       case 'failed':
       case 'pending_offline':

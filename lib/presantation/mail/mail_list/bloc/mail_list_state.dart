@@ -1,8 +1,5 @@
 import 'package:equatable/equatable.dart';
-import 'mail_list_model.dart';
-
-
-
+import '../model/mail_list_model.dart';
 
 enum MailListStatus {
   initial,
@@ -23,7 +20,9 @@ class MailListState extends Equatable {
   final String? nextCursor;
   final bool isPaginating;
   final String? snackbarMessage;
-  final bool hasReachedEnd; 
+  final bool hasReachedEnd;
+  final Map<String, int> unreadCountByMailbox;
+  final int totalUnreadCount;
 
   const MailListState({
     required this.status,
@@ -33,7 +32,9 @@ class MailListState extends Equatable {
     this.nextCursor,
     this.isPaginating = false,
     this.snackbarMessage,
-    this.hasReachedEnd = false, 
+    this.hasReachedEnd = false,
+    this.unreadCountByMailbox = const {},
+    this.totalUnreadCount = 0,
   });
 
   factory MailListState.initial() {
@@ -43,6 +44,8 @@ class MailListState extends Equatable {
       selectedMailIds: {},
       nextCursor: null,
       isPaginating: false,
+      unreadCountByMailbox: {},
+      totalUnreadCount: 0,
       hasReachedEnd: false,
     );
   }
@@ -56,6 +59,8 @@ class MailListState extends Equatable {
     bool? isPaginating,
     String? snackbarMessage,
     bool? hasReachedEnd,
+    Map<String, int>? unreadCountByMailbox,
+    int? totalUnreadCount,
   }) {
     return MailListState(
       status: status ?? this.status,
@@ -66,6 +71,8 @@ class MailListState extends Equatable {
       isPaginating: isPaginating ?? this.isPaginating,
       snackbarMessage: snackbarMessage ?? this.snackbarMessage,
       hasReachedEnd: hasReachedEnd ?? this.hasReachedEnd,
+      unreadCountByMailbox: unreadCountByMailbox ?? this.unreadCountByMailbox,
+      totalUnreadCount: totalUnreadCount ?? this.totalUnreadCount,
     );
   }
 
@@ -78,6 +85,6 @@ class MailListState extends Equatable {
         nextCursor,
         isPaginating,
         snackbarMessage,
-        hasReachedEnd, 
+        hasReachedEnd,
       ];
 }

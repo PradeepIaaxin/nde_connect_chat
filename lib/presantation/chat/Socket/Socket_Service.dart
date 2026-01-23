@@ -203,7 +203,7 @@ class SocketService {
     socket = null;
     log("socket creating....");
     const String socketUrl = 'https://api.nowdigitaleasy.com/wschat';
-    log("socketUrl : $socketUrl");
+    
     socket = IO.io(
       socketUrl,
       IO.OptionBuilder()
