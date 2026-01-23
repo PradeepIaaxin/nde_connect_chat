@@ -1,0 +1,49 @@
+{
+  "project_info": {
+    "project_number": "725431248263",
+    "firebase_url": "https://chating-e5b0b-default-rtdb.firebaseio.com",
+    "project_id": "chating-e5b0b",
+    "storage_bucket": "chating-e5b0b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:725431248263:android:ea5d90b0edc3cc96531f22",
+        "android_client_info": {
+          "package_name": "com.example.nde_email"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAX1U4_g_pU6y0-6kD35PSS8DumrcuTGdE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:725431248263:android:d1aac044e210ab31531f22",
+        "android_client_info": {
+          "package_name": "com.nowdigitaleasy.NDEconnect"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAX1U4_g_pU6y0-6kD35PSS8DumrcuTGdE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -3,17 +3,17 @@
 <plist version="1.0">
 <dict>
 	<key>API_KEY</key>
-	<string>AIzaSyA7mrLsfCHhXUmbJRhWfX82kZAY1JGdSkI</string>
+	<string>AIzaSyDN_ZDrZCvGIivXQCuhWdy7wNztqtMjf34</string>
 	<key>GCM_SENDER_ID</key>
-	<string>978533848698</string>
+	<string>725431248263</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
 	<string>com.nowdigitaleasy.NDEconnect</string>
 	<key>PROJECT_ID</key>
-	<string>ndeconnect</string>
+	<string>chating-e5b0b</string>
 	<key>STORAGE_BUCKET</key>
-	<string>ndeconnect.firebasestorage.app</string>
+	<string>chating-e5b0b.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
 	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
@@ -25,6 +25,8 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:978533848698:ios:7707badeae1981ec07cdc3</string>
+	<string>1:725431248263:ios:d27c9f98203f1c40531f22</string>
+	<key>DATABASE_URL</key>
+	<string>https://chating-e5b0b-default-rtdb.firebaseio.com</string>
 </dict>
 </plist>
