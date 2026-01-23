@@ -15,7 +15,7 @@ import 'package:nde_email/utils/imports/common_imports.dart';
 import 'dart:io';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
-import 'package:firebase_core/firebase_core.dart';
+
 // import 'firebase_options.dart';
 
 // GLOBAL SINGLETONS
