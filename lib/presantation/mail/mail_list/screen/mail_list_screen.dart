@@ -19,8 +19,8 @@ class MailListScreen extends StatefulWidget {
 class _MailListScreenState extends State<MailListScreen> {
   late MailListBloc _mailListBloc;
   final ScrollController _scrollController = ScrollController();
+  String? _lastMailboxId;
 
-  @override
   @override
   void initState() {
     super.initState();

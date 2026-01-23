@@ -63,10 +63,10 @@ class _DeviceScreenState extends State<DeviceScreen> {
                 children: [
                   const SizedBox(height: 20),
 
-                  // 🔥 SVG IMAGE
+                  
                   Image.asset(
-                    "assets/gif/device.gif",
-                    height: 180,
+                    "assets/gif/LinkDevice.gif",
+                    height: 200,
                     fit: BoxFit.contain,
                   ),
 
@@ -80,7 +80,6 @@ class _DeviceScreenState extends State<DeviceScreen> {
                   //   ),
                   // ),
 
-                 
                   const SizedBox(height: 20),
 
                   // 🔥 DEVICE STATUS TITLE

@@ -4,6 +4,7 @@ import 'package:nde_email/data/mailboxid.dart';
 import 'package:nde_email/data/respiratory.dart';
 import 'package:nde_email/presantation/calender/schedule/calendar_screen.dart';
 import 'package:nde_email/presantation/drive/view/landing_home.dart';
+import 'package:nde_email/presantation/mail/mail_list/bloc/mail_list_event.dart';
 import 'package:nde_email/presantation/meet/socket/test_socket.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/bottam_nav/bottam_nav_bloc.dart';
@@ -161,9 +162,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       gmail: gmail ?? "",
                       profileUrl: profilePicUrl,
                     ),
-                    appBar: (navState.selectedIndex == 0 && !isSelectionActive)
-                        ? CustomAppBar()
+                    // appBar: (navState.selectedIndex == 0 && !isSelectionActive)
+                    //     ? CustomAppBar()
+                    //     : null,
+                    appBar: navState.selectedIndex == 0
+                        ? (isSelectionActive
+                            ? _buildSelectionAppBar(context, mailState)
+                            : CustomAppBar())
                         : null,
+
                     body: _buildScreen(navState.selectedIndex),
                     bottomNavigationBar: BottomNavBar(),
                     floatingActionButton: BlocBuilder<FabBloc, FabState>(
@@ -263,6 +270,74 @@ class _HomeScreenState extends State<HomeScreen> {
           (selectedIndex == 0 && !isSelectionActive) ? CustomDrawer() : null,
       body: _buildScreen(selectedIndex),
       bottomNavigationBar: BottomNavBar(),
+    );
+  }
+
+  PreferredSizeWidget _buildSelectionAppBar(
+      BuildContext context, MailListState state) {
+    return AppBar(
+      backgroundColor: Colors.white,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back),
+        onPressed: () {
+          context.read<MailListBloc>().add(ClearSelectionEvent());
+        },
+      ),
+      title: Text("${state.selectedMailIds.length} selected"),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.archive),
+          onPressed: () {
+            print("🔥 SELECTED IDS = ${state.selectedMailIds}");
+            print("🔥 CURRENT MAILBOX = $selectedMailboxId");
+            context.read<MailListBloc>().add(
+                  MoveToArchiveEvent(
+                      state.selectedMailIds.toList(), selectedMailboxId),
+                );
+
+                context.read<MailListBloc>().add(ClearSelectionEvent());
+
+          },
+        ),
+        IconButton(
+          icon: const Icon(Icons.delete),
+          onPressed: () {
+            context.read<MailListBloc>().add(
+                  DeleteMailEvent(
+                      selectedMailboxId, state.selectedMailIds.toList()),
+                );
+
+                context.read<MailListBloc>().add(ClearSelectionEvent());
+
+          },
+        ),
+        IconButton(
+          icon: const Icon(Icons.mark_email_read),
+          onPressed: () {
+            context.read<MailListBloc>().add(
+                  MarkAsReadEvent(
+                    selectedMailboxId,
+                    state.selectedMailIds.map((e) => e.toString()).toList(),
+                  ),
+                );
+                context.read<MailListBloc>().add(ClearSelectionEvent());
+
+          },
+        ),
+        IconButton(
+          icon: const Icon(Icons.mark_email_unread),
+          onPressed: () {
+            context.read<MailListBloc>().add(
+                  MarkAsUnreadEvent(
+                    selectedMailboxId,
+                    state.selectedMailIds.map((e) => e.toString()).toList(),
+                  ),
+                );
+                context.read<MailListBloc>().add(ClearSelectionEvent());
+
+          },
+        ),
+      ],
     );
   }
 }
