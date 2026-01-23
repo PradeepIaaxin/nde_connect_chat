@@ -11,6 +11,7 @@ import 'package:nde_email/presantation/chat/chat_list/chat_session_storage/chat_
 import 'package:nde_email/presantation/chat/chat_list/new_list_bottom_sheet.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/MessagerBloc.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/MessagerEvent.dart';
+import 'package:nde_email/presantation/chat/device/screen/device_screen.dart';
 import 'package:nde_email/presantation/drive/common/search_bar_chat.dart';
 import 'package:nde_email/presantation/network/connectivity_servicer.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
@@ -309,6 +310,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
   final normalMenuItems = [
     PopupMenuItemModel(value: 'new_group', label: 'New group'),
     PopupMenuItemModel(value: 'settings', label: 'Settings'),
+    PopupMenuItemModel(value: 'devices', label: 'Linked devices'),
   ];
 
   final selectionMenuItems = [
@@ -322,6 +324,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
         MyRouter.push(screen: const UserListScreen());
         break;
 
+      case 'devices':
+        MyRouter.push(screen: const DeviceScreen());
+        break;
       case 'settings':
         MyRouter.push(
             screen: Endrawer(
@@ -851,6 +856,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                                   grpChat: true,
                                                   favorite:
                                                       chat.isFavourite ?? false,
+                                               groupId: chat.groupId,
                                                 )
                                               : PrivateChatScreen(
                                                   userName: chat.name ??

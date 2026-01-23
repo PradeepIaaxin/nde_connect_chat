@@ -358,6 +358,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
                                               grpChat: true,
                                               favorite:
                                                   chat.isFavourite ?? false,
+                                                  groupId: chat.groupId,
                                             )
                                           : PrivateChatScreen(
                                               userName:

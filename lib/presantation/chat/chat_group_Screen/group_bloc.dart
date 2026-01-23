@@ -291,6 +291,19 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
         contentType: event.contentType,
         reply: event.replyTo,
         userName: username!,
+        ackCallback: (ack) {
+          final tempId = ack['tempId'] ?? messageId;
+          final realId = ack['messageId'] ??
+              ack['realId'] ??
+              (ack['msg']?['messageId'] ?? ack['msg']?['id']);
+          if (realId != null && !emit.isDone) {
+            emit(GrpMessageAckReceived(
+              tempId: tempId.toString(),
+              realId: realId.toString(),
+              status: ack['status'] ?? 'sent',
+            ));
+          }
+        },
       );
 
       emit(GrpMessageSentSuccessfully(
@@ -379,6 +392,19 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
             originalKey: data["originalKey"] ?? "",
             originalUrl: data["originalUrl"] ?? "",
             audioDuration: event.duration,
+            ackCallback: (ack) {
+              final tempId = ack['tempId'] ?? messageId;
+              final realId = ack['messageId'] ??
+                  ack['realId'] ??
+                  (ack['msg']?['messageId'] ?? ack['msg']?['id']);
+              if (realId != null && !emit.isDone) {
+                emit(GrpMessageAckReceived(
+                  tempId: tempId.toString(),
+                  realId: realId.toString(),
+                  status: ack['status'] ?? 'sent',
+                ));
+              }
+            },
           );
 
           emit(UploadSuccess(data, messageId: messageId));
@@ -420,7 +446,7 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
   // ==========================================================
   //          📌 ADD / REMOVE REACTION
   // ==========================================================
- Future<void> _onGroupAddReaction(
+  Future<void> _onGroupAddReaction(
       GroupAddReaction e, Emitter<GroupChatState> emit) async {
     try {
       if (!e.messageId.startsWith("temp_")) {
@@ -433,12 +459,12 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
         // );
       }
 
-      // grpSocket.emitGroupReaction(
-      //   messageId: e.messageId,
-      //   conversationId: e.conversationId,
-      //   emoji: e.emoji,
-      //   userId: e.userId,
-      // );
+      grpSocket.emitGroupReaction(
+        messageId: e.messageId,
+        conversationId: e.conversationId,
+        emoji: e.emoji,
+        userId: e.userId,
+      );
     } catch (_) {}
   }
 
@@ -454,14 +480,15 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
         // );
       }
 
-      // grpSocket.emitGroupRemoveReaction(
-      //   messageId: e.messageId,
-      //   conversationId: e.conversationId,
-      //   emoji: e.emoji,
-      //   userId: e.userId,
-      // );
+      grpSocket.emitGroupRemoveReaction(
+        messageId: e.messageId,
+        conversationId: e.conversationId,
+        emoji: e.emoji,
+        userId: e.userId,
+      );
     } catch (_) {}
   }
+
   // ==========================================================
   //             📌 FORWARD MESSAGE
   // ==========================================================

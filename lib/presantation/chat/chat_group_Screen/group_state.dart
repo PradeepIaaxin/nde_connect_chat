@@ -64,6 +64,21 @@ class GroupPermissionLoaded extends GroupChatState {
   });
 }
 
+class GrpMessageAckReceived extends GroupChatState {
+  final String tempId;
+  final String realId;
+  final String status;
+
+  const GrpMessageAckReceived({
+    required this.tempId,
+    required this.realId,
+    required this.status,
+  });
+
+  @override
+  List<Object?> get props => [tempId, realId, status];
+}
+
 class GroupChatLoaded extends GroupChatState {
   final GroupMessageResponse response;
 

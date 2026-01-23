@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mime/mime.dart';
+import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:objectid/objectid.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
@@ -34,14 +35,22 @@ class MediaPreviewScreen extends StatefulWidget {
 
 class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
   final PageController _pageController = PageController();
+  final TextEditingController _captionController = TextEditingController();
   int _currentIndex = 0;
   bool _sending = false;
+
+  @override
+  void dispose() {
+    _captionController.dispose();
+    _pageController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-
+      resizeToAvoidBottomInset: true, // ✅ Allow keyboard to push up content
       appBar: AppBar(
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -50,19 +59,19 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
           style: const TextStyle(color: Colors.white),
         ),
         actions: [
-          // Show count of files
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: Center(
               child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.green,
+                  color: AppColors.primaryButton,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   '${widget.files.length} items',
-                  style: TextStyle(color: Colors.white),
+                  style: const TextStyle(color: Colors.white),
                 ),
               ),
             ),
@@ -70,60 +79,103 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
         ],
       ),
 
-      body: PhotoViewGallery.builder(
-        pageController: _pageController,
-        itemCount: widget.files.length,
-        onPageChanged: (i) => setState(() => _currentIndex = i),
-        backgroundDecoration: const BoxDecoration(color: Colors.black),
-        builder: (context, index) {
-          final file = widget.files[index];
-          final mime = lookupMimeType(file.path) ?? '';
-          final isImage = mime.startsWith('image/');
-          final isVideo = mime.startsWith('video/');
+      body: Stack(
+        children: [
+          // 🖼️ The Gallery Area
+          Positioned.fill(
+            child: PhotoViewGallery.builder(
+              pageController: _pageController,
+              itemCount: widget.files.length,
+              onPageChanged: (i) => setState(() => _currentIndex = i),
+              backgroundDecoration: const BoxDecoration(color: Colors.black),
+              builder: (context, index) {
+                final file = widget.files[index];
+                final mime = lookupMimeType(file.path) ?? '';
+                final isImage = mime.startsWith('image/');
+                final isVideo = mime.startsWith('video/');
 
-          // For local files, display them directly
-          if (isImage) {
-            return PhotoViewGalleryPageOptions(
-              heroAttributes: PhotoViewHeroAttributes(
-                tag: 'preview_${file.path}',
-              ),
-              imageProvider: FileImage(File(file.path)),
-              minScale: PhotoViewComputedScale.contained,
-              maxScale: PhotoViewComputedScale.covered * 3,
-            );
-          }
+                if (isImage) {
+                  return PhotoViewGalleryPageOptions(
+                    heroAttributes: PhotoViewHeroAttributes(
+                      tag: 'preview_${file.path}',
+                    ),
+                    imageProvider: FileImage(File(file.path)),
+                    minScale: PhotoViewComputedScale.contained,
+                    maxScale: PhotoViewComputedScale.covered * 3,
+                  );
+                }
 
-          if (isVideo) {
-            return PhotoViewGalleryPageOptions.customChild(
-              child: Hero(
-                tag: 'preview_${file.path}',
-                child: VideoPreviewScreen(file: File(file.path)),
-              ),
-            );
-          }
+                if (isVideo) {
+                  return PhotoViewGalleryPageOptions.customChild(
+                    child: Hero(
+                      tag: 'preview_${file.path}',
+                      child: VideoPreviewScreen(file: File(file.path)),
+                    ),
+                  );
+                }
 
-          return PhotoViewGalleryPageOptions.customChild(
-            child: _documentPreview(file),
-          );
-        },
-      ),
+                return PhotoViewGalleryPageOptions.customChild(
+                  child: _documentPreview(file),
+                );
+              },
+            ),
+          ),
 
-      /// 🟢 SEND BUTTON
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _sending ? null : _sendAll,
-        icon: _sending
-            ? const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
+          // 📝 Caption Input Field (Bottom)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Container(
+              color:
+                  Colors.black.withOpacity(0.6), // Semi-transparent background
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              child: SafeArea(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white24,
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        child: TextField(
+                          controller: _captionController,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: const InputDecoration(
+                            hintText: "Add a caption...",
+                            hintStyle: TextStyle(color: Colors.white70),
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 10),
+                          ),
+                          minLines: 1,
+                          maxLines: 5,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    FloatingActionButton(
+                      mini: true,
+                      backgroundColor: AppColors.primaryButton,
+                      child: _sending
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.send, color: Colors.white),
+                      onPressed: _sending ? null : _sendAll,
+                    ),
+                  ],
                 ),
-              )
-            : const Icon(Icons.send),
-        label: Text(_sending ? "Sending..." : "Send ${widget.files.length}"),
-        backgroundColor: Colors.green,
-        shape: const StadiumBorder(),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -147,6 +199,7 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
 
   Future<void> _sendAll() async {
     setState(() => _sending = true);
+    final caption = _captionController.text.trim(); // Capture caption
 
     final List<Map<String, dynamic>> localMessages = [];
     final groupMessageId =
@@ -162,6 +215,7 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
         isGroupChat: widget.isGroupChat,
         isGroupMessage: widget.files.length > 1,
         groupMessageId: groupMessageId,
+        caption: caption.isNotEmpty ? caption : null, // ✅ Pass caption
       );
       log('Created message: ${msg?.toString()}');
       debugPrint('MSG STATUS: ${msg?['messageStatus']}');
