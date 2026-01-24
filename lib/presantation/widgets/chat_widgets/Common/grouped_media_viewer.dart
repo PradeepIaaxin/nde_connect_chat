@@ -64,7 +64,7 @@ class GroupedMediaWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    print("isSelected $isSelected");
+  //  print("isSelected $isSelected");
     if (media.isEmpty) return const SizedBox.shrink();
 
     final screenWidth = MediaQuery.of(context).size.width;
@@ -230,31 +230,33 @@ class GroupedMediaWidget extends StatelessWidget {
                     ),
                   ),
                 ),
-              Positioned(
-                top: 0,
-                bottom: 0,
-                left: isSentByMe ? 25 : screenWidth * 0.58,
-                right: isSentByMe ? null : -52,
-                child: Center(
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(20),
-                      onTap: onForwardTap,
-                      child: CircleAvatar(
-                        radius: 16,
-                        backgroundColor: Colors.white,
-                        child: Image.asset(
-                          "assets/images/forward.png",
-                          height: 20,
-                          width: 20,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              if (isReaction! && buildReactionsBar != null)
+
+              // Positioned(
+              //   top: 8,
+              //   right: isSentByMe ? 8 : null,
+              //   left: isSentByMe ? null : 8,
+              //   child: Center(
+              //     child: Material(
+              //       color: Colors.transparent,
+              //       child: InkWell(
+              //         borderRadius: BorderRadius.circular(20),
+              //         onTap: onForwardTap,
+              //         child: CircleAvatar(
+              //           radius: 16,
+              //           backgroundColor: Colors.white,
+              //           child: Image.asset(
+              //             "assets/images/forward.png",
+              //             height: 20,
+              //             width: 20,
+              //           ),
+              //         ),
+              //       ),
+              //     ),
+              //   ),
+              // ),
+              if (message['reactions'] != null &&
+                  (message['reactions'] as List).isNotEmpty &&
+                 buildReactionsBar != null)
                 Positioned(
                   bottom: -37,
                   right: isSentByMe ? 12 : null,
@@ -642,6 +644,7 @@ class GroupMediaItem {
   final bool? isReactions;
   final String? time;
   final String? uniqueId; // 🔥 ADD THIS
+  final Map<String, dynamic>? message;
 
   GroupMediaItem({
     required this.previewUrl,
@@ -649,8 +652,6 @@ class GroupMediaItem {
     required this.isVideo,
     this.senderName,
     this.senderId,
-    this.time,
-    this.uniqueId,
-    this.isReactions,
+    this.time,  this.uniqueId,  this.isReactions, this.message,
   });
 }

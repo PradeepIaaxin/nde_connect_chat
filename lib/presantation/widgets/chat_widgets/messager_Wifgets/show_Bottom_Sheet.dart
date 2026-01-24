@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_event.dart'
     as grp_event;
@@ -181,37 +182,83 @@ class ShowAltDialog {
                               onOptionSelected(localMessages);
                             }
                           }),
-                          _buildOption(context, Icons.audiotrack, "Audio",
-                              () async {
-                            final result = await FilePicker.platform
-                                .pickFiles(type: FileType.audio);
-                            if (result == null ||
-                                result.files.single.path == null) return;
+                          // _buildOption(context, Icons.audiotrack, "Audio",
+                          //     () async {
+                          //   final result = await FilePicker.platform
+                          //       .pickFiles(type: FileType.audio);
+                          //   if (result == null ||
+                          //       result.files.single.path == null) return;
+                          //
+                          //   final xfile = XFile(result.files.single.path!);
+                          //
+                          //   Navigator.of(context).pop();
+                          //
+                          //   final localMessages = await Navigator.push<
+                          //       List<Map<String, dynamic>>>(
+                          //     context,
+                          //     MaterialPageRoute(
+                          //       builder: (_) => MediaPreviewScreen(
+                          //         files: [xfile],
+                          //         conversationId: conversationId!,
+                          //         senderId: senderId!,
+                          //         receiverId: receiverId!,
+                          //         isGroupChat: isGroupChat ?? false,
+                          //       ),
+                          //     ),
+                          //   );
+                          //
+                          //   if (localMessages != null &&
+                          //       localMessages.isNotEmpty) {
+                          //     onOptionSelected(localMessages);
+                          //   }
+                          // }),
 
-                            final xfile = XFile(result.files.single.path!);
+              _buildOption(context, Icons.audiotrack, "Audio", () async {
+                final result = await FilePicker.platform.pickFiles(
+                  type: FileType.custom,
+                  allowedExtensions: [
+                    'mp3',
+                    'wav',
+                    'aac',
+                    'm4a',
+                    'flac',
+                    'ogg',
+                    'opus',
+                  ],
+                );
 
-                            Navigator.of(context).pop();
+                if (result == null || result.files.single.path == null) return;
 
-                            final localMessages = await Navigator.push<
-                                List<Map<String, dynamic>>>(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => MediaPreviewScreen(
-                                  files: [xfile],
-                                  conversationId: conversationId!,
-                                  senderId: senderId!,
-                                  receiverId: receiverId!,
-                                  isGroupChat: isGroupChat ?? false,
-                                ),
-                              ),
-                            );
+                final path = result.files.single.path!;
+                final xfile = XFile(path);
 
-                            if (localMessages != null &&
-                                localMessages.isNotEmpty) {
-                              onOptionSelected(localMessages);
-                            }
-                          }),
-                          _buildOption(context, Icons.location_on, "Location",
+                // 🔥 GET AUDIO DURATION
+                final durationFormatted = await getAudioDurationFormatted(path);
+                log("🎧 Audio duration: $durationFormatted");
+
+                Navigator.of(context).pop();
+
+                final localMessages = await Navigator.push<List<Map<String, dynamic>>>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => MediaPreviewScreen(
+                      files: [xfile],
+                      conversationId: conversationId!,
+                      senderId: senderId!,
+                      receiverId: receiverId!,
+                      isGroupChat: isGroupChat ?? false,
+                    ),
+                  ),
+                );
+
+                // 🔥 ATTACH DURATION TO MESSAGE
+                if (localMessages != null && localMessages.isNotEmpty) {
+                  localMessages.first['duration'] = durationFormatted;
+                  onOptionSelected(localMessages);
+                }
+              }),
+
+              _buildOption(context, Icons.location_on, "Location",
                               () async {}),
                         ],
                       )
@@ -435,7 +482,8 @@ class ShowAltDialog {
     required bool isGroupMessage,
     String? groupMessageId,
     String? caption, // ✅ Added caption param
-  }) async {
+  })
+  async {
     try {
       final File localFile = File(file.path);
       log("File path: ${file.path}");
@@ -554,7 +602,26 @@ class ShowAltDialog {
       return null;
     }
   }
+ static Future<String> getAudioDurationFormatted(String path) async {
+    final player = AudioPlayer();
 
+    try {
+      await player.setFilePath(path);
+      final duration = player.duration;
+
+      if (duration == null) return "00:00";
+
+      final minutes = duration.inMinutes.remainder(60);
+      final seconds = duration.inSeconds.remainder(60);
+
+      return '${minutes.toString().padLeft(2, '0')}:'
+          '${seconds.toString().padLeft(2, '0')}';
+    } catch (e) {
+      return "00:00";
+    } finally {
+      await player.dispose();
+    }
+  }
   static Widget _buildOption(
     BuildContext context,
     IconData icon,

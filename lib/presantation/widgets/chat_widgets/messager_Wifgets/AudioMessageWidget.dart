@@ -13,6 +13,7 @@ class AudioMessageWidget extends StatefulWidget {
   final String? timestamp;
   final String? status;
   final bool showContainer;
+  final String? mimeType;
 
   const AudioMessageWidget({
     super.key,
@@ -22,7 +23,7 @@ class AudioMessageWidget extends StatefulWidget {
     this.duration,
     this.timestamp,
     this.status,
-    this.showContainer = true,
+    this.showContainer = true, this.mimeType,
   });
 
   @override
@@ -182,23 +183,43 @@ class _AudioMessageWidgetState extends State<AudioMessageWidget> {
       children: [
         Row(
           children: [
-            GestureDetector(
-              onTap: () {
-                if (_isPlaying) {
-                  _audioPlayer.pause();
-                } else {
-                  _audioPlayer.play();
-                }
-              },
-              child: CircleAvatar(
-                radius: 20,
-                backgroundColor: widget.isSender
-                    ? chatColor.withOpacity(0.2)
-                    : const Color.fromARGB(255, 213, 212, 212),
+            Padding(
+              padding: const EdgeInsets.only(top: 4.0),
+              child: GestureDetector(
+                onTap: () {
+                  if (_isPlaying) {
+                    _audioPlayer.pause();
+                  } else {
+                    _audioPlayer.play();
+                  }
+                },
+                child: CircleAvatar(
+                  radius: 20,
+                  backgroundColor: widget.isSender
+                      ? chatColor.withOpacity(0.2)
+                      : const Color.fromARGB(255, 213, 212, 212),
+                  child: Icon(
+                    widget.mimeType=="audio/aac" ?Icons.mic_none : Icons.music_note_outlined,
+                    color: widget.isSender ? chatColor : Colors.grey[700],
+                    size: 24,
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 4.0),
+              child: GestureDetector(
+                onTap: () {
+                  if (_isPlaying) {
+                    _audioPlayer.pause();
+                  } else {
+                    _audioPlayer.play();
+                  }
+                },
                 child: Icon(
                   _isPlaying ? Icons.pause : Icons.play_arrow,
                   color: widget.isSender ? chatColor : Colors.grey[700],
-                  size: 24,
+                  size: 28,
                 ),
               ),
             ),

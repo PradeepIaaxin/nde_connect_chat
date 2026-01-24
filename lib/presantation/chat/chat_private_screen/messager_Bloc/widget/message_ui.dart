@@ -282,6 +282,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                                 widget.message['messageStatus']?.toString() ??
                                     'sent',
                             showContainer: false,
+                            mimeType:  widget.message['mimeType']?.toString() ??widget.message['fileType']?.toString(),
                           )
 
                         // 2. Video Preview
@@ -536,6 +537,7 @@ class _MessageBubbleState extends State<MessageBubble> {
         builder: (_) => MixedMediaViewer(
           items: media,
           initialIndex: index,
+          currentUserId: widget.currentUserId,
         ),
       ),
     );
@@ -1003,6 +1005,7 @@ class _MessageBubbleState extends State<MessageBubble> {
             ),
           ],
           initialIndex: 0,
+          currentUserId: widget.currentUserId,
         ),
       ),
     );
