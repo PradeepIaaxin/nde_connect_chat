@@ -279,7 +279,8 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
       }
       final convoidId = event.convoId;
       grpSocket.sendMessage(
-        isGroupMessage: false,
+        isGroupMessage:(event.replyTo?['is_grouped_message'] == true ||
+            event.replyTo?['isGroupedMessage'] == true),
         messageId: messageId,
         conversationId: convoidId.isEmpty ? '' : convoidId,
         senderId: event.senderId,
@@ -290,6 +291,7 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
         isGroupChat: true,
         contentType: event.contentType,
         reply: event.replyTo,
+        replyGroupImageCount: event.replyGroupMessageCount,
         userName: username!,
         ackCallback: (ack) {
           final tempId = ack['tempId'] ?? messageId;
