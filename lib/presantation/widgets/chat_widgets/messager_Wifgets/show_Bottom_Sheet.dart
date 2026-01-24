@@ -140,17 +140,34 @@ class ShowAltDialog {
                               onOptionSelected(localMessages);
                             }
                           }),
-                          _buildOption(context, Icons.camera_alt, "Camera",
-                              () async {
-                            final XFile? file = await ImagePicker()
-                                .pickImage(source: ImageSource.camera);
-                            if (file != null) {
-                              setState(() {
-                                selectedFile = file;
-                                selectedLabel = 'Image';
-                              });
+                          _buildOption(context, Icons.camera_alt, "Camera", () async {
+                            final XFile? file =
+                            await ImagePicker().pickImage(source: ImageSource.camera);
+
+                            if (file == null) return;
+
+                            // ✅ Close bottom sheet
+                            Navigator.of(context).pop();
+
+                            // ✅ Open Media Preview (same as others)
+                            final localMessages = await Navigator.push<List<Map<String, dynamic>>>(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => MediaPreviewScreen(
+                                  files: [file],
+                                  conversationId: conversationId!,
+                                  senderId: senderId!,
+                                  receiverId: receiverId!,
+                                  isGroupChat: isGroupChat ?? false,
+                                ),
+                              ),
+                            );
+
+                            if (localMessages != null && localMessages.isNotEmpty) {
+                              onOptionSelected(localMessages);
                             }
                           }),
+
                           _buildOption(
                               context, Icons.insert_drive_file, "Document",
                               () async {

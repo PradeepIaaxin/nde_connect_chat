@@ -165,7 +165,7 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
       onTap: widget.onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 6),
-        padding: const EdgeInsets.only(right: 8, top: 5, bottom: 5),
+        padding: const EdgeInsets.only(right: 2, top: 5, bottom: 5),
         decoration: BoxDecoration(
           color: const Color.fromARGB(255, 231, 235, 249),
           border: Border(left: BorderSide(color: Colors.blueAccent, width: 5)),
@@ -201,17 +201,24 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.videocam_outlined,
-                            size: 18, color: Colors.grey),
-                        SizedBox(
-                          width: 5,
+                        const Icon(
+                          Icons.videocam_outlined,
+                          size: 18,
+                          color: Colors.grey,
                         ),
-                        Text(
-                          replyContent.isNotEmpty ? replyContent : 'Video',
-                          style: TextStyle(fontSize: 12),
+                        const SizedBox(width: 5),
+                        Flexible(
+                          child: Text(
+                            replyContent.isNotEmpty ? replyContent : 'Video',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 12),
+                          ),
                         ),
                       ],
                     )
+
+
                   else if (isAudio)
                     Row(
                       mainAxisSize: MainAxisSize.min,
@@ -239,6 +246,7 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
                         const SizedBox(width: 4),
                         Flexible(
                           child: Text(
+                            maxLines: 1,
                             replyContent.isNotEmpty ? replyContent : 'Photo',
                             style: TextStyle(fontSize: 12),
                             overflow: TextOverflow.ellipsis,
@@ -276,10 +284,9 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
             ),
             if ((isImage || isVideo) && mediaUrl.isNotEmpty)
               isGrouped
-
                   ? const SizedBox()
                   : Padding(
-                      padding: const EdgeInsets.only(left: 15.0),
+                      padding: const EdgeInsets.only(left: 12.0,right: 10),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(6),
                         child: SizedBox(

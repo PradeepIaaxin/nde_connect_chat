@@ -8,6 +8,7 @@ import 'package:http_parser/http_parser.dart' as MediaType;
 import 'package:mime/mime.dart';
 import 'package:nde_email/bridge_generated.dart/api.dart';
 import 'package:path/path.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../data/respiratory.dart';
 import 'messager_model.dart';
@@ -68,7 +69,7 @@ class MessagerApiService {
           log('🧪 Decoded snapshot length: ${jsonString.length} chars');
 
           final decoded = jsonDecode(jsonString);
-           log('🔍 Snapshot keys: ${decoded["messages"]}');
+          log('🔍 Snapshot keys: ${decoded["messages"]}');
 
           final Map? messagesMap = decoded["messages"];
           if (messagesMap == null) {
@@ -129,7 +130,6 @@ class MessagerApiService {
           return flat;
         } catch (e, st) {
           log('❌ Snapshot decode/parse failed: $e\n$st');
-          // Fallback to normal flow if snapshot fails
           log('🔄 Falling back to normal REST flow');
         }
       }
@@ -450,5 +450,14 @@ class MessagerApiService {
       onError(e.toString());
       print("erross :${e.toString()}");
     }
+  }
+}
+Future<void> makePhoneCall(String phoneNumber) async {
+  final Uri url = Uri.parse('tel:$phoneNumber');
+
+  if (await canLaunchUrl(url)) {
+    await launchUrl(url);
+  } else {
+    throw 'Could not launch $url';
   }
 }
