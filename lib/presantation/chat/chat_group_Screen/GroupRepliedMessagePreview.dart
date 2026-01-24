@@ -9,7 +9,7 @@ class GroupRepliedMessagePreview extends StatefulWidget {
 
   final int? groupMediaLength;
   const GroupRepliedMessagePreview({
-    super.key,
+    super.key, 
     required this.replied,
     this.onTap,
     required this.receiver,
@@ -51,12 +51,16 @@ class _GroupRepliedMessagePreviewState
             .toString()
             .toLowerCase();
 
+    // Patch: treat "image_group" as images for grouped replies
+    final bool isGroupedImage = contentType == "image_group";
+
     final bool isVideo = contentType == 'video' ||
         fileType.startsWith('video/') ||
         ['.mp4', '.mov', '.mkv', '.avi', '.webm']
             .any((ext) => mediaUrl.toLowerCase().contains(ext));
 
-    final bool isImage = contentType == 'image' ||
+    final bool isImage = isGroupedImage ||
+        contentType == 'image' ||
         fileType.startsWith('image/') ||
         ['.jpg', '.jpeg', '.png', '.gif', '.webp']
             .any((ext) => mediaUrl.toLowerCase().contains(ext));
@@ -83,10 +87,10 @@ class _GroupRepliedMessagePreviewState
 
     // Debug logging to identify MIME type issues
     if (widget.replied['fileName'] != null || mediaUrl.isNotEmpty) {
-      debugPrint(
-          'DEBUG GroupRepliedMessagePreview: contentType="$contentType", fileType="$fileType", fileName="${widget.replied['fileName']}", mediaUrl="$mediaUrl"');
-      debugPrint(
-          'DEBUG GroupRepliedMessagePreview: isVideo=$isVideo, isImage=$isImage, isAudio=$isAudio, isDocument=$isDocument');
+      //debugPrint(
+          //'DEBUG GroupRepliedMessagePreview: contentType="$contentType", fileType="$fileType", fileName="${widget.replied['fileName']}", mediaUrl="$mediaUrl"');
+      //debugPrint(
+          //'DEBUG GroupRepliedMessagePreview: isVideo=$isVideo, isImage=$isImage, isAudio=$isAudio, isDocument=$isDocument');
     }
 
     if (replyContent.isEmpty && mediaUrl.isEmpty && !isAudio && !isDocument) {
@@ -277,7 +281,9 @@ class _GroupRepliedMessagePreviewState
                 ],
               ),
             ),
-            if ((isImage || isVideo) && mediaUrl.isNotEmpty) ...[
+            if ((isImage || isVideo) &&
+                mediaUrl.isNotEmpty &&
+                (widget.groupMediaLength ?? 0) <= 1) ...[
               const SizedBox(width: 8),
               ClipRRect(
                 borderRadius: BorderRadius.circular(4),

@@ -63,6 +63,7 @@ class SendMessageEvent extends GroupChatEvent {
   final String? mediaUrl;
   final Map<String, dynamic>? replyTo;
   final String? replyMessageId;
+  final String? replyGroupMessageCount;
 
   const SendMessageEvent({
     required this.senderId,
@@ -73,11 +74,20 @@ class SendMessageEvent extends GroupChatEvent {
     this.mediaUrl,
     this.replyTo,
     this.replyMessageId,
+    this.replyGroupMessageCount,
   });
 
   @override
-  List<Object?> get props =>
-      [senderId, receiverId, message, convoId, contentType, mediaUrl, replyTo];
+  List<Object?> get props => [
+        senderId,
+        receiverId,
+        message,
+        convoId,
+        contentType,
+        mediaUrl,
+        replyTo,
+        replyGroupMessageCount
+      ];
 }
 
 class GrpUploadFileEvent extends GroupChatEvent {

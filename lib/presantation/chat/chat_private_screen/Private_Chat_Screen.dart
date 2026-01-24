@@ -181,7 +181,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           convoId != _currentConversationId) {
         return;
       }
-      log("kkkkkkkkkkkkkkkkkkkkkkkk ${data['messages']}");
+      //log("kkkkkkkkkkkkkkkkkkkkkkkk ${data['messages']}");
       _applyCrdtMessages(
         convoId,
         Map<String, dynamic>.from(data['messages'] ?? {}),
