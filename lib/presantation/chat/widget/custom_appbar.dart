@@ -378,7 +378,9 @@ class CommonAppBarBuilder {
               ),
             ),
             IconButton(
-              onPressed: () => MyRouter.pop(context),
+              onPressed: () {
+                makePhoneCall('8985858978');
+              },
               icon: Icon(Icons.call_outlined),
             ),
             IconButton(
