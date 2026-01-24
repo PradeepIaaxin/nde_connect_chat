@@ -84,6 +84,7 @@ void main() async {
   if (!status.isGranted) {
     await Permission.storage.request();
   }
+  
 
   socketService = SocketService();
 
