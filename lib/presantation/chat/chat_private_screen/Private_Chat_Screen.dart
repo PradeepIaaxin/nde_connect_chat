@@ -500,6 +500,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     // 1) initialMessages (from forwarding)
     if (widget.initialMessages != null && widget.initialMessages!.isNotEmpty) {
+    //  log("messssssssssssssssss ${widget.initialMessages}");
       final normalized = widget.initialMessages!
           .map<Map<String, dynamic>>((raw) => normalizeMessage(raw))
           .where((m) => m.isNotEmpty)
@@ -513,11 +514,14 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       _scheduleSaveMessages();
     } else if (widget.convoId.isNotEmpty) {
       // 2) cached local messages
+
       final loaded = LocalChatStorage.loadMessages(widget.convoId);
+      //log("messssssssssssssssss ${loaded}");
       final normalized = [
         for (var msg in loaded)
           if (msg.isNotEmpty) normalizeMessage(msg)
       ];
+
       dbMessages.addAll(normalized);
       for (var m in normalized) {
         final id = (m['message_id'] ?? '').toString();
@@ -700,6 +704,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   void _handleIncomingRawMessage(Map<String, dynamic> raw, {String? event}) {
+    log("lllllllllllllllllllll: $raw");
     try {
       if (raw['isGroupChat'] == true) return;
       final normalized = normalizeMessage(raw);
@@ -1024,7 +1029,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   // Update the normalizeMessage function to handle LORRO data structure
   Map<String, dynamic> normalizeMessage(dynamic rawMsg) {
     if (rawMsg == null) return {};
-
+   log("rawMsgccccccccccccccccc: $rawMsg");
     // Handle LORRO specific structure
     if (rawMsg is Map) {
       // Check if it's a LORRO-style message
@@ -1043,7 +1048,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     if (rawMsg == null) return {};
 
     final m = <String, dynamic>{};
-
+//log("rawMsgccccccccccccccccc: $rawMsg");
     // ================= EXTRACT ID =================
     String? canonicalId;
     for (final k in ['message_id', 'messageId', 'id', '_id', 'messageID']) {
@@ -1193,6 +1198,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     String? originalKey = rawMsg['originalKey'];
 
     if (rawReply is Map) {
+      log(" rawReply['isGroupedMessageId'] ${ rawReply['group_message_id']}");
+      log(" rawReply['isGroupedMessageId'] ${ rawReply['is_grouped_message']}");
       final String? replyUrl = rawReply['replyUrl'] ??
           rawReply['originalUrl'] ??
           rawReply['fileUrl'];
@@ -1211,6 +1218,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         'fileUrl': replyUrl,
         'fileName': fileName,
         'fileType': contentType,
+         'group_message_id': rawReply['isGroupedMessageId'],
+         'is_grouped_message': rawReply['isGroupedMessage'] ?? false,
       };
 
       m['isReplyMessage'] = true;
@@ -2370,7 +2379,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   List<Map<String, dynamic>> _inferGrouping(
-      List<Map<String, dynamic>> messages) {
+      List<Map<String, dynamic>> messages)
+  {
     if (messages.isEmpty) return messages;
 
     messages
@@ -2587,7 +2597,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   // ------------------ UI builders ------------------
   Widget _buildMessageBubble(
       Map<String, dynamic> message, bool isSentByMe, bool isReply,
-      {int? length}) {
+      {int? length})
+  {
     final String? bubbleSenderId = _getMessageSenderId(message);
     final bool correctIsSentByMe = bubbleSenderId == currentUserId;
 
@@ -2715,6 +2726,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         onEmojiUpdated: (list) {
           setState(() => recentEmojis = list);
         },
+        currentUserId: currentUser,
 
         //isHighlighted: messageId == _highlightedMessageId,
       );
@@ -3301,7 +3313,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   Future<void> _handleReactionTap(
     Map<String, dynamic> message,
     String emoji,
-  ) async {
+  ) async
+  {
     try {
       final rawId = (message['message_id'] ??
               message['messageId'] ??
@@ -3466,6 +3479,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
               ),
             ],
             initialIndex: 0,
+            currentUserId: currentUser,
           ),
         ),
       );
@@ -4365,7 +4379,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                       )
                       .where((m) => m.isNotEmpty)
                       .toList();
-                  newDbMessages = _inferGrouping(newDbMessages);
+                 // log("allMessagesssss $newDbMessages");
+                  // newDbMessages = _inferGrouping(newDbMessages);
 
                   // 🔥 3) MERGE: keep local reactions if server doesn't send them
                   // 🔥 3) MERGE: keep local reactions and local read-state if present
@@ -4752,7 +4767,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                         previewUrl: mediaUrl,
                                         mediaUrl: mediaUrl,
                                         isVideo: false,
-                                        uniqueId: uniqueId));
+                                        uniqueId: uniqueId,   message: nextMsg));
                                   } else if (isVideo) {
                                     final preview = previewUrl ?? fileUrl ?? '';
                                     final media = fileUrl ?? mediaUrl ?? '';
@@ -4761,7 +4776,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                           previewUrl: preview,
                                           mediaUrl: media,
                                           isVideo: true,
-                                          uniqueId: uniqueId));
+                                          uniqueId: uniqueId,   message: nextMsg));
                                     }
                                   }
                                 }
@@ -4904,10 +4919,12 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                                     pageBuilder: (_, __, ___) =>
                                                         MixedMediaViewer(
                                                       items: conversationMedia,
-                                                      initialIndex:
-                                                          startIndex < 0
-                                                              ? 0
-                                                              : startIndex,
+
+                                                      initialIndex: startIndex < 0 ? 0 : startIndex,
+                                                      currentUserId: currentUser,
+
+
+
                                                     ),
                                                   ),
                                                 );

@@ -467,6 +467,11 @@ class SocketService {
       },
     );
 
+    log("emoji $emoji");
+    log("roomId $roomId");
+    log("conversationId $conversationId");
+    log("messageId $messageId");
+
     /// Timeout safeguard to avoid waiting indefinitely
     Future.delayed(const Duration(seconds: 3), () {
       if (!completer.isCompleted) {

@@ -59,6 +59,7 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
     frequentlyContactedChats = ChatSessionStorage.getChatList();
     socketService = SocketService();
     log("messagesssssss ${widget.messages}");
+    log("isForwardsssssssss ${widget.isForward}");
   }
 
   bool _isUserSelected(ChatUserlist user) {

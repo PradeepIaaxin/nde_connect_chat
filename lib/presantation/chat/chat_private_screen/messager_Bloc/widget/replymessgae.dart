@@ -24,6 +24,7 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
   Widget? trailingThumb;
   @override
   Widget build(BuildContext context) {
+    log("widget.replied['replyContent'  ${widget.replied['replyContent']}");
     const double thumbSize = 70;
     final replyContent =
         (widget.replied['replyContent'] ?? widget.replied['content'] ?? '')
@@ -197,10 +198,18 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
                       style: const TextStyle(fontSize: 12),
                     )
                   else if (isVideo)
-                    const Text(
-                      'Video',
-                      style: TextStyle(fontSize: 12),
-                    )
+                     Row(
+                       mainAxisSize: MainAxisSize.min,
+                       children: [
+                         const Icon(Icons.videocam_outlined,
+                             size: 18, color: Colors.grey),
+                         SizedBox(width: 5,),
+                         Text(
+                           replyContent.isNotEmpty?replyContent: 'Video',
+                          style: TextStyle(fontSize: 12),
+                                             ),
+                       ],
+                     )
                   else if (isAudio)
                     Row(
                       mainAxisSize: MainAxisSize.min,
@@ -220,12 +229,15 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
                       ],
                     )
                   else if (isImage)
-                    const Row(
+                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        const Icon(Icons.photo_album_outlined,
+                            size: 18, color: Colors.grey),
+                        const SizedBox(width: 4),
                         Flexible(
                           child: Text(
-                            'Photo',
+                            replyContent.isNotEmpty?replyContent:'Photo',
                             style: TextStyle(fontSize: 12),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -262,6 +274,7 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
             ),
             if ((isImage || isVideo) && mediaUrl.isNotEmpty)
               isGrouped
+            ss
                   ? const SizedBox()
                   : Padding(
                       padding: const EdgeInsets.only(left: 15.0),

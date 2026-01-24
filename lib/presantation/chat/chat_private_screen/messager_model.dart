@@ -972,6 +972,8 @@ class Reply {
   final String? fileName;
   final String contentType;
   final String? userName;
+  final bool? isGroupedMessage;
+  final String? groupedMessageId;
 
   const Reply({
     required this.replyToMessageId,
@@ -979,20 +981,44 @@ class Reply {
     this.fileUrl,
     this.fileName,
     required this.contentType,
-    this.userName,
+    this.userName, this.isGroupedMessage, this.groupedMessageId,
   });
 
   factory Reply.fromJson(Map<String, dynamic> json) {
     return Reply(
       replyToMessageId:
-          json['reply_message_id'] ?? json['messageId'] ?? json['id'] ?? '',
-      content: json['replyContent'] ?? json['content'],
-      fileUrl: json['replyUrl'] ?? json['originalUrl'],
+      json['reply_message_id'] ??
+          json['messageId'] ??
+          json['id'] ??
+          json['isGroupedMessageId'] ??
+          '',
+
+      content:
+      json['replyContent'] ??
+          json['content'] ??
+          '',
+
+      fileUrl:
+      json['replyUrl'] ??
+          json['originalUrl'] ??
+          json['fileUrl'] ??
+          '',
+
       fileName: json['fileName'],
-      contentType: json['ContentType'] ?? 'text',
-      userName: json['first_name'],
+
+      contentType:
+      json['ContentType'] ??
+          json['mimeType'] ??
+          'text',
+
+      userName: _buildUserName(json),
+
+      // 🔥 OPTIONAL but VERY useful
+      isGroupedMessage: json['isGroupedMessage'] == true,
+      groupedMessageId: json['isGroupedMessageId'],
     );
   }
+
 
   /// ✅ ADD THIS
   Map<String, dynamic> toJson() {
@@ -1003,8 +1029,20 @@ class Reply {
       "replyUrl": fileUrl,
       "ContentType": contentType,
       "first_name": userName,
+      "isGroupedMessage": isGroupedMessage,
+      "isGroupedMessageId": groupedMessageId,
     };
   }
+
+}
+String? _buildUserName(Map<String, dynamic> json) {
+final first = json['first_name'];
+final last = json['last_name'];
+
+if (first != null && last != null) {
+return "$first $last";
+}
+return first ?? json['userName'];
 }
 
 class MessageListResponse {
