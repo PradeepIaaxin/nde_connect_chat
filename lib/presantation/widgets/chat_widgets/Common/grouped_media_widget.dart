@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/VideoCacheService.dart';
 
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/message_caption.dart';
 
@@ -167,8 +167,20 @@ class GroupedMediaWidget extends StatelessWidget {
         decoration: BoxDecoration(
           border: Border.all(width: 0.5, color: Colors.white),
         ),
-        child:
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
             isVideo ? _buildVideoThumbnail(path) : _buildImage(path, isLocal),
+            if (isVideo)
+              Center(
+                child: Icon(
+                  Icons.play_circle_fill,
+                  size: 36,
+                  color: Colors.grey.shade300,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -186,13 +198,17 @@ class GroupedMediaWidget extends StatelessWidget {
 
   Widget _buildVideoThumbnail(String videoPath) {
     return FutureBuilder<File?>(
-      future: VideoThumbUtil.generateFromUrl(videoPath),
+      future: VideoCacheService.instance.getThumbnailFuture(videoPath),
       builder: (context, snapshot) {
-        if (snapshot.hasData) {
-          return Image.file(snapshot.data!,
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: double.infinity);
+        if (snapshot.connectionState == ConnectionState.done &&
+            snapshot.hasData &&
+            snapshot.data!.existsSync()) {
+          return Image.file(
+            snapshot.data!,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+          );
         }
         return Container(
           color: Colors.black26,
