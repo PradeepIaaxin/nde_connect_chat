@@ -276,6 +276,7 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
             ),
             if ((isImage || isVideo) && mediaUrl.isNotEmpty)
               isGrouped
+
                   ? const SizedBox()
                   : Padding(
                       padding: const EdgeInsets.only(left: 15.0),
