@@ -73,7 +73,7 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
       // -------- PAGE 1: REPLACE --------
       if (event.page == 1) {
         final serverJsonList = newFlat.map((e) => e.toJson()).toList();
-
+           log("serverJsonList;;;;;; $serverJsonList");
         // Merge local reactions
         final mergedJsonList = _mergeLocalReactionsIntoServerJson(
           convoId: event.convoId,
@@ -157,7 +157,8 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
   Future<void> _onSendAudioMessage(
     SendAudioMessageEvent event,
     Emitter<MessagerState> emit,
-  ) async {
+  )
+  async {
     // 1. Validate file
     final io.File audioFile = io.File(event.audioPath);
     if (!audioFile.existsSync()) {
