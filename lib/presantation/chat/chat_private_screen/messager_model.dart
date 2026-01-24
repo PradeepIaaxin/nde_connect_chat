@@ -988,10 +988,10 @@ class Reply {
     return Reply(
       replyToMessageId:
       json['reply_message_id'] ??
-          json['messageId'] ??
+          json['message_id'] ??
           json['id'] ??
-          json['isGroupedMessageId'] ??
           '',
+
 
       content:
       json['replyContent'] ??

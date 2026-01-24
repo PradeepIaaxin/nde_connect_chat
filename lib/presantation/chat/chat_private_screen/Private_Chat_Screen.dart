@@ -228,7 +228,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   @override
   void dispose() {
     SocketService().clearActiveConversation();
-
     _reactionSubscription?.cancel();
     _messageDeletedSubscription?.cancel();
     _scrollController.removeListener(_scrollListener);
@@ -318,7 +317,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   void _applyCrdtMessages(
     String convoId,
     Map<String, dynamic> messagesMap,
-  ) {
+  )
+  {
     // log("messssssssssssssss $messagesMap");
     if (convoId != widget.convoId) return;
 
@@ -516,7 +516,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       // 2) cached local messages
 
       final loaded = LocalChatStorage.loadMessages(widget.convoId);
-      //log("messssssssssssssssss ${loaded}");
+     // log("messssssssssssssssss ${loaded}");
       final normalized = [
         for (var msg in loaded)
           if (msg.isNotEmpty) normalizeMessage(msg)
@@ -1029,7 +1029,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   // Update the normalizeMessage function to handle LORRO data structure
   Map<String, dynamic> normalizeMessage(dynamic rawMsg) {
     if (rawMsg == null) return {};
-  // log("rawMsgccccccccccccccccc: $rawMsg");
+  //s log("rawMsgccccccccccccccccc: $rawMsg");
     // Handle LORRO specific structure
     if (rawMsg is Map) {
       // Check if it's a LORRO-style message

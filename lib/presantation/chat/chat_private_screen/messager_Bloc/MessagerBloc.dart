@@ -73,7 +73,7 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
       // -------- PAGE 1: REPLACE --------
       if (event.page == 1) {
         final serverJsonList = newFlat.map((e) => e.toJson()).toList();
-           log("serverJsonList;;;;;; $serverJsonList");
+          // log("serverJsonList;;;;;; $serverJsonList");
         // Merge local reactions
         final mergedJsonList = _mergeLocalReactionsIntoServerJson(
           convoId: event.convoId,
