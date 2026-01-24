@@ -68,7 +68,7 @@ class MessagerApiService {
           log('🧪 Decoded snapshot length: ${jsonString.length} chars');
 
           final decoded = jsonDecode(jsonString);
-          // log('🔍 Snapshot keys: ${decoded.keys.toList()}');
+           log('🔍 Snapshot keys: ${decoded["messages"]}');
 
           final Map? messagesMap = decoded["messages"];
           if (messagesMap == null) {

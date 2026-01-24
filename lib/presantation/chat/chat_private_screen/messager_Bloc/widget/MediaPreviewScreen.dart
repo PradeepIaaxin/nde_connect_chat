@@ -7,8 +7,11 @@ import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_color
 import 'package:objectid/objectid.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../widgets/chat_widgets/messager_Wifgets/show_Bottom_Sheet.dart';
+import '../MessagerBloc.dart';
+import '../MessagerEvent.dart';
 import 'VideoPreviewScreen.dart';
 
 class MediaPreviewScreen extends StatefulWidget {
@@ -158,6 +161,7 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
                     FloatingActionButton(
                       mini: true,
                       backgroundColor: AppColors.primaryButton,
+                      onPressed: _sending ? null : _sendAll,
                       child: _sending
                           ? const SizedBox(
                               width: 18,
@@ -168,7 +172,6 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
                               ),
                             )
                           : const Icon(Icons.send, color: Colors.white),
-                      onPressed: _sending ? null : _sendAll,
                     ),
                   ],
                 ),
@@ -196,16 +199,41 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
       ),
     );
   }
+  bool _isAudio(XFile file) {
+    final mime = lookupMimeType(file.path) ?? '';
+    return mime.startsWith('audio/');
+  }
 
   Future<void> _sendAll() async {
     setState(() => _sending = true);
-    final caption = _captionController.text.trim(); // Capture caption
-
+    final caption = _captionController.text.trim();
+    log("hhhhhhhhhhhh55555555");
     final List<Map<String, dynamic>> localMessages = [];
     final groupMessageId =
-        widget.files.length > 1 ? ObjectId().toString() : null;
-
+    widget.files.length > 1 ? ObjectId().toString() : null;
+    log("hhhhhhhhhhhh");
     for (final file in widget.files) {
+      // 🔥 AUDIO FILE FLOW
+      log("hhhhhhhhhhhhaudioooooooooooo");
+      if (_isAudio(file)) {
+        final audioFile = File(file.path);
+        final int fakeDuration = 0; // optional – you can calculate later
+
+        // Dispatch audio event directly
+        context.read<MessagerBloc>().add(
+          SendAudioMessageEvent(
+            senderId: widget.senderId,
+            receiverId: widget.receiverId,
+            audioPath: audioFile.path,
+            duration: fakeDuration.toString(),
+            convoId: widget.conversationId,
+          ),
+        );
+
+        continue; // skip sendFile()
+      }
+
+      // 🖼️ IMAGE / VIDEO / DOCUMENT FLOW
       final msg = await ShowAltDialog.sendFile(
         context: context,
         file: file,
@@ -215,17 +243,15 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
         isGroupChat: widget.isGroupChat,
         isGroupMessage: widget.files.length > 1,
         groupMessageId: groupMessageId,
-        caption: caption.isNotEmpty ? caption : null, // ✅ Pass caption
+        caption: caption.isNotEmpty ? caption : null,
       );
-      log('Created message: ${msg?.toString()}');
-      debugPrint('MSG STATUS: ${msg?['messageStatus']}');
 
       if (msg != null) localMessages.add(msg);
     }
 
     setState(() => _sending = false);
 
-    // Return the messages with localImagePath for immediate display
     Navigator.of(context).pop(localMessages);
   }
+
 }

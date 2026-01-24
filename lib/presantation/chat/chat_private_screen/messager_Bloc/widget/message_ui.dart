@@ -282,6 +282,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                                 widget.message['messageStatus']?.toString() ??
                                     'sent',
                             showContainer: false,
+                            mimeType:  widget.message['mimeType']?.toString() ??widget.message['fileType']?.toString(),
                           )
 
                         // 2. Video Preview

@@ -230,30 +230,6 @@ class GroupedMediaWidget extends StatelessWidget {
                     ),
                   ),
                 ),
-              Positioned(
-                top: 0,
-                bottom: 0,
-                left: isSentByMe ? 25 : screenWidth * 0.58,
-                right: isSentByMe ? null : -52,
-                child: Center(
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(20),
-                      onTap: onForwardTap,
-                      child: CircleAvatar(
-                        radius: 16,
-                        backgroundColor: Colors.white,
-                        child: Image.asset(
-                          "assets/images/forward.png",
-                          height: 20,
-                          width: 20,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
 
               // Positioned(
               //   top: 8,
