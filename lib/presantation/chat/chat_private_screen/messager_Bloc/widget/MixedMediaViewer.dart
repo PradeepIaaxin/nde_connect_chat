@@ -372,7 +372,7 @@ class _MixedMediaViewerState extends State<MixedMediaViewer> {
   late final ScrollController _scrollController;
   late int _currentIndex;
   bool _showUI = true;
-
+  double _dragOffset = 0;
   @override
   void initState() {
     super.initState();
@@ -516,54 +516,87 @@ class _MixedMediaViewerState extends State<MixedMediaViewer> {
           : null,
       body: Stack(
         children: [
-          _buildGallery(),
+          Dismissible(
+            key: const Key('media_viewer'),
+            direction: DismissDirection.down,
+            onDismissed: (_) {
+              Navigator.pop(context);
+            },
+            confirmDismiss: (_) async {
+              // allow dismiss only if not zoomed
+              return true;
+            },
+            background: Container(color: Colors.black),
+            child: _buildGallery(),
+          ),
           if (_showUI) _buildBottomThumbnails(),
         ],
       ),
     );
   }
 
+
   // ==========================================================
   // GALLERY VIEW
   // ==========================================================
   Widget _buildGallery() {
     return GestureDetector(
+      onVerticalDragUpdate: (details) {
+        setState(() {
+          _dragOffset += details.delta.dy;
+        });
+      },
+      onVerticalDragEnd: (details) {
+        if (_dragOffset.abs() > 150) {
+          Navigator.pop(context);
+        } else {
+          setState(() => _dragOffset = 0);
+        }
+      },
       onTap: _toggleUI,
-      child: PhotoViewGallery.builder(
-        pageController: _controller,
-        itemCount: widget.items.length,
-        onPageChanged: (i) {
-          setState(() => _currentIndex = i);
-          _scrollToIndex(i);
-        },
-        backgroundDecoration: const BoxDecoration(color: Colors.black),
-        builder: (context, index) {
-          final item = widget.items[index];
-
-          // 🎥 VIDEO PAGE
-          if (item.isVideo) {
-            return PhotoViewGalleryPageOptions.customChild(
-              disableGestures: true,
-              child: Center(
-                child: InlineVideoPlayer(
-                  path: item.mediaUrl,
-                  isNetwork: item.mediaUrl.startsWith('http'),
-                ),
-
-              ),
-            );
-          }
-
-          // 🖼 IMAGE PAGE (ZOOMABLE)
-          return PhotoViewGalleryPageOptions(
-            heroAttributes: PhotoViewHeroAttributes(tag: item.mediaUrl),
-            imageProvider: item.mediaUrl.startsWith('http')
-                ? CachedNetworkImageProvider(item.mediaUrl)
-                : FileImage(File(item.mediaUrl)) as ImageProvider,
-            minScale: PhotoViewComputedScale.contained,
-            maxScale: PhotoViewComputedScale.covered * 3,
-          );
-        },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+        transform: Matrix4.translationValues(0, _dragOffset, 0),
+        child: Opacity(
+          opacity: (1 - (_dragOffset / 400)).clamp(0.0, 1.0),
+          child: PhotoViewGallery.builder(
+            pageController: _controller,
+            itemCount: widget.items.length,
+            onPageChanged: (i) {
+              setState(() => _currentIndex = i);
+              _scrollToIndex(i);
+            },
+            backgroundDecoration: const BoxDecoration(color: Colors.black),
+            builder: (context, index) {
+              final item = widget.items[index];
+          
+              // 🎥 VIDEO PAGE
+              if (item.isVideo) {
+                return PhotoViewGalleryPageOptions.customChild(
+                  disableGestures: true,
+                  child: Center(
+                    child: InlineVideoPlayer(
+                      path: item.mediaUrl,
+                      isNetwork: item.mediaUrl.startsWith('http'),
+                    ),
+          
+                  ),
+                );
+              }
+          
+              // 🖼 IMAGE PAGE (ZOOMABLE)
+              return PhotoViewGalleryPageOptions(
+                heroAttributes: PhotoViewHeroAttributes(tag: item.mediaUrl),
+                imageProvider: item.mediaUrl.startsWith('http')
+                    ? CachedNetworkImageProvider(item.mediaUrl)
+                    : FileImage(File(item.mediaUrl)) as ImageProvider,
+                minScale: PhotoViewComputedScale.contained,
+                maxScale: PhotoViewComputedScale.covered * 3,
+              );
+            },
+          ),
+        ),
       ),
     );
   }

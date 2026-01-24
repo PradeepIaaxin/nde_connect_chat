@@ -516,18 +516,52 @@ class _MessageBubbleState extends State<MessageBubble> {
     };
   }
 
-  void _openConversationViewer(BuildContext context, String tappedUrl) {
+  // void _openConversationViewer(BuildContext context, String tappedUrl) {
+  //   final media = buildConversationMedia(
+  //     widget.allMessages,
+  //     currentUserId: widget.currentUserId,
+  //     receiverName: widget.receiverName,
+  //   );
+  //   print("urlllllll $tappedUrl");
+  //   final index = media.indexWhere((m) => m.mediaUrl == tappedUrl);
+  //   print("index $index");
+  //
+  //   if (index == -1) {
+  //     print("❌ NO MATCH FOUND for $tappedUrl in ${media.length} items");
+  //     return;
+  //   }
+  //
+  //   Navigator.push(
+  //     context,
+  //     MaterialPageRoute(
+  //       builder: (_) => MixedMediaViewer(
+  //         items: media,
+  //         initialIndex: index,
+  //         currentUserId: widget.currentUserId,
+  //       ),
+  //     ),
+  //   );
+  // }
+  void _openConversationViewer(
+      BuildContext context,
+      Map<String, dynamic> tappedMessage,
+      ) {
     final media = buildConversationMedia(
       widget.allMessages,
       currentUserId: widget.currentUserId,
       receiverName: widget.receiverName,
     );
-    print("urlllllll $tappedUrl");
-    final index = media.indexWhere((m) => m.mediaUrl == tappedUrl);
-    print("index $index");
+
+    final tappedId =
+        tappedMessage['message_id']?.toString() ??
+            tappedMessage['_id']?.toString();
+
+    final index = media.indexWhere(
+          (m) => m.message?['message_id']?.toString() == tappedId,
+    );
 
     if (index == -1) {
-      print("❌ NO MATCH FOUND for $tappedUrl in ${media.length} items");
+      debugPrint('❌ Media not found for message_id=$tappedId');
       return;
     }
 
@@ -808,7 +842,7 @@ class _MessageBubbleState extends State<MessageBubble> {
             if (widget.isSelectionMode) {
               widget.onLongPress?.call();
             } else if (looksImage) {
-              _openConversationViewer(context, imageUrl);
+              _openConversationViewer(context, widget.message);
             } else {
               // treat as file
               widget.onFileTap?.call(imageUrl, null);
@@ -1488,7 +1522,7 @@ class _MessageBubbleState extends State<MessageBubble> {
         if (widget.isSelectionMode) {
           widget.onLongPress?.call();
         } else {
-          _openConversationViewer(context, videoUrl);
+          _openConversationViewer(context, widget.message);
         }
       },
       child: Container(
@@ -1526,7 +1560,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                   if (widget.isSelectionMode) {
                     widget.onLongPress?.call();
                   } else {
-                    _openConversationViewer(context, videoUrl);
+                    _openConversationViewer(context, widget.message);
                   }
                   // Navigator.push(
                   //   context,

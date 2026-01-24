@@ -125,9 +125,8 @@ class ReactionBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final reactions = _extractReactions(message['reactions']);
     if (reactions.isEmpty) {
-      // show nothing or show Add icon only — choose Add so user can react.
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
         child: GestureDetector(
           onTap: () => _openEmojiPicker(context),
           child: Container(
@@ -153,7 +152,6 @@ class ReactionBar extends StatelessWidget {
       }
     }
 
-    // detect if user has any reaction
     final myEmoji = userReacted.keys.isNotEmpty ? userReacted.keys.first : null;
 
     // build list of chips, optionally prefacing with Add if the user hasn't reacted
