@@ -268,24 +268,6 @@ class SocketService {
             "deviceInfo": deviceInfo,
           });
 
-          // socket!.emit('register_device', {
-          //   'deviceId': deviceId,
-          //   'userId': _currentUserId,
-          //   'publicKey': publicKeyJwk,
-          //   'deviceInfo': deviceInfo,
-          // });
-
-          // socket!.emit("register_device", {
-          //   "deviceId": deviceId,
-          //   "fcmToken": await FirebaseMessaging.instance.getToken(),
-          //   "fcmPlatform": Platform.isIOS ? "ios" : "android",
-          //   "deviceInfo": {
-          //     "platform": "mobile",
-          //     "os": Platform.operatingSystem,
-          //     "model": deviceInfo,
-          //   }
-          // });
-
           _slog('[SOCKET] register_device emitted');
           _slog('Socket register_device: ${socket!.connected}');
         } catch (e) {
