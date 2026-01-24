@@ -170,6 +170,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   final Map<String, String> _pendingStatusUpdates =
       {}; // Buffer for race conditions
 
+  // Helper: sanitize strings so Flutter Text rendering doesn't throw
+  // removes lone surrogate code units (U+D800..U+DFFF) that cause "not well-formed UTF-16"
+  String sanitizeString(String? s) {
+    if (s == null) return '';
+    return s.replaceAll(RegExp(r'[\uD800-\uDFFF]'), '');
+  }
+
   @override
   void dispose() {
     SocketService().clearActiveConversation();
@@ -554,6 +561,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         .join(' ')
         .trim();
 
+    // 🔥 NEW: Extract and normalize reply data including grouped media info
+    Map<String, dynamic>? normalizedReply;
+    final replyRaw = msg['reply'] ?? msg['repliedMessage'];
+    if (replyRaw is Map<String, dynamic>) {
+      normalizedReply = _extractReplyDataFromIncoming(replyRaw);
+    }
+
     /// 6️⃣ Normalize message for UI
     final Map<String, dynamic> newMessage = {
       'message_id': messageId,
@@ -575,7 +589,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       'ContentType': msg['ContentType'] ?? 'text',
       'isForwarded': msg['isForwarded'] ?? false,
       'reactions': msg['reactions'] ?? [],
-      'repliedMessage': msg['reply'] ?? msg['repliedMessage'],
+      'repliedMessage': normalizedReply,
       'duration': msg['duration']?.toString(),
     };
 
@@ -759,6 +773,174 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       _updateNotifier();
       _refreshMessages();
     });
+  }
+
+  /// 🔥 NEW: Extract and normalize reply data from incoming message
+  Map<String, dynamic>? _extractReplyDataFromIncoming(
+      Map<String, dynamic> replyRaw) {
+    try {
+      final String mediaUrl = replyRaw["originalUrl"]?.toString() ??
+          replyRaw["imageUrl"]?.toString() ??
+          replyRaw["fileUrl"]?.toString() ??
+          "";
+      final String fileName = replyRaw["fileName"]?.toString() ?? "";
+
+      // Get extension
+      String ext = "";
+      if (mediaUrl.isNotEmpty) {
+        final uri = Uri.tryParse(mediaUrl);
+        ext = uri?.path.split('.').last.toLowerCase() ?? "";
+      } else if (fileName.isNotEmpty) {
+        ext = fileName.split('.').last.toLowerCase();
+      }
+
+      // Guess type by extension if not provided
+      String mimeType = replyRaw["mimeType"]?.toString() ??
+          replyRaw["fileType"]?.toString() ??
+          "";
+      String contentType = replyRaw["ContentType"]?.toString() ??
+          replyRaw["contentType"]?.toString() ??
+          "";
+
+      if (mimeType.isEmpty || contentType.isEmpty) {
+        if (["jpg", "jpeg", "png", "gif", "webp"].contains(ext)) {
+          mimeType = "image/$ext";
+          contentType = "image";
+        } else if (["mp4", "mov", "mkv", "avi", "webm"].contains(ext)) {
+          mimeType = "video/$ext";
+          contentType = "video";
+        } else if (["mp3", "wav", "aac", "m4a", "flac", "ogg", "opus"]
+            .contains(ext)) {
+          mimeType = "audio/$ext";
+          contentType = "audio";
+        } else if (["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt"]
+            .contains(ext)) {
+          mimeType = "application/$ext";
+          contentType = "document";
+        } else if (mediaUrl.isNotEmpty) {
+          mimeType = "application/octet-stream";
+          contentType = "file";
+        }
+      }
+
+      return {
+        "userId": replyRaw["userId"] ?? replyRaw["senderId"],
+        "id": replyRaw["id"] ?? replyRaw["message_id"] ?? replyRaw["messageId"],
+        "mimeType": mimeType,
+        "fileType": mimeType,
+        "ContentType": contentType,
+        "contentType": contentType,
+        "replyContent": replyRaw["content"] ?? replyRaw["replyContent"] ?? "",
+        "replyToUser": replyRaw["senderName"] ??
+            replyRaw["userName"] ??
+            replyRaw["replyToUser"] ??
+            replyRaw["replyToUSer"] ??
+            "",
+        "fileName": replyRaw["fileName"] ?? "",
+        "first_name": replyRaw["first_name"] ?? "",
+        "last_name": replyRaw["last_name"] ?? "",
+        "imageUrl": replyRaw["imageUrl"] ?? replyRaw["thumbnailUrl"] ?? "",
+        "fileUrl": replyRaw["fileUrl"] ?? "",
+        "originalUrl": replyRaw["originalUrl"] ?? "",
+        "duration": replyRaw["duration"] ?? replyRaw["videoDuration"],
+        "videoDuration": replyRaw["videoDuration"] ?? replyRaw["duration"],
+        'profile_pic_path':
+            replyRaw['profile_pic_path'] ?? replyRaw['profilePic'] ?? '',
+        // 🔥 NEW: Persist grouped reply metadata
+        'imageCount': replyRaw['imageCount'] ?? 0,
+        'videoCount': replyRaw['videoCount'] ?? 0,
+        'group_message_id': replyRaw['group_message_id'],
+        'isGroupedReply': replyRaw['isGroupedReply'] ?? false,
+        'groupMessageIds': replyRaw['groupMessageIds'] ?? [],
+      };
+    } catch (e) {
+      debugPrint('❌ Error extracting reply data: $e');
+      return null;
+    }
+  }
+
+  /// Ensure reply payloads are a stable, sanitized Map for UI & sending.
+  Map<String, dynamic> _mergeReplyData(dynamic replyData) {
+    if (replyData == null) return <String, dynamic>{};
+
+    final Map<String, dynamic> merged = {};
+
+    // Accept Map or JSON string
+    if (replyData is String) {
+      try {
+        final decoded = jsonDecode(replyData);
+        if (decoded is Map) {
+          merged.addAll(Map<String, dynamic>.from(decoded));
+        } else {
+          merged['replyContent'] = replyData;
+        }
+      } catch (_) {
+        merged['replyContent'] = replyData;
+      }
+    } else if (replyData is Map) {
+      merged.addAll(Map<String, dynamic>.from(replyData));
+    } else {
+      return <String, dynamic>{};
+    }
+
+    // ID normalization
+    merged['id'] = merged['id'] ??
+        merged['message_id'] ??
+        merged['messageId'] ??
+        merged['_id'] ??
+        '';
+
+    // Content / reply text
+    merged['replyContent'] =
+        merged['replyContent'] ?? merged['content'] ?? merged['message'] ?? '';
+
+    // Ensure fileType/mimeType parity
+    if ((merged['fileType'] == null || merged['fileType'].toString().isEmpty) &&
+        merged['mimeType'] != null) {
+      merged['fileType'] = merged['mimeType'];
+    }
+    if ((merged['mimeType'] == null || merged['mimeType'].toString().isEmpty) &&
+        merged['fileType'] != null) {
+      merged['mimeType'] = merged['fileType'];
+    }
+
+    // Grouped metadata compatibility
+    merged['group_message_id'] = merged['group_message_id'] ??
+        merged['groupMessageId'] ??
+        merged['groupId'];
+    merged['groupMessageIds'] = merged['groupMessageIds'] ??
+        (merged['groupMessageId'] != null ? [merged['groupMessageId']] : []);
+    merged['is_grouped_message'] = merged['is_grouped_message'] ??
+        merged['isGroupedMessage'] ??
+        merged['isGroupedReply'] ??
+        ((merged['imageCount'] ?? 0) as num) > 0 ||
+            ((merged['videoCount'] ?? 0) as num) > 0;
+
+    // Coerce counts to int
+    merged['imageCount'] =
+        int.tryParse(merged['imageCount']?.toString() ?? '') ??
+            (merged['imageCount'] is int ? merged['imageCount'] : 0);
+    merged['videoCount'] =
+        int.tryParse(merged['videoCount']?.toString() ?? '') ??
+            (merged['videoCount'] is int ? merged['videoCount'] : 0);
+
+    // Ensure canonical URLs/filenames
+    merged['originalUrl'] =
+        merged['originalUrl'] ?? merged['fileUrl'] ?? merged['imageUrl'] ?? '';
+    merged['imageUrl'] = merged['imageUrl'] ??
+        merged['thumbnailUrl'] ??
+        merged['originalUrl'] ??
+        '';
+    merged['fileUrl'] = merged['fileUrl'] ?? merged['originalUrl'] ?? '';
+
+    // sanitize string fields to avoid UTF-16 errors in TextSpan/TextPainter
+    final keys = merged.keys.toList();
+    for (final k in keys) {
+      final v = merged[k];
+      if (v is String) merged[k] = sanitizeString(v);
+    }
+
+    return merged;
   }
 
   /// Actually apply reaction change to in-memory lists and save
@@ -1225,6 +1407,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                   message['sender']?['profilePic'] ??
                   message['profile_pic_path'] ??
                   '',
+              "imageCount": reply["imageCount"] ?? 0,
+              "videoCount": reply["videoCount"] ?? 0,
             };
           })()
         : null;
@@ -1558,35 +1742,166 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final nowIso = DateTime.now().toIso8601String();
     final tempId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
 
-    // 🛠 Construct a clean reply payload
+    // 🔥 CRITICAL: Extract grouped media info BEFORE creating reply payload
+    Map<String, dynamic>? groupedMediaInfo;
+    if (_replyPreview != null &&
+        ((_replyPreview!['imageCount'] ?? 0) > 0 ||
+            (_replyPreview!['videoCount'] ?? 0) > 0)) {
+      final groupId = _replyPreview!['group_message_id'];
+      if (groupId != null && groupId.toString().isNotEmpty) {
+        final firstGroupedMsg = _allMessages.firstWhere(
+          (m) =>
+              m['group_message_id']?.toString() == groupId &&
+              m['is_deleted'] != true &&
+              ((m['originalUrl'] != null &&
+                      m['originalUrl'].toString().isNotEmpty) ||
+                  (m['fileUrl'] != null &&
+                      m['fileUrl'].toString().isNotEmpty) ||
+                  (m['imageUrl'] != null &&
+                      m['imageUrl'].toString().isNotEmpty)),
+          orElse: () => <String, dynamic>{},
+        );
+
+        if (firstGroupedMsg.isNotEmpty) {
+          groupedMediaInfo = {
+            'originalUrl': firstGroupedMsg['originalUrl'] ??
+                firstGroupedMsg['fileUrl'] ??
+                firstGroupedMsg['imageUrl'],
+            'thumbnailUrl': firstGroupedMsg['imageUrl'] ??
+                firstGroupedMsg['thumbnailUrl'] ??
+                firstGroupedMsg['originalUrl'],
+            'imageUrl': firstGroupedMsg['imageUrl'] ??
+                firstGroupedMsg['thumbnailUrl'] ??
+                firstGroupedMsg['originalUrl'],
+            'fileUrl':
+                firstGroupedMsg['fileUrl'] ?? firstGroupedMsg['originalUrl'],
+            'fileName': firstGroupedMsg['fileName'],
+            'mimeType':
+                firstGroupedMsg['mimeType'] ?? firstGroupedMsg['fileType'],
+          };
+        }
+      }
+    }
+
+    // 🛠 Construct a clean reply payload (match PrivateChatScreen structure & include snake_case)
     final Map<String, dynamic>? replyPayload = _replyMessage != null
         ? {
+            // id variants
             'message_id': _replyMessage!['message_id'] ?? _replyMessage!['id'],
-            'content': _replyMessage!['content'] ?? '',
-            'id': _replyMessage!['message_id'] ??
-                _replyMessage!['id'], // redundant but safe
+            'reply_message_id':
+                _replyMessage!['message_id'] ?? _replyMessage!['id'],
+            'replyToMessage':
+                _replyMessage!['message_id'] ?? _replyMessage!['id'],
+            'id': _replyMessage!['message_id'] ?? _replyMessage!['id'],
+
+            // sender / user
             'sender': _replyMessage!['sender'],
             'replyToUser': _replyMessage!['senderName'] ??
                 _replyMessage!['userName'] ??
                 (_replyMessage!['sender'] is Map
                     ? _replyMessage!['sender']['name']
                     : ''),
-            'imageUrl': _replyMessage!['imageUrl'] ??
+            'replyUserId': (_replyMessage!['sender'] is Map)
+                ? (_replyMessage!['sender']['_id'] ??
+                    _replyMessage!['sender']['id'])
+                : null,
+
+            // content
+            'content': sanitizeString(
+                _replyPreview?['content'] ?? _replyMessage!['content'] ?? ''),
+            'replyContent': sanitizeString(
+                _replyPreview?['content'] ?? _replyMessage!['content'] ?? ''),
+
+            // media (prefer grouped media info when replying to grouped)
+            'originalUrl': groupedMediaInfo?['originalUrl'] ??
+                _replyPreview?['originalUrl'] ??
+                _replyMessage!['originalUrl'] ??
+                '',
+            'thumbnailUrl': groupedMediaInfo?['thumbnailUrl'] ??
+                _replyPreview?['imageUrl'] ??
                 _replyMessage!['thumbnailUrl'] ??
-                _replyMessage!['localImagePath'],
-            'fileUrl': _replyMessage!['fileUrl'],
-            'fileName': _replyMessage!['fileName'],
-            'fileType': _replyMessage!['fileType'],
-            'originalUrl': _replyMessage!['originalUrl'],
-            'imageCount': _replyPreview?['imageCount'],
-            'videoCount': _replyPreview?['videoCount'],
-            'group_message_id': _replyPreview?['group_message_id'],
+                '',
+            'imageUrl': groupedMediaInfo?['imageUrl'] ??
+                _replyPreview?['imageUrl'] ??
+                _replyMessage!['imageUrl'] ??
+                '',
+            'fileUrl': groupedMediaInfo?['fileUrl'] ??
+                _replyPreview?['fileUrl'] ??
+                _replyMessage!['fileUrl'] ??
+                '',
+            'fileName': groupedMediaInfo?['fileName'] ??
+                _replyPreview?['fileName'] ??
+                _replyMessage!['fileName'] ??
+                '',
+            'fileType': groupedMediaInfo?['mimeType'] ??
+                _replyPreview?['fileType'] ??
+                _replyMessage!['fileType'] ??
+                _replyMessage!['mimeType'] ??
+                '',
+
+            // grouped metadata (both camelCase and snake_case)
+            'imageCount': _replyPreview?['imageCount'] ?? 0,
+            'videoCount': _replyPreview?['videoCount'] ?? 0,
+            // Patch for group_message_id null-safety and non-empty check
+            ...(() {
+              final gmid = _replyPreview?['group_message_id'];
+              return {
+                'group_message_id': (gmid != null && gmid.toString().isNotEmpty)
+                    ? gmid
+                    : _replyMessage!['group_message_id'],
+              };
+            })(),
+            'groupMessageIds': _replyPreview?['groupMessageIds'] ?? [],
+
+            'isGroupedReply': (_replyPreview?['imageCount'] ?? 0) > 0 ||
+                (_replyPreview?['videoCount'] ?? 0) > 0,
+            'isGroupedMessage': (_replyPreview?['imageCount'] ?? 0) > 0 ||
+                (_replyPreview?['videoCount'] ?? 0) > 0,
+            'is_grouped_message': (_replyPreview?['imageCount'] ?? 0) > 0 ||
+                (_replyPreview?['videoCount'] ?? 0) > 0,
+            'isGroupedMessageId': _replyPreview?['group_message_id'] ??
+                _replyMessage!['group_message_id'],
+            'isGroupedMessageId_snake': _replyPreview?['group_message_id'] ??
+                _replyMessage!['group_message_id'],
+
+            // mirror under 'reply' for backends that expect that key shape (PrivateChatScreen compatibility)
+            'reply': {
+              'replyToUser': _replyMessage!['senderName'] ??
+                  _replyMessage!['userName'] ??
+                  (_replyMessage!['sender'] is Map
+                      ? _replyMessage!['sender']['name']
+                      : ''),
+              'replyToMessage':
+                  _replyMessage!['message_id'] ?? _replyMessage!['id'],
+              'replyContent':
+                  _replyPreview?['content'] ?? _replyMessage!['content'] ?? '',
+              'originalUrl': groupedMediaInfo?['originalUrl'] ??
+                  _replyMessage!['originalUrl'] ??
+                  '',
+              'thumbnailUrl': groupedMediaInfo?['thumbnailUrl'] ??
+                  _replyMessage!['thumbnailUrl'] ??
+                  '',
+              'fileName': groupedMediaInfo?['fileName'] ??
+                  _replyMessage!['fileName'] ??
+                  '',
+              'fileType': groupedMediaInfo?['mimeType'] ??
+                  _replyMessage!['fileType'] ??
+                  '',
+              'is_grouped_message': (_replyPreview?['imageCount'] ?? 0) > 0 ||
+                  (_replyPreview?['videoCount'] ?? 0) > 0,
+              'group_message_id': _replyPreview?['group_message_id'] ??
+                  _replyMessage!['group_message_id'],
+              'groupMessageIds': _replyPreview?['groupMessageIds'] ?? [],
+            },
+
+            // local debug copy (won't hurt server if passed)
+            '_local_reply_preview': _replyPreview,
           }
         : null;
 
     final message = {
       'message_id': tempId,
-      'content': _messageController.text.trim(),
+      'content': sanitizeString(_messageController.text.trim()),
       'sender': {'_id': currentUserId},
       'receiver': {'_id': widget.datumId},
       // 🟢 Check connectivity for initial status
@@ -1596,6 +1911,20 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       'time': nowIso,
       if (replyPayload != null) 'repliedMessage': replyPayload,
       if (replyPayload != null) 'isReplyMessage': true,
+      // 🔥 Ensure top-level grouped flags are present when replying to grouped media
+      // 🔥 Ensure top-level grouped flags are present when replying to grouped media
+      // if (replyPayload != null &&
+      //     ((replyPayload['is_grouped_message'] == true) ||
+      //         (replyPayload['isGroupedMessage'] == true) ||
+      //         (replyPayload['isGroupedReply'] == true) ||
+      //         (_replyPreview?['is_grouped_message'] == true)))
+      //   'is_grouped_message': true,
+      // if (replyPayload != null &&
+      //     ((replyPayload['group_message_id'] ??
+      //             _replyPreview?['group_message_id']) !=
+      //         null))
+      //   'group_message_id': replyPayload['group_message_id'] ??
+      //       _replyPreview?['group_message_id'],
     };
 
     setState(() {
@@ -1653,6 +1982,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           senderId: currentUserId,
           receiverId: widget.datumId,
           replyTo: replyPayload,
+          replyGroupMessageCount: _replyPreview?["content"],
+          replyMessageId:
+              replyPayload != null ? replyPayload['group_message_id'] : null,
         ),
       );
 
@@ -1816,6 +2148,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   List<InlineSpan> _buildMessageTextSpans(String content) {
+    // Sanitize input before processing for links/mentions to avoid UTF-16 errors
+    content = sanitizeString(content);
     final List<InlineSpan> spans = [];
     if (content.isEmpty) return spans;
 
@@ -2182,6 +2516,179 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     });
   }
 
+  // Helper method to build reply preview for grouped media
+  Map<String, dynamic> buildReplyPreviewFromGroup(
+    List<Map<String, dynamic>> messages,
+    bool isSendMe,
+    String currentUserId,
+  ) {
+    int imageCount = 0;
+    int videoCount = 0;
+
+    for (final m in messages) {
+      final String fileType =
+          (m['fileType'] ?? m['mimeType'] ?? '').toString().toLowerCase();
+      final String? fileUrl = m['fileUrl']?.toString();
+      final String? imageUrl = m['imageUrl']?.toString();
+
+      final bool isVideo = fileType.startsWith('video/') ||
+          (fileUrl != null &&
+              RegExp(r'\.(mp4|mov|mkv|avi|webm)$', caseSensitive: false)
+                  .hasMatch(fileUrl));
+
+      if (isVideo) {
+        videoCount++;
+      } else if (imageUrl != null && imageUrl.isNotEmpty) {
+        imageCount++;
+      }
+    }
+
+    String previewText;
+    if (imageCount > 0 && videoCount > 0) {
+      previewText = 'Media × ${imageCount + videoCount}';
+    } else if (imageCount > 0) {
+      previewText = 'Photo × $imageCount';
+    } else if (videoCount > 0) {
+      previewText = 'Video × $videoCount';
+    } else {
+      previewText = 'Message';
+    }
+
+    final first = messages.first;
+
+    return {
+      'message_id': first['message_id']?.toString(),
+      'content': previewText,
+      'isGroupedMedia': true,
+      'imageCount': imageCount,
+      'videoCount': videoCount,
+      'userName': first['senderName'] ?? first['sender']?['first_name'] ?? '',
+      'sender': first['sender'],
+      'receiver': first['receiver'],
+      'isSendMe': isSendMe,
+      'senderId': currentUserId,
+    };
+  }
+
+  void _replyToMessage(
+    Map<String, dynamic> message, {
+    bool isSendMe = false,
+  }) {
+    if (message.isEmpty) return;
+
+    log("Group Reply source (swiped) => $message");
+
+    // ✅ ALWAYS reply to the swiped message itself
+    final Map<String, dynamic> replySource = Map<String, dynamic>.from(message);
+
+    final String? originalUrl = replySource['originalUrl'] ??
+        replySource['imageUrl'] ??
+        replySource['fileUrl'];
+
+    final String fileType =
+        replySource['mimeType'] ?? replySource['fileType'] ?? '';
+
+    final bool isVideo = fileType.toLowerCase().startsWith('video/');
+
+    setState(() {
+      _replyMessage = replySource;
+
+      // Calculate counts if it's a grouped message
+      int imageCount = 0;
+      int videoCount = 0;
+      final String? groupId = (replySource['group_message_id'] != null &&
+              !replySource['group_message_id']
+                  .toString()
+                  .startsWith('generated_group_'))
+          ? replySource['group_message_id'].toString()
+          : null;
+
+      if (groupId != null && groupId.isNotEmpty) {
+        // Find all messages in this group
+        final groupMessages = _allMessages
+            .where((m) =>
+                m['group_message_id']?.toString() == groupId &&
+                m['is_deleted'] != true)
+            .toList();
+
+        for (var m in groupMessages) {
+          final String fType = (m['mimeType'] ??
+                  m['fileType'] ??
+                  m['mimetype'] ??
+                  m['ContentType'] ??
+                  '')
+              .toString()
+              .toLowerCase();
+          final String mUrl =
+              (m['originalUrl'] ?? m['imageUrl'] ?? m['fileUrl'] ?? '')
+                  .toString()
+                  .toLowerCase();
+
+          if (fType.startsWith('video/') ||
+              mUrl.endsWith('.mp4') ||
+              mUrl.endsWith('.mov') ||
+              mUrl.endsWith('.mkv')) {
+            videoCount++;
+          } else if (fType.startsWith('image/') ||
+              mUrl.endsWith('.jpg') ||
+              mUrl.endsWith('.png') ||
+              mUrl.endsWith('.jpeg') ||
+              mUrl.endsWith('.webp')) {
+            imageCount++;
+          }
+        }
+      }
+
+      // Build content preview text based on media counts
+      String contentPreview = (replySource['content'] ?? '').toString();
+      if (imageCount > 0 || videoCount > 0) {
+        if (imageCount > 0 && videoCount > 0) {
+          contentPreview = 'Media × ${imageCount + videoCount}';
+        } else if (imageCount > 0) {
+          contentPreview = 'Photo × $imageCount';
+        } else if (videoCount > 0) {
+          contentPreview = 'Video × $videoCount';
+        }
+      }
+
+      // SANITIZE reply preview content to avoid UTF-16 issues in rendering
+      contentPreview = sanitizeString(contentPreview);
+
+      _replyPreview = {
+        'message_id': replySource['message_id'] ??
+            replySource['messageId'] ??
+            replySource['id'],
+
+        'content': contentPreview,
+
+        // ✅ media (LOCAL or NETWORK)
+        'originalUrl': originalUrl ?? '',
+        'imageUrl': replySource['imageUrl'] ?? originalUrl ?? '',
+        'fileUrl': replySource['fileUrl'] ?? originalUrl ?? '',
+        'fileName': replySource['fileName'] ?? '',
+        'fileType': fileType,
+        'isVideo': isVideo,
+        'isDocument': !isVideo &&
+            (replySource['fileUrl'] != null &&
+                replySource['fileUrl'].isNotEmpty &&
+                (replySource['imageUrl'] == null ||
+                    replySource['imageUrl'].isEmpty)),
+
+        // user
+        'sender': replySource['sender'],
+        'receiver': replySource['receiver'],
+        'senderId': currentUserId,
+        'isSendMe': isSendMe,
+        'imageCount': imageCount,
+        'videoCount': videoCount,
+        'group_message_id': groupId,
+      };
+
+      log(" _replyPreview ${_replyPreview}");
+      _focusNode.requestFocus();
+    });
+  }
+
   void _onMessageTap(Map<String, dynamic> message) async {
     if (_isSelectionMode) {
       _toggleMessageSelection(message);
@@ -2245,122 +2752,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         );
       }
     }
-  }
-
-  Map<String, dynamic> _mergeReplyData(dynamic replyData) {
-    Map<String, dynamic> merged = {};
-
-    if (replyData is Map) {
-      merged.addAll(Map<String, dynamic>.from(replyData));
-    }
-
-    // Ensure we have proper MIME type by checking multiple fields
-    if ((merged['fileType'] == null || merged['fileType'].toString().isEmpty) &&
-        merged['mimeType'] != null &&
-        merged['mimeType'].toString().isNotEmpty) {
-      merged['fileType'] = merged['mimeType'];
-    }
-
-    return merged;
-  }
-
-  void _replyToMessage(Map<String, dynamic> message) {
-    if (message.isEmpty) return;
-
-    // 🔹 Raw data from original message
-    final String content =
-        (message['content'] ?? message['message'] ?? '').toString();
-
-    final String? imageUrl = message['imageUrl'] ??
-        message['thumbnailUrl'] ??
-        message['localImagePath'];
-
-    final String? fileUrl = message['fileUrl'];
-    final String? fileName = message['fileName'];
-    final String? fileType = message['mimeType'] ??
-        message['fileType'] ??
-        message['mimetype'] ??
-        message['ContentType'];
-    final String? originalUrl = message['originalUrl'] ?? fileUrl;
-
-    final String userName = message['senderName'] ??
-        message['userName'] ??
-        (message['sender']?['name'] ?? '');
-
-    final String ftLower = (fileType ?? '').toLowerCase();
-    final bool isVideo = ftLower.startsWith('video/');
-
-    setState(() {
-      // 1️⃣ Keep the FULL message as-is for _sendMessage
-      _replyMessage = message;
-      // Calculate counts if it's a grouped message
-      int imageCount = 0;
-      int videoCount = 0;
-      final String? groupId = message['group_message_id']?.toString();
-
-      if (groupId != null && groupId.isNotEmpty) {
-        // Find all messages in this group
-        final groupMessages = _allMessages
-            .where((m) =>
-                m['group_message_id']?.toString() == groupId &&
-                m['is_deleted'] != true)
-            .toList();
-
-        for (var m in groupMessages) {
-          final String fType = (m['mimeType'] ??
-                  m['fileType'] ??
-                  m['mimetype'] ??
-                  m['ContentType'] ??
-                  '')
-              .toString()
-              .toLowerCase();
-          final String mUrl =
-              (m['originalUrl'] ?? m['imageUrl'] ?? m['fileUrl'] ?? '')
-                  .toString()
-                  .toLowerCase();
-
-          if (fType.startsWith('video/') ||
-              mUrl.endsWith('.mp4') ||
-              mUrl.endsWith('.mov') ||
-              mUrl.endsWith('.mkv')) {
-            videoCount++;
-          } else if (fType.startsWith('image/') ||
-              mUrl.endsWith('.jpg') ||
-              mUrl.endsWith('.png') ||
-              mUrl.endsWith('.jpeg') ||
-              mUrl.endsWith('.webp')) {
-            imageCount++;
-          }
-        }
-      }
-
-      // 2️⃣ Build a lightweight map only for the input field UI
-      _replyPreview = {
-        'message_id':
-            (message['message_id'] ?? message['messageId'] ?? message['id'])
-                ?.toString(),
-        'content': content,
-        'imageUrl': imageUrl ?? '',
-        'fileUrl': fileUrl ?? '',
-        'fileName': fileName ?? '',
-        'fileType': message['mimeType'] ??
-            message['fileType'] ??
-            message['mimetype'] ??
-            message['ContentType'] ??
-            '',
-        'originalUrl': originalUrl ?? '',
-        'userName': userName,
-        'isVideo': isVideo,
-        'ContentType': message['ContentType'] ?? message['contentType'] ?? '',
-        'duration': message['duration'] ?? '',
-        'mimeType': message['mimeType'] ?? message['mimetype'] ?? '',
-        'imageCount': imageCount,
-        'videoCount': videoCount,
-        'group_message_id': groupId,
-      };
-
-      _focusNode.requestFocus();
-    });
   }
 
   void _toggleEmojiKeyboard() {
@@ -2482,8 +2873,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
       // If we found a group of 2+ media items
       if (groupIndices.length > 1) {
-        final groupId =
-            'generated_group_${currentTime.millisecondsSinceEpoch}_$i';
+        final groupId = ObjectId().toString();
         log('🔍 Inferring group $groupId for ${groupIndices.length} media items');
 
         // ✅ CRITICAL: Persist grouping info to the ORIGINAL SOURCE messages
@@ -3822,25 +4212,70 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     );
   }
 
+  int _calculateGroupMediaLength(Map<String, dynamic>? replyData) {
+    if (replyData == null) return 0;
+
+    int count = 0;
+    final String? replyGroupId = replyData['group_message_id']?.toString();
+
+    if (replyGroupId != null && replyGroupId.isNotEmpty) {
+      count = _allMessages
+          .where((m) =>
+              m['group_message_id']?.toString() == replyGroupId &&
+              m['is_deleted'] != true)
+          .length;
+    }
+
+    if (count == 0) {
+      int imgC = int.tryParse(replyData['imageCount']?.toString() ?? '0') ?? 0;
+      int vidC = int.tryParse(replyData['videoCount']?.toString() ?? '0') ?? 0;
+
+      if (imgC == 0 && vidC == 0 && replyData['reply'] is Map) {
+        final nested = replyData['reply'];
+        imgC = int.tryParse(nested['imageCount']?.toString() ?? '0') ?? 0;
+        vidC = int.tryParse(nested['videoCount']?.toString() ?? '0') ?? 0;
+      }
+      count = imgC + vidC;
+    }
+
+    // Fallback: Parse from content string (e.g. "Photo x 3")
+    if (count <= 1) {
+      final content = (replyData['content'] ?? replyData['replyContent'] ?? '')
+          .toString()
+          .replaceAll('×', 'x');
+
+      if (content.contains('Photo x ')) {
+        count = int.tryParse(content.split('Photo x ').last.trim()) ?? count;
+      } else if (content.contains('Video x ')) {
+        count = int.tryParse(content.split('Video x ').last.trim()) ?? count;
+      } else if (content.contains('Media x ')) {
+        count = int.tryParse(content.split('Media x ').last.trim()) ?? count;
+      }
+    }
+    return count;
+  }
+
   Widget _buildMessageBubble(Map<String, dynamic> message, bool isSentByMe) {
-    final String content = message['content']?.toString() ?? '';
+    // Sanitize message content early to avoid invalid strings in any downstream Text widgets
+    final String content = sanitizeString(message['content']?.toString() ?? '');
     final String? imageUrl = message['imageUrl'] ?? _imageFile;
     final String? fileUrl = message['fileUrl'] ?? _fileUrl;
-    final String? fileName = message['fileName'];
+    final String? fileName =
+        sanitizeString(message['fileName']?.toString() ?? '');
     final String? fileType = message['fileType'];
     final bool? isForwarded = message['isForwarded'] ?? false;
 
     final String userName =
         (message['userName']?.toString().trim().isNotEmpty == true)
-            ? message['userName']
+            ? sanitizeString(message['userName']?.toString())
             : (() {
                 final s = message['sender'];
                 if (s is Map) {
-                  return [
-                    s['first_name'],
-                    s['last_name'],
-                    s['name'],
-                  ]
+                  final first =
+                      sanitizeString(s['first_name'] ?? s['firstName'] ?? '');
+                  final last =
+                      sanitizeString(s['last_name'] ?? s['lastName'] ?? '');
+                  return [first, last, sanitizeString(s['name'] ?? '')]
                       .where((e) => e != null && e.toString().trim().isNotEmpty)
                       .join(' ')
                       .trim();
@@ -4112,6 +4547,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                       'receiver'])
                                                               : {},
                                                           isSender: isSentByMe,
+                                                          groupMediaLength:
+                                                              _calculateGroupMediaLength(
+                                                                  _mergeReplyData(message[
+                                                                          'repliedMessage'] ??
+                                                                      message[
+                                                                          'reply'])),
                                                           onTap: null,
                                                         ),
                                                       ),
@@ -4786,41 +5227,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                             message['receiver'])
                                                         : {},
                                                     isSender: isSentByMe,
-                                                    groupMediaLength: () {
-                                                      int count = 0;
-                                                      final replyData = message[
-                                                              'repliedMessage'] ??
-                                                          message['reply'];
-                                                      if (replyData != null) {
-                                                        final String?
-                                                            replyGroupId =
-                                                            replyData[
-                                                                    'group_message_id']
-                                                                ?.toString();
-                                                        if (replyGroupId !=
-                                                                null &&
-                                                            replyGroupId
-                                                                .isNotEmpty) {
-                                                          count = _allMessages
-                                                              .where((m) =>
-                                                                  m['group_message_id']
-                                                                          ?.toString() ==
-                                                                      replyGroupId &&
-                                                                  m['is_deleted'] !=
-                                                                      true)
-                                                              .length;
-                                                        }
-                                                        if (count == 0) {
-                                                          count = ((replyData[
-                                                                      'imageCount'] ??
-                                                                  0) as int) +
-                                                              ((replyData[
-                                                                      'videoCount'] ??
-                                                                  0) as int);
-                                                        }
-                                                      }
-                                                      return count;
-                                                    }(),
+                                                    groupMediaLength:
+                                                        _calculateGroupMediaLength(
+                                                            _mergeReplyData(message[
+                                                                    'repliedMessage'] ??
+                                                                message[
+                                                                    'reply'])),
                                                     onTap: () async {
                                                       final replyId = ((message[
                                                                               'repliedMessage'] ??
@@ -6168,13 +6580,18 @@ class MentionTextEditingController extends TextEditingController {
     notifyListeners();
   }
 
+  String sanitizeString(String? s) {
+    if (s == null) return '';
+    return s.replaceAll(RegExp(r'[\uD800-\uDFFF]'), '');
+  }
+
   @override
   TextSpan buildTextSpan(
       {required BuildContext context,
       TextStyle? style,
       required bool withComposing}) {
     final List<InlineSpan> children = [];
-    final String content = text;
+    final String content = sanitizeString(text);
 
     if (content.isEmpty) {
       return super.buildTextSpan(
