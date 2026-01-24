@@ -31,27 +31,53 @@ void main() async {
 
   await Firebase.initializeApp();
 
-//background
+  // ================= FCM INIT =================
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-//local notification
+// Local Notification Init
   await LocalNotificationService.initialize();
 
-//forground listrner
+// Foreground Listener (ONLY DATA messages)
   FirebaseMessaging.onMessage.listen((message) {
+    print("🔥 FOREGROUND FCM: ${message.data}");
     LocalNotificationService.show(message);
   });
 
-//Notification click log
+// Notification click
   FirebaseMessaging.onMessageOpenedApp.listen((message) {
     print("👆 Notification clicked: ${message.data}");
   });
 
+// Terminated launch
   FirebaseMessaging.instance.getInitialMessage().then((message) {
     if (message != null) {
       print("🚀 Opened from killed state: ${message.data}");
     }
   });
+
+// //background
+//   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
+// //local notification
+//   await LocalNotificationService.initialize();
+
+// //forground listrner
+//   FirebaseMessaging.onMessage.listen((message) {
+//     if (message.notification == null) {
+//       LocalNotificationService.show(message);
+//     }
+//   });
+
+// //Notification click log
+//   FirebaseMessaging.onMessageOpenedApp.listen((message) {
+//     print("👆 Notification clicked: ${message.data}");
+//   });
+
+//   FirebaseMessaging.instance.getInitialMessage().then((message) {
+//     if (message != null) {
+//       print("🚀 Opened from killed state: ${message.data}");
+//     }
+//   });
 
   SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
@@ -84,7 +110,6 @@ void main() async {
   if (!status.isGranted) {
     await Permission.storage.request();
   }
-  
 
   socketService = SocketService();
 
