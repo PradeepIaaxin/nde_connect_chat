@@ -135,6 +135,7 @@ class ShowAltDialog {
                             );
 
                             // ✅ Return messages to chat
+                            Navigator.of(context).pop();
                             if (localMessages != null &&
                                 localMessages.isNotEmpty) {
                               onOptionSelected(localMessages);
@@ -521,26 +522,26 @@ class ShowAltDialog {
 
       final double sizeInMb = sizeInBytes / (1024 * 1024);
 
-      if (isVideo && sizeInMb > maxVideoSizeMb) {
-        // show dialog and STOP sending
-        showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text('File too large'),
-            content: Text(
-              'This video is ${sizeInMb.toStringAsFixed(1)} MB.\n'
-              'Maximum allowed size is $maxVideoSizeMb MB.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
-        return null;
-      }
+      // if (isVideo && sizeInMb > maxVideoSizeMb) {
+      //   // show dialog and STOP sending
+      //   showDialog(
+      //     context: context,
+      //     builder: (_) => AlertDialog(
+      //       title: const Text('File too large'),
+      //       content: Text(
+      //         'This video is ${sizeInMb.toStringAsFixed(1)} MB.\n'
+      //         'Maximum allowed size is $maxVideoSizeMb MB.',
+      //       ),
+      //       actions: [
+      //         TextButton(
+      //           onPressed: () => Navigator.pop(context),
+      //           child: const Text('OK'),
+      //         ),
+      //       ],
+      //     ),
+      //   );
+      //   return null;
+      // }
       log("📄 Detected MIME type: $mimeType");
       log("🖼️ Is Image: $isImage");
 
