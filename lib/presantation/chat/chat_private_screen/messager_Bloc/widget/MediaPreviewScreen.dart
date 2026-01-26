@@ -203,37 +203,159 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
     final mime = lookupMimeType(file.path) ?? '';
     return mime.startsWith('audio/');
   }
+  Future<bool> validateFileBeforeSend({
+    required BuildContext context,
+    required XFile file,
+    double maxImageMb = 5,
+    double maxVideoMb = 10,
+    double maxAudioMb = 5,
+    double maxDocMb = 10,
+  }) async {
+    final mime = lookupMimeType(file.path) ?? '';
+    final fileSizeMb =
+        File(file.path).lengthSync() / (1024 * 1024);
+
+    String? error;
+
+    if (mime.startsWith('image/') && fileSizeMb > maxImageMb) {
+      error =
+      'This image is ${fileSizeMb.toStringAsFixed(1)} MB.\n'
+          'Maximum allowed size is $maxImageMb MB.';
+    } else if (mime.startsWith('video/') && fileSizeMb > maxVideoMb) {
+      error =
+      'This video is ${fileSizeMb.toStringAsFixed(1)} MB.\n'
+          'Maximum allowed size is $maxVideoMb MB.';
+    } else if (mime.startsWith('audio/') && fileSizeMb > maxAudioMb) {
+      error =
+      'This audio file is ${fileSizeMb.toStringAsFixed(1)} MB.\n'
+          'Maximum allowed size is $maxAudioMb MB.';
+    } else if (!mime.startsWith('image/') &&
+        !mime.startsWith('video/') &&
+        !mime.startsWith('audio/') &&
+        fileSizeMb > maxDocMb) {
+      error =
+      'This file is ${fileSizeMb.toStringAsFixed(1)} MB.\n'
+          'Maximum allowed size is $maxDocMb MB.';
+    }
+
+    if (error != null) {
+      await showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('File too large'),
+          content: Text(error!),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return false;
+    }
+
+    return true;
+  }
+
+  // Future<void> _sendAll() async {
+  //   setState(() => _sending = true);
+  //   final caption = _captionController.text.trim();
+  //   log("hhhhhhhhhhhh55555555");
+  //   final List<Map<String, dynamic>> localMessages = [];
+  //   final groupMessageId =
+  //   widget.files.length > 1 ? ObjectId().toString() : null;
+  //   log("hhhhhhhhhhhh");
+  //   for (final file in widget.files) {
+  //     final isValid = await validateFileBeforeSend(
+  //       context: context,
+  //       file: file,
+  //     );
+  //     if (!isValid) {
+  //       setState(() => _sending = false);
+  //       return; // ❗ STOP SENDING
+  //     }
+  //     log("hhhhhhhhhhhhaudioooooooooooo");
+  //     if (_isAudio(file)) {
+  //       final audioFile = File(file.path);
+  //       final int fakeDuration = 0; // optional – you can calculate later
+  //
+  //       // Dispatch audio event directly
+  //       context.read<MessagerBloc>().add(
+  //         SendAudioMessageEvent(
+  //           senderId: widget.senderId,
+  //           receiverId: widget.receiverId,
+  //           audioPath: audioFile.path,
+  //           duration: fakeDuration.toString(),
+  //           convoId: widget.conversationId,
+  //         ),
+  //       );
+  //
+  //       continue; // skip sendFile()
+  //     }
+  //
+  //     // 🖼️ IMAGE / VIDEO / DOCUMENT FLOW
+  //     final msg = await ShowAltDialog.sendFile(
+  //       context: context,
+  //       file: file,
+  //       conversationId: widget.conversationId,
+  //       senderId: widget.senderId,
+  //       receiverId: widget.receiverId,
+  //       isGroupChat: widget.isGroupChat,
+  //       isGroupMessage: widget.files.length > 1,
+  //       groupMessageId: groupMessageId,
+  //       caption: caption.isNotEmpty ? caption : null,
+  //     );
+  //
+  //     if (msg != null) localMessages.add(msg);
+  //   }
+  //
+  //   setState(() => _sending = false);
+  //
+  //   Navigator.of(context).pop(localMessages);
+  // }
 
   Future<void> _sendAll() async {
+    if (_sending) return;
+
     setState(() => _sending = true);
+
     final caption = _captionController.text.trim();
-    log("hhhhhhhhhhhh55555555");
     final List<Map<String, dynamic>> localMessages = [];
     final groupMessageId =
     widget.files.length > 1 ? ObjectId().toString() : null;
-    log("hhhhhhhhhhhh");
-    for (final file in widget.files) {
-      // 🔥 AUDIO FILE FLOW
-      log("hhhhhhhhhhhhaudioooooooooooo");
-      if (_isAudio(file)) {
-        final audioFile = File(file.path);
-        final int fakeDuration = 0; // optional – you can calculate later
 
-        // Dispatch audio event directly
+    // ✅ STEP 1: VALIDATE ALL FILES FIRST
+    for (final file in widget.files) {
+      final isValid = await validateFileBeforeSend(
+        context: context,
+        file: file,
+      );
+
+      if (!isValid) {
+        if (mounted) setState(() => _sending = false);
+        return; // ❗ STOP ENTIRE FLOW
+      }
+    }
+
+    // ✅ STEP 2: SEND FILES
+    for (final file in widget.files) {
+
+      // 🔊 AUDIO
+      if (_isAudio(file)) {
         context.read<MessagerBloc>().add(
           SendAudioMessageEvent(
             senderId: widget.senderId,
             receiverId: widget.receiverId,
-            audioPath: audioFile.path,
-            duration: fakeDuration.toString(),
+            audioPath: file.path,
+            duration: "0",
             convoId: widget.conversationId,
           ),
         );
-
-        continue; // skip sendFile()
+        continue;
       }
 
-      // 🖼️ IMAGE / VIDEO / DOCUMENT FLOW
+      // 🖼️ IMAGE / VIDEO / DOCUMENT
       final msg = await ShowAltDialog.sendFile(
         context: context,
         file: file,
@@ -249,9 +371,11 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
       if (msg != null) localMessages.add(msg);
     }
 
-    setState(() => _sending = false);
+    if (!mounted) return;
 
+    setState(() => _sending = false);
     Navigator.of(context).pop(localMessages);
   }
+
 
 }

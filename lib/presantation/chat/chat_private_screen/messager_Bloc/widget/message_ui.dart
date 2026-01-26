@@ -665,7 +665,8 @@ class _MessageBubbleState extends State<MessageBubble> {
     String? fileName, {
     required bool isSentByMe,
     bool showTime = true,
-  }) {
+  })
+  {
     if (content == "Message Deleted") return const SizedBox();
     final String name = fileName ?? 'Unknown file';
     final String extension =
@@ -770,18 +771,27 @@ class _MessageBubbleState extends State<MessageBubble> {
         if (imageUrl.startsWith('http')) {
           return CachedNetworkImage(
             imageUrl: imageUrl,
+            cacheKey: widget.message['message_id']?.toString(),
             width: 260,
             height: imageExtensions.contains(extension) ? 300 : 200,
+            imageBuilder: (context, imageProvider) {
+              return Image(
+                image: imageProvider,
+                width: 260,
+                height: imageExtensions.contains(extension) ? 300 : 200,
+                fit: BoxFit.cover,
+              );
+            },
             fit: BoxFit.cover,
             placeholder: (context, url) => Container(
               width: 260,
               height: 200,
               color: Colors.grey.shade200,
-              child: const Center(
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                ),
-              ),
+              // child: const Center(
+              //   child: CircularProgressIndicator(
+              //     strokeWidth: 2,
+              //   ),
+              // ),
             ),
             errorWidget: (context, url, error) => Container(
               width: 260,
@@ -1052,7 +1062,8 @@ class _MessageBubbleState extends State<MessageBubble> {
     String? fileType,
     String content, {
     required bool isSentByMe,
-  }) {
+  })
+  {
     if (content == "Message Deleted") return const SizedBox();
 
     final String name = fileName ?? 'Unknown file';
