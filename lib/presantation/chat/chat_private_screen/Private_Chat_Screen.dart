@@ -170,10 +170,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     _crdtSub = socketService.crdtMessageStream.listen((data) {
       final convoId = data['conversationId']?.toString();
       if (convoId == null) return;
-
-      // 🔥 ONLY THIS FILTER MATTERS
-      // Ignore if it matches NEITHER the initial widget ID NOR the current (possibly updated) ID
-      // UNLESS we are in a "new chat" state (both empty), in which case we must inspect.
       final bool isNewChat =
           widget.convoId.isEmpty && _currentConversationId.isEmpty;
       if (!isNewChat &&
@@ -374,7 +370,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 //       _visibleCount = _allMessages.length;
 //     }
     _updateNotifierFromAll();
-    _scheduleSaveMessagess();
+    _scheduleSaveMessages();
   }
 //   void _applyCrdtMessages(
 //     String convoId,
@@ -506,29 +502,37 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           .map<Map<String, dynamic>>((raw) => normalizeMessage(raw))
           .where((m) => m.isNotEmpty)
           .toList();
-      dbMessages.addAll(normalized);
+     // dbMessages.addAll(normalized);
+      _allMessages
+        ..clear()
+        ..addAll(normalized);
       for (var m in normalized) {
         final id = (m['message_id'] ?? '').toString();
         if (id.isNotEmpty) _seenMessageIds.add(id);
       }
-      _updateNotifier();
+      _visibleCount = _allMessages.length;
+      _updateNotifierFromAll();
       _scheduleSaveMessages();
     } else if (widget.convoId.isNotEmpty) {
       // 2) cached local messages
 
       final loaded = LocalChatStorage.loadMessages(widget.convoId);
      // log("messssssssssssssssss ${loaded}");
-      final normalized = [
-        for (var msg in loaded)
-          if (msg.isNotEmpty) normalizeMessage(msg)
-      ];
+      final normalized = loaded
+          .where((msg) => msg.isNotEmpty)
+          .map((msg) => normalizeMessage(msg))
+          .toList();
 
-      dbMessages.addAll(normalized);
+      _allMessages
+        ..clear()
+        ..addAll(normalized);
       for (var m in normalized) {
         final id = (m['message_id'] ?? '').toString();
         if (id.isNotEmpty) _seenMessageIds.add(id);
       }
-      _updateNotifier();
+
+      _visibleCount = _allMessages.length;
+      _updateNotifierFromAll();
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!_initialScrollDone) {
@@ -1386,15 +1390,15 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   // ------------------ Debounced disk save ------------------
+  // void _scheduleSaveMessages() {
+  //   _saveDebounceTimer?.cancel();
+  //   _saveDebounceTimer = Timer(_saveDebounceDuration, () {
+  //     if (widget.convoId.isEmpty) return;
+  //     final combined = [...dbMessages, ...messages, ...socketMessages];
+  //     LocalChatStorage.saveMessages(widget.convoId, combined);
+  //   });
+  // }
   void _scheduleSaveMessages() {
-    _saveDebounceTimer?.cancel();
-    _saveDebounceTimer = Timer(_saveDebounceDuration, () {
-      if (widget.convoId.isEmpty) return;
-      final combined = [...dbMessages, ...messages, ...socketMessages];
-      LocalChatStorage.saveMessages(widget.convoId, combined);
-    });
-  }
-  void _scheduleSaveMessagess() {
     _saveDebounceTimer?.cancel();
     _saveDebounceTimer = Timer(_saveDebounceDuration, () {
       if (widget.convoId.isEmpty) return;
