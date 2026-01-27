@@ -1,8 +1,7 @@
-
 import 'package:flutter/material.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_list_event.dart';
 import 'package:nde_email/utils/imports/common_imports.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../../main.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -59,13 +58,17 @@ class _SplashScreenState extends State<SplashScreen>
 
     if (!mounted) return;
 
+// 🔥 STOP SPLASH NAVIGATION IF APP OPENED FROM SHARE
+    if (hasIncomingShare) {
+      return; 
+    }
     // Use named route with global navigator key (clean & consistent)
     MyRouter.navigatorKey.currentState?.pushReplacementNamed(nextRoute);
   }
 
   void _fetchInitialDataInBackground() {
     // Fire and forget – load critical data while splash is visible
-     context.read<UserListBloc>().add(FetchUserList(page: 1, limit: 50));
+    context.read<UserListBloc>().add(FetchUserList(page: 1, limit: 50));
     context.read<WebSocketBloc>().add(ConnectWebSocket());
     // Add more pre-fetching if needed
   }
