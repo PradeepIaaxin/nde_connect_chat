@@ -112,7 +112,7 @@ class _MessageBubbleState extends State<MessageBubble> {
     final String? displayImageUrl = originalUrl ??
         imageUrl ??
         ((isImage || (fileUrl != null && isImage)) ? fileUrl : null);
-
+   final String? userId = widget.message["sender"]?["_id"]??"";
     final bool? isForwarded = widget.message['isForwarded'] ?? false;
     final bool? isReplyMessage = widget.message['isReplyMessage'];
     final String messageStatus =
@@ -144,7 +144,8 @@ class _MessageBubbleState extends State<MessageBubble> {
       return const SizedBox.shrink();
     }
     bool _ignoreParentTap = false;
-
+log("userId>>>>>>>>>>> $userId");
+log("userIdssssss>>>>>>>>>>> ${widget.currentUserId}");
     return Padding(
       padding:
           EdgeInsets.symmetric(vertical: widget.emojpicker != null ? 6.0 : 0),
@@ -156,6 +157,7 @@ class _MessageBubbleState extends State<MessageBubble> {
           clipBehavior: Clip.none,
           children: [
             GestureDetector(
+              behavior: HitTestBehavior.deferToChild,
               onTap: () {
                 if (widget.isSelectionMode) {
                   widget.onLongPress?.call();
@@ -175,252 +177,330 @@ class _MessageBubbleState extends State<MessageBubble> {
                 _showReactionPicker(context);
                 widget.onLongPress?.call();
               },
-              child: Container(
-                clipBehavior: Clip.antiAlias,
-                margin: EdgeInsets.only(
-                  left: 9,
-                  right: 9,
-                  bottom: (widget.message['reactions'] != null &&
-                          (widget.message['reactions'] as List).isNotEmpty)
-                      ? 8
-                      : 0,
-                ),
-                padding: widget.isReply
-                    ? null
-                    : const EdgeInsets.only(
-                        top: 3, left: 7, right: 6, bottom: 5),
-                constraints: const BoxConstraints(maxWidth: 250),
-                decoration: BoxDecoration(
-                  color: widget.isReply
-                      ? null
-                      : widget.isSelected
-                          ? widget.selectedMessageColor
-                          : (widget.isSentByMe
-                              ? widget.sentMessageColor
-                              : widget.receivedMessageColor),
-                  borderRadius: BorderRadius.only(
-                    topLeft: widget.isSentByMe
-                        ? const Radius.circular(18)
-                        : const Radius.circular(18),
-                    topRight: widget.isSentByMe
-                        ? const Radius.circular(18)
-                        : const Radius.circular(18),
-                    bottomLeft: widget.isSentByMe
-                        ? const Radius.circular(18)
-                        : Radius.zero,
-                    bottomRight: widget.isSentByMe
-                        ? Radius.zero
-                        : const Radius.circular(16),
-                  ),
-                  border: widget.isReply
-                      ? null
-                      : widget.isSelected
-                          ? Border.all(color: widget.borderColor, width: 2)
-                          : null,
-                ),
-                child: Stack(
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (hasReply)
-                          RepliedMessagePreview(
-                            key: ValueKey(
-                                '${widget.message['message_id']}_${widget.message['replyContent']}_placeholder'),
-                            replied: widget.message['resolvedReply'] ??
-                                widget.message['reply'] ??
-                                _buildSyntheticReply(widget.message),
-                            receiver: widget.message['sender'] is Map
-                                ? Map<String, dynamic>.from(
-                                    widget.message['sender'])
-                                : {},
-                            isSender: widget.isSentByMe,
-                            onTap: () {
-                              if (widget.isSelectionMode) {
-                                widget.onLongPress?.call();
-                              } else {
-                                widget.onReplyTap?.call();
-                              }
-                            },
-                            groupMediaLength: widget.groupMediaLength,
-                          ),
+              child: Row(
+                mainAxisAlignment: widget.isSentByMe?MainAxisAlignment.end:MainAxisAlignment.start,
+                children: [
+                  if (widget.isSentByMe &&
+                      (isVideo ||
+                          hasImageContent ||
+                          hasFile ||
+                          (content.isNotEmpty &&
+                              RegExp(r'((https?:\/\/)|(www\.))[^\s]+', caseSensitive: false)
+                                  .hasMatch(content))))
 
-                        if (isForwarded == true)
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
+                    Material(
+                      color: Colors.transparent,
+                      child: GestureDetector(
+                        onTap: () {
+                          log("hhhhhhhhhhh");
+                          log("hhhhhhhhhhh ${widget.isSentByMe}");
+                          MyRouter.pushReplace(
+                            screen: ForwardMessageScreen(
+                              isForward: widget.isSentByMe,
+                              messages: [widget.message],
+                              currentUserId: widget.message['senderId'] ?? '',
+                              conversionalid: "",
+                              username: widget.message['senderName'] ?? '',
+                            ),
+                          );
+                        },
+                        child: CircleAvatar(
+                          radius: 16,
+                          backgroundColor: Colors.white,
+                          child: Image.asset(
+                            "assets/images/forward.png",
+                            height: 20,
+                            width: 20,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  Flexible(
+                    child: Container(
+                      clipBehavior: Clip.antiAlias,
+                      margin: EdgeInsets.only(
+                        left: 9,
+                        right: 9,
+                        bottom: (widget.message['reactions'] != null &&
+                                (widget.message['reactions'] as List).isNotEmpty)
+                            ? 8
+                            : 0,
+                      ),
+                      padding: widget.isReply
+                          ? null
+                          : const EdgeInsets.only(
+                              top: 3, left: 7, right: 6, bottom: 5),
+                      constraints: const BoxConstraints(maxWidth: 250),
+                      decoration: BoxDecoration(
+                        color: widget.isReply
+                            ? null
+                            : widget.isSelected
+                                ? widget.selectedMessageColor
+                                : (widget.isSentByMe
+                                    ? widget.sentMessageColor
+                                    : widget.receivedMessageColor),
+                        borderRadius: BorderRadius.only(
+                          topLeft: widget.isSentByMe
+                              ? const Radius.circular(18)
+                              : const Radius.circular(18),
+                          topRight: widget.isSentByMe
+                              ? const Radius.circular(18)
+                              : const Radius.circular(18),
+                          bottomLeft: widget.isSentByMe
+                              ? const Radius.circular(18)
+                              : Radius.zero,
+                          bottomRight: widget.isSentByMe
+                              ? Radius.zero
+                              : const Radius.circular(16),
+                        ),
+                        border: widget.isReply
+                            ? null
+                            : widget.isSelected
+                                ? Border.all(color: widget.borderColor, width: 2)
+                                : null,
+                      ),
+                      child: Stack(
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Image.asset(
-                                "assets/images/forward.png",
-                                height: 14,
-                                width: 14,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                "Forwarded",
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[700],
+                              if (hasReply)
+                                RepliedMessagePreview(
+                                  key: ValueKey(
+                                      '${widget.message['message_id']}_${widget.message['replyContent']}_placeholder'),
+                                  replied: widget.message['resolvedReply'] ??
+                                      widget.message['reply'] ??
+                                      _buildSyntheticReply(widget.message),
+                                  receiver: widget.message['sender'] is Map
+                                      ? Map<String, dynamic>.from(
+                                          widget.message['sender'])
+                                      : {},
+                                  isSender: widget.isSentByMe,
+                                  onTap: () {
+                                    if (widget.isSelectionMode) {
+                                      widget.onLongPress?.call();
+                                    } else {
+                                      widget.onReplyTap?.call();
+                                    }
+                                  },
+                                  groupMediaLength: widget.groupMediaLength,
                                 ),
-                              ),
+
+                              if (isForwarded == true)
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Image.asset(
+                                      "assets/images/forward.png",
+                                      height: 14,
+                                      width: 14,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      "Forwarded",
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey[700],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+
+                              // Audio Message
+                              if (isAudio && hasFile)
+                                AudioMessageWidget(
+                                  audioUrl: fileUrl,
+                                  profileAvatarUrl: widget.message['sender']
+                                          ?['profile_pic_path'] ??
+                                      widget.message['sender']?['profilePic'] ??
+                                      widget.message['profile_pic_path'] ??
+                                      '',
+                                  isSender: widget.isSentByMe,
+                                  duration: widget.message['duration']?.toString(),
+                                  timestamp: TimeUtils.formatUtcToIst(
+                                      widget.message['time']),
+                                  status:
+                                      widget.message['messageStatus']?.toString() ??
+                                          'sent',
+                                  showContainer: false,
+                                  mimeType:  widget.message['mimeType']?.toString() ??widget.message['fileType']?.toString(),
+                                )
+
+                              // 2. Video Preview
+                              else if (isVideo && hasFile)
+                                _buildVideoPreviewTile(
+                                    context,
+                                    fileUrl,
+                                    fileName ?? "",
+                                    widget.isSentByMe,
+                                    content.isEmpty)
+
+                              // 3. Image preview
+                              else if (isImage && (hasImageContent || hasFile))
+                                _buildImage(context, content,
+                                    displayImageUrl ?? fileUrl ?? "", fileName,
+                                    isSentByMe: widget.isSentByMe,
+                                    showTime: content.isEmpty)
+
+                              // 4. General File preview (Document)
+                              else if (hasFile)
+                                _buildFile(
+                                    context, fileUrl, fileName, fileType, content,
+                                    isSentByMe: widget.isSentByMe),
+
+                              // Text content
+                              if (content.isNotEmpty)
+                                // Use MessageCaption for image/video/document captions to position time/status in the right corner
+                                if ((isImage && (hasImageContent || hasFile)) ||
+                                    (isVideo && hasFile) ||
+                                    (hasFile &&
+                                        !isImage &&
+                                        !isVideo &&
+                                        !isAudio)) // Document
+                                  MessageCaption(
+                                    content: content,
+                                    time: TimeUtils.formatUtcToIst(
+                                        widget.message['time']),
+                                    isSentByMe: widget.isSentByMe,
+                                    messageStatus: messageStatus,
+                                    buildStatusIcon: widget.buildStatusIcon,
+                                    searchText: widget.searchText,
+                                  )
+                                else
+                                  _buildTextMessage(content, messageStatus),
                             ],
                           ),
-
-                        // Audio Message
-                        if (isAudio && hasFile)
-                          AudioMessageWidget(
-                            audioUrl: fileUrl,
-                            profileAvatarUrl: widget.message['sender']
-                                    ?['profile_pic_path'] ??
-                                widget.message['sender']?['profilePic'] ??
-                                widget.message['profile_pic_path'] ??
-                                '',
-                            isSender: widget.isSentByMe,
-                            duration: widget.message['duration']?.toString(),
-                            timestamp: TimeUtils.formatUtcToIst(
-                                widget.message['time']),
-                            status:
-                                widget.message['messageStatus']?.toString() ??
-                                    'sent',
-                            showContainer: false,
-                            mimeType:  widget.message['mimeType']?.toString() ??widget.message['fileType']?.toString(),
-                          )
-
-                        // 2. Video Preview
-                        else if (isVideo && hasFile)
-                          _buildVideoPreviewTile(
-                              context,
-                              fileUrl,
-                              fileName ?? "",
-                              widget.isSentByMe,
-                              content.isEmpty)
-
-                        // 3. Image preview
-                        else if (isImage && (hasImageContent || hasFile))
-                          _buildImage(context, content,
-                              displayImageUrl ?? fileUrl ?? "", fileName,
-                              isSentByMe: widget.isSentByMe,
-                              showTime: content.isEmpty)
-
-                        // 4. General File preview (Document)
-                        else if (hasFile)
-                          _buildFile(
-                              context, fileUrl, fileName, fileType, content,
-                              isSentByMe: widget.isSentByMe),
-
-                        // Text content
-                        if (content.isNotEmpty)
-                          // Use MessageCaption for image/video/document captions to position time/status in the right corner
-                          if ((isImage && (hasImageContent || hasFile)) ||
-                              (isVideo && hasFile) ||
-                              (hasFile &&
-                                  !isImage &&
-                                  !isVideo &&
-                                  !isAudio)) // Document
-                            MessageCaption(
-                              content: content,
-                              time: TimeUtils.formatUtcToIst(
-                                  widget.message['time']),
-                              isSentByMe: widget.isSentByMe,
-                              messageStatus: messageStatus,
-                              buildStatusIcon: widget.buildStatusIcon,
-                              searchText: widget.searchText,
-                            )
-                          else
-                            _buildTextMessage(content, messageStatus),
-                      ],
-                    ),
-                    if (isVideo ||
-                        hasImageContent ||
-                        hasFile ||
-                        (content.isNotEmpty &&
-                            RegExp(r'((https?:\/\/)|(www\.))[^\s]+',
-                                    caseSensitive: false)
-                                .hasMatch(content)))
-                      Positioned(
-                        top: 160,
-                        right: widget.isSentByMe ? 420 : null,
-                        left: widget.isSentByMe ? null : 420,
-                        child: Center(
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(20),
-                              onTap: () {
-                                log("hhhhhhhhhhh");
-                                MyRouter.pushReplace(
-                                  screen: ForwardMessageScreen(
-                                    isForward: widget.isSentByMe,
-                                    messages: [widget.message],
-                                    currentUserId:
-                                        widget.message['senderId'] ?? '',
-                                    conversionalid: "",
-                                    username:
-                                        widget.message['senderName'] ?? '',
+                          if (isVideo ||
+                              hasImageContent ||
+                              hasFile ||
+                              (content.isNotEmpty &&
+                                  RegExp(r'((https?:\/\/)|(www\.))[^\s]+',
+                                          caseSensitive: false)
+                                      .hasMatch(content)))
+                            Positioned(
+                              top: 160,
+                              right: widget.isSentByMe ? 420 : null,
+                              left: widget.isSentByMe ? null : 420,
+                              child: Center(
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(20),
+                                    onTap: () {
+                                      log("hhhhhhhhhhh");
+                                      MyRouter.pushReplace(
+                                        screen: ForwardMessageScreen(
+                                          isForward: widget.isSentByMe,
+                                          messages: [widget.message],
+                                          currentUserId:
+                                              widget.message['senderId'] ?? '',
+                                          conversionalid: "",
+                                          username:
+                                              widget.message['senderName'] ?? '',
+                                        ),
+                                      );
+                                    },
+                                    child: CircleAvatar(
+                                      radius: 16,
+                                      backgroundColor: Colors.white,
+                                      child: Image.asset(
+                                        "assets/images/forward.png",
+                                        height: 20,
+                                        width: 20,
+                                      ),
+                                    ),
                                   ),
-                                );
-                              },
-                              child: CircleAvatar(
-                                radius: 16,
-                                backgroundColor: Colors.white,
-                                child: Image.asset(
-                                  "assets/images/forward.png",
-                                  height: 20,
-                                  width: 20,
                                 ),
                               ),
                             ),
+                          if (hasReply && widget.stretchReply)
+                            Positioned(
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              child: RepliedMessagePreview(
+                                key: ValueKey(
+                                    '${widget.message['message_id']}_${widget.message['replyContent']}'),
+                                replied: widget.message['resolvedReply'] ??
+                                    widget.message['reply'] ??
+                                    _buildSyntheticReply(widget.message),
+                                receiver: widget.message['sender'] is Map
+                                    ? Map<String, dynamic>.from(
+                                        widget.message['sender'])
+                                    : {},
+                                isSender: widget.isSentByMe,
+                                onTap: () {
+                                  if (widget.isSelectionMode) {
+                                    widget.onLongPress?.call();
+                                  } else {
+                                    widget.onReplyTap?.call();
+                                  }
+                                },
+                                groupMediaLength: widget.groupMediaLength,
+                              ),
+                            )
+                          else if (hasReply)
+                            RepliedMessagePreview(
+                              key: ValueKey(
+                                  '${widget.message['message_id']}_${widget.message['replyContent']}'),
+                              replied: widget.message['resolvedReply'] ??
+                                  widget.message['reply'] ??
+                                  _buildSyntheticReply(widget.message),
+                              receiver: widget.message['sender'] is Map
+                                  ? Map<String, dynamic>.from(
+                                      widget.message['sender'])
+                                  : {},
+                              isSender: widget.isSentByMe,
+                              onTap: () {
+                                if (widget.isSelectionMode) {
+                                  widget.onLongPress?.call();
+                                } else {
+                                  widget.onReplyTap?.call();
+                                }
+                              },
+                              groupMediaLength: widget.groupMediaLength,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (!widget.isSentByMe &&
+                      (isVideo ||
+                          hasImageContent ||
+                          hasFile ||
+                          (content.isNotEmpty &&
+                              RegExp(r'((https?:\/\/)|(www\.))[^\s]+', caseSensitive: false)
+                                  .hasMatch(content))))
+
+                    Material(
+                      color: Colors.transparent,
+                      child: GestureDetector(
+                        onTap: () {
+                          log("hhhhhhhhhhh");
+                          MyRouter.pushReplace(
+                            screen: ForwardMessageScreen(
+                              isForward: widget.isSentByMe,
+                              messages: [widget.message],
+                              currentUserId: widget.message['senderId'] ?? '',
+                              conversionalid: "",
+                              username: widget.message['senderName'] ?? '',
+                            ),
+                          );
+                        },
+                        child: CircleAvatar(
+                          radius: 16,
+                          backgroundColor: Colors.white,
+                          child: Image.asset(
+                            "assets/images/forward.png",
+                            height: 20,
+                            width: 20,
                           ),
                         ),
                       ),
-                    if (hasReply && widget.stretchReply)
-                      Positioned(
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        child: RepliedMessagePreview(
-                          key: ValueKey(
-                              '${widget.message['message_id']}_${widget.message['replyContent']}'),
-                          replied: widget.message['resolvedReply'] ??
-                              widget.message['reply'] ??
-                              _buildSyntheticReply(widget.message),
-                          receiver: widget.message['sender'] is Map
-                              ? Map<String, dynamic>.from(
-                                  widget.message['sender'])
-                              : {},
-                          isSender: widget.isSentByMe,
-                          onTap: () {
-                            if (widget.isSelectionMode) {
-                              widget.onLongPress?.call();
-                            } else {
-                              widget.onReplyTap?.call();
-                            }
-                          },
-                          groupMediaLength: widget.groupMediaLength,
-                        ),
-                      )
-                    else if (hasReply)
-                      RepliedMessagePreview(
-                        key: ValueKey(
-                            '${widget.message['message_id']}_${widget.message['replyContent']}'),
-                        replied: widget.message['resolvedReply'] ??
-                            widget.message['reply'] ??
-                            _buildSyntheticReply(widget.message),
-                        receiver: widget.message['sender'] is Map
-                            ? Map<String, dynamic>.from(
-                                widget.message['sender'])
-                            : {},
-                        isSender: widget.isSentByMe,
-                        onTap: () {
-                          if (widget.isSelectionMode) {
-                            widget.onLongPress?.call();
-                          } else {
-                            widget.onReplyTap?.call();
-                          }
-                        },
-                        groupMediaLength: widget.groupMediaLength,
-                      ),
-                  ],
-                ),
+                    ),
+
+                ],
               ),
             ),
             if (widget.message['reactions'] != null &&
@@ -442,47 +522,47 @@ class _MessageBubbleState extends State<MessageBubble> {
                   ),
                 ),
               ),
-            if (isVideo ||
-                hasImageContent ||
-                hasFile ||
-                (content.isNotEmpty &&
-                    RegExp(r'((https?:\/\/)|(www\.))[^\s]+',
-                            caseSensitive: false)
-                        .hasMatch(content)))
-              Positioned(
-                top: 0,
-                bottom: 0,
-                left: widget.isSentByMe ? -35 : screenWidth * 0.65,
-                right: widget.isSentByMe ? null : -52,
-                child: Center(
-                  child: Material(
-                    color: Colors.transparent,
-                    child: GestureDetector(
-                      onTap: () {
-                        log("hhhhhhhhhhh");
-                        MyRouter.pushReplace(
-                          screen: ForwardMessageScreen(
-                            isForward: widget.isSentByMe,
-                            messages: [widget.message],
-                            currentUserId: widget.message['senderId'] ?? '',
-                            conversionalid: "",
-                            username: widget.message['senderName'] ?? '',
-                          ),
-                        );
-                      },
-                      child: CircleAvatar(
-                        radius: 16,
-                        backgroundColor: Colors.white,
-                        child: Image.asset(
-                          "assets/images/forward.png",
-                          height: 20,
-                          width: 20,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+            // if (isVideo ||
+            //     hasImageContent ||
+            //     hasFile ||
+            //     (content.isNotEmpty &&
+            //         RegExp(r'((https?:\/\/)|(www\.))[^\s]+',
+            //                 caseSensitive: false)
+            //             .hasMatch(content)))
+            //   Positioned(
+            //     top: 0,
+            //     bottom: 0,
+            //     left: widget.isSentByMe ? -35 : screenWidth * 0.65,
+            //     right: widget.isSentByMe ? null : -52,
+            //     child: Center(
+            //       child: Material(
+            //         color: Colors.transparent,
+            //         child: GestureDetector(
+            //           onTap: () {
+            //             log("hhhhhhhhhhh");
+            //             MyRouter.pushReplace(
+            //               screen: ForwardMessageScreen(
+            //                 isForward: widget.isSentByMe,
+            //                 messages: [widget.message],
+            //                 currentUserId: widget.message['senderId'] ?? '',
+            //                 conversionalid: "",
+            //                 username: widget.message['senderName'] ?? '',
+            //               ),
+            //             );
+            //           },
+            //           child: CircleAvatar(
+            //             radius: 16,
+            //             backgroundColor: Colors.white,
+            //             child: Image.asset(
+            //               "assets/images/forward.png",
+            //               height: 20,
+            //               width: 20,
+            //             ),
+            //           ),
+            //         ),
+            //       ),
+            //     ),
+            //   ),
           ],
         ),
       ),

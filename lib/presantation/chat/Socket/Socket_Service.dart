@@ -1480,7 +1480,7 @@ class SocketService {
       _slog('sendMessage aborted: not connected');
       return;
     }
-    log(" replygroup_message_id ${reply?["group_message_id"]}");
+    log("audioDuration $audioDuration");
     final messagePayload = {
       "messageId": messageId,
       "conversationId": conversationId,
