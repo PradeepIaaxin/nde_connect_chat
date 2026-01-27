@@ -1,7 +1,6 @@
-
-
 // import 'dart:io';
 // import 'dart:typed_data';
+
 // import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 // import 'package:firebase_messaging/firebase_messaging.dart';
 // import 'package:dio/dio.dart';
@@ -18,18 +17,30 @@
 //   static String? _lastTitle;
 //   static String? _lastBody;
 
-//   // ✅ DUPLICATE FILTER
+//   /// ✅ Duplicate filter using message_id
 //   static final Set<String> _handledMessages = {};
 
-//   // ================= BACKGROUND ACTION HANDLER =================
-//   @pragma('vm:entry-point')
-//   static void notificationTapBackground(NotificationResponse response) {
-//     print("🔥 BG ACTION: ${response.actionId}");
+//   /// ================= LOGGER =================
+//   static void _log(String tag, dynamic value) {
+//     print("🟢 [$tag] => $value");
 //   }
 
-//   // ================= INIT =================
+//   /// ================= BACKGROUND ACTION HANDLER =================
+//   @pragma('vm:entry-point')
+//   static void notificationTapBackground(NotificationResponse response) {
+//     _log("BG_ACTION_ID", response.actionId);
+//     _log("BG_INPUT", response.input);
+//     _log("BG_PAYLOAD", response.payload);
+//   }
+
+//   /// ================= INIT =================
 //   static Future<void> initialize() async {
-//     if (_initialized) return;
+//     _log("INIT", "called");
+
+//     if (_initialized) {
+//       _log("INIT", "already initialized");
+//       return;
+//     }
 //     _initialized = true;
 
 //     const androidSettings =
@@ -56,28 +67,41 @@
 //             AndroidFlutterLocalNotificationsPlugin>()
 //         ?.createNotificationChannel(channel);
 
-//     print("🔥 Notification System Ready");
+//     _log("INIT", "Notification system READY");
 //   }
 
-//   // ================= HANDLE ACTIONS =================
+//   /// ================= HANDLE ACTIONS =================
 //   @pragma('vm:entry-point')
 //   static void _handleNotificationResponse(NotificationResponse res) {
-//     print("🔥 ACTION CLICKED: ${res.actionId}");
+//     _log("ACTION_CLICKED", res.actionId);
+//     _log("ACTION_INPUT", res.input);
+//     _log("ACTION_PAYLOAD", res.payload);
 
 //     if (res.actionId == 'REPLY_ACTION') {
-//       print("🔥 Reply Text = ${res.input}");
+//       _log("REPLY_TEXT", res.input);
 
-//       if (_lastTitle != null) {
+//       if (_lastTitle != null && _lastBody != null) {
 //         Future.delayed(const Duration(milliseconds: 300), () {
-//           _showInternal(_lastTitle!, _lastBody!, _lastAvatar);
+//           _log("REPLY", "Re-showing notification");
+//           _showInternal(
+//             _lastTitle!,
+//             _lastBody!,
+//             _lastAvatar,
+//             DateTime.now().millisecondsSinceEpoch.toString(),
+//           );
 //         });
 //       }
 //     }
 //   }
 
-//   // ================= AVATAR DOWNLOAD =================
+//   /// ================= AVATAR DOWNLOAD =================
 //   static Future<String?> _downloadAvatar(String? url) async {
-//     if (url == null || url.isEmpty) return null;
+//     _log("AVATAR_URL", url);
+
+//     if (url == null || url.isEmpty) {
+//       _log("AVATAR", "No URL");
+//       return null;
+//     }
 
 //     try {
 //       final res = await Dio().get(
@@ -90,10 +114,18 @@
 //       );
 
 //       final bytes = Uint8List.fromList(res.data);
-//       if (bytes.length < 3000) return null;
+//       _log("AVATAR_BYTES", bytes.length);
+
+//       if (bytes.length < 3000) {
+//         _log("AVATAR", "Too small, ignored");
+//         return null;
+//       }
 
 //       final decoded = img.decodeImage(bytes);
-//       if (decoded == null) return null;
+//       if (decoded == null) {
+//         _log("AVATAR", "Decode failed");
+//         return null;
+//       }
 
 //       final resized = img.copyResize(decoded, width: 128, height: 128);
 
@@ -102,25 +134,45 @@
 //           "${dir.path}/avatar_${DateTime.now().millisecondsSinceEpoch}.png");
 
 //       await file.writeAsBytes(img.encodePng(resized));
+
+//       _log("AVATAR_SAVED", file.path);
 //       return file.path;
 //     } catch (e) {
-//       print("❌ Avatar download failed: $e");
+//       _log("AVATAR_ERROR", e);
 //       return null;
 //     }
 //   }
 
-//   // ================= MAIN SHOW =================
+//   /// ================= MAIN SHOW =================
 //   static Future<void> show(RemoteMessage msg) async {
-//     // ✅ Prevent duplicate notifications
-//     final id = msg.messageId ?? msg.data['id'] ?? msg.data.hashCode.toString();
-//     if (_handledMessages.contains(id)) {
-//       print("⚠️ Duplicate ignored: $id");
+//     _log("FCM_RECEIVED", "-------------------------");
+
+//     _log("MSG_ID", msg.messageId);
+//     _log("MSG_DATA", msg.data);
+//     _log("MSG_NOTIFICATION", {
+//       "title": msg.notification?.title,
+//       "body": msg.notification?.body,
+//     });
+
+//     final String messageId = msg.data['message_id']?.toString() ??
+//         msg.messageId ??
+//         msg.data.hashCode.toString();
+
+//     _log("FINAL_MESSAGE_ID", messageId);
+
+//     if (_handledMessages.contains(messageId)) {
+//       _log("DUPLICATE", "Ignored => $messageId");
 //       return;
 //     }
-//     _handledMessages.add(id);
 
-//     // final title = msg.data['senderName'] ?? "New Message";
-//     // final body = msg.data['message'] ?? "Message";
+//     _handledMessages.add(messageId);
+//     _log("HANDLED_SET_SIZE", _handledMessages.length);
+
+//     if (_handledMessages.length > 200) {
+//       _handledMessages.clear();
+//       _log("HANDLED_SET", "Cleared");
+//     }
+
 //     final title = msg.data['senderName'] ??
 //         msg.data['title'] ??
 //         msg.notification?.title ??
@@ -130,8 +182,11 @@
 //         msg.data['body'] ??
 //         msg.notification?.body ??
 //         "Message";
+
 //     final avatarUrl = msg.data['profilePic']?.toString();
-//     final messid = msg.data['message_id']?.toString();
+
+//     _log("TITLE", title);
+//     _log("BODY", body);
 
 //     final avatarPath = await _downloadAvatar(avatarUrl);
 
@@ -139,12 +194,23 @@
 //     _lastBody = body;
 //     _lastAvatar = avatarPath;
 
-//     await _showInternal(title, body, avatarPath);
+//     await _showInternal(title, body, avatarPath, messageId);
 //   }
 
-//   // ================= INTERNAL SHOW =================
+//   /// ================= INTERNAL SHOW =================
 //   static Future<void> _showInternal(
-//       String title, String body, String? avatarPath) async {
+//     String title,
+//     String body,
+//     String? avatarPath,
+//     String messageId,
+//   ) async {
+//     _log("SHOW_INTERNAL", {
+//       "title": title,
+//       "body": body,
+//       "avatar": avatarPath,
+//       "messageId": messageId,
+//     });
+
 //     final person = Person(name: title);
 
 //     const replyInput = AndroidNotificationActionInput(
@@ -164,16 +230,26 @@
 //       const AndroidNotificationAction('MUTE_CHAT', 'Mute'),
 //     ];
 
-//     final style = avatarPath != null
-//         ? BigPictureStyleInformation(
-//             FilePathAndroidBitmap(avatarPath),
-//             largeIcon: FilePathAndroidBitmap(avatarPath),
-//           )
-//         : MessagingStyleInformation(
-//             person,
-//             groupConversation: false,
-//             messages: [Message(body, DateTime.now(), person)],
-//           );
+//     // final style = avatarPath != null
+//     //     ? BigPictureStyleInformation(
+//     //         FilePathAndroidBitmap(avatarPath),
+//     //         largeIcon: FilePathAndroidBitmap(avatarPath),
+//     //       )
+//     //     : MessagingStyleInformation(
+//     //         person,
+//     //         groupConversation: false,
+//     //         messages: [
+//     //           Message(body, DateTime.now(), person),
+//     //         ],
+//     //       );
+
+//     final style = MessagingStyleInformation(
+//       person,
+//       groupConversation: false,
+//       messages: [
+//         Message(body, DateTime.now(), person),
+//       ],
+//     );
 
 //     final androidDetails = AndroidNotificationDetails(
 //       'chat_messages',
@@ -186,22 +262,23 @@
 //       actions: actions,
 //     );
 
+//     final int notificationId = messageId.hashCode;
+
+//     _log("ANDROID_NOTIFY_ID", notificationId);
+
 //     await _plugin.show(
-//       DateTime.now().millisecondsSinceEpoch ~/ 1000,
+//       notificationId,
 //       title,
 //       body,
 //       NotificationDetails(android: androidDetails),
 //     );
+
+//     _log("NOTIFICATION_SHOWN", "SUCCESS");
 //   }
 // }
 
-
-
-
-
 import 'dart:io';
 import 'dart:typed_data';
-
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:dio/dio.dart';
@@ -218,7 +295,7 @@ class LocalNotificationService {
   static String? _lastTitle;
   static String? _lastBody;
 
-  /// ✅ Duplicate filter using message_id
+  /// ✅ Duplicate filter using backend message_id
   static final Set<String> _handledMessages = {};
 
   /// ================= LOGGER =================
@@ -250,8 +327,7 @@ class LocalNotificationService {
     await _plugin.initialize(
       const InitializationSettings(android: androidSettings),
       onDidReceiveNotificationResponse: _handleNotificationResponse,
-      onDidReceiveBackgroundNotificationResponse:
-          notificationTapBackground,
+      onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
     );
 
     const channel = AndroidNotificationChannel(
@@ -282,6 +358,7 @@ class LocalNotificationService {
     if (res.actionId == 'REPLY_ACTION') {
       _log("REPLY_TEXT", res.input);
 
+      // Optional: re-show notification after reply
       if (_lastTitle != null && _lastBody != null) {
         Future.delayed(const Duration(milliseconds: 300), () {
           _log("REPLY", "Re-showing notification");
@@ -333,7 +410,8 @@ class LocalNotificationService {
 
       final dir = await getTemporaryDirectory();
       final file = File(
-          "${dir.path}/avatar_${DateTime.now().millisecondsSinceEpoch}.png");
+        "${dir.path}/avatar_${DateTime.now().millisecondsSinceEpoch}.png",
+      );
 
       await file.writeAsBytes(img.encodePng(resized));
 
@@ -348,7 +426,6 @@ class LocalNotificationService {
   /// ================= MAIN SHOW =================
   static Future<void> show(RemoteMessage msg) async {
     _log("FCM_RECEIVED", "-------------------------");
-
     _log("MSG_ID", msg.messageId);
     _log("MSG_DATA", msg.data);
     _log("MSG_NOTIFICATION", {
@@ -356,13 +433,14 @@ class LocalNotificationService {
       "body": msg.notification?.body,
     });
 
-    final String messageId =
-        msg.data['message_id']?.toString() ??
+    /// ✅ Always prefer backend message_id
+    final String messageId = msg.data['message_id']?.toString() ??
         msg.messageId ??
         msg.data.hashCode.toString();
 
     _log("FINAL_MESSAGE_ID", messageId);
 
+    /// ✅ Prevent duplicates
     if (_handledMessages.contains(messageId)) {
       _log("DUPLICATE", "Ignored => $messageId");
       return;
@@ -433,18 +511,14 @@ class LocalNotificationService {
       const AndroidNotificationAction('MUTE_CHAT', 'Mute'),
     ];
 
-    final style = avatarPath != null
-        ? BigPictureStyleInformation(
-            FilePathAndroidBitmap(avatarPath),
-            largeIcon: FilePathAndroidBitmap(avatarPath),
-          )
-        : MessagingStyleInformation(
-            person,
-            groupConversation: false,
-            messages: [
-              Message(body, DateTime.now(), person),
-            ],
-          );
+    /// ✅ Messaging style (NO CENTER IMAGE)
+    final style = MessagingStyleInformation(
+      person,
+      groupConversation: false,
+      messages: [
+        Message(body, DateTime.now(), person),
+      ],
+    );
 
     final androidDetails = AndroidNotificationDetails(
       'chat_messages',
@@ -452,14 +526,15 @@ class LocalNotificationService {
       importance: Importance.max,
       priority: Priority.high,
       category: AndroidNotificationCategory.message,
-      largeIcon:
-          avatarPath != null ? FilePathAndroidBitmap(avatarPath) : null,
+      largeIcon: avatarPath != null ? FilePathAndroidBitmap(avatarPath) : null,
       styleInformation: style,
       actions: actions,
+      showWhen: true,
+      when: DateTime.now().millisecondsSinceEpoch,
     );
 
+    /// ✅ Stable notification ID
     final int notificationId = messageId.hashCode;
-
     _log("ANDROID_NOTIFY_ID", notificationId);
 
     await _plugin.show(

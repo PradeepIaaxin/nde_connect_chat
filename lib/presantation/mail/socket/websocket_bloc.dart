@@ -30,7 +30,7 @@ class WebSocketBloc extends Bloc<WebSocketEvent, WebSocketState> {
         log("👂 Bloc: Listening to socket messages");
 
         socketService.messages.listen((message) {
-          log("📩 Bloc: RAW message received → $message");
+          // log("📩 Bloc: RAW message received → $message");
           add(ReceiveMessage(message));
         });
       });
@@ -46,10 +46,10 @@ class WebSocketBloc extends Bloc<WebSocketEvent, WebSocketState> {
       final newNotification = NotificationModel.fromJson(data);
       notifications.add(newNotification);
 
-      log("👤 From Name: ${newNotification.fromName}");
-      log("📧 From Email: ${newNotification.fromAddress}");
-      log("💬 Message: ${newNotification.message}");
-      log("📊 Total notifications: ${notifications.length}");
+      // log("👤 From Name: ${newNotification.fromName}");
+      // log("📧 From Email: ${newNotification.fromAddress}");
+      // log("💬 Message: ${newNotification.message}");
+      // log("📊 Total notifications: ${notifications.length}");
 
       String senderName = newNotification.fromName;
       String senderEmail = newNotification.fromAddress;
@@ -60,19 +60,19 @@ class WebSocketBloc extends Bloc<WebSocketEvent, WebSocketState> {
       );
 
       emit(WebSocketMessageReceived(List.from(notifications)));
-      log("📤 Bloc: WebSocketMessageReceived emitted");
+      // log("📤 Bloc: WebSocketMessageReceived emitted");
     }
 
     /// 📥 RECEIVE MESSAGE
     on<ReceiveMessage>((event, emit) async {
       try {
-        log("🧩 Bloc: Decoding message");
+        // log("🧩 Bloc: Decoding message");
 
         final decoded = jsonDecode(event.message);
-        log("🔍 Decoded type: ${decoded.runtimeType}");
+        // log("🔍 Decoded type: ${decoded.runtimeType}");
 
         if (decoded is List && decoded.isNotEmpty) {
-          log("📚 Bloc: Message is LIST (${decoded.length} items)");
+          // log("📚 Bloc: Message is LIST (${decoded.length} items)");
 
           for (var item in decoded) {
             if (item is Map<String, dynamic>) {
