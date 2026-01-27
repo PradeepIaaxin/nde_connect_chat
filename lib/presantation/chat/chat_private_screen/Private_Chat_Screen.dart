@@ -5196,11 +5196,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       ),
     );
   }
-
   void _sendAudioMessage(String path, int duration) {
     debugPrint("Sending audio message: $path, duration: $duration");
 
-    // Ensure SendAudioMessageEvent exists in your BLoC events
     _messagerBloc.add(
       SendAudioMessageEvent(
         senderId: currentUserId,

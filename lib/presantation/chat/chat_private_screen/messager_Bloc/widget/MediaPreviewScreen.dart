@@ -1,5 +1,6 @@
 import 'dart:developer';
 import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mime/mime.dart';
@@ -21,6 +22,8 @@ class MediaPreviewScreen extends StatefulWidget {
   final String receiverId;
   final bool isGroupChat;
   final bool? isDocument;
+  final String? mediaContent;
+  final String? duration;
 
   const MediaPreviewScreen({
     super.key,
@@ -29,7 +32,7 @@ class MediaPreviewScreen extends StatefulWidget {
     required this.senderId,
     required this.receiverId,
     required this.isGroupChat,
-    this.isDocument = false,
+    this.isDocument = false, this.mediaContent, this.duration,
   });
 
   @override
@@ -41,12 +44,62 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
   final TextEditingController _captionController = TextEditingController();
   int _currentIndex = 0;
   bool _sending = false;
+  late List<XFile> _files;
+  @override
+  void initState() {
+    super.initState();
+    _files = List.from(widget.files);
+  }
 
   @override
   void dispose() {
     _captionController.dispose();
     _pageController.dispose();
     super.dispose();
+  }
+  ImagePicker picker = ImagePicker();
+   List<XFile>? newFiles;
+  Future<void> _pickMoreMedia() async {
+    List<XFile> newFiles = [];
+
+    if (widget.mediaContent == "Gallery") {
+      final picker = ImagePicker();
+      final images = await picker.pickMultiImage();
+      if (images.isNotEmpty) newFiles.addAll(images);
+
+    } else if (widget.mediaContent == "Video") {
+      final picker = ImagePicker();
+      final videos = await picker.pickMultiVideo();
+      if (videos.isNotEmpty) newFiles.addAll(videos);
+
+    } else if (widget.mediaContent == "Camera") {
+      final file =
+      await ImagePicker().pickImage(source: ImageSource.camera);
+      if (file != null) newFiles.add(file);
+
+    } else if (widget.mediaContent == "Document") {
+      final result = await FilePicker.platform.pickFiles();
+      if (result?.files.single.path != null) {
+        newFiles.add(XFile(result!.files.single.path!));
+      }
+
+    } else if (widget.mediaContent == "Audio") {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: [
+          'mp3', 'wav', 'aac', 'm4a', 'flac', 'ogg', 'opus',
+        ],
+      );
+      if (result?.files.single.path != null) {
+        newFiles.add(XFile(result!.files.single.path!));
+      }
+    }
+
+    if (newFiles.isNotEmpty) {
+      setState(() {
+        _files.addAll(newFiles);
+      });
+    }
   }
 
   @override
@@ -58,7 +111,7 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(color: Colors.white),
         title: Text(
-          "${_currentIndex + 1} / ${widget.files.length}",
+          "${_currentIndex + 1} / ${_files.length}",
           style: const TextStyle(color: Colors.white),
         ),
         actions: [
@@ -73,12 +126,17 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  '${widget.files.length} items',
+                  '${_files.length} items',
                   style: const TextStyle(color: Colors.white),
                 ),
               ),
             ),
           ),
+          IconButton(
+            icon: const Icon(Icons.add, color: Colors.white),
+              onPressed: _pickMoreMedia
+          ),
+
         ],
       ),
 
@@ -88,11 +146,11 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
           Positioned.fill(
             child: PhotoViewGallery.builder(
               pageController: _pageController,
-              itemCount: widget.files.length,
+              itemCount:_files.length,
               onPageChanged: (i) => setState(() => _currentIndex = i),
               backgroundDecoration: const BoxDecoration(color: Colors.black),
               builder: (context, index) {
-                final file = widget.files[index];
+                final file = _files[index];
                 final mime = lookupMimeType(file.path) ?? '';
                 final isImage = mime.startsWith('image/');
                 final isVideo = mime.startsWith('video/');
@@ -206,11 +264,12 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
   Future<bool> validateFileBeforeSend({
     required BuildContext context,
     required XFile file,
-    double maxImageMb = 5,
+    double maxImageMb = 10,
     double maxVideoMb = 10,
-    double maxAudioMb = 5,
+    double maxAudioMb = 10,
     double maxDocMb = 10,
-  }) async {
+  })
+  async {
     final mime = lookupMimeType(file.path) ?? '';
     final fileSizeMb =
         File(file.path).lengthSync() / (1024 * 1024);
@@ -252,6 +311,15 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
           ],
         ),
       );
+      // ✅ REMOVE FILE LIKE WHATSAPP
+      setState(() {
+        _files.remove(file);
+      });
+
+      // ✅ If nothing left → go back to picker
+      if (_files.isEmpty) {
+        Navigator.pop(context);
+      }
       return false;
     }
 
@@ -323,10 +391,10 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
     final caption = _captionController.text.trim();
     final List<Map<String, dynamic>> localMessages = [];
     final groupMessageId =
-    widget.files.length > 1 ? ObjectId().toString() : null;
+    _files.length > 1 ? ObjectId().toString() : null;
 
     // ✅ STEP 1: VALIDATE ALL FILES FIRST
-    for (final file in widget.files) {
+    for (final file in  List.from(_files)) {
       final isValid = await validateFileBeforeSend(
         context: context,
         file: file,
@@ -339,7 +407,7 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
     }
 
     // ✅ STEP 2: SEND FILES
-    for (final file in widget.files) {
+    for (final file in _files) {
 
       // 🔊 AUDIO
       if (_isAudio(file)) {
@@ -348,7 +416,7 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
             senderId: widget.senderId,
             receiverId: widget.receiverId,
             audioPath: file.path,
-            duration: "0",
+            duration: widget.duration!,
             convoId: widget.conversationId,
           ),
         );
@@ -363,7 +431,7 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
         senderId: widget.senderId,
         receiverId: widget.receiverId,
         isGroupChat: widget.isGroupChat,
-        isGroupMessage: widget.files.length > 1,
+        isGroupMessage: _files.length > 1,
         groupMessageId: groupMessageId,
         caption: caption.isNotEmpty ? caption : null,
       );
