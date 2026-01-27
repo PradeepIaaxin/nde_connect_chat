@@ -47,6 +47,7 @@ class CommonAppBarBuilder {
     VoidCallback? onSearchDown,
     int searchMatchCount = 0,
     int searchMatchIndex = 0,
+    bool isSendByMe=false,
   }) {
     if (showSearchAppBar) {
       return SearchAppBar(
