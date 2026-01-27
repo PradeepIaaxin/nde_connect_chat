@@ -104,10 +104,10 @@ class NotificationService {
     String? profileImageUrl,
   }) async {
     try {
-      log("🔔 SHOW NOTIFICATION");
-      log("TITLE: $title");
-      log("BODY: $body");
-      log("PROFILE: $profileImageUrl");
+      // log("🔔 SHOW NOTIFICATION");
+      // log("TITLE: $title");
+      // log("BODY: $body");
+      // log("PROFILE: $profileImageUrl");
 
       // Download profile image
       String? avatarPath;
