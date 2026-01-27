@@ -23,6 +23,7 @@ import 'package:firebase_core/firebase_core.dart';
 // GLOBAL SINGLETONS
 late final SocketService socketService;
 late final WebSocketService webSocketService;
+bool hasIncomingShare = false;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,9 +38,18 @@ void main() async {
 // Local Notification Init
   await LocalNotificationService.initialize();
 
-// Foreground Listener (ONLY DATA messages)
   FirebaseMessaging.onMessage.listen((message) {
-    print("🔥 FOREGROUND FCM: ${message.data}");
+    // print("Android auto notification = ${message.notification != null}");
+
+    // print("=========== FCM DEBUG ===========");
+    // print("Data: ${message.data}");
+    // print(
+    //     "Notification: ${message.notification?.title} | ${message.notification?.body}");
+    // print("MessageId: ${message.messageId}");
+    // print("Time: ${DateTime.now()}");
+    // print("================================");
+
+    print('calling notification..');
     LocalNotificationService.show(message);
   });
 
@@ -54,30 +64,6 @@ void main() async {
       print("🚀 Opened from killed state: ${message.data}");
     }
   });
-
-// //background
-//   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-
-// //local notification
-//   await LocalNotificationService.initialize();
-
-// //forground listrner
-//   FirebaseMessaging.onMessage.listen((message) {
-//     if (message.notification == null) {
-//       LocalNotificationService.show(message);
-//     }
-//   });
-
-// //Notification click log
-//   FirebaseMessaging.onMessageOpenedApp.listen((message) {
-//     print("👆 Notification clicked: ${message.data}");
-//   });
-
-//   FirebaseMessaging.instance.getInitialMessage().then((message) {
-//     if (message != null) {
-//       print("🚀 Opened from killed state: ${message.data}");
-//     }
-//   });
 
   SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
@@ -274,6 +260,7 @@ class _MyAppState extends State<MyApp> {
     /// 🔹 App opened from share (terminated state)
     _receiveSharingIntent.getInitialMedia().then((files) {
       if (files.isNotEmpty) {
+        hasIncomingShare = true;
         _openShareUI(files);
       }
     });

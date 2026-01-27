@@ -83,17 +83,30 @@ class GroupProfileHeader extends StatelessWidget {
       BuildContext context, String displayLetter, String fullName) {
     return GestureDetector(
       onTap: () {
-        MyRouter.push(
-          screen: ViewImage(
-            imageurl: profileAvatarUrl,
-            username: fullName,
+        Navigator.push(
+          context,
+          PageRouteBuilder(
+            transitionDuration: const Duration(milliseconds: 250),
+            pageBuilder: (_, __, ___) => ViewImage(
+              imageurl: profileAvatarUrl,
+              username: fullName,
+              heroTag: "group_$groupId",
+            ),
+            transitionsBuilder: (_, animation, __, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
           ),
         );
       },
-      child: ProfileAvatar(
-        imageUrl: profileAvatarUrl,
-        name: fullName,
-        size: 120,
+
+      // Hero animation wrapper
+      child: Hero(
+        tag: "group_$groupId",
+        child: ProfileAvatar(
+          imageUrl: profileAvatarUrl,
+          name: fullName,
+          size: 120,
+        ),
       ),
     );
   }

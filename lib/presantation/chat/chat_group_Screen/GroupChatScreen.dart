@@ -2052,7 +2052,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             // Extract full details if available
             final String firstName = m['first_name'] ?? m['firstName'] ?? '';
             final String lastName = m['last_name'] ?? m['lastName'] ?? '';
-            final String fullName = '${firstName} ${lastName}'.trim();
+            final String fullName = '$firstName $lastName'.trim();
             normalizedMembers.add({
               '_id': id,
               'first_name': firstName,
@@ -2125,7 +2125,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               sender['first_name'] ?? sender['firstName'] ?? '';
           final String lastName =
               sender['last_name'] ?? sender['lastName'] ?? '';
-          final String fullName = '${firstName} ${lastName}'.trim();
+          final String fullName = '$firstName $lastName'.trim();
           membersMap[userId] = {
             '_id': userId,
             'first_name': firstName,
@@ -2684,7 +2684,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         'group_message_id': groupId,
       };
 
-      log(" _replyPreview ${_replyPreview}");
+      log(" _replyPreview $_replyPreview");
       _focusNode.requestFocus();
     });
   }
