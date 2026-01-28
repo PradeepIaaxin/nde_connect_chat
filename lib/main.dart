@@ -12,8 +12,8 @@ import 'package:nde_email/presantation/update_screen/update_bloc/update_bloc.dar
 import 'package:nde_email/presantation/update_screen/update_repo/update_repo.dart';
 import 'package:nde_email/utils/app_state/app_lifecycle_service.dart';
 import 'package:nde_email/utils/appsharescreen/sharepreviewscreen.dart';
+import 'package:nde_email/utils/fcm_handler/awesome_notification_service.dart';
 import 'package:nde_email/utils/fcm_handler/fcm_handler.dart';
-import 'package:nde_email/utils/fcm_handler/local_notification_service.dart';
 import 'package:nde_email/utils/imports/common_imports.dart';
 import 'dart:io';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
@@ -31,27 +31,36 @@ void main() async {
   await InternetService.initialize();
 
   await Firebase.initializeApp();
+    await AwesomeNotificationService.init();
 
   // ================= FCM INIT =================
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
+// Awesome Notification Init
+
+
 // Local Notification Init
-  await LocalNotificationService.initialize();
+  // await LocalNotificationService.initialize();
 
   FirebaseMessaging.onMessage.listen((message) {
-    // print("Android auto notification = ${message.notification != null}");
-
-    // print("=========== FCM DEBUG ===========");
-    // print("Data: ${message.data}");
-    // print(
-    //     "Notification: ${message.notification?.title} | ${message.notification?.body}");
-    // print("MessageId: ${message.messageId}");
-    // print("Time: ${DateTime.now()}");
-    // print("================================");
-
-    print('calling notification..');
-    LocalNotificationService.show(message);
+    print("🔥 FCM DATA: ${message.data}");
+    AwesomeNotificationService.show(message);
   });
+
+  // FirebaseMessaging.onMessage.listen((message) {
+  //   // print("Android auto notification = ${message.notification != null}");
+
+  //   // print("=========== FCM DEBUG ===========");
+  //   // print("Data: ${message.data}");
+  //   // print(
+  //   //     "Notification: ${message.notification?.title} | ${message.notification?.body}");
+  //   // print("MessageId: ${message.messageId}");
+  //   // print("Time: ${DateTime.now()}");
+  //   // print("================================");
+
+  //   print('calling notification..');
+  //   LocalNotificationService.show(message);
+  // });
 
 // Notification click
   FirebaseMessaging.onMessageOpenedApp.listen((message) {
@@ -89,8 +98,8 @@ void main() async {
   }
   // PARALLEL INIT — MAX SPEED
   await initializeStorage();
-  await NotificationService.init();
-  await NotificationService.requestPermission();
+  // await NotificationService.init();
+  //await NotificationService.requestPermission();
   // ✅ check first
   final status = await Permission.storage.status;
   if (!status.isGranted) {
