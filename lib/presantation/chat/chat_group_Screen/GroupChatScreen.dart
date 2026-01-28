@@ -4050,57 +4050,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                       Offset(
                                                                           0, 2),
                                                                 ),
-                                                              Stack(
-                                                                children: [
-                                                                  GroupedMediaWidget(
-                                                                    mediaUrls:
-                                                                        groupImages,
-                                                                    searchText:
-                                                                        _searchController
-                                                                            .text,
-                                                                    caption:
-                                                                        message[
-                                                                            'content'],
-                                                                    isSentByMe:
-                                                                        isSentByMe,
-                                                                    time: message[
-                                                                            'time'] ??
-                                                                        '',
-                                                                    messageStatus:
-                                                                        message['messageStatus']?.toString() ??
-                                                                            'sent',
-                                                                    onMediaTap:
-                                                                        (index) {
-                                                                      final media =
-                                                                          buildConversationMedia(
-                                                                        combinedMessages,
-                                                                        currentUserId:
-                                                                            currentUserId,
-                                                                      );
-                                                                      final tappedUrl =
-                                                                          groupImages[
-                                                                              index];
-                                                                      final startIndex = media.indexWhere((m) =>
-                                                                          m.mediaUrl ==
-                                                                          tappedUrl);
-
-                                                                      if (startIndex !=
-                                                                          -1) {
-                                                                        Navigator
-                                                                            .push(
-                                                                          context,
-                                                                          MaterialPageRoute(
-                                                                            builder: (_) =>
-                                                                                MixedMediaViewer(
-                                                                              items: media,
-                                                                              initialIndex: startIndex,
-                                                                            ),
-                                                                          ),
-                                                                        );
-                                                                      }
-                                                                    },
                                                               ],
-                                                            ),
+                                                                ),
                                                             child: Column(
                                                               crossAxisAlignment:
                                                                   CrossAxisAlignment
@@ -4144,6 +4095,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                           GroupedMediaWidget(
                                                                         mediaUrls:
                                                                             groupImages,
+                                                                             searchText:
+                                                                        _searchController
+                                                                            .text,
                                                                         caption:
                                                                             message['content'],
                                                                         isSentByMe:

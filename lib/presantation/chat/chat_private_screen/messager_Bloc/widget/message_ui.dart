@@ -156,7 +156,7 @@ class _MessageBubbleState extends State<MessageBubble> {
     final String? displayImageUrl = originalUrl ??
         imageUrl ??
         ((isImage || (fileUrl != null && isImage)) ? fileUrl : null);
-   final String? userId = widget.message["sender"]?["_id"]??"";
+    final String? userId = widget.message["sender"]?["_id"] ?? "";
     final bool? isForwarded = widget.message['isForwarded'] ?? false;
     final bool? isReplyMessage = widget.message['isReplyMessage'];
     final String messageStatus =
@@ -188,8 +188,8 @@ class _MessageBubbleState extends State<MessageBubble> {
       return const SizedBox.shrink();
     }
     bool _ignoreParentTap = false;
-log("userId>>>>>>>>>>> $userId");
-log("userIdssssss>>>>>>>>>>> ${widget.currentUserId}");
+    log("userId>>>>>>>>>>> $userId");
+    log("userIdssssss>>>>>>>>>>> ${widget.currentUserId}");
     return Padding(
       padding:
           EdgeInsets.symmetric(vertical: widget.emojpicker != null ? 6.0 : 0),
@@ -222,16 +222,18 @@ log("userIdssssss>>>>>>>>>>> ${widget.currentUserId}");
                 widget.onLongPress?.call();
               },
               child: Row(
-                mainAxisAlignment: widget.isSentByMe?MainAxisAlignment.end:MainAxisAlignment.start,
+                mainAxisAlignment: widget.isSentByMe
+                    ? MainAxisAlignment.end
+                    : MainAxisAlignment.start,
                 children: [
                   if (widget.isSentByMe &&
                       (isVideo ||
                           hasImageContent ||
                           hasFile ||
                           (content.isNotEmpty &&
-                              RegExp(r'((https?:\/\/)|(www\.))[^\s]+', caseSensitive: false)
+                              RegExp(r'((https?:\/\/)|(www\.))[^\s]+',
+                                      caseSensitive: false)
                                   .hasMatch(content))))
-
                     Material(
                       color: Colors.transparent,
                       child: GestureDetector(
@@ -259,7 +261,6 @@ log("userIdssssss>>>>>>>>>>> ${widget.currentUserId}");
                         ),
                       ),
                     ),
-
                   Flexible(
                     child: Container(
                       clipBehavior: Clip.antiAlias,
@@ -267,7 +268,8 @@ log("userIdssssss>>>>>>>>>>> ${widget.currentUserId}");
                         left: 9,
                         right: 9,
                         bottom: (widget.message['reactions'] != null &&
-                                (widget.message['reactions'] as List).isNotEmpty)
+                                (widget.message['reactions'] as List)
+                                    .isNotEmpty)
                             ? 8
                             : 0,
                       ),
@@ -301,7 +303,8 @@ log("userIdssssss>>>>>>>>>>> ${widget.currentUserId}");
                         border: widget.isReply
                             ? null
                             : widget.isSelected
-                                ? Border.all(color: widget.borderColor, width: 2)
+                                ? Border.all(
+                                    color: widget.borderColor, width: 2)
                                 : null,
                       ),
                       child: Stack(
@@ -351,6 +354,71 @@ log("userIdssssss>>>>>>>>>>> ${widget.currentUserId}");
                                   ],
                                 ),
 
+                              //     // Audio Message
+                              //     if (isAudio && hasFile)
+                              //       AudioMessageWidget(
+                              //         audioUrl: fileUrl,
+                              //         profileAvatarUrl: widget.message['sender']
+                              //                 ?['profile_pic_path'] ??
+                              //             widget.message['sender']?['profilePic'] ??
+                              //             widget.message['profile_pic_path'] ??
+                              //             '',
+                              //         isSender: widget.isSentByMe,
+                              //         duration: widget.message['duration']?.toString(),
+                              //         timestamp: TimeUtils.formatUtcToIst(
+                              //             widget.message['time']),
+                              //         status:
+                              //             widget.message['messageStatus']?.toString() ??
+                              //                 'sent',
+                              //         showContainer: false,
+                              //         mimeType:  widget.message['mimeType']?.toString() ??widget.message['fileType']?.toString(),
+                              //       )
+
+                              //     // 2. Video Preview
+                              //     else if (isVideo && hasFile)
+                              //       _buildVideoPreviewTile(
+                              //           context,
+                              //           fileUrl,
+                              //           fileName ?? "",
+                              //           widget.isSentByMe,
+                              //           content.isEmpty)
+
+                              //     // 3. Image preview
+                              //     else if (isImage && (hasImageContent || hasFile))
+                              //       _buildImage(context, content,
+                              //           displayImageUrl ?? fileUrl ?? "", fileName,
+                              //           isSentByMe: widget.isSentByMe,
+                              //           showTime: content.isEmpty)
+
+                              //     // 4. General File preview (Document)
+                              //     else if (hasFile)
+                              //       _buildFile(
+                              //           context, fileUrl, fileName, fileType, content,
+                              //           isSentByMe: widget.isSentByMe),
+
+                              //     // Text content
+                              //     if (content.isNotEmpty)
+                              //       // Use MessageCaption for image/video/document captions to position time/status in the right corner
+                              //       if ((isImage && (hasImageContent || hasFile)) ||
+                              //           (isVideo && hasFile) ||
+                              //           (hasFile &&
+                              //               !isImage &&
+                              //               !isVideo &&
+                              //               !isAudio)) // Document
+                              //         MessageCaption(
+                              //           content: content,
+                              //           time: TimeUtils.formatUtcToIst(
+                              //               widget.message['time']),
+                              //           isSentByMe: widget.isSentByMe,
+                              //           messageStatus: messageStatus,
+                              //           buildStatusIcon: widget.buildStatusIcon,
+                              //           searchText: widget.searchText,
+                              //         )
+                              //       else
+                              //         _buildTextMessage(content, messageStatus),
+                              //   ],
+                              // ),
+
                               // Audio Message
                               if (isAudio && hasFile)
                                 AudioMessageWidget(
@@ -361,14 +429,17 @@ log("userIdssssss>>>>>>>>>>> ${widget.currentUserId}");
                                       widget.message['profile_pic_path'] ??
                                       '',
                                   isSender: widget.isSentByMe,
-                                  duration: widget.message['duration']?.toString(),
+                                  duration:
+                                      widget.message['duration']?.toString(),
                                   timestamp: TimeUtils.formatUtcToIst(
                                       widget.message['time']),
-                                  status:
-                                      widget.message['messageStatus']?.toString() ??
-                                          'sent',
+                                  status: widget.message['messageStatus']
+                                          ?.toString() ??
+                                      'sent',
                                   showContainer: false,
-                                  mimeType:  widget.message['mimeType']?.toString() ??widget.message['fileType']?.toString(),
+                                  mimeType: widget.message['mimeType']
+                                          ?.toString() ??
+                                      widget.message['fileType']?.toString(),
                                 )
 
                               // 2. Video Preview
@@ -389,8 +460,8 @@ log("userIdssssss>>>>>>>>>>> ${widget.currentUserId}");
 
                               // 4. General File preview (Document)
                               else if (hasFile)
-                                _buildFile(
-                                    context, fileUrl, fileName, fileType, content,
+                                _buildFile(context, fileUrl, fileName, fileType,
+                                    content,
                                     isSentByMe: widget.isSentByMe),
 
                               // Text content
@@ -410,78 +481,12 @@ log("userIdssssss>>>>>>>>>>> ${widget.currentUserId}");
                                     messageStatus: messageStatus,
                                     buildStatusIcon: widget.buildStatusIcon,
                                     searchText: widget.searchText,
+                                    isDeleted: isDeleted,
                                   )
                                 else
                                   _buildTextMessage(content, messageStatus),
                             ],
                           ),
-
-                        // Audio Message
-                        if (isAudio && hasFile)
-                          AudioMessageWidget(
-                            audioUrl: fileUrl,
-                            profileAvatarUrl: widget.message['sender']
-                                    ?['profile_pic_path'] ??
-                                widget.message['sender']?['profilePic'] ??
-                                widget.message['profile_pic_path'] ??
-                                '',
-                            isSender: widget.isSentByMe,
-                            duration: widget.message['duration']?.toString(),
-                            timestamp: TimeUtils.formatUtcToIst(
-                                widget.message['time']),
-                            status:
-                                widget.message['messageStatus']?.toString() ??
-                                    'sent',
-                            showContainer: false,
-                            mimeType:  widget.message['mimeType']?.toString() ??widget.message['fileType']?.toString(),
-                          )
-
-                        // 2. Video Preview
-                        else if (isVideo && hasFile)
-                          _buildVideoPreviewTile(
-                              context,
-                              fileUrl,
-                              fileName ?? "",
-                              widget.isSentByMe,
-                              content.isEmpty)
-
-                        // 3. Image preview
-                        else if (isImage && (hasImageContent || hasFile))
-                          _buildImage(context, content,
-                              displayImageUrl ?? fileUrl ?? "", fileName,
-                              isSentByMe: widget.isSentByMe,
-                              showTime: content.isEmpty)
-
-                        // 4. General File preview (Document)
-                        else if (hasFile)
-                          _buildFile(
-                              context, fileUrl, fileName, fileType, content,
-                              isSentByMe: widget.isSentByMe),
-
-                        // Text content
-                        if (content.isNotEmpty)
-                          // Use MessageCaption for image/video/document captions to position time/status in the right corner
-                          if ((isImage && (hasImageContent || hasFile)) ||
-                              (isVideo && hasFile) ||
-                              (hasFile &&
-                                  !isImage &&
-                                  !isVideo &&
-                                  !isAudio)) // Document
-                            MessageCaption(
-                              content: content,
-                              time: TimeUtils.formatUtcToIst(
-                                  widget.message['time']),
-                              isSentByMe: widget.isSentByMe,
-                              messageStatus: messageStatus,
-                              buildStatusIcon: widget.buildStatusIcon,
-                              searchText: widget.searchText,
-                              isDeleted: isDeleted,
-                            )
-                          else
-                            _buildTextMessage(content, messageStatus),
-                      ],
-                    ),
-                   
                           if (isVideo ||
                               hasImageContent ||
                               hasFile ||
@@ -508,7 +513,8 @@ log("userIdssssss>>>>>>>>>>> ${widget.currentUserId}");
                                               widget.message['senderId'] ?? '',
                                           conversionalid: "",
                                           username:
-                                              widget.message['senderName'] ?? '',
+                                              widget.message['senderName'] ??
+                                                  '',
                                         ),
                                       );
                                     },
@@ -581,9 +587,9 @@ log("userIdssssss>>>>>>>>>>> ${widget.currentUserId}");
                           hasImageContent ||
                           hasFile ||
                           (content.isNotEmpty &&
-                              RegExp(r'((https?:\/\/)|(www\.))[^\s]+', caseSensitive: false)
+                              RegExp(r'((https?:\/\/)|(www\.))[^\s]+',
+                                      caseSensitive: false)
                                   .hasMatch(content))))
-
                     Material(
                       color: Colors.transparent,
                       child: GestureDetector(
@@ -610,7 +616,6 @@ log("userIdssssss>>>>>>>>>>> ${widget.currentUserId}");
                         ),
                       ),
                     ),
-
                 ],
               ),
             ),
@@ -743,8 +748,7 @@ log("userIdssssss>>>>>>>>>>> ${widget.currentUserId}");
       receiverName: widget.receiverName,
     );
 
-    final tappedId =
-        tappedMessage['message_id']?.toString() ??
+    final tappedId = tappedMessage['message_id']?.toString() ??
         tappedMessage['_id']?.toString();
 
     final index = media.indexWhere(
@@ -856,8 +860,7 @@ log("userIdssssss>>>>>>>>>>> ${widget.currentUserId}");
     String? fileName, {
     required bool isSentByMe,
     bool showTime = true,
-  })
-  {
+  }) {
     if (content == "Message Deleted") return const SizedBox();
     final String name = fileName ?? 'Unknown file';
     final String extension =
@@ -1253,8 +1256,7 @@ log("userIdssssss>>>>>>>>>>> ${widget.currentUserId}");
     String? fileType,
     String content, {
     required bool isSentByMe,
-  })
-  {
+  }) {
     if (content == "Message Deleted") return const SizedBox();
 
     final String name = fileName ?? 'Unknown file';
