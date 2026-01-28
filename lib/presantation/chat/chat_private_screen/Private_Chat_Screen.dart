@@ -259,23 +259,51 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       return;
     }
 
-    final matches = _allMessages
-        .where((msg) {
-          final content = msg['content']?.toString().toLowerCase() ?? '';
-          return content.contains(query.toLowerCase()) &&
-              msg['is_deleted'] != true &&
-              msg['messageStatus'] != 'deleted';
-        })
-        .map((msg) => _anyId(msg).toString())
-        .toList();
+    final queryLower = query.toLowerCase();
+    final List<Map<String, dynamic>> combined = _getCombinedMessages();
+    final List<String> matchIds = [];
+    final Set<String> groupMatchIds = {};
+
+    for (final msg in combined) {
+      final content = (msg['content']?.toString() ?? '').toLowerCase();
+      final fileName = (msg['fileName']?.toString() ?? '').toLowerCase();
+      final isDeleted = msg['is_deleted'] == true ||
+          msg['messageStatus'] == 'deleted' ||
+          content.contains('this message was deleted');
+
+      final isSystem = msg['ContentType'] == 'system' ||
+          msg['contentType'] == 'system' ||
+          content.contains('added') ||
+          content.contains('left') ||
+          content.contains('created by');
+
+      if (!isDeleted &&
+          !isSystem &&
+          (content.contains(queryLower) || fileName.contains(queryLower))) {
+        final messageId = _anyId(msg)?.toString() ?? '';
+        if (messageId.isEmpty) continue;
+
+        final groupMsgId = msg['group_message_id']?.toString();
+        if (groupMsgId != null && groupMsgId.isNotEmpty) {
+          if (!groupMatchIds.contains(groupMsgId)) {
+            groupMatchIds.add(groupMsgId);
+            matchIds.add(messageId);
+          }
+        } else {
+          matchIds.add(messageId);
+        }
+      }
+    }
 
     setState(() {
-      _searchMatchIds = matches;
-      if (matches.isNotEmpty) {
-        _currentSearchMatchIndex = 0;
-        _scrollToMessageById(matches[0], fetchIfMissing: false);
+      _searchMatchIds = matchIds;
+      if (matchIds.isNotEmpty) {
+        _currentSearchMatchIndex = matchIds.length - 1;
+        _scrollToMessageById(matchIds[_currentSearchMatchIndex],
+            fetchIfMissing: false);
       } else {
         _currentSearchMatchIndex = -1;
+        Messenger.alert(msg: "No results found");
       }
     });
   }
@@ -497,7 +525,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     // 1) initialMessages (from forwarding)
     if (widget.initialMessages != null && widget.initialMessages!.isNotEmpty) {
-    //  log("messssssssssssssssss ${widget.initialMessages}");
+      //  log("messssssssssssssssss ${widget.initialMessages}");
       final normalized = widget.initialMessages!
           .map<Map<String, dynamic>>((raw) => normalizeMessage(raw))
           .where((m) => m.isNotEmpty)
@@ -1036,7 +1064,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   // Update the normalizeMessage function to handle LORRO data structure
   Map<String, dynamic> normalizeMessage(dynamic rawMsg) {
     if (rawMsg == null) return {};
-  //s log("rawMsgccccccccccccccccc: $rawMsg");
+    //s log("rawMsgccccccccccccccccc: $rawMsg");
     // Handle LORRO specific structure
     if (rawMsg is Map) {
       // Check if it's a LORRO-style message
@@ -1225,8 +1253,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         'fileUrl': replyUrl,
         'fileName': fileName,
         'fileType': contentType,
-         'group_message_id': rawReply['isGroupedMessageId'],
-         'is_grouped_message': rawReply['isGroupedMessage'] ?? false,
+        'group_message_id': rawReply['isGroupedMessageId'],
+        'is_grouped_message': rawReply['isGroupedMessage'] ?? false,
       };
 
       m['isReplyMessage'] = true;
@@ -1725,7 +1753,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         ));
       }
 
-      await Future.delayed(const Duration(milliseconds: 50));
+      // Increased delay for better stability
+      await Future.delayed(const Duration(milliseconds: 150));
 
       final targetCtx = _messageContexts[messageId];
       if (targetCtx != null && targetCtx.mounted) {
@@ -1734,8 +1763,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       }
 
       double currentEstimate = estimatedOffset;
-      for (int attempt = 0; attempt < 3; attempt++) {
-        await Future.delayed(const Duration(milliseconds: 50));
+      // Increased retries and delay
+      for (int attempt = 0; attempt < 5; attempt++) {
+        await Future.delayed(const Duration(milliseconds: 100));
 
         final targetCtx = _messageContexts[messageId];
         if (targetCtx != null && targetCtx.mounted) {
@@ -1773,7 +1803,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           final int end = indexDiff > 0 ? msgIndex : closestVisibleIndex;
 
           for (int k = start; k < end; k++) {
-            correction += _estimateMessageHeight(combinedMessages[k]);
+            correction += _estimateMessageHeight(k, combinedMessages);
           }
 
           if (indexDiff < 0) correction = -correction;
@@ -1829,16 +1859,48 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     for (int i = 0; i < listIndex; i++) {
       final realIndex = messages.length - 1 - i;
       if (realIndex >= 0 && realIndex < messages.length) {
-        offset += _estimateMessageHeight(messages[realIndex]);
+        offset += _estimateMessageHeight(realIndex, messages);
       }
     }
     return offset;
   }
 
-  double _estimateMessageHeight(Map<String, dynamic> message) {
+  double _estimateMessageHeight(
+      int index, List<Map<String, dynamic>> messages) {
+    if (index < 0 || index >= messages.length) return 0.0;
+    final message = messages[index];
+
+    // Date separator logic
+    double separatorHeight = 0.0;
+    try {
+      final currentTime = _parseTime(message['time']);
+      final prevTime =
+          index > 0 ? _parseTime(messages[index - 1]['time']) : null;
+      if (index == 0 || !isSameDay(currentTime, prevTime)) {
+        separatorHeight = 40.0;
+      }
+    } catch (_) {}
+
+    // Grouping logic: only the first message in a group has height
+    final isGrouped = message['is_grouped_message'] == true;
+    final groupId = message['group_message_id']?.toString();
+    if (isGrouped && groupId != null && index > 0) {
+      final prev = messages[index - 1];
+      if (prev['is_grouped_message'] == true &&
+          prev['group_message_id']?.toString() == groupId) {
+        return 0.0;
+      }
+    }
+
+    // System message check
+    final contentType = message['ContentType'] ?? message['contentType'] ?? "";
+    final content = (message['content'] ?? '').toString();
+    if (contentType == "system") {
+      return 0.0 + separatorHeight;
+    }
+
     double height = 60.0;
 
-    final content = (message['content'] ?? '').toString();
     if (content.isNotEmpty) {
       height += (content.length / 40) * 20.0;
     }
@@ -1850,7 +1912,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             message['localImagePath'].toString().isNotEmpty) ||
         (message['fileUrl'] != null &&
             message['fileUrl'].toString().isNotEmpty)) {
-      height += 250.0;
+      if (isGrouped) {
+        height += 250.0;
+      } else {
+        height += 250.0;
+      }
     }
 
     // Reply preview
@@ -1858,7 +1924,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       height += 60.0;
     }
 
-    return height;
+    return height + separatorHeight;
   }
 
   void _highlightMessage(String messageId) {
@@ -3915,7 +3981,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       onSearchUp: _onSearchUp,
       onSearchDown: _onSearchDown,
       searchMatchCount: _searchMatchIds.length,
-      searchMatchIndex: _currentSearchMatchIndex,
+      searchMatchIndex: _searchMatchIds.isEmpty
+          ? 0
+          : (_searchMatchIds.length - 1 - _currentSearchMatchIndex),
       hasLeftGroup: false,
       groupMembers: [],
     );
@@ -4429,7 +4497,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                       )
                       .where((m) => m.isNotEmpty)
                       .toList();
-                 // log("allMessagesssss $newDbMessages");
+                  // log("allMessagesssss $newDbMessages");
                   // newDbMessages = _inferGrouping(newDbMessages);
 
                   // 🔥 3) MERGE: keep local reactions if server doesn't send them
@@ -4736,7 +4804,17 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                   .toString();
 
                               final bool isHighlighted =
-                                  _highlightedMessageId == messageId;
+                                  _highlightedMessageId == messageId ||
+                                      (message['is_grouped_message'] == true &&
+                                          message['group_message_id'] != null &&
+                                          _highlightedMessageId != null &&
+                                          groupedMessages.any((m) =>
+                                              m['group_message_id']
+                                                      ?.toString() ==
+                                                  message['group_message_id']
+                                                      ?.toString() &&
+                                              _anyId(m)?.toString() ==
+                                                  _highlightedMessageId));
                               final List<GroupMediaItem> groupMedia = [];
 
                               // 🔥 FIX: Properly determine if message is sent by current user
@@ -4854,6 +4932,20 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                         messageId.isNotEmpty) {
                                       _messageContexts[messageId] = ctx;
                                     }
+
+                                    // Register all individual messages in the group
+                                    for (final item in groupMedia) {
+                                      final msg = item.message;
+                                      if (msg != null) {
+                                        final id = (msg['message_id'] ??
+                                                msg['messageId'] ??
+                                                msg['id'])
+                                            ?.toString();
+                                        if (id != null && id.isNotEmpty) {
+                                          _messageContexts[id] = ctx;
+                                        }
+                                      }
+                                    }
                                     return Column(
                                       crossAxisAlignment: isSentByMe
                                           ? CrossAxisAlignment.end
@@ -4868,6 +4960,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                               horizontal: 8.0, vertical: 4.0),
                                           child: GroupedMediaWidget(
                                               isSelectionMode: _isSelectionMode,
+                                              searchText:
+                                                  _searchController.text,
                                               onLongPress: () {
                                                 final grouped =
                                                     _getGroupedMessages(
@@ -4887,8 +4981,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                               },
                                               buildReactionsBar:
                                                   (msg, sentByMe) =>
-                                                      _buildReactionsBar(
-                                                          msg, sentByMe),
+                                                  _buildReactionsBar(
+                                                      msg, sentByMe),
                                               onReact: (msg, emoji) {
                                                 setState(() {
                                                   _handleReactionTap(
@@ -4935,8 +5029,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                                   message['time']),
                                               messageStatus:
                                                   message['messageStatus']
-                                                          ?.toString() ??
-                                                      'sent',
+                                                      ?.toString() ??
+                                                  'sent',
                                               buildStatusIcon: (status) =>
                                                   MessageStatusIcon(
                                                     status: status,

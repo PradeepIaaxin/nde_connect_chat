@@ -36,13 +36,12 @@ class GroupMessageResponse extends Equatable {
   factory GroupMessageResponse.fromJson(Map<String, dynamic> json) {
     final rawData = json['data'];
 
-    final List<GroupMessageGroup> groups =
-        rawData is List
-            ? rawData
-                .whereType<Map<String, dynamic>>()
-                .map((g) => GroupMessageGroup.fromJson(g))
-                .toList()
-            : [];
+    final List<GroupMessageGroup> groups = rawData is List
+        ? rawData
+            .whereType<Map<String, dynamic>>()
+            .map((g) => GroupMessageGroup.fromJson(g))
+            .toList()
+        : [];
 
     return GroupMessageResponse(
       data: groups,
@@ -83,13 +82,12 @@ class GroupMessageGroup {
   factory GroupMessageGroup.fromJson(Map<String, dynamic> json) {
     final rawMessages = json['messages'];
 
-    final List<GroupMessageModel> parsedMessages =
-        rawMessages is List
-            ? rawMessages
-                .whereType<Map<String, dynamic>>()
-                .map((m) => GroupMessageModel.fromJson(m))
-                .toList()
-            : [];
+    final List<GroupMessageModel> parsedMessages = rawMessages is List
+        ? rawMessages
+            .whereType<Map<String, dynamic>>()
+            .map((m) => GroupMessageModel.fromJson(m))
+            .toList()
+        : [];
 
     return GroupMessageGroup(
       label: json['label']?.toString() ?? '',
@@ -191,7 +189,9 @@ class GroupMessageModel {
           .toList(),
       messageType: json['messageType']?.toString() ?? '',
       messageStatus: json['messageStatus']?.toString(),
-      reply: json['reply'] is Map ? Map<String, dynamic>.from(json['reply']) : null,
+      reply: json['reply'] is Map
+          ? Map<String, dynamic>.from(json['reply'])
+          : null,
       messageId: json['message_id']?.toString() ?? '',
       fileWithText: json['file_with_text'] ?? false,
       content: json['content']?.toString() ?? '',
@@ -331,8 +331,8 @@ class Property {
         isRead: json['is_read'] ?? false,
         isDeleted: json['is_deleted'] ?? false,
         isEdited: json['is_edited'] ?? false,
-        sentTime:
-            DateTime.tryParse(json['time']?['sent_time'] ?? '') ?? DateTime.now(),
+        sentTime: DateTime.tryParse(json['time']?['sent_time'] ?? '') ??
+            DateTime.now(),
         isStarred: json['is_starred'] ?? false,
         isLiked: json['is_liked'] ?? false,
         isPinned: json['is_pinned'] ?? false,
@@ -364,7 +364,6 @@ class Property {
         'updatedAt': updatedAt.toIso8601String(),
       };
 }
-
 
 /// =======================================
 ///  TEMP MESSAGE FOR IMMEDIATE UI DISPLAY
