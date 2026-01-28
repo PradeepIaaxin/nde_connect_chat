@@ -30,6 +30,7 @@ class _WhatsAppRecorderWidgetState extends State<WhatsAppRecorderWidget> {
   bool isPaused = false;
   Timer? _timer;
   int _recordDuration = 0;
+  static const int _minRecordDuration = 1; // seconds
 
   @override
   void initState() {
@@ -247,16 +248,69 @@ class _WhatsAppRecorderWidgetState extends State<WhatsAppRecorderWidget> {
     });
   }
 
+  // void _stopAndSend() async {
+  //   _timer?.cancel();
+  //   // Stop player before sending to release file lock if any
+  //   await audioPlayer?.stop();
+  //
+  //   final path = await recorderController.stop();
+  //   // widget.onStop(); // Close the widget
+  //   if (path != null) {
+  //     widget.onSend(path, _recordDuration);
+  //   }
+  // }
+  void _showTooShortMessage() {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text(
+          "Recording too short",
+          style: TextStyle(color: Colors.white),
+        ),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Colors.black87,
+      ),
+    );
+  }
+
   void _stopAndSend() async {
     _timer?.cancel();
-    // Stop player before sending to release file lock if any
+
+    // Stop playback if running
     await audioPlayer?.stop();
 
     final path = await recorderController.stop();
-    // widget.onStop(); // Close the widget
-    if (path != null) {
-      widget.onSend(path, _recordDuration);
+
+    // ❌ DISCARD if duration < 1 second
+    if (_recordDuration < _minRecordDuration || path == null) {
+      debugPrint("⛔ Recording too short, discarded");
+      _showTooShortMessage();
+      // delete temp file
+      if (path != null) {
+        final file = File(path);
+        if (await file.exists()) {
+          await file.delete();
+        }
+      }
+
+      // reset state
+      setState(() {
+        _recordDuration = 0;
+        isRecording = false;
+        isPaused = false;
+        isPlayerReady = false;
+      });
+
+      // close recorder UI (like WhatsApp)
+      widget.onStop();
+      return;
     }
+
+    // ✅ VALID recording → send
+    widget.onSend(path, _recordDuration);
   }
 
   void _cancelRecording() async {

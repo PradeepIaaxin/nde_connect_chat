@@ -1,52 +1,183 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
-class ViewImage extends StatelessWidget {
+class ViewImage extends StatefulWidget {
   final String username;
   final String imageurl;
   final String? grpname;
+  final String heroTag;
 
   const ViewImage({
     super.key,
     required this.imageurl,
     required this.username,
     this.grpname,
+    required this.heroTag,
   });
 
   @override
+  State<ViewImage> createState() => _ViewImageState();
+}
+
+class _ViewImageState extends State<ViewImage>
+    with SingleTickerProviderStateMixin {
+  double _dragOffset = 0;
+  double _bgOpacity = 1;
+  bool _showAppBar = true;
+
+  final TransformationController _controller = TransformationController();
+  TapDownDetails? _doubleTapDetails;
+
+  @override
+  void initState() {
+    super.initState();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (widget.imageurl.isNotEmpty) {
+      precacheImage(CachedNetworkImageProvider(widget.imageurl), context);
+    }
+  }
+
+  @override
+  void dispose() {
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _handleDoubleTap() {
+    if (_controller.value != Matrix4.identity()) {
+      _controller.value = Matrix4.identity();
+      _showAppBar = true;
+    } else {
+      final position = _doubleTapDetails!.localPosition;
+      _controller.value = Matrix4.identity()
+        ..translate(-position.dx * 2, -position.dy * 2)
+        ..scale(3.0);
+      _showAppBar = false;
+    }
+    setState(() {});
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final String displayName = username.isNotEmpty
-        ? username
-        : (grpname?.isNotEmpty == true ? grpname! : '');
+    final String displayName = widget.username.isNotEmpty
+        ? widget.username
+        : (widget.grpname?.isNotEmpty == true ? widget.grpname! : '');
 
     return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        iconTheme: const IconThemeData(color: Colors.white),
-        shadowColor: Colors.grey.shade700,
-        elevation: 2,
-        title: Text(
-          displayName,
-          style: const TextStyle(color: Colors.white),
-        ),
-      ),
-      body: Center(
-        child: SizedBox(
-          width: double.infinity,
-          height: 450,
-          child: imageurl.isEmpty
-              ? const Center(
-                  child: Text(
-                    "No Profile photo",
-                    style: TextStyle(color: Colors.white, fontSize: 15),
+      backgroundColor: Colors.black.withOpacity(_bgOpacity),
+      body: Stack(
+        children: [
+          /// ================= IMAGE VIEW =================
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onDoubleTapDown: (d) => _doubleTapDetails = d,
+            onDoubleTap: _handleDoubleTap,
+            onVerticalDragUpdate: (details) {
+              _dragOffset += details.delta.dy;
+              _bgOpacity = (1 - (_dragOffset.abs() / 400)).clamp(0.0, 1.0);
+              setState(() {});
+            },
+            onVerticalDragEnd: (details) {
+              final velocity = details.primaryVelocity ?? 0;
+
+              // WhatsApp velocity dismiss
+              if (_dragOffset.abs() > 180 || velocity.abs() > 800) {
+                Navigator.pop(context);
+              } else {
+                _dragOffset = 0;
+                _bgOpacity = 1;
+                setState(() {});
+              }
+            },
+            child: Center(
+              child: Transform.translate(
+                offset: Offset(0, _dragOffset),
+                child: RepaintBoundary(
+                  child: Hero(
+                    tag: widget.heroTag,
+                    child: InteractiveViewer(
+                      transformationController: _controller,
+                      panEnabled: true,
+                      minScale: 1,
+                      maxScale: 4,
+                      boundaryMargin: const EdgeInsets.all(double.infinity),
+                      onInteractionStart: (_) {
+                        setState(() => _showAppBar = false);
+                      },
+                      onInteractionEnd: (_) {
+                        setState(() => _showAppBar = true);
+                      },
+                      child: widget.imageurl.isEmpty
+                          ? const Text(
+                              "No Profile photo",
+                              style: TextStyle(color: Colors.white),
+                            )
+                          : CachedNetworkImage(
+                              imageUrl: widget.imageurl,
+                              fit: BoxFit.contain,
+                              memCacheWidth: 1440,
+                              fadeInDuration: const Duration(milliseconds: 120),
+                              placeholder: (c, _) => const Center(
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                ),
+                              ),
+                              errorWidget: (_, __, ___) => const Icon(
+                                Icons.error,
+                                color: Colors.white,
+                                size: 40,
+                              ),
+                            ),
+                    ),
                   ),
-                )
-              : Image.network(
-                  imageurl,
-                  filterQuality: FilterQuality.high,
-                  fit: BoxFit.fitHeight,
                 ),
-        ),
+              ),
+            ),
+          ),
+
+          /// ================= TOP BAR (AUTO HIDE) =================
+          if (_showAppBar)
+            SafeArea(
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 200),
+                opacity: _bgOpacity,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  color: Colors.black.withOpacity(0.35),
+                  child: Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child:
+                            const Icon(Icons.arrow_back, color: Colors.white),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          displayName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

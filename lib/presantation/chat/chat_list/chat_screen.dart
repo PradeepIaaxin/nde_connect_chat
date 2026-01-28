@@ -273,7 +273,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
   }
 
   List<Datu> _applySearchAndFilters(List<Datu> input) {
-    // Store the full list for "Select All" functionality
     _allChats = List.from(input);
 
     var filtered = input.where((chat) => chat.isArchived != true).toList();
@@ -856,7 +855,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                                   grpChat: true,
                                                   favorite:
                                                       chat.isFavourite ?? false,
-                                               groupId: chat.groupId,
+                                                  groupId: chat.groupId,
                                                 )
                                               : PrivateChatScreen(
                                                   userName: chat.name ??

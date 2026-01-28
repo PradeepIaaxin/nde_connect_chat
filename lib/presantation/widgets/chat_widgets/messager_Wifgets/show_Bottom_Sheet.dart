@@ -82,6 +82,7 @@ class ShowAltDialog {
                                   senderId: senderId!,
                                   receiverId: receiverId!,
                                   isGroupChat: isGroupChat ?? false,
+                                  mediaContent:"Gallery" ,
                                 ),
                               ),
                             );
@@ -130,11 +131,13 @@ class ShowAltDialog {
                                   senderId: senderId!,
                                   receiverId: receiverId!,
                                   isGroupChat: isGroupChat ?? false,
+                                  mediaContent:"Video" ,
                                 ),
                               ),
                             );
 
                             // ✅ Return messages to chat
+                            Navigator.of(context).pop();
                             if (localMessages != null &&
                                 localMessages.isNotEmpty) {
                               onOptionSelected(localMessages);
@@ -159,6 +162,7 @@ class ShowAltDialog {
                                   senderId: senderId!,
                                   receiverId: receiverId!,
                                   isGroupChat: isGroupChat ?? false,
+                                  mediaContent:"Camera" ,
                                 ),
                               ),
                             );
@@ -190,6 +194,7 @@ class ShowAltDialog {
                                   senderId: senderId!,
                                   receiverId: receiverId!,
                                   isGroupChat: isGroupChat ?? false,
+                                  mediaContent:"Document" ,
                                 ),
                               ),
                             );
@@ -250,7 +255,9 @@ class ShowAltDialog {
                 final xfile = XFile(path);
 
                 // 🔥 GET AUDIO DURATION
-                final durationFormatted = await getAudioDurationFormatted(path);
+               // final durationFormatted = await getAudioDurationFormatted(path);
+                final durationFormatted = await getAudioDurationInSeconds(path);
+               // log("🎧 Audio duration: $durationFormatted");
                 log("🎧 Audio duration: $durationFormatted");
 
                 Navigator.of(context).pop();
@@ -264,6 +271,9 @@ class ShowAltDialog {
                       senderId: senderId!,
                       receiverId: receiverId!,
                       isGroupChat: isGroupChat ?? false,
+                      mediaContent:"Audio" ,
+                      duration: durationFormatted.toString(),
+
                     ),
                   ),
                 );
@@ -487,7 +497,6 @@ class ShowAltDialog {
     log(" File path saved to session: ${fileFile.path}");
   }
 
-  double maxVideoSizeMb = 10.0;
 
   static Future<Map<String, dynamic>?> sendFile({
     required BuildContext context,
@@ -521,26 +530,26 @@ class ShowAltDialog {
 
       final double sizeInMb = sizeInBytes / (1024 * 1024);
 
-      if (isVideo && sizeInMb > maxVideoSizeMb) {
-        // show dialog and STOP sending
-        showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text('File too large'),
-            content: Text(
-              'This video is ${sizeInMb.toStringAsFixed(1)} MB.\n'
-              'Maximum allowed size is $maxVideoSizeMb MB.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
-        return null;
-      }
+      // if (isVideo && sizeInMb > maxVideoSizeMb) {
+      //   // show dialog and STOP sending
+      //   showDialog(
+      //     context: context,
+      //     builder: (_) => AlertDialog(
+      //       title: const Text('File too large'),
+      //       content: Text(
+      //         'This video is ${sizeInMb.toStringAsFixed(1)} MB.\n'
+      //         'Maximum allowed size is $maxVideoSizeMb MB.',
+      //       ),
+      //       actions: [
+      //         TextButton(
+      //           onPressed: () => Navigator.pop(context),
+      //           child: const Text('OK'),
+      //         ),
+      //       ],
+      //     ),
+      //   );
+      //   return null;
+      // }
       log("📄 Detected MIME type: $mimeType");
       log("🖼️ Is Image: $isImage");
 
@@ -619,7 +628,23 @@ class ShowAltDialog {
       return null;
     }
   }
- static Future<String> getAudioDurationFormatted(String path) async {
+  static Future<int> getAudioDurationInSeconds(String path) async {
+    final player = AudioPlayer();
+
+    try {
+      await player.setFilePath(path);
+      await player.load(); // ✅ ensure duration is ready
+
+      final duration = player.duration;
+      return duration?.inSeconds ?? 0;
+    } catch (e) {
+      return 0;
+    } finally {
+      await player.dispose();
+    }
+  }
+
+  static Future<String> getAudioDurationFormatted(String path) async {
     final player = AudioPlayer();
 
     try {
@@ -639,6 +664,7 @@ class ShowAltDialog {
       await player.dispose();
     }
   }
+
   static Widget _buildOption(
     BuildContext context,
     IconData icon,
