@@ -1,10 +1,16 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
+import 'package:nde_email/presantation/chat/chat_group_Screen/GroupChatScreen.dart';
 import 'package:nde_email/presantation/chat/chat_list/chat_response_model.dart';
 import 'package:nde_email/presantation/chat/chat_list/chat_subtitle_widget.dart';
 import 'package:nde_email/presantation/chat/chat_list/chat_trailing_widget.dart';
 import 'package:nde_email/presantation/chat/widget/profile_avatar.dart';
 import 'package:nde_email/presantation/chat/widget/profile_dialog.dart';
 import 'package:nde_email/utils/datetime/text_utils.dart';
+
+import '../chat_ userprofile_screen/User_Profile_Screen.dart';
+import '../chat_private_screen/Private_Chat_Screen.dart';
 
 class ChatListTile extends StatelessWidget {
   final Datu chat;
@@ -147,10 +153,99 @@ class ChatListTile extends StatelessWidget {
         userName: chat.firstName ?? "",
         groupName: chat.name ?? "",
         actions: [
-          ProfileAction(icon: Icons.chat, label: 'Chat', onTap: () {}),
-          ProfileAction(icon: Icons.call, label: 'Call', onTap: () {}),
-          ProfileAction(icon: Icons.videocam, label: 'Video', onTap: () {}),
-          ProfileAction(icon: Icons.info, label: 'Info', onTap: () {}),
+          /// ✅ OPEN CHAT SCREEN
+          ProfileAction(
+            icon: Icons.chat,
+            label: 'Chat',
+            onTap: () {
+              Navigator.pop(context); // close dialog
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => chat.isGroupChat == true
+                      ? GroupChatScreen(
+                          groupName: chat.name ?? 'Group Chat',
+                          groupAvatarUrl: profileAvatarUrl,
+                          groupMembers: chat.participants?.cast<String>() ?? [],
+                          currentUserId: "", // pass real userId
+                          conversationId: chat.id ?? "",
+                          datumId: chat.datumId ?? "",
+                          grpChat: true,
+                          favorite: chat.isFavourite ?? false,
+                          groupId: chat.groupId,
+                        )
+                      : PrivateChatScreen(
+                          userName: displayName,
+                          profileAvatarUrl: profileAvatarUrl,
+                          sharedFiles: const [],
+                          lastSeen: chat.lastMessageTime?.toString() ?? "",
+                          convoId: chat.id ?? "",
+                          datumId: chat.datumId,
+                          firstname: chat.firstName,
+                          receiverId: chat.reciverId,
+                          grpChat: false,
+                          lastname: chat.lastName,
+                          favourite: chat.isFavourite ?? false,
+                        ),
+                ),
+              );
+            },
+          ),
+
+          /// ✅ CALL (ADD YOUR SCREEN)
+          ProfileAction(
+            icon: Icons.call,
+            label: 'Call',
+            onTap: () {
+              Navigator.pop(context);
+              debugPrint("Call tapped ${chat.id}");
+            },
+          ),
+
+          /// ✅ VIDEO CALL
+          ProfileAction(
+            icon: Icons.videocam,
+            label: 'Video',
+            onTap: () {
+              Navigator.pop(context);
+              debugPrint("Video tapped ${chat.id}");
+            },
+          ),
+
+          /// ✅ OPEN PROFILE / INFO SCREEN
+          ProfileAction(
+            icon: Icons.info,
+            label: 'Info',
+            onTap: () {
+              log(chat.toString());
+              Navigator.pop(context);
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => UserProfileScreen(
+                    profileAvatarUrl: chat.isGroupChat == true
+                        ? chat.profilePic ?? ""
+                        : chat.profilePic ?? "",
+                    userName: chat.isGroupChat == true
+                        ? chat.name ?? "Group"
+                        : chat.firstName ?? "",
+                    mailName:
+                        chat.isGroupChat == true ? "" : chat.lastName ?? "",
+                    lastname:
+                        chat.isGroupChat == true ? "" : chat.lastName ?? "",
+                    conversionalId: chat.conversationId ?? "",
+                    grpId: chat.groupId,
+                    isGrp: chat.isGroupChat ?? false,
+                    reciverId:
+                        chat.isGroupChat == true ? "" : chat.reciverId ?? "",
+                    favourite: chat.isFavourite ?? false,
+                  ),
+                ),
+              );
+            },
+          ),
         ],
       ),
     );

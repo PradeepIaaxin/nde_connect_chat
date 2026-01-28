@@ -253,13 +253,6 @@ class _GroupNameEditScreenState extends State<GroupNameEditScreen> {
                 hintText:
                     isGroupName ? 'Enter group name' : 'Enter description',
                 prefixIcon: const Icon(Icons.edit, color: chatColor),
-                suffixIcon: isGroupName
-                    ? IconButton(
-                        icon: const Icon(Icons.emoji_emotions_outlined,
-                            color: Colors.grey),
-                        onPressed: () {},
-                      )
-                    : null,
                 filled: true,
                 fillColor: Colors.grey[100],
                 contentPadding:

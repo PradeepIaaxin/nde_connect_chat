@@ -162,6 +162,7 @@ class MessagerApiService {
       rethrow;
     }
   }
+
   Future<Map<String, String>> refreshAttachmentUrls(List<String> keys) async {
     final token = await UserPreferences.getAccessToken();
     final workspace = await UserPreferences.getDefaultWorkspace();
@@ -185,82 +186,6 @@ class MessagerApiService {
     return Map<String, String>.from(data["urls"]);
   }
 
-  // Future<List<Datum>> fetchMessages({
-  //   required String convoId,
-  //   required int page,
-  //   required int limit,
-  // }) async {
-  //   final token = await UserPreferences.getAccessToken();
-  //   final workspace = await UserPreferences.getDefaultWorkspace();
-
-  //   const baseUrl = 'https://api.nowdigitaleasy.com/wschat/v1/messages';
-
-  //   final uri = Uri.parse(baseUrl).replace(queryParameters: {
-  //     "convoId": convoId,
-  //     "page": page.toString(),
-  //     "limit": limit.toString(),
-  //   });
-
-  //   final response = await http.get(
-  //     uri,
-  //     headers: {
-  //       "Authorization": "Bearer $token",
-  //       "x-workspace": workspace ?? "",
-  //       "Content-Type": "application/json",
-  //     },
-  //   );
-
-  //   if (response.statusCode != 200) {
-  //     throw Exception("Failed to fetch messages");
-  //   }
-
-  //   final jsonData = jsonDecode(response.body);
-  //   // log(jsonData.toString());
-
-  //   // ================= SNAPSHOT FLOW =================
-  //   if (jsonData["snapshot"] != null) {
-  //     final snapshotBase64 = jsonData["snapshot"];
-  //     log("📥 Snapshot received");
-
-  //     await resetGlobalDoc();
-
-  //     final jsonString =
-  //         await decodeMessageSnapshot(snapshotBase64: snapshotBase64);
-
-  //     final decoded = jsonDecode(jsonString);
-  //     // log("🧪 RAW SNAPSHOT JSON → $decoded");
-
-  //     final Map messageMap = decoded["messages"] ?? {};
-  //     final List<Datum> flat = [];
-
-  //     for (final entry in messageMap.entries) {
-  //       flat.add(Datum.fromJson(Map<String, dynamic>.from(entry.value)));
-  //     }
-
-  //     // sort like web
-  //     flat.sort((a, b) {
-  //       final at = DateTime.tryParse(a.created_at) ?? DateTime(1970);
-  //       final bt = DateTime.tryParse(b.created_at) ?? DateTime(1970);
-  //       return at.compareTo(bt);
-  //     });
-
-  //     return flat;
-  //   }
-
-  //   // ================= NORMAL REST FLOW (fallback) =================
-  //   final List groups = jsonData["data"] ?? [];
-  //   final List<Datum> flat = [];
-
-  //   for (final g in groups) {
-  //     final msgs = g["messages"] ?? [];
-  //     for (final m in msgs) {
-  //       flat.add(Datum.fromJson(m));
-  //     }
-  //   }
-
-  //   return flat;
-  // }
-
   /// =============================
   ///  NORMALIZE MESSAGE IDs
   /// =============================
@@ -277,60 +202,6 @@ class MessagerApiService {
 
     return messageId;
   }
-
-  /// =============================
-  ///       ADD REACTION
-  /// =============================
-
-  // Future<void> reactionUpdated({
-  //   required String messageId,
-  //   required String emoji,
-  //   required String receiverId,
-  //   required String userId,
-  //   required String conversationId,
-  // }) async {
-  //   try {
-  //     final token = await UserPreferences.getAccessToken();
-  //     final defaultWorkspace = await UserPreferences.getDefaultWorkspace();
-
-  //     final roomId = generateRoomId(userId, receiverId);
-  //     final normalizedId = _normalizeMessageIdForApi(messageId);
-
-  //     const baseUrl = 'https://api.nowdigitaleasy.com/wschat/v1/messages/react';
-
-  //     final body = {
-  //       "conversationId": conversationId,
-  //       "messageId": normalizedId,
-  //       "emoji": emoji,
-  //       "roomId": roomId,
-  //     };
-
-  //     log('📡 reactionUpdated → POST $baseUrl');
-  //     log('📦 body = $body');
-
-  //     final response = await http.post(
-  //       Uri.parse(baseUrl),
-  //       headers: {
-  //         'Authorization': 'Bearer $token',
-  //         'x-workspace': defaultWorkspace ?? "",
-  //         'Content-Type': 'application/json',
-  //       },
-  //       body: jsonEncode(body),
-  //     );
-  //     log('📤 reactionUpdated body: $body');
-  //     log('📥 reactionUpdated status: ${response.statusCode}');
-  //     log('📥 reactionUpdated response: ${response.body}');
-
-  //     log('📥 reactionUpdated status=${response.statusCode}');
-  //     log('📥 reactionUpdated body=${response.body}');
-
-  //     if (response.statusCode != 200) {
-  //       log('❌ Backend rejected reaction');
-  //     }
-  //   } catch (e) {
-  //     log("❌ Error in reactionUpdated: $e");
-  //   }
-  // }
 
   /// =============================
   ///   REMOVE REACTION
@@ -452,6 +323,7 @@ class MessagerApiService {
     }
   }
 }
+
 Future<void> makePhoneCall(String phoneNumber) async {
   final Uri url = Uri.parse('tel:$phoneNumber');
 

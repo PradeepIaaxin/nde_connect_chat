@@ -65,15 +65,6 @@ class _DeviceScreenState extends State<DeviceScreen> {
                     fit: BoxFit.cover,
                   ),
 
-                 
-
-                  // Image.asset(
-                  //   "assets/gif/LinkDevice.gif",
-                  //   height: 200,
-                  //   width: 300,
-                  //   fit: BoxFit.contain,
-                  // ),
-
                   // 🔥 DEVICE STATUS TITLE
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16),

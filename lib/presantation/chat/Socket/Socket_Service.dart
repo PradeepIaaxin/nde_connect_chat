@@ -415,6 +415,24 @@ class SocketService {
     _slog('All event handlers registered once');
   }
 
+  void emitDeleteChat({
+    required List<String> conversationIds,
+    required bool isDeleted,
+  }) {
+    if (!isConnected) {
+      log("❌ Socket not connected deleteChat");
+      return;
+    }
+
+    final payload = {
+      "conversationIds": conversationIds,
+      "isDeleted": isDeleted,
+    };
+
+    log("📤 chat:delete emit => $payload");
+    socket!.emit("chat:delete", payload);
+  }
+
   Future<bool> emitReaction({
     required String emoji,
     required String roomId,
