@@ -5819,6 +5819,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         _sendAudioMessage(path, duration);
       },
       groupMembers: _groupMembersList,
+      currentUserId: currentUserId,
     );
   }
 
