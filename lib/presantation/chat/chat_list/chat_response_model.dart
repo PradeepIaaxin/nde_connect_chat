@@ -79,6 +79,7 @@ class Datu {
   String? draftMessage;
   String? reciverId;
   String? groupId;
+  bool? isDeleted;
 
   List<String>? participants;
 
@@ -110,6 +111,7 @@ class Datu {
     this.reciverId,
     this.participants,
     this.onlineParticipants,
+    this.isDeleted,
     this.groupId,
   });
 
@@ -135,9 +137,11 @@ class Datu {
     bool? isFavourite,
     String? groupName,
     String? draftMessage,
+    bool ? isDeleted,
     String? reciverId,
     List<String>? participants,
     List<String>? onlineParticipants,
+
     String? groupId,
   }) =>
       Datu(
@@ -164,6 +168,7 @@ class Datu {
         draftMessage: draftMessage ?? this.draftMessage,
         reciverId: reciverId ?? this.reciverId,
         participants: participants ?? this.participants,
+        isDeleted: isDeleted ?? this.isDeleted,
         onlineParticipants: onlineParticipants ?? this.onlineParticipants,
         groupId: groupId ?? this.groupId,
       );
@@ -181,7 +186,7 @@ class Datu {
             : null,
         unreadCount: json["unreadCount"] ?? 0,
         reciverId: json["receiverId"] ?? "",
-
+        isDeleted: json["isDeleted"] ?? false,
         firstName: json["first_name"] ?? "",
         lastName: json["last_name"] ?? "",
         name: json["name"] ?? "",
@@ -236,6 +241,7 @@ class Datu {
         "lastMessageSender": lastMessageSender,
         "conversationId": conversationId,
         "isPinned": isPinned,
+        'isDeleted' : isDeleted,
         "isArchived": isArchived,
         "isFavourite": isFavourite,
         "groupName": groupName,

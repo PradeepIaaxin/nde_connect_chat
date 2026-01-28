@@ -1,3 +1,4 @@
+import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
@@ -31,36 +32,18 @@ void main() async {
   await InternetService.initialize();
 
   await Firebase.initializeApp();
-    await AwesomeNotificationService.init();
+  await AwesomeNotificationService.init();
+
+  // Handle app opened from notification (TERMINATED)
+  final action = await AwesomeNotifications().getInitialNotificationAction();
 
   // ================= FCM INIT =================
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-
-// Awesome Notification Init
-
-
-// Local Notification Init
-  // await LocalNotificationService.initialize();
 
   FirebaseMessaging.onMessage.listen((message) {
     print("🔥 FCM DATA: ${message.data}");
     AwesomeNotificationService.show(message);
   });
-
-  // FirebaseMessaging.onMessage.listen((message) {
-  //   // print("Android auto notification = ${message.notification != null}");
-
-  //   // print("=========== FCM DEBUG ===========");
-  //   // print("Data: ${message.data}");
-  //   // print(
-  //   //     "Notification: ${message.notification?.title} | ${message.notification?.body}");
-  //   // print("MessageId: ${message.messageId}");
-  //   // print("Time: ${DateTime.now()}");
-  //   // print("================================");
-
-  //   print('calling notification..');
-  //   LocalNotificationService.show(message);
-  // });
 
 // Notification click
   FirebaseMessaging.onMessageOpenedApp.listen((message) {
@@ -98,8 +81,7 @@ void main() async {
   }
   // PARALLEL INIT — MAX SPEED
   await initializeStorage();
-  // await NotificationService.init();
-  //await NotificationService.requestPermission();
+
   // ✅ check first
   final status = await Permission.storage.status;
   if (!status.isGranted) {
@@ -121,6 +103,12 @@ void main() async {
   }
 
   runApp(MyRootApp(isLoggedIn: isLoggedIn, isFirstOpen: isFirstOpen));
+  // OPEN CHAT WHEN APP OPENED FROM NOTIFICATION
+  if (action != null) {
+    Future.delayed(const Duration(seconds: 1), () {
+      AwesomeNotificationService.openChatFromPayload(action.payload);
+    });
+  }
 }
 
 Future<void> getFcmToken() async {
@@ -152,7 +140,7 @@ Future<void> _connectSocketOnStartup(String refreshToken) async {
 
     if (success) {
       log("SOCKET CONNECTED AT TOP LEVEL — PERSISTENT & LIGHTNING FAST");
-      // await socketService.ensureConnected();
+
       await socketService.initialize();
     }
   } catch (e) {

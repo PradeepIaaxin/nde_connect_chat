@@ -14,6 +14,7 @@ import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/Me
 import 'package:nde_email/presantation/chat/device/screen/device_screen.dart';
 import 'package:nde_email/presantation/drive/common/search_bar_chat.dart';
 import 'package:nde_email/presantation/network/connectivity_servicer.dart';
+import 'package:nde_email/utils/custom/custom_alret_box.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
 import 'package:nde_email/utils/reusbale/endrawer.dart';
 import 'package:nde_email/utils/reusbale/reusable_popup_menu.dart';
@@ -50,8 +51,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
   final ScrollController _scrollController = ScrollController();
   double _lastScrollOffset = 0.0;
-
-  final baseURL = "https://api.nowdigitaleasy.com/wschat/v1";
 
   String? gmail;
   String? profilePicUrl;
@@ -103,7 +102,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
       }
     });
 
-    /// 🌐 Internet status listenerkj
     _internetSub =
         InternetService.connectionStreams.listen((hasInternet) async {
       if (!mounted) return;
@@ -275,7 +273,11 @@ class _ChatListScreenState extends State<ChatListScreen> {
   List<Datu> _applySearchAndFilters(List<Datu> input) {
     _allChats = List.from(input);
 
-    var filtered = input.where((chat) => chat.isArchived != true).toList();
+    // var filtered = input.where((chat) => chat.isArchived != true).toList();
+    var filtered = input
+        .where((chat) => chat.isArchived != true)
+        .where((chat) => chat.isDeleted != true)
+        .toList();
     filtered = filtered.where(chatFilters[selectedFilter]!).toList();
 
     final searchText = _searchController.text.trim().toLowerCase();
@@ -562,8 +564,47 @@ class _ChatListScreenState extends State<ChatListScreen> {
             if (selectedUsers.isNotEmpty)
               IconButton(
                 icon: const Icon(Icons.delete_outline, color: Colors.black),
-                onPressed: () {
-                  _clearSelection();
+                onPressed: () async {
+                  CustomConfirmationDialog.show(
+                    context: context,
+                    title: "Delete Items!",
+                    message: "Are you sure you want to delete selected items?",
+                    icon: Icons.delete_outline,
+                    iconColor: Colors.red,
+                    confirmColor: Colors.red,
+                    onConfirm: () async {
+                      final ids = selectedUsers
+                          .map((c) => c.conversationId ?? c.id ?? "")
+                          .where((e) => e.isNotEmpty)
+                          .toList();
+
+                      // Send to backend
+                      SocketService().emitDeleteChat(
+                        conversationIds: ids,
+                        isDeleted: true,
+                      );
+
+                      // ✅ MARK AS DELETED LOCALLY (IMPORTANT FIX)
+                      setState(() {
+                        for (var chat in _allChats) {
+                          if (ids.contains(chat.conversationId)) {
+                            chat.isDeleted = true;
+                          }
+                        }
+
+                        selectedUsers.clear();
+                        longPressed = false;
+                      });
+
+                      // // ✅ Save local cache (if using Hive)
+                      // ChatSessionStorage.saveChatList(_allChats);
+
+                      // // ✅ Update bloc UI
+                      // context.read<ChatListBloc>().add(UpdateLocalChatList());
+
+                      Messenger.alertSuccess("Deleted Successfully");
+                    },
+                  );
                 },
               ),
             if (selectedUsers.isNotEmpty)
