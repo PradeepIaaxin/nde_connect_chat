@@ -6,10 +6,10 @@ class GroupRepliedMessagePreview extends StatefulWidget {
   final VoidCallback? onTap;
   final Map<String, dynamic> receiver;
   final bool isSender;
-
   final int? groupMediaLength;
+
   const GroupRepliedMessagePreview({
-    super.key, 
+    super.key,
     required this.replied,
     this.onTap,
     required this.receiver,
@@ -27,6 +27,7 @@ class _GroupRepliedMessagePreviewState
   @override
   Widget build(BuildContext context) {
     const double thumbSize = 42;
+
     final replyContent =
         (widget.replied['replyContent'] ?? widget.replied['content'] ?? '')
             .toString();
@@ -51,10 +52,11 @@ class _GroupRepliedMessagePreviewState
             .toString()
             .toLowerCase();
 
-    // Patch: treat "image_group" as images for grouped replies
     final bool isGroupedImage = contentType == "image_group";
+    final bool isGroupedVideo = contentType == "video_group";
 
-    final bool isVideo = contentType == 'video' ||
+    final bool isVideo = isGroupedVideo ||
+        contentType == 'video' ||
         fileType.startsWith('video/') ||
         ['.mp4', '.mov', '.mkv', '.avi', '.webm']
             .any((ext) => mediaUrl.toLowerCase().contains(ext));
@@ -67,45 +69,30 @@ class _GroupRepliedMessagePreviewState
 
     final bool isAudio = contentType == 'audio' ||
         fileType.startsWith('audio/') ||
-        ['.mp3', '.wav', '.aac', '.m4a', '.flac', '.ogg', '.opus']
+        ['.mp3', '.wav', '.aac', '.m4a']
             .any((ext) => mediaUrl.toLowerCase().contains(ext));
 
     final bool isDocument = !isVideo &&
         !isImage &&
         !isAudio &&
-        ((mediaUrl.isNotEmpty &&
-                !RegExp(r'\.(jpg|jpeg|png|gif|webp|mp4|mov|avi|mkv|webm|mp3|wav|aac|m4a|flac|ogg|opus)(\?|$)')
-                    .hasMatch(mediaUrl.toLowerCase())) ||
-            (widget.replied['fileName'] != null &&
-                widget.replied['fileName'].toString().isNotEmpty) ||
-            (fileType.isNotEmpty &&
-                !fileType.startsWith('image/') &&
-                !fileType.startsWith('video/') &&
-                !fileType.startsWith('audio/')) ||
-            contentType == 'file' ||
-            contentType == 'document');
+        (contentType == 'file' || contentType == 'document');
 
-    // Debug logging to identify MIME type issues
-    if (widget.replied['fileName'] != null || mediaUrl.isNotEmpty) {
-      //debugPrint(
-          //'DEBUG GroupRepliedMessagePreview: contentType="$contentType", fileType="$fileType", fileName="${widget.replied['fileName']}", mediaUrl="$mediaUrl"');
-      //debugPrint(
-          //'DEBUG GroupRepliedMessagePreview: isVideo=$isVideo, isImage=$isImage, isAudio=$isAudio, isDocument=$isDocument');
-    }
-
-    if (replyContent.isEmpty && mediaUrl.isEmpty && !isAudio && !isDocument) {
+    if (replyContent.isEmpty &&
+        mediaUrl.isEmpty &&
+        !isAudio &&
+        !isDocument &&
+        !isImage &&
+        !isVideo) {
       return const SizedBox.shrink();
     }
 
+    // ---------------- THUMB ----------------
+
     Widget? buildThumb() {
       if (isImage && mediaUrl.startsWith('/')) {
-        return Image.file(
-          File(mediaUrl),
-          fit: BoxFit.cover,
-        );
+        return Image.file(File(mediaUrl), fit: BoxFit.cover);
       }
 
-      /// ✅ IMAGE
       if (isImage) {
         return CachedNetworkImage(
           imageUrl: mediaUrl,
@@ -115,56 +102,30 @@ class _GroupRepliedMessagePreviewState
         );
       }
 
-      if (isDocument) {
-        return Container(
-          color: Colors.grey.shade300,
-          child: const Center(
-            child: Icon(Icons.insert_drive_file, color: Colors.white, size: 20),
-          ),
-        );
-      }
-
       if (isVideo) {
         return FutureBuilder<File?>(
           future: VideoThumbUtil.generateFromUrl(mediaUrl),
           builder: (context, snapshot) {
             final thumbFile = snapshot.data;
-            if (thumbFile == null) {
-              return ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: Container(
-                  color: Colors.black26,
-                  child: const Center(
-                    child: Icon(Icons.videocam, color: Colors.white, size: 16),
-                  ),
-                ),
-              );
-            }
 
-            if (thumbFile.existsSync()) {
+            if (thumbFile != null && thumbFile.existsSync()) {
               return Stack(
                 alignment: Alignment.center,
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: Image.file(
-                      thumbFile,
-                      width: thumbSize,
-                      height: thumbSize,
-                      fit: BoxFit.cover,
-                    ),
+                  Image.file(
+                    thumbFile,
+                    width: thumbSize,
+                    height: thumbSize,
+                    fit: BoxFit.cover,
                   ),
-                  const Icon(
-                    Icons.play_circle_fill,
-                    color: Colors.white,
-                    size: 20,
-                  ),
+                  const Icon(Icons.play_circle_fill,
+                      color: Colors.white, size: 20),
                 ],
               );
             }
 
             return Container(
-              color: Colors.grey.shade300,
+              color: Colors.black26,
               child: const Center(
                 child: Icon(Icons.videocam, color: Colors.white, size: 16),
               ),
@@ -172,129 +133,140 @@ class _GroupRepliedMessagePreviewState
           },
         );
       }
+
+      if (isDocument) {
+        return Container(
+          color: Colors.grey.shade300,
+          child: const Center(
+            child: Icon(Icons.insert_drive_file, color: Colors.white, size: 18),
+          ),
+        );
+      }
+
       return null;
     }
+
+    // ---------------- MAIN ----------------
 
     return GestureDetector(
       onTap: widget.onTap,
       child: Container(
-        margin: const EdgeInsets.all(6),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        margin: const EdgeInsets.only(bottom: 6, top: 6, left: 4, right: 4),
+        padding: const EdgeInsets.only(right: 2, top: 5, bottom: 5, left: 3),
         decoration: BoxDecoration(
           color: const Color.fromARGB(255, 231, 235, 249),
-          border: Border(left: BorderSide(color: Colors.blueAccent, width: 5)),
+          border: const Border(
+            left: BorderSide(color: Colors.blueAccent, width: 5),
+          ),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(width: 5),
-            Flexible(
-              fit: FlexFit.loose,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    widget.isSender
-                        ? 'You'
-                        : (widget.replied['senderName'] ??
-                                widget.replied['userName'] ??
-                                widget.replied['first_name'] ??
-                                widget.replied['replyToUser'] ??
-                                'Unknown User')
-                            .toString(),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  if (isVideo)
-                    Text(
-                      widget.groupMediaLength != null &&
-                              widget.groupMediaLength! > 1
-                          ? 'Video x ${widget.groupMediaLength}'
-                          : 'Video',
-                      style: const TextStyle(fontSize: 12),
-                    )
-                  else if (isAudio)
-                    Row(
+
+        /// ❗ only change here: let text shrink when needed
+        child: IntrinsicWidth(
+          child: Row(
+            mainAxisSize: MainAxisSize.max,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              /// -------- TEXT SIDE --------
+              Expanded(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: thumbSize),
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 6),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.music_note,
-                            size: 16, color: Colors.grey),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            widget.replied['duration'] != null
-                                ? 'Audio (${widget.replied['duration']})'
-                                : 'Audio',
-                            style: const TextStyle(fontSize: 12),
-                            overflow: TextOverflow.ellipsis,
+                        Text(
+                          widget.isSender
+                              ? 'You'
+                              : (widget.replied['senderName'] ??
+                                      widget.replied['userName'] ??
+                                      widget.replied['first_name'] ??
+                                      widget.replied['replyToUser'] ??
+                                      'Unknown User')
+                                  .toString(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                      ],
-                    )
-                  else if (isImage)
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Flexible(
-                          child: Text(
+                        const SizedBox(height: 2),
+                        if (isVideo)
+                          Text(
+                            widget.groupMediaLength != null &&
+                                    widget.groupMediaLength! > 1
+                                ? 'Video x ${widget.groupMediaLength}'
+                                : 'Video',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 12),
+                          )
+                        else if (isAudio)
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.music_note,
+                                  size: 16, color: Colors.grey),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  widget.replied['duration'] != null
+                                      ? 'Audio (${widget.replied['duration']})'
+                                      : 'Audio',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ),
+                            ],
+                          )
+                        else if (isImage)
+                          Text(
                             widget.groupMediaLength != null &&
                                     widget.groupMediaLength! > 1
                                 ? 'Photo x ${widget.groupMediaLength}'
                                 : 'Photo',
-                            style: const TextStyle(fontSize: 12),
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    )
-                  else if (isDocument)
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.insert_drive_file,
-                            size: 16, color: Colors.grey),
-                        const SizedBox(width: 4),
-                        const Flexible(
-                          child: Text(
+                            style: const TextStyle(fontSize: 12),
+                          )
+                        else if (isDocument)
+                          const Text(
                             'Document',
                             style: TextStyle(fontSize: 12),
+                          )
+                        else
+                          Text(
+                            replyContent,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 11),
                           ),
-                        ),
                       ],
-                    )
-                  else
-                    Text(
-                      replyContent,
-                      maxLines: 2,
-                      style: const TextStyle(
-                        overflow: TextOverflow.ellipsis,
-                        fontSize: 11,
-                      ),
                     ),
-                ],
-              ),
-            ),
-            if ((isImage || isVideo) &&
-                mediaUrl.isNotEmpty &&
-                (widget.groupMediaLength ?? 0) <= 1) ...[
-              const SizedBox(width: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: SizedBox(
-                  width: thumbSize,
-                  height: thumbSize,
-                  child: buildThumb(),
+                  ),
                 ),
               ),
+
+              /// -------- THUMB --------
+              if ((isImage || isVideo) &&
+                  mediaUrl.isNotEmpty &&
+                  (widget.groupMediaLength ?? 0) <= 1) ...[
+                const SizedBox(width: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: SizedBox(
+                    width: thumbSize,
+                    height: thumbSize,
+                    child: buildThumb(),
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

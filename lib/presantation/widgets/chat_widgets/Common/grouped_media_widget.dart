@@ -12,6 +12,8 @@ class GroupedMediaWidget extends StatelessWidget {
   final bool isSentByMe;
   final String time;
   final String messageStatus;
+  final String? searchText;
+  final bool isHighlighted;
 
   const GroupedMediaWidget({
     super.key,
@@ -21,6 +23,8 @@ class GroupedMediaWidget extends StatelessWidget {
     this.isSentByMe = false,
     this.time = '',
     this.messageStatus = '',
+    this.searchText,
+    this.isHighlighted = false,
   });
 
   @override
@@ -33,23 +37,31 @@ class GroupedMediaWidget extends StatelessWidget {
     final double bubbleWidth =
         screenWidth < 600 ? screenWidth * 0.65 : screenWidth * 0.5;
 
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: bubbleWidth),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: _buildLayout(context),
-          ),
-          if (caption != null && caption!.isNotEmpty && caption != "null")
-            MessageCaption(
-              content: caption!,
-              time: time,
-              isSentByMe: isSentByMe,
-              messageStatus: messageStatus,
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeOut,
+      color: isHighlighted
+          ? Colors.blueAccent.withValues(alpha: 0.3)
+          : Colors.transparent,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: bubbleWidth),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: _buildLayout(context),
             ),
-        ],
+            if (caption != null && caption!.isNotEmpty && caption != "null")
+              MessageCaption(
+                content: caption!,
+                time: time,
+                isSentByMe: isSentByMe,
+                messageStatus: messageStatus,
+                searchText: searchText,
+              ),
+          ],
+        ),
       ),
     );
   }
