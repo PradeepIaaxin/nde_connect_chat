@@ -29,6 +29,8 @@ class MessageInputField extends StatefulWidget {
   final bool isRecordingLocked;
   final List<Map<String, dynamic>>? groupMembers;
 
+  final String? currentUserId;
+
   const MessageInputField({
     super.key,
     required this.messageController,
@@ -51,6 +53,7 @@ class MessageInputField extends StatefulWidget {
     this.onSendRecording,
     this.isRecordingLocked = false,
     this.groupMembers,
+    this.currentUserId,
   });
 
   @override
@@ -796,6 +799,14 @@ class _MessageInputFieldState extends State<MessageInputField> {
               _filteredMembers = widget.groupMembers!.where((member) {
                 // Handle both direct keys and nested 'user' object
                 final user = member['user'] ?? member;
+                final memberId =
+                    (user['_id'] ?? user['id'] ?? user['member_id'] ?? '')
+                        .toString();
+
+                if (widget.currentUserId != null &&
+                    memberId == widget.currentUserId) {
+                  return false;
+                }
 
                 // Check for various name keys
                 final firstName = user['first_name'] ?? user['firstName'] ?? '';
