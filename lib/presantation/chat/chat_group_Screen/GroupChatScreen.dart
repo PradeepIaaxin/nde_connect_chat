@@ -3680,6 +3680,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                   _anyId(message)?.toString() ?? '';
                               final bool isHighlighted =
                                   _highlightedMessageId == messageId;
+                              final bool isGroupSelected = groupMessagesList
+                                  .any((m) => _selectedMessageKeys
+                                      .contains(_generateMessageKey(m)));
 
                               return _hasLeftGroup
                                   ? const SizedBox.shrink()
@@ -3723,196 +3726,293 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                   child: Stack(
                                                     clipBehavior: Clip.none,
                                                     children: [
-                                                      Padding(
-                                                        padding:
-                                                            EdgeInsets.only(
-                                                                left: isSentByMe
-                                                                    ? 0
-                                                                    : 36),
-                                                        child: Container(
-                                                          padding:
-                                                              const EdgeInsets
-                                                                  .all(7),
-                                                          constraints:
-                                                              BoxConstraints(
-                                                            maxWidth: MediaQuery.of(
-                                                                        context)
-                                                                    .size
-                                                                    .width *
-                                                                0.75,
-                                                          ),
-                                                          decoration:
-                                                              BoxDecoration(
-                                                            color: isSentByMe
-                                                                ? senderColor
-                                                                : receiverColor,
-                                                            borderRadius:
-                                                                BorderRadius
-                                                                    .only(
-                                                              topLeft:
-                                                                  const Radius
-                                                                      .circular(
-                                                                      18),
-                                                              topRight:
-                                                                  const Radius
-                                                                      .circular(
-                                                                      18),
-                                                              bottomLeft: isSentByMe
-                                                                  ? const Radius
-                                                                      .circular(
-                                                                      18)
-                                                                  : Radius.zero,
-                                                              bottomRight: isSentByMe
-                                                                  ? Radius.zero
-                                                                  : const Radius
-                                                                      .circular(
-                                                                      16),
-                                                            ),
-                                                            boxShadow: [
-                                                              BoxShadow(
-                                                                color: Colors
-                                                                    .black
-                                                                    .withOpacity(
-                                                                        0.05),
-                                                                blurRadius: 4,
-                                                                offset:
-                                                                    const Offset(
-                                                                        0, 2),
-                                                              ),
-                                                            ],
-                                                          ),
-                                                          child: Column(
-                                                            crossAxisAlignment:
-                                                                CrossAxisAlignment
-                                                                    .start,
-                                                            children: [
-                                                              if (!isSentByMe &&
-                                                                  userName
-                                                                      .isNotEmpty)
-                                                                Padding(
-                                                                  padding:
-                                                                      const EdgeInsets
-                                                                          .only(
-                                                                          bottom:
-                                                                              4.0),
-                                                                  child: Text(
-                                                                    userName,
-                                                                    style:
-                                                                        TextStyle(
-                                                                      fontWeight:
-                                                                          FontWeight
-                                                                              .bold,
-                                                                      color: ColorUtil
-                                                                          .getColorFromAlphabet(
-                                                                              userName),
-                                                                      fontSize:
-                                                                          14,
-                                                                    ),
-                                                                  ),
-                                                                ),
-                                                              Stack(
-                                                                children: [
-                                                                  GroupedMediaWidget(
-                                                                    mediaUrls:
-                                                                        groupImages,
-                                                                    caption:
-                                                                        message[
-                                                                            'content'],
-                                                                    isSentByMe:
-                                                                        isSentByMe,
-                                                                    time: message[
-                                                                            'time'] ??
-                                                                        '',
-                                                                    messageStatus:
-                                                                        message['messageStatus']?.toString() ??
-                                                                            'sent',
-                                                                    onMediaTap:
-                                                                        (index) {
-                                                                      final media =
-                                                                          buildConversationMedia(
-                                                                        combinedMessages,
-                                                                        currentUserId:
-                                                                            currentUserId,
-                                                                      );
-                                                                      final tappedUrl =
-                                                                          groupImages[
-                                                                              index];
-                                                                      final startIndex = media.indexWhere((m) =>
-                                                                          m.mediaUrl ==
-                                                                          tappedUrl);
+                                                      GestureDetector(
+                                                        behavior:
+                                                            HitTestBehavior
+                                                                .opaque,
+                                                        onTap: () {
+                                                          if (_isSelectionMode) {
+                                                            for (final gm
+                                                                in groupMessagesList) {
+                                                              _toggleMessageSelection(
+                                                                  gm);
+                                                            }
+                                                          }
+                                                        },
+                                                        onLongPress: () {
+                                                          if (!isDeleted) {
+                                                            _showReactionPicker(
+                                                                context,
+                                                                message);
+                                                          }
 
-                                                                      if (startIndex !=
-                                                                          -1) {
-                                                                        Navigator
-                                                                            .push(
-                                                                          context,
-                                                                          MaterialPageRoute(
-                                                                            builder: (_) =>
-                                                                                MixedMediaViewer(
-                                                                              items: media,
-                                                                              initialIndex: startIndex,
-                                                                            ),
-                                                                          ),
-                                                                        );
-                                                                      }
-                                                                    },
-                                                                  ),
-                                                                  if (message['content'] ==
-                                                                          null ||
-                                                                      message['content']
-                                                                          .toString()
-                                                                          .isEmpty)
-                                                                    Positioned(
-                                                                      bottom: 5,
-                                                                      right: 5,
-                                                                      child:
-                                                                          Container(
-                                                                        padding: const EdgeInsets
-                                                                            .symmetric(
-                                                                            horizontal:
-                                                                                6,
-                                                                            vertical:
-                                                                                2),
-                                                                        decoration:
-                                                                            BoxDecoration(
-                                                                          color: Colors
-                                                                              .black
-                                                                              .withOpacity(0.45),
-                                                                          borderRadius:
-                                                                              BorderRadius.circular(8),
-                                                                        ),
-                                                                        child:
-                                                                            Row(
-                                                                          mainAxisSize:
-                                                                              MainAxisSize.min,
-                                                                          children: [
-                                                                            Text(
-                                                                              TimeUtils.formatUtcToIst(message['time']),
-                                                                              style: const TextStyle(fontSize: 10, color: Colors.white),
-                                                                            ),
-                                                                            if (isSentByMe) ...[
-                                                                              const SizedBox(width: 4),
-                                                                              Builder(builder: (context) {
-                                                                                final status = message['messageStatus']?.toString() ?? 'sent';
-                                                                                switch (status) {
-                                                                                  case 'sent':
-                                                                                    return const Icon(Icons.check, size: 12, color: Colors.white);
-                                                                                  case 'delivered':
-                                                                                    return const Icon(Icons.done_all_rounded, size: 12, color: Colors.white);
-                                                                                  case 'read':
-                                                                                    return const Icon(Icons.done_all, size: 12, color: Colors.blueAccent);
-                                                                                  default:
-                                                                                    return const Icon(Icons.access_time, size: 12, color: Colors.white);
-                                                                                }
-                                                                              }),
-                                                                            ],
-                                                                          ],
-                                                                        ),
+                                                          setState(() {
+                                                            _isSelectionMode =
+                                                                true;
+                                                          });
+
+                                                          for (final gm
+                                                              in groupMessagesList) {
+                                                            _toggleMessageSelection(
+                                                                gm);
+                                                          }
+                                                        },
+                                                        child: Padding(
+                                                          padding:
+                                                              EdgeInsets.only(
+                                                                  left:
+                                                                      isSentByMe
+                                                                          ? 0
+                                                                          : 38),
+                                                          child: Container(
+                                                            margin:
+                                                                EdgeInsets.only(
+                                                              left: isSentByMe
+                                                                  ? 0
+                                                                  : 0,
+                                                              right: 0,
+                                                              top: 0,
+                                                              bottom: (message[
+                                                                              'reactions'] !=
+                                                                          null &&
+                                                                      message['reactions']
+                                                                          .isNotEmpty)
+                                                                  ? 20
+                                                                  : 0,
+                                                            ),
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .all(7),
+                                                            constraints:
+                                                                BoxConstraints(
+                                                              maxWidth: MediaQuery.of(
+                                                                          context)
+                                                                      .size
+                                                                      .width *
+                                                                  0.75,
+                                                            ),
+                                                            decoration:
+                                                                BoxDecoration(
+                                                              color: isGroupSelected
+                                                                  ? senderColor
+                                                                      .withOpacity(
+                                                                          0.2)
+                                                                  : (isSentByMe
+                                                                      ? senderColor
+                                                                      : receiverColor),
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .only(
+                                                                topLeft:
+                                                                    const Radius
+                                                                        .circular(
+                                                                        18),
+                                                                topRight:
+                                                                    const Radius
+                                                                        .circular(
+                                                                        18),
+                                                                bottomLeft: isSentByMe
+                                                                    ? const Radius
+                                                                        .circular(
+                                                                        18)
+                                                                    : Radius
+                                                                        .zero,
+                                                                bottomRight: isSentByMe
+                                                                    ? Radius
+                                                                        .zero
+                                                                    : const Radius
+                                                                        .circular(
+                                                                        16),
+                                                              ),
+                                                              border: isGroupSelected
+                                                                  ? Border.all(
+                                                                      color: Colors
+                                                                          .blue,
+                                                                      width: 2)
+                                                                  : null,
+                                                              boxShadow: const [
+                                                                BoxShadow(
+                                                                  color: Colors
+                                                                      .black12,
+                                                                  blurRadius: 4,
+                                                                  offset:
+                                                                      Offset(
+                                                                          0, 2),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                            child: Column(
+                                                              crossAxisAlignment:
+                                                                  CrossAxisAlignment
+                                                                      .start,
+                                                              children: [
+                                                                if (!isSentByMe &&
+                                                                    userName
+                                                                        .isNotEmpty)
+                                                                  Padding(
+                                                                    padding: const EdgeInsets
+                                                                        .only(
+                                                                        bottom:
+                                                                            4.0),
+                                                                    child: Text(
+                                                                      userName,
+                                                                      style:
+                                                                          TextStyle(
+                                                                        fontWeight:
+                                                                            FontWeight.bold,
+                                                                        color: ColorUtil.getColorFromAlphabet(
+                                                                            userName),
+                                                                        fontSize:
+                                                                            14,
                                                                       ),
                                                                     ),
-                                                                ],
-                                                              ),
-                                                            ],
+                                                                  ),
+                                                                Stack(
+                                                                  clipBehavior:
+                                                                      Clip.none,
+                                                                  children: [
+                                                                    Padding(
+                                                                      padding:
+                                                                          EdgeInsets
+                                                                              .only(
+                                                                        bottom: (message['reactions'] != null &&
+                                                                                message['reactions'].isNotEmpty)
+                                                                            ? 5
+                                                                            : 0,
+                                                                      ),
+                                                                      child:
+                                                                          GroupedMediaWidget(
+                                                                        mediaUrls:
+                                                                            groupImages,
+                                                                        caption:
+                                                                            message['content'],
+                                                                        isSentByMe:
+                                                                            isSentByMe,
+                                                                        time: message['time'] ??
+                                                                            '',
+                                                                        messageStatus:
+                                                                            message['messageStatus']?.toString() ??
+                                                                                'sent',
+                                                                        onMediaTap:
+                                                                            (index) {
+                                                                          final media =
+                                                                              buildConversationMedia(
+                                                                            combinedMessages,
+                                                                            currentUserId:
+                                                                                currentUserId,
+                                                                          );
+                                                                          final tappedUrl =
+                                                                              groupImages[index];
+                                                                          final startIndex = media.indexWhere((m) =>
+                                                                              m.mediaUrl ==
+                                                                              tappedUrl);
+
+                                                                          if (startIndex !=
+                                                                              -1) {
+                                                                            Navigator.push(
+                                                                              context,
+                                                                              MaterialPageRoute(
+                                                                                builder: (_) => MixedMediaViewer(
+                                                                                  items: media,
+                                                                                  initialIndex: startIndex,
+                                                                                ),
+                                                                              ),
+                                                                            );
+                                                                          }
+                                                                        },
+                                                                      ),
+                                                                    ),
+                                                                    if (message['content'] ==
+                                                                            null ||
+                                                                        message['content']
+                                                                            .toString()
+                                                                            .isEmpty)
+                                                                      Positioned(
+                                                                        bottom:
+                                                                            5,
+                                                                        right:
+                                                                            5,
+                                                                        child:
+                                                                            Container(
+                                                                          padding: const EdgeInsets
+                                                                              .symmetric(
+                                                                              horizontal: 6,
+                                                                              vertical: 2),
+                                                                          decoration:
+                                                                              BoxDecoration(
+                                                                            color:
+                                                                                Colors.black.withOpacity(0.45),
+                                                                            borderRadius:
+                                                                                BorderRadius.circular(8),
+                                                                          ),
+                                                                          child:
+                                                                              Row(
+                                                                            mainAxisSize:
+                                                                                MainAxisSize.min,
+                                                                            children: [
+                                                                              Text(
+                                                                                TimeUtils.formatUtcToIst(message['time']),
+                                                                                style: const TextStyle(fontSize: 10, color: Colors.white),
+                                                                              ),
+                                                                              if (isSentByMe) ...[
+                                                                                const SizedBox(width: 4),
+                                                                                Builder(builder: (context) {
+                                                                                  final status = message['messageStatus']?.toString() ?? 'sent';
+                                                                                  switch (status) {
+                                                                                    case 'sent':
+                                                                                      return const Icon(Icons.check, size: 12, color: Colors.white);
+                                                                                    case 'delivered':
+                                                                                      return const Icon(Icons.done_all_rounded, size: 12, color: Colors.white);
+                                                                                    case 'read':
+                                                                                      return const Icon(Icons.done_all, size: 12, color: Colors.blueAccent);
+                                                                                    default:
+                                                                                      return const Icon(Icons.access_time, size: 12, color: Colors.white);
+                                                                                  }
+                                                                                }),
+                                                                              ],
+                                                                            ],
+                                                                          ),
+                                                                        ),
+                                                                      ),
+                                                                    if (message['reactions'] !=
+                                                                            null &&
+                                                                        message['reactions']
+                                                                            .isNotEmpty)
+                                                                      Positioned(
+                                                                        bottom:
+                                                                            -16,
+                                                                        right: isSentByMe
+                                                                            ? 5
+                                                                            : null,
+                                                                        left: isSentByMe
+                                                                            ? null
+                                                                            : 2,
+                                                                        child:
+                                                                            GestureDetector(
+                                                                          behavior:
+                                                                              HitTestBehavior.translucent,
+                                                                          onTap:
+                                                                              () {
+                                                                            log("Reaction tapped");
+                                                                            final reactions =
+                                                                                _extractReactions(message['reactions']);
+                                                                            final firstEmoji = reactions.isNotEmpty
+                                                                                ? (reactions.first['emoji']?.toString() ?? '')
+                                                                                : '';
+                                                                            _showReactionsBottomSheet(message,
+                                                                                firstEmoji);
+                                                                          },
+                                                                          child:
+                                                                              _buildReactionsBar(
+                                                                            message,
+                                                                            isSentByMe,
+                                                                          ),
+                                                                        ),
+                                                                      ),
+                                                                  ],
+                                                                ),
+                                                              ],
+                                                            ),
                                                           ),
                                                         ),
                                                       ),
