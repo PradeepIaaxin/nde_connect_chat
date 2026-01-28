@@ -24,7 +24,6 @@ class GroupedMediaWidget extends StatelessWidget {
   final Function(Map<String, dynamic> message, String emoji)? onReact;
   final Map<String, dynamic> message;
   final String? caption;
-
   final Widget Function(Map<String, dynamic> msg, bool isSentByMe)?
       buildReactionsBar;
   final List<String> recentEmojis;
@@ -33,6 +32,7 @@ class GroupedMediaWidget extends StatelessWidget {
   final Color selectedMessageColor;
   final VoidCallback? onLongPress;
   final bool isSelectionMode;
+  final String? searchText;
 
   const GroupedMediaWidget(
       {super.key,
@@ -58,13 +58,14 @@ class GroupedMediaWidget extends StatelessWidget {
       required this.selectedMessageColor,
       this.onLongPress,
       required this.isSelectionMode,
-      this.caption});
+      this.caption,
+      this.searchText});
 
   static const double _statusBarHeight = 20;
 
   @override
   Widget build(BuildContext context) {
-  //  print("isSelected $isSelected");
+    //  print("isSelected $isSelected");
     if (media.isEmpty) return const SizedBox.shrink();
 
     final screenWidth = MediaQuery.of(context).size.width;
@@ -172,6 +173,7 @@ class GroupedMediaWidget extends StatelessWidget {
                               isSentByMe: isSentByMe,
                               messageStatus: messageStatus,
                               buildStatusIcon: buildStatusIcon,
+                              searchText: searchText,
                             ),
                           ),
                       ],
@@ -652,6 +654,9 @@ class GroupMediaItem {
     required this.isVideo,
     this.senderName,
     this.senderId,
-    this.time,  this.uniqueId,  this.isReactions, this.message,
+    this.time,
+    this.uniqueId,
+    this.isReactions,
+    this.message,
   });
 }

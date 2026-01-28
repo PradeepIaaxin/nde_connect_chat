@@ -11,7 +11,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_sound/public/flutter_sound_player.dart';
 import 'package:flutter_sound/public/flutter_sound_recorder.dart';
-import 'package:gallery_saver_plus/files.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mime/mime.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/local_strorage.dart';
@@ -177,6 +176,46 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     return s.replaceAll(RegExp(r'[\uD800-\uDFFF]'), '');
   }
 
+  List<InlineSpan> _buildHighlightSpans(String text, TextStyle baseStyle) {
+    if (_searchController.text.isEmpty ||
+        !text.toLowerCase().contains(_searchController.text.toLowerCase())) {
+      return [TextSpan(text: text, style: baseStyle)];
+    }
+
+    final List<InlineSpan> spans = [];
+    final String query = _searchController.text.toLowerCase();
+    int start = 0;
+    int indexOfMatch;
+    while ((indexOfMatch = text.toLowerCase().indexOf(query, start)) != -1) {
+      if (indexOfMatch > start) {
+        spans.add(TextSpan(
+          text: text.substring(start, indexOfMatch),
+          style: baseStyle,
+        ));
+      }
+
+      spans.add(TextSpan(
+        text: text.substring(indexOfMatch, indexOfMatch + query.length),
+        style: baseStyle.copyWith(
+          backgroundColor: Colors.yellow,
+          color: Colors.black,
+          fontWeight: FontWeight.bold,
+        ),
+      ));
+
+      start = indexOfMatch + query.length;
+    }
+
+    if (start < text.length) {
+      spans.add(TextSpan(
+        text: text.substring(start),
+        style: baseStyle,
+      ));
+    }
+
+    return spans;
+  }
+
   @override
   void dispose() {
     SocketService().clearActiveConversation();
@@ -219,23 +258,50 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       return;
     }
 
-    final matches = _allMessages
-        .where((msg) {
-          final content = msg['content']?.toString().toLowerCase() ?? '';
-          return content.contains(query.toLowerCase()) &&
-              msg['is_deleted'] != true &&
-              msg['messageStatus'] != 'deleted';
-        })
-        .map((msg) => _anyId(msg).toString())
-        .toList();
+    final queryLower = query.toLowerCase();
+    final List<Map<String, dynamic>> combined = _getCombinedMessages();
+    final List<String> matchIds = [];
+    final Set<String> groupMatchIds = {};
+
+    for (final msg in combined) {
+      final content = sanitizeString(msg['content']?.toString()).toLowerCase();
+      final fileName = (msg['fileName']?.toString() ?? '').toLowerCase();
+      final isDeleted = msg['is_deleted'] == true ||
+          msg['messageStatus'] == 'deleted' ||
+          content.contains('this message was deleted');
+      final isSystem = msg['ContentType'] == 'system' ||
+          msg['contentType'] == 'system' ||
+          content.contains('added') ||
+          content.contains('left') ||
+          content.contains('created by');
+
+      if (!isDeleted &&
+          !isSystem &&
+          (content.contains(queryLower) || fileName.contains(queryLower))) {
+        final messageId = _anyId(msg)?.toString() ?? '';
+        if (messageId.isEmpty) continue;
+
+        final groupMsgId = msg['group_message_id']?.toString();
+        if (groupMsgId != null && groupMsgId.isNotEmpty) {
+          if (!groupMatchIds.contains(groupMsgId)) {
+            groupMatchIds.add(groupMsgId);
+            matchIds.add(messageId);
+          }
+        } else {
+          matchIds.add(messageId);
+        }
+      }
+    }
 
     setState(() {
-      _searchMatchIds = matches;
-      if (matches.isNotEmpty) {
-        _currentSearchMatchIndex = 0;
-        _scrollToMessageById(matches[0], fetchIfMissing: false);
+      _searchMatchIds = matchIds;
+      if (matchIds.isNotEmpty) {
+        _currentSearchMatchIndex = matchIds.length - 1;
+        _scrollToMessageById(matchIds[_currentSearchMatchIndex],
+            fetchIfMissing: false);
       } else {
         _currentSearchMatchIndex = -1;
+        Messenger.alert(msg: "No results found");
       }
     });
   }
@@ -271,7 +337,27 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   dynamic _anyId(Map<String, dynamic> m) {
-    return m['message_id'] ?? m['messageId'] ?? m['id'] ?? '';
+    final candidates = [
+      m['message_id'],
+      m['messageId'],
+      m['id'],
+      m['_id'],
+      m['reply_message_id'],
+      m['replyMessageId'],
+      if (m['reply'] is Map) m['reply']['reply_message_id'],
+      if (m['reply'] is Map) m['reply']['message_id'],
+      if (m['reply'] is Map) m['reply']['id'],
+      if (m['repliedMessage'] is Map) m['repliedMessage']['reply_message_id'],
+      if (m['repliedMessage'] is Map) m['repliedMessage']['message_id'],
+      if (m['repliedMessage'] is Map) m['repliedMessage']['id'],
+    ];
+
+    for (final c in candidates) {
+      if (c != null && c.toString().isNotEmpty) {
+        return c.toString();
+      }
+    }
+    return '';
   }
 
   List<String> extractGroupMembers(List<dynamic> messages) {
@@ -927,6 +1013,43 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     // Ensure canonical URLs/filenames
     merged['originalUrl'] =
         merged['originalUrl'] ?? merged['fileUrl'] ?? merged['imageUrl'] ?? '';
+
+    // 🔥 FALLBACK LOOKUP: If URL is still empty, try to find the original message in _allMessages
+    if ((merged['originalUrl'] as String).isEmpty) {
+      final replyId = merged['id'];
+      if (replyId != null && replyId.toString().isNotEmpty) {
+        final originalMsg = _allMessages.firstWhere(
+          (m) =>
+              (m['message_id'] ?? m['messageId'] ?? m['id'] ?? m['_id'])
+                  ?.toString() ==
+              replyId.toString(),
+          orElse: () => <String, dynamic>{},
+        );
+        if (originalMsg.isNotEmpty) {
+          merged['originalUrl'] = originalMsg['originalUrl'] ??
+              originalMsg['fileUrl'] ??
+              originalMsg['imageUrl'] ??
+              '';
+
+          // Also populate other missing fields
+          if (merged['fileName'] == null ||
+              merged['fileName'].toString().isEmpty) {
+            merged['fileName'] = originalMsg['fileName'];
+          }
+          if (merged['mimeType'] == null ||
+              merged['mimeType'].toString().isEmpty) {
+            merged['mimeType'] =
+                originalMsg['mimeType'] ?? originalMsg['fileType'];
+          }
+          if (merged['ContentType'] == null ||
+              merged['ContentType'].toString().isEmpty) {
+            merged['ContentType'] =
+                originalMsg['ContentType'] ?? originalMsg['contentType'];
+          }
+        }
+      }
+    }
+
     merged['imageUrl'] = merged['imageUrl'] ??
         merged['thumbnailUrl'] ??
         merged['originalUrl'] ??
@@ -1486,6 +1609,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       'is_deleted': isDeleted,
       'duration': message['duration']?.toString() ??
           message['videoDuration']?.toString(),
+      'is_grouped_message':
+          message['is_grouped_message'] ?? message['isGroupedMessage'],
+      'group_message_id':
+          message['group_message_id'] ?? message['groupMessageId'],
     };
   }
 
@@ -2147,57 +2274,82 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         "✅ Built group members list from messages: ${_groupMembersList.length} members");
   }
 
-  List<InlineSpan> _buildMessageTextSpans(String content) {
+  List<InlineSpan> _buildMessageTextSpans(String content, bool isDeleted) {
     // Sanitize input before processing for links/mentions to avoid UTF-16 errors
     content = sanitizeString(content);
     final List<InlineSpan> spans = [];
     if (content.isEmpty) return spans;
 
+    if (isDeleted) {
+      return [
+        TextSpan(
+            text: content,
+            style: const TextStyle(fontSize: 15, color: Colors.black87))
+      ];
+    }
+
+    final String query = _searchController.text.toLowerCase();
+    final bool hasSearchMatch =
+        query.isNotEmpty && content.toLowerCase().contains(query);
+
     // 1. Prepare mention regex from group members
-    // Sort by length descending to match longer names first (e.g., "John Doe" before "John")
     final List<String> memberNames = _groupMembersList
         .map((m) => m['full_name']?.toString() ?? "")
         .where((name) => name.isNotEmpty)
         .toList();
     memberNames.sort((a, b) => b.length.compareTo(a.length));
 
-    // Escape special characters in names for regex
     final String escapedNames = memberNames.map(RegExp.escape).join('|');
-    // Pattern matches @ followed by one of the member names
     final String mentionPattern =
         memberNames.isEmpty ? r'(?! )' : '@($escapedNames)';
 
     // 2. Combined regex for URLs and Mentions
     final String urlPattern = r'((https?:\/\/)|(www\.))[^\s]+';
+
+    // If we have a search query, we should also include it in the regex to highlight it
+    // But if we want to support both links/mentions AND search highlights, we need a
+    // structured approach.
+
+    // Simplest is to still use regex but handle overlaps.
+    // For now, let's keep it simple: split by search query first if it's there.
+
+    if (hasSearchMatch) {
+      // Advanced: We'll split the content into searchable parts vs non-searchable?
+      // Actually, the most robust way is a nested loop or a single regex pass.
+      // Let's stick to the single regex pass for links/mentions and then sub-process for search.
+    }
+
     final RegExp combinedRegExp =
         RegExp('$urlPattern|$mentionPattern', caseSensitive: false);
 
     final matches = combinedRegExp.allMatches(content);
-    int start = 0;
+    int lastAppliedOffset = 0;
+
+    void addTextWithSearchHighlight(String text, TextStyle baseStyle) {
+      spans.addAll(_buildHighlightSpans(text, baseStyle));
+    }
 
     for (final match in matches) {
-      // Add text before the match
-      if (match.start > start) {
-        spans.add(
-          TextSpan(
-            text: content.substring(start, match.start),
-            style: const TextStyle(fontSize: 15, color: Colors.black87),
-          ),
+      // Add text before the match (with search highlight if applicable)
+      if (match.start > lastAppliedOffset) {
+        addTextWithSearchHighlight(
+          content.substring(lastAppliedOffset, match.start),
+          const TextStyle(fontSize: 15, color: Colors.black87),
         );
       }
 
       final String matchText = content.substring(match.start, match.end);
 
       if (matchText.startsWith('@')) {
-        // It's a mention
-        spans.add(
-          TextSpan(
-            text: matchText,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-              color: chatColor,
-            ),
+        // It's a mention - apply bold style AND search highlight if it matches query?
+        // Usually we don't highlight search inside mentions if they have their own color,
+        // but user might want it. Let's apply it.
+        addTextWithSearchHighlight(
+          matchText,
+          const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+            color: chatColor,
           ),
         );
       } else {
@@ -2228,16 +2380,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         );
       }
 
-      start = match.end;
+      lastAppliedOffset = match.end;
     }
 
     // Add remaining text
-    if (start < content.length) {
-      spans.add(
-        TextSpan(
-          text: content.substring(start),
-          style: const TextStyle(fontSize: 15, color: Colors.black87),
-        ),
+    if (lastAppliedOffset < content.length) {
+      addTextWithSearchHighlight(
+        content.substring(lastAppliedOffset),
+        const TextStyle(fontSize: 15, color: Colors.black87),
       );
     }
 
@@ -2834,10 +2984,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           : currentMsg['sender']?.toString();
       final currentTime = _parseTime(currentMsg['time']);
 
-      // Check if current message has a caption - don't group if it does
-      final bool currentHasCaption =
-          (currentMsg['content']?.toString() ?? '').isNotEmpty;
-
       for (int j = i + 1; j < messages.length; j++) {
         final nextMsg = messages[j];
         final nextSender = nextMsg['sender'] is Map
@@ -2848,8 +2994,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         // Detect media for next message
         // Detect media for next message
         final bool nextIsMedia = _isGroupableMedia(nextMsg);
-        final bool nextHasCaption =
-            (nextMsg['content']?.toString() ?? '').isNotEmpty;
+        final String nextContent =
+            (nextMsg['content']?.toString() ?? '').trim();
 
         if (nextSender != currentSender ||
             !nextIsMedia ||
@@ -2857,15 +3003,27 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           break;
         }
 
-        // Don't group if either message has a caption
-        if (currentHasCaption || nextHasCaption) {
+        // Handle Captions:
+        // Group only if BOTH have NO caption OR BOTH have IDENTICAL captions
+        final String currentContent =
+            (currentMsg['content']?.toString() ?? '').trim();
+        if (currentContent != nextContent) {
           break;
         }
 
-        // Already grouped by server? Treat as boundary
-        if (nextMsg['is_grouped_message'] == true &&
-            nextMsg['group_message_id'] != null) {
-          break;
+        // Handle group_message_id boundary:
+        // If either has a group_message_id from the server, they must match
+        final String? currentGrpId =
+            (currentMsg['group_message_id'] ?? currentMsg['groupMessageId'])
+                ?.toString();
+        final String? nextGrpId =
+            (nextMsg['group_message_id'] ?? nextMsg['groupMessageId'])
+                ?.toString();
+
+        if (currentGrpId != null || nextGrpId != null) {
+          if (currentGrpId != nextGrpId) {
+            break;
+          }
         }
 
         groupIndices.add(j);
@@ -3181,7 +3339,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         ));
       }
 
-      await Future.delayed(const Duration(milliseconds: 50));
+      // Increased delay and retry attempts for better stability
+      await Future.delayed(const Duration(milliseconds: 150));
 
       final targetCtx = _messageContexts[messageId];
       if (targetCtx != null && targetCtx.mounted) {
@@ -3190,8 +3349,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       }
 
       // Try multiple attempts with refined scrolling
-      for (int attempt = 0; attempt < 3; attempt++) {
-        await Future.delayed(const Duration(milliseconds: 50));
+      for (int attempt = 0; attempt < 5; attempt++) {
+        await Future.delayed(const Duration(milliseconds: 100));
 
         final targetCtx = _messageContexts[messageId];
         if (targetCtx != null && targetCtx.mounted) {
@@ -3229,7 +3388,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           final int end = indexDiff > 0 ? msgIndex : closestVisibleIndex;
 
           for (int k = start; k < end; k++) {
-            correction += _estimateMessageHeight(combined[k]);
+            correction += _estimateMessageHeight(k, combined);
           }
 
           if (indexDiff < 0) correction = -correction;
@@ -3279,8 +3438,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     Scrollable.ensureVisible(
       ctx,
-      duration: const Duration(milliseconds: 400),
+      duration: const Duration(milliseconds: 300),
       curve: Curves.easeOut,
+      alignment: 0.5,
     );
   }
 
@@ -3299,8 +3459,39 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   /// Estimate message height for scroll calculations
-  double _estimateMessageHeight(Map<String, dynamic> message) {
+  double _estimateMessageHeight(
+      int index, List<Map<String, dynamic>> messages) {
+    if (index < 0 || index >= messages.length) return 0.0;
+    final message = messages[index];
+
+    // Date separator logic
+    double separatorHeight = 0.0;
+    final currentTime = _parseTime(message['time']);
+    final prevTime = index > 0 ? _parseTime(messages[index - 1]['time']) : null;
+    if (index == 0 || !isSameDay(currentTime, prevTime)) {
+      separatorHeight = 40.0;
+    }
+
+    // Grouping logic: only the first message in a group has height
+    final isGrouped = message['is_grouped_message'] == true;
+    final groupId = message['group_message_id']?.toString();
+    if (isGrouped && groupId != null && index > 0) {
+      final prev = messages[index - 1];
+      if (prev['is_grouped_message'] == true &&
+          prev['group_message_id']?.toString() == groupId) {
+        return 0.0;
+      }
+    }
+
+    // System message check (voidBox in _buildMessageBubble returns shrink/voidBox)
+    final contentType = message['ContentType'] ?? message['contentType'] ?? "";
     final content = (message['content'] ?? '').toString();
+    if (content.contains('Group created by') ||
+        (contentType == "system" &&
+            (content.contains('added') || content.contains('left')))) {
+      return 0.0 + separatorHeight;
+    }
+
     final hasMedia =
         (message['fileUrl'] ?? message['imageUrl'] ?? '').toString().isNotEmpty;
     final hasReply = _hasReplyForMessage(message);
@@ -3312,10 +3503,16 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       height += lines * 20.0;
     }
 
-    if (hasMedia) height += 120.0;
+    if (hasMedia) {
+      if (isGrouped) {
+        height += 250.0; // Estimate for GroupedMediaWidget
+      } else {
+        height += 120.0;
+      }
+    }
     if (hasReply) height += 60.0;
 
-    return height.clamp(60.0, 300.0);
+    return height.clamp(60.0, 400.0) + separatorHeight;
   }
 
   /// Estimate scroll offset for a given list index
@@ -3323,8 +3520,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       int listIndex, List<Map<String, dynamic>> messages) {
     double offset = 0.0;
 
+    // listIndex is distance from bottom (reversed list)
     for (int i = 0; i < listIndex && i < messages.length; i++) {
-      offset += _estimateMessageHeight(messages[i]);
+      final realIndex = messages.length - 1 - i;
+      if (realIndex >= 0 && realIndex < messages.length) {
+        offset += _estimateMessageHeight(realIndex, messages);
+      }
     }
 
     return offset;
@@ -3679,7 +3880,16 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                               final messageId =
                                   _anyId(message)?.toString() ?? '';
                               final bool isHighlighted =
-                                  _highlightedMessageId == messageId;
+                                  _highlightedMessageId == messageId ||
+                                      (isGroupMessage &&
+                                          groupMessageId != null &&
+                                          _highlightedMessageId != null &&
+                                          combinedMessages.any((m) =>
+                                              m['group_message_id']
+                                                      ?.toString() ==
+                                                  groupMessageId &&
+                                              _anyId(m)?.toString() ==
+                                                  _highlightedMessageId));
 
                               return _hasLeftGroup
                                   ? const SizedBox.shrink()
@@ -3687,7 +3897,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                       duration:
                                           const Duration(milliseconds: 300),
                                       color: isHighlighted
-                                          ? Colors.blueAccent.withOpacity(0.1)
+                                          ? Colors.blueAccent.withOpacity(0.3)
                                           : Colors.transparent,
                                       child: Column(
                                         crossAxisAlignment: isSentByMe
@@ -3815,6 +4025,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                   GroupedMediaWidget(
                                                                     mediaUrls:
                                                                         groupImages,
+                                                                    searchText:
+                                                                        _searchController
+                                                                            .text,
                                                                     caption:
                                                                         message[
                                                                             'content'],
@@ -4043,7 +4256,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                   margin:
                                       const EdgeInsets.symmetric(vertical: 2),
                                   color: isHighlighted
-                                      ? Colors.blueAccent.withOpacity(0.1)
+                                      ? Colors.blueAccent.withOpacity(0.3)
                                       : Colors.transparent,
                                   child: Column(
                                     crossAxisAlignment: isSentByMe
@@ -4422,8 +4635,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                   left: 10,
                                                   right: 6,
                                                   bottom: 8),
-                                          constraints: const BoxConstraints(
-                                              maxWidth: 250),
+                                          constraints: BoxConstraints(
+                                              maxWidth: 250,
+                                              minWidth: hasReply ? 120 : 0),
                                           decoration: BoxDecoration(
                                             color: isSelected
                                                 ? senderColor.withOpacity(0.2)
@@ -4468,12 +4682,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                         userName.isNotEmpty)
                                                       Padding(
                                                         padding:
-                                                            const EdgeInsets
-                                                                .only(
+                                                            EdgeInsets.only(
                                                                 bottom: 4,
                                                                 left: 7,
                                                                 right: 6,
-                                                                top: 0),
+                                                                top: hasReply
+                                                                    ? 6.5
+                                                                    : 0),
                                                         child: Text(
                                                           userName,
                                                           style: TextStyle(
@@ -4800,11 +5015,16 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                               width: 8),
                                                                           Expanded(
                                                                             child:
-                                                                                Text(
-                                                                              fileName ?? 'Download file',
-                                                                              style: const TextStyle(
-                                                                                fontWeight: FontWeight.w500,
-                                                                                overflow: TextOverflow.ellipsis,
+                                                                                RichText(
+                                                                              overflow: TextOverflow.ellipsis,
+                                                                              text: TextSpan(
+                                                                                children: _buildHighlightSpans(
+                                                                                  isDeleted ? '' : (fileName ?? 'Download file'),
+                                                                                  const TextStyle(
+                                                                                    fontWeight: FontWeight.w500,
+                                                                                    color: Colors.black,
+                                                                                  ),
+                                                                                ),
                                                                               ),
                                                                             ),
                                                                           ),
@@ -4939,6 +5159,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                         _buildStatusIcon(
                                                                             status,
                                                                             message),
+                                                                searchText:
+                                                                    _searchController
+                                                                        .text,
+                                                                isDeleted:
+                                                                    isDeleted,
                                                               )
                                                             else
                                                               Padding(
@@ -5081,7 +5306,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                                         overflow: !isExpanded && isTextLong ? TextOverflow.ellipsis : TextOverflow.visible,
                                                                                         text: TextSpan(
                                                                                           children: [
-                                                                                            ..._buildMessageTextSpans(content),
+                                                                                            ..._buildMessageTextSpans(content, isDeleted),
                                                                                             WidgetSpan(
                                                                                               child: SizedBox(width: isSentByMe ? 75 : 60, height: 20),
                                                                                             ),
@@ -5814,7 +6039,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       onSearchUp: _onSearchUp,
       onSearchDown: _onSearchDown,
       searchMatchCount: _searchMatchIds.length,
-      searchMatchIndex: _currentSearchMatchIndex,
+      searchMatchIndex: _searchMatchIds.isEmpty
+          ? 0
+          : (_searchMatchIds.length - 1 - _currentSearchMatchIndex),
       hasLeftGroup: _hasLeftGroup,
     );
   }
