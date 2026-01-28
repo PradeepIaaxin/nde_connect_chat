@@ -80,6 +80,50 @@ class MessageBubble extends StatefulWidget {
 
 class _MessageBubbleState extends State<MessageBubble> {
   List<String> _recentEmojis = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+  List<InlineSpan> _buildHighlightSpans(String text, TextStyle baseStyle) {
+    final bool isDeleted = widget.message['is_deleted'] == true ||
+        widget.message['messageStatus'] == 'deleted';
+
+    if (isDeleted ||
+        widget.searchText == null ||
+        widget.searchText!.isEmpty ||
+        !text.toLowerCase().contains(widget.searchText!.toLowerCase())) {
+      return [TextSpan(text: text, style: baseStyle)];
+    }
+
+    final List<InlineSpan> spans = [];
+    final String query = widget.searchText!.toLowerCase();
+    int start = 0;
+    int indexOfMatch;
+    while ((indexOfMatch = text.toLowerCase().indexOf(query, start)) != -1) {
+      if (indexOfMatch > start) {
+        spans.add(TextSpan(
+          text: text.substring(start, indexOfMatch),
+          style: baseStyle,
+        ));
+      }
+
+      spans.add(TextSpan(
+        text: text.substring(indexOfMatch, indexOfMatch + query.length),
+        style: baseStyle.copyWith(
+          backgroundColor: Colors.yellow,
+          color: Colors.black,
+          fontWeight: FontWeight.bold,
+        ),
+      ));
+
+      start = indexOfMatch + query.length;
+    }
+
+    if (start < text.length) {
+      spans.add(TextSpan(
+        text: text.substring(start),
+        style: baseStyle,
+      ));
+    }
+
+    return spans;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -324,6 +368,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                               messageStatus: messageStatus,
                               buildStatusIcon: widget.buildStatusIcon,
                               searchText: widget.searchText,
+                              isDeleted: isDeleted,
                             )
                           else
                             _buildTextMessage(content, messageStatus),
@@ -543,9 +588,9 @@ class _MessageBubbleState extends State<MessageBubble> {
   //   );
   // }
   void _openConversationViewer(
-      BuildContext context,
-      Map<String, dynamic> tappedMessage,
-      ) {
+    BuildContext context,
+    Map<String, dynamic> tappedMessage,
+  ) {
     final media = buildConversationMedia(
       widget.allMessages,
       currentUserId: widget.currentUserId,
@@ -554,10 +599,10 @@ class _MessageBubbleState extends State<MessageBubble> {
 
     final tappedId =
         tappedMessage['message_id']?.toString() ??
-            tappedMessage['_id']?.toString();
+        tappedMessage['_id']?.toString();
 
     final index = media.indexWhere(
-          (m) => m.message?['message_id']?.toString() == tappedId,
+      (m) => m.message?['message_id']?.toString() == tappedId,
     );
 
     if (index == -1) {
@@ -1104,14 +1149,18 @@ class _MessageBubbleState extends State<MessageBubble> {
                 Icon(_getFileIcon(fileType), color: widget.chatColor, size: 28),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text(
-                    name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                      color: Colors.black87,
-                    ),
+                  child: RichText(
                     overflow: TextOverflow.ellipsis,
+                    text: TextSpan(
+                      children: _buildHighlightSpans(
+                        name,
+                        const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
                 IconButton(
@@ -1289,62 +1338,12 @@ class _MessageBubbleState extends State<MessageBubble> {
                                   },
                               );
                             } else {
-                              if (widget.searchText != null &&
-                                  widget.searchText!.isNotEmpty &&
-                                  element.text.toLowerCase().contains(
-                                      widget.searchText!.toLowerCase())) {
-                                final List<TextSpan> highlightedSpans = [];
-                                final String text = element.text;
-                                final String query =
-                                    widget.searchText!.toLowerCase();
-                                int start = 0;
-                                int indexOfMatch;
-
-                                while ((indexOfMatch = text
-                                        .toLowerCase()
-                                        .indexOf(query, start)) !=
-                                    -1) {
-                                  if (indexOfMatch > start) {
-                                    highlightedSpans.add(TextSpan(
-                                      text: text.substring(start, indexOfMatch),
-                                      style: const TextStyle(
-                                        fontSize: 15,
-                                        color: Colors.black87,
-                                      ),
-                                    ));
-                                  }
-
-                                  highlightedSpans.add(TextSpan(
-                                    text: text.substring(indexOfMatch,
-                                        indexOfMatch + query.length),
-                                    style: const TextStyle(
-                                      fontSize: 15,
-                                      color: Colors.black,
-                                      backgroundColor: Colors.yellow,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ));
-
-                                  start = indexOfMatch + query.length;
-                                }
-
-                                if (start < text.length) {
-                                  highlightedSpans.add(TextSpan(
-                                    text: text.substring(start),
-                                    style: const TextStyle(
-                                      fontSize: 15,
-                                      color: Colors.black87,
-                                    ),
-                                  ));
-                                }
-
-                                return TextSpan(children: highlightedSpans);
-                              }
                               return TextSpan(
-                                text: element.text,
-                                style: const TextStyle(
-                                    fontSize: 15, color: Colors.black87),
-                              );
+                                  children: _buildHighlightSpans(
+                                      element.text,
+                                      const TextStyle(
+                                          fontSize: 15,
+                                          color: Colors.black87)));
                             }
                           }),
                           WidgetSpan(

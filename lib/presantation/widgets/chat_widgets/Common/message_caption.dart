@@ -14,6 +14,7 @@ class MessageCaption extends StatefulWidget {
   final Widget Function(String)?
       buildStatusIcon; // Optional custom status icon builder
   final String? searchText;
+  final bool isDeleted;
 
   const MessageCaption({
     Key? key,
@@ -23,6 +24,7 @@ class MessageCaption extends StatefulWidget {
     this.messageStatus = 'sent',
     this.buildStatusIcon,
     this.searchText,
+    this.isDeleted = false,
   }) : super(key: key);
 
   @override
@@ -142,7 +144,8 @@ class _MessageCaptionState extends State<MessageCaption> {
                                 },
                             );
                           } else {
-                            if (widget.searchText != null &&
+                            if (!widget.isDeleted &&
+                                widget.searchText != null &&
                                 widget.searchText!.isNotEmpty &&
                                 element.text.toLowerCase().contains(
                                     widget.searchText!.toLowerCase())) {
