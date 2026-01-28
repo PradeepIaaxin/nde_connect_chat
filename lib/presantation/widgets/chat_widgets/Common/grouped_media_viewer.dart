@@ -460,7 +460,7 @@ class GroupedMediaWidget extends StatelessWidget {
                             color: Colors.black54,
                             alignment: Alignment.center,
                             child: Text(
-                              '+4',
+                              '+${media.length - 4}',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 24,
@@ -645,7 +645,7 @@ class GroupMediaItem {
   final String? senderId;
   final bool? isReactions;
   final String? time;
-  final String? uniqueId; // 🔥 ADD THIS
+  final String? uniqueId;
   final Map<String, dynamic>? message;
 
   GroupMediaItem({

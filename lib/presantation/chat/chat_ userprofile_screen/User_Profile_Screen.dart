@@ -351,6 +351,7 @@ hasLeftGroup     : $hasLeftGroup
           fullName: fullName,
           isFavorite: isCurrentlyFavourite,
         ),
+        SizedBox(height: 20)
       ],
     );
   }
@@ -442,6 +443,7 @@ hasLeftGroup     : $hasLeftGroup
   Widget _buildCreateGroupTile() {
     return ListTile(
         leading: const CircleAvatar(
+          radius: 24,
           backgroundColor: Colors.green,
           child: Icon(Icons.group_add, color: Colors.white),
         ),

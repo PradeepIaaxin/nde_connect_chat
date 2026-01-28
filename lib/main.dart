@@ -12,8 +12,8 @@ import 'package:nde_email/presantation/update_screen/update_bloc/update_bloc.dar
 import 'package:nde_email/presantation/update_screen/update_repo/update_repo.dart';
 import 'package:nde_email/utils/app_state/app_lifecycle_service.dart';
 import 'package:nde_email/utils/appsharescreen/sharepreviewscreen.dart';
+import 'package:nde_email/utils/fcm_handler/awesome_notification_service.dart';
 import 'package:nde_email/utils/fcm_handler/fcm_handler.dart';
-import 'package:nde_email/utils/fcm_handler/local_notification_service.dart';
 import 'package:nde_email/utils/imports/common_imports.dart';
 import 'dart:io';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
@@ -23,6 +23,7 @@ import 'package:firebase_core/firebase_core.dart';
 // GLOBAL SINGLETONS
 late final SocketService socketService;
 late final WebSocketService webSocketService;
+bool hasIncomingShare = false;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,18 +31,36 @@ void main() async {
   await InternetService.initialize();
 
   await Firebase.initializeApp();
+    await AwesomeNotificationService.init();
 
   // ================= FCM INIT =================
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-// Local Notification Init
-  await LocalNotificationService.initialize();
+// Awesome Notification Init
 
-// Foreground Listener (ONLY DATA messages)
+
+// Local Notification Init
+  // await LocalNotificationService.initialize();
+
   FirebaseMessaging.onMessage.listen((message) {
-    print("🔥 FOREGROUND FCM: ${message.data}");
-    LocalNotificationService.show(message);
+    print("🔥 FCM DATA: ${message.data}");
+    AwesomeNotificationService.show(message);
   });
+
+  // FirebaseMessaging.onMessage.listen((message) {
+  //   // print("Android auto notification = ${message.notification != null}");
+
+  //   // print("=========== FCM DEBUG ===========");
+  //   // print("Data: ${message.data}");
+  //   // print(
+  //   //     "Notification: ${message.notification?.title} | ${message.notification?.body}");
+  //   // print("MessageId: ${message.messageId}");
+  //   // print("Time: ${DateTime.now()}");
+  //   // print("================================");
+
+  //   print('calling notification..');
+  //   LocalNotificationService.show(message);
+  // });
 
 // Notification click
   FirebaseMessaging.onMessageOpenedApp.listen((message) {
@@ -54,30 +73,6 @@ void main() async {
       print("🚀 Opened from killed state: ${message.data}");
     }
   });
-
-// //background
-//   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-
-// //local notification
-//   await LocalNotificationService.initialize();
-
-// //forground listrner
-//   FirebaseMessaging.onMessage.listen((message) {
-//     if (message.notification == null) {
-//       LocalNotificationService.show(message);
-//     }
-//   });
-
-// //Notification click log
-//   FirebaseMessaging.onMessageOpenedApp.listen((message) {
-//     print("👆 Notification clicked: ${message.data}");
-//   });
-
-//   FirebaseMessaging.instance.getInitialMessage().then((message) {
-//     if (message != null) {
-//       print("🚀 Opened from killed state: ${message.data}");
-//     }
-//   });
 
   SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
@@ -103,8 +98,8 @@ void main() async {
   }
   // PARALLEL INIT — MAX SPEED
   await initializeStorage();
-  await NotificationService.init();
-  await NotificationService.requestPermission();
+  // await NotificationService.init();
+  //await NotificationService.requestPermission();
   // ✅ check first
   final status = await Permission.storage.status;
   if (!status.isGranted) {
@@ -274,6 +269,7 @@ class _MyAppState extends State<MyApp> {
     /// 🔹 App opened from share (terminated state)
     _receiveSharingIntent.getInitialMedia().then((files) {
       if (files.isNotEmpty) {
+        hasIncomingShare = true;
         _openShareUI(files);
       }
     });

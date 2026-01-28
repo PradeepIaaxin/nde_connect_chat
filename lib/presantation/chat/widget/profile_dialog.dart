@@ -1,8 +1,6 @@
-import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/user_profile_image.dart';
 import 'package:nde_email/presantation/chat/widget/profile_avatar.dart';
-import 'package:nde_email/utils/router/router.dart';
 
 class ProfileAction {
   final IconData icon;
@@ -15,7 +13,6 @@ class ProfileAction {
     required this.onTap,
   });
 }
-
 class ProfileDialog extends StatelessWidget {
   final String tag;
   final String imageUrl;
@@ -36,19 +33,17 @@ class ProfileDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    log('UserName: $userName, GroupName: $groupName, FallbackText: $fallbackText');
-
     return Dialog(
       backgroundColor: Colors.white,
       insetPadding: EdgeInsets.zero,
       child: TweenAnimationBuilder(
         tween: Tween(begin: 0.0, end: 1.0),
-        duration: const Duration(milliseconds: 300),
+        duration: const Duration(milliseconds: 250),
         builder: (context, value, child) {
           return Opacity(
             opacity: value,
             child: Transform.translate(
-              offset: Offset(0, 50 * (1 - value)),
+              offset: Offset(0, 40 * (1 - value)),
               child: child,
             ),
           );
@@ -56,48 +51,64 @@ class ProfileDialog extends StatelessWidget {
         child: Stack(
           children: [
             Container(
-              width: 350,
+              width: MediaQuery.of(context).size.width * 0.85,
               height: 310,
               color: Colors.white,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  /// Avatar + Hero Animation
+                  /// Hero Avatar
                   Hero(
-                    transitionOnUserGestures: true,
                     tag: tag,
+                    transitionOnUserGestures: true,
                     child: GestureDetector(
                       onTap: () {
-                        MyRouter.push(
-                          screen: ViewImage(
-                            imageurl: imageUrl,
-                            username: userName,
-                            grpname: groupName,
+                        Navigator.of(context).push(
+                          PageRouteBuilder(
+                            transitionDuration:
+                                const Duration(milliseconds: 250),
+                            pageBuilder: (_, __, ___) => ViewImage(
+                              imageurl: imageUrl,
+                              username: userName,
+                              grpname: groupName,
+                              heroTag: tag,
+                            ),
+                            transitionsBuilder:
+                                (_, animation, __, child) {
+                              return FadeTransition(
+                                  opacity: animation, child: child);
+                            },
                           ),
                         );
                       },
-                      child: ProfileAvatar(
-                        imageUrl: imageUrl,
-                        name: userName.isNotEmpty ? userName : fallbackText,
-                        size: 220,
+                      child: RepaintBoundary(
+                        child: ProfileAvatar(
+                          imageUrl: imageUrl,
+                          name: userName.isNotEmpty
+                              ? userName
+                              : fallbackText,
+                          size: 220,
+                        ),
                       ),
                     ),
                   ),
 
-                  const Divider(color: Colors.grey),
+                  const Divider(),
 
                   /// Action Buttons
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: actions.map((action) {
                       return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 10),
                         child: GestureDetector(
                           onTap: action.onTap,
                           child: CircleAvatar(
                             backgroundColor: Colors.white,
                             radius: 28,
-                            child: Icon(action.icon, color: Colors.blue),
+                            child:
+                                Icon(action.icon, color: Colors.blue),
                           ),
                         ),
                       );
@@ -107,21 +118,22 @@ class ProfileDialog extends StatelessWidget {
               ),
             ),
 
-            /// Header with Username / GroupName
+            /// Header Bar
             Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
               child: Container(
-                width: 350,
                 height: 40,
-                decoration: const BoxDecoration(color: Colors.black26),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    userName.isEmpty ? "  $groupName" : "   $userName",
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                color: Colors.black26,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  userName.isEmpty ? groupName ?? "" : userName,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),

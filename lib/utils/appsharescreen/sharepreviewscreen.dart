@@ -6,7 +6,9 @@ import 'package:nde_email/data/respiratory.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_data_model.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/Private_Chat_Screen.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/MediaPreviewScreen.dart';
+import 'package:nde_email/presantation/home/home_screen.dart';
 import 'package:nde_email/utils/appsharescreen/shared_widget.dart';
+import 'package:nde_email/utils/router/router.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 
 class SharePreviewScreen extends StatefulWidget {
@@ -37,7 +39,7 @@ class _SharePreviewScreenState extends State<SharePreviewScreen> {
           fileName.toLowerCase().endsWith('.png');
       final isVideo = fileName.toLowerCase().endsWith('.mp4') ||
           fileName.toLowerCase().endsWith('.mov');
-          final clientId = 'temp_${DateTime.now().microsecondsSinceEpoch}';
+      final clientId = 'temp_${DateTime.now().microsecondsSinceEpoch}';
 
       return {
         'message_id':
@@ -110,8 +112,14 @@ class _SharePreviewScreenState extends State<SharePreviewScreen> {
 
     // If user confirmed send, navigate to chat
     if (localMessages != null && localMessages.isNotEmpty) {
-      Navigator.pushReplacement(
-        context,
+      Navigator.of(MyRouter.navigatorKey.currentContext!).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => HomeScreen()),
+        (route) => false,
+      );
+
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      Navigator.of(MyRouter.navigatorKey.currentContext!).push(
         MaterialPageRoute(
           builder: (_) => PrivateChatScreen(
             convoId: user.conversationId ?? "",
@@ -129,6 +137,26 @@ class _SharePreviewScreenState extends State<SharePreviewScreen> {
           ),
         ),
       );
+
+      // Navigator.pushReplacement(
+      //   context,
+      //   MaterialPageRoute(
+      //     builder: (_) => PrivateChatScreen(
+      //       convoId: user.conversationId ?? "",
+      //       receiverId: user.userId,
+      //       firstname: user.firstName,
+      //       lastname: user.lastName,
+      //       userName: user.firstName,
+      //       profileAvatarUrl: "",
+      //       lastSeen: " ",
+      //       datumId: user.userId,
+      //       grpChat: false,
+      //       favourite: false,
+      //       sharedFiles: widget.files,
+      //       initialMessages: localMessages,
+      //     ),
+      //   ),
+      // );
     }
   }
 

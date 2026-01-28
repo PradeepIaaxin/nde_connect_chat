@@ -57,7 +57,7 @@ dependencies:
   google_fonts: ^6.2.1
   photo_view: ^0.15.0
   web_socket_channel: ^3.0.3
-  flutter_local_notifications: ^19.5.0
+  flutter_local_notifications: ^20.0.0
   socket_io_client: ^3.1.2
   dio: ^5.4.0 
   cached_network_image: ^3.2.3
@@ -134,6 +134,7 @@ dependencies:
   universal_html: ^2.3.0
   firebase_core: ^4.4.0
   firebase_messaging: ^16.1.1
+  awesome_notifications: ^0.10.1
   
 
 dev_dependencies:
@@ -152,7 +153,9 @@ dev_dependencies:
 flutter_icons:
   android: true
   ios: true
-  image_path: "assets/images/nde_logo.png"
+  image_path: "assets/icon/appicon.jpg"
+  adaptive_icon_foreground: assets/icon/foreground_image.png
+  adaptive_icon_background: assets/icon/background_image.png
 
 
 
