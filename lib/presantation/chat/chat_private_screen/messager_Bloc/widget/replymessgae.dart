@@ -282,20 +282,19 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
                 ],
               ),
             ),
-            if ((isImage || isVideo) && mediaUrl.isNotEmpty)
-              isGrouped
-                  ? const SizedBox()
-                  : Padding(
-                      padding: const EdgeInsets.only(left: 12.0,right: 10),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
-                        child: SizedBox(
-                          width: 42,
-                          height: 42,
-                          child: buildThumb(),
-                        ),
-                      ),
-                    ),
+            if (!isGrouped && (isImage || isVideo) && mediaUrl.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(left: 12.0, right: 10),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: SizedBox(
+                    width: 42,
+                    height: 42,
+                    child: buildThumb(),
+                  ),
+                ),
+              ),
+
           ],
         ),
       ),

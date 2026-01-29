@@ -47,7 +47,7 @@ class UploadFileEvent extends MessagerEvent {
   final String convoId;
   final String senderId;
   final String receiverId;
-  final String message;
+  final String?message;
   final bool isGroupMessage;
   final String? groupMesageId;
   final String? contentType;
@@ -343,13 +343,14 @@ class SendAudioMessageEvent extends MessagerEvent {
   final String audioPath;
   final String convoId;
   final String duration;
+  final bool? isRecord;
 
   const SendAudioMessageEvent(
       {required this.senderId,
       required this.receiverId,
       required this.audioPath,
       required this.convoId,
-      required this.duration});
+      required this.duration, this.isRecord});
 
   @override
   List<Object?> get props =>
