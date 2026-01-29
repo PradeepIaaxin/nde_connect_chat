@@ -393,8 +393,7 @@ class Datum {
               .toList()
           : null,
       duration:
-          (json["duration"] ?? json["audioDuration"] ?? json["videoDuration"])
-              ?.toString(),
+      json["File_meta"]?["duration"]?.toString(),
     );
   }
 
@@ -1161,4 +1160,19 @@ class Sender {
         "email": email,
         "profile_pic_path": profilePicPath,
       };
+}
+class FileMeta {
+  final int? duration;
+  final String? mimeType;
+  final int? size;
+
+  FileMeta({this.duration, this.mimeType, this.size});
+
+  factory FileMeta.fromJson(Map<String, dynamic> json) {
+    return FileMeta(
+      duration: json['duration'],
+      mimeType: json['mimeType'],
+      size: json['size'],
+    );
+  }
 }

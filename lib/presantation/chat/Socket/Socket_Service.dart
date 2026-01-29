@@ -1471,7 +1471,7 @@ class SocketService {
     String? conversationId,
     required String senderId,
     required String receiverId,
-    required String message,
+     String? message,
     required String roomId,
     required String workspaceId,
     required bool isGroupChat,
@@ -1493,7 +1493,8 @@ class SocketService {
     String? groupMessageId,
     String? audioDuration,
     String? replyGroupImageCount,
-  }) {
+  })
+  {
     if (!isConnected) {
       _slog('sendMessage aborted: not connected');
       return;
@@ -1508,7 +1509,7 @@ class SocketService {
       "roomId": roomId,
       "workspaceId": workspaceId,
       "isGroupChat": isGroupChat,
-      "groupId": isGroupChat ? receiverId : "",
+      "groupId": isGroupChat ? receiverId : null,
       "userName": userName,
       "ContentType": contentType ?? "file",
       "mimeType": mimeType,

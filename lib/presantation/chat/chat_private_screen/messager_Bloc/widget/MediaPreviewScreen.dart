@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mime/mime.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
+import 'package:nde_email/utils/imports/common_imports.dart';
 import 'package:objectid/objectid.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
@@ -399,6 +400,11 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
     for (final file in _files) {
       // 🔊 AUDIO
       if (_isAudio(file)) {
+        log("heyyyyyyyyyyyy ${widget.senderId}");
+        log("heyyyyyyyyyyyy ${widget.receiverId}");
+        log("heyyyyyyyyyyyy ${file.path}");
+        log("heyyyyyyyyyyyy ${widget.duration}");
+        log("heyyyyyyyyyyyy ${widget.conversationId}");
         context.read<MessagerBloc>().add(
               SendAudioMessageEvent(
                 senderId: widget.senderId,
@@ -406,6 +412,7 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
                 audioPath: file.path,
                 duration: widget.duration!,
                 convoId: widget.conversationId,
+                isRecord: false
               ),
             );
         continue;
