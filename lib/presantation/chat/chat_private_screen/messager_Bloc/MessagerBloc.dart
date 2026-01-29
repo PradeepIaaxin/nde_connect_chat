@@ -73,7 +73,7 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
       // -------- PAGE 1: REPLACE --------
       if (event.page == 1) {
         final serverJsonList = newFlat.map((e) => e.toJson()).toList();
-          // log("serverJsonList;;;;;; $serverJsonList");
+          log("serverJsonList;;;;;; $serverJsonList");
         // Merge local reactions
         final mergedJsonList = _mergeLocalReactionsIntoServerJson(
           convoId: event.convoId,
@@ -165,7 +165,7 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
       emit(MessagerError("Audio file not found at ${event.audioPath}"));
       return;
     }
-
+    log("event.audioPath ${event.audioPath}");
 // 2. Create optimistic local message for instant UI update
     final tempMessageId = ObjectId().toString();
     final localMessage = {
@@ -176,14 +176,17 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
       'messageStatus': 'sending',
       'time': DateTime.now().toIso8601String(),
       'fileName': audioFile.path.split('/').last,
-      'fileType': 'audio/m4a',
+      'fileType':  event.isRecord!?"audio/aac":"audio/mpeg",
       'fileUrl': event.audioPath,
       'isLocal': true,
       'contentType': 'audio',
       'duration': event.duration,
+      "ContentType": "audio",
+      "mimeType": event.isRecord!?"audio/aac":"audio/mpeg",
     };
 
     // 3. Emit the local message for instant UI display
+    log("localMessage>>>>>>>>>>>>>> $localMessage");
     emit(LocalAudioMessageAdded(localMessage));
 
     emit(UploadInProgress(0));
@@ -202,6 +205,7 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
             if (!completer.isCompleted) completer.complete();
             return;
           }
+          log(">>>>>>>>>>>>>>>> ${data["mimetype"]}");
 
           emit(UploadSuccess(data));
 
@@ -214,6 +218,7 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
 
           final roomId =
               socketService.generateRoomId(event.senderId, event.receiverId);
+log(">>>>>>>>>>>>>>>>");
 
           // 3. Send via Socket
           socketService.sendMessage(
@@ -222,7 +227,7 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
             conversationId: event.convoId,
             senderId: event.senderId,
             receiverId: event.receiverId,
-            message: "",
+            message: null,
             roomId: roomId,
             workspaceId: workspaceID,
             isGroupChat: false,
@@ -456,7 +461,8 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
   Future<void> _onUploadFile(
     UploadFileEvent event,
     Emitter<MessagerState> emit,
-  ) async {
+  )
+  async {
     emit(UploadInProgress(0));
 
     final tempMessageId = event.messageId ?? ObjectId().toString();
@@ -489,7 +495,9 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
             conversationId: event.convoId,
             senderId: event.senderId,
             receiverId: event.receiverId,
-            message: event.message,
+            message: (event.message?.trim().isNotEmpty ?? false)
+                ? event.message!.trim()
+                : null,
             roomId: roomId,
             workspaceId: workspaceID,
             isGroupChat: false,

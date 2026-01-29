@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
@@ -140,7 +141,7 @@ class _AudioMessageWidgetState extends State<AudioMessageWidget> {
 
     IconData icon = Icons.access_time;
     Color color = Colors.grey[600]!;
-
+log(">>>>>>>>>>> ${widget.status}");
     switch (widget.status?.toLowerCase()) {
       case 'read':
       case 'seen':
@@ -152,6 +153,7 @@ class _AudioMessageWidgetState extends State<AudioMessageWidget> {
         color = Colors.grey[600]!;
         break;
       case 'sent':
+      case 'sending':
         icon = Icons.check;
         color = Colors.grey[600]!;
         // ✅ ADD SOUND PLAYBACK HERE
