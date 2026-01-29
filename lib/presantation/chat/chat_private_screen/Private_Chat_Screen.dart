@@ -4822,7 +4822,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                   final int realIndex =
                                       groupedMessages.length - 1 - index;
                                   final message = groupedMessages[realIndex];
-                                  final String? senderId =
+                              final String? senderId =
                                       _getMessageSenderId(message);
 
                                   final messageId = (message['message_id'] ??
@@ -4853,7 +4853,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                   currentUser = senderId;
                                   isSentMe = isSentByMe;
 
-                                  // Debug logging (remove after fixing)
+
                                   if (senderId != null) {}
 
                                   final showDate = realIndex == 0 ||
