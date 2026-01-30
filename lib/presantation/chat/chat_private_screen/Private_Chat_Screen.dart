@@ -5266,18 +5266,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                                             MixedMediaViewer(
                                                           items: conversationMedia,
 
-                                                          initialIndex:
-                                                          startIndex < 0
-                                                              ? 0
-                                                              : startIndex,
-                                                      currentUserId:
-                                                          currentUser,
-                                                      isGroup: false,
-                                                      receiverId:
-                                                          widget.receiverId,
-
-
-
+                                                          initialIndex: startIndex < 0 ? 0 : startIndex,
+                                                          currentUserId: currentUser,
+                                                              isGroup: false,
+                                                              receiverId:
+                                                              widget.receiverId,
                                                         ),
                                                       ),
                                                     );

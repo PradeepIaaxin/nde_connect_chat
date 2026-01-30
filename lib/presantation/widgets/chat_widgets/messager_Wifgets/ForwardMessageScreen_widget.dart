@@ -432,10 +432,10 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
                         //optimisticMessagesForUI.add(optimisticMessage);
                         print("foewardddd ${widget.isForward}");
                         print("mimeType ${mimeType}");
-                        widget.isForward!
-                            ? null
-                            : await _saveOptimisticMessage(
-                                targetConvoId!, optimisticMessage);
+                        // widget.isForward!
+                        //     ? null
+                        //     : await _saveOptimisticMessage(
+                        //         targetConvoId!, optimisticMessage);
 
                         // Now call socket forward for this single receiver
                         final imageToSend =
