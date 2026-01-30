@@ -149,13 +149,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   final Map<String, String> _pendingStatusUpdates =
       {}; // Buffer for race conditions
 
-  // Helper: sanitize strings so Flutter Text rendering doesn't throw
-  // removes lone surrogate code units (U+D800..U+DFFF) that cause "not well-formed UTF-16"
-  String sanitizeString(String? s) {
-    if (s == null) return '';
-    return s.replaceAll(RegExp(r'[\uD800-\uDFFF]'), '');
-  }
-
   List<InlineSpan> _buildHighlightSpans(String text, TextStyle baseStyle) {
     if (_searchController.text.isEmpty ||
         !text.toLowerCase().contains(_searchController.text.toLowerCase())) {
@@ -244,7 +237,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final Set<String> groupMatchIds = {};
 
     for (final msg in combined) {
-      final content = sanitizeString(msg['content']?.toString()).toLowerCase();
+      final content = (msg['content']?.toString() ?? '').toLowerCase();
       final fileName = (msg['fileName']?.toString() ?? '').toLowerCase();
       final isDeleted = msg['is_deleted'] == true ||
           msg['messageStatus'] == 'deleted' ||
@@ -1040,7 +1033,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final keys = merged.keys.toList();
     for (final k in keys) {
       final v = merged[k];
-      if (v is String) merged[k] = sanitizeString(v);
+      if (v is String) merged[k] = v;
     }
 
     return merged;
@@ -1918,10 +1911,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 : null,
 
             // content
-            'content': sanitizeString(
-                _replyPreview?['content'] ?? _replyMessage!['content'] ?? ''),
-            'replyContent': sanitizeString(
-                _replyPreview?['content'] ?? _replyMessage!['content'] ?? ''),
+            'content':
+                _replyPreview?['content'] ?? _replyMessage!['content'] ?? '',
+            'replyContent':
+                _replyPreview?['content'] ?? _replyMessage!['content'] ?? '',
 
             // media (prefer grouped media info when replying to grouped)
             'originalUrl': groupedMediaInfo?['originalUrl'] ??
@@ -2012,7 +2005,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     final message = {
       'message_id': tempId,
-      'content': sanitizeString(_messageController.text.trim()),
+      'content': _messageController.text.trim(),
       'sender': {'_id': currentUserId},
       'receiver': {'_id': widget.datumId},
       // 🟢 Check connectivity for initial status
@@ -2259,8 +2252,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   List<InlineSpan> _buildMessageTextSpans(String content, bool isDeleted) {
-    // Sanitize input before processing for links/mentions to avoid UTF-16 errors
-    content = sanitizeString(content);
     final List<InlineSpan> spans = [];
     if (content.isEmpty) return spans;
 
@@ -2784,9 +2775,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           contentPreview = 'Video × $videoCount';
         }
       }
-
-      // SANITIZE reply preview content to avoid UTF-16 issues in rendering
-      contentPreview = sanitizeString(contentPreview);
 
       _replyPreview = {
         'message_id': replySource['message_id'] ??
@@ -4022,7 +4010,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                         isSentByMe
                                                                             ? 0
                                                                             : 0,
-                                                
                                                                     right: 0,
                                                                     top: 0,
                                                                     bottom: (message['reactions'] !=
@@ -4143,10 +4130,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                                     MaterialPageRoute(
                                                                                       builder: (_) => MixedMediaViewer(
                                                                                         items: media,
-                                                                                  initialIndex: startIndex,
-                                                                                  conversionalId: widget.conversationId,
-                                                                                  fullName: widget.groupName,
-                                                                                  isGroup: true,
+                                                                                        initialIndex: startIndex,
+                                                                                        conversionalId: widget.conversationId,
+                                                                                        fullName: widget.groupName,
+                                                                                        isGroup: true,
                                                                                       ),
                                                                                     ),
                                                                                   );
@@ -4555,25 +4542,24 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   Widget _buildMessageBubble(Map<String, dynamic> message, bool isSentByMe) {
     // Sanitize message content early to avoid invalid strings in any downstream Text widgets
-    final String content = sanitizeString(message['content']?.toString() ?? '');
+    final String content = message['content']?.toString() ?? '';
     final String? imageUrl = message['imageUrl'] ?? _imageFile;
     final String? fileUrl = message['fileUrl'] ?? _fileUrl;
-    final String? fileName =
-        sanitizeString(message['fileName']?.toString() ?? '');
+    final String? fileName = message['fileName']?.toString() ?? '';
     final String? fileType = message['fileType'];
     final bool? isForwarded = message['isForwarded'] ?? false;
 
     final String userName =
         (message['userName']?.toString().trim().isNotEmpty == true)
-            ? sanitizeString(message['userName']?.toString())
+            ? (message['userName']?.toString() ?? '')
             : (() {
                 final s = message['sender'];
                 if (s is Map) {
                   final first =
-                      sanitizeString(s['first_name'] ?? s['firstName'] ?? '');
+                      (s['first_name'] ?? s['firstName'] ?? '').toString();
                   final last =
-                      sanitizeString(s['last_name'] ?? s['lastName'] ?? '');
-                  return [first, last, sanitizeString(s['name'] ?? '')]
+                      (s['last_name'] ?? s['lastName'] ?? '').toString();
+                  return [first, last, (s['name'] ?? '').toString()]
                       .where((e) => e != null && e.toString().trim().isNotEmpty)
                       .join(' ')
                       .trim();
@@ -6900,18 +6886,13 @@ class MentionTextEditingController extends TextEditingController {
     notifyListeners();
   }
 
-  String sanitizeString(String? s) {
-    if (s == null) return '';
-    return s.replaceAll(RegExp(r'[\uD800-\uDFFF]'), '');
-  }
-
   @override
   TextSpan buildTextSpan(
       {required BuildContext context,
       TextStyle? style,
       required bool withComposing}) {
     final List<InlineSpan> children = [];
-    final String content = sanitizeString(text);
+    final String content = text;
 
     if (content.isEmpty) {
       return super.buildTextSpan(
