@@ -288,6 +288,9 @@ log(">>>>>>>>>>>>>>>>");
         roomId: roomId,
         deleteFor: event.deleteFor ?? "",
       );
+      emit(MessageDeletedSuccessfully(
+        deletedMessageIds: event.messageIds,
+      ));
     } catch (e) {
       log("Failed to emit delete_message: $e");
     }

@@ -772,6 +772,7 @@ class _MessageBubbleState extends State<MessageBubble> {
           currentUserId: widget.currentUserId,
           conversionalId: widget.conversionalId,
           fullName: widget.fullName,
+
         ),
       ),
     );
