@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
 
+import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/ChateHomeMoreOptionsButton.dart';
+
 class GroupActionSheet extends StatelessWidget {
   final VoidCallback? onAddToFavorites;
   final VoidCallback? onAddToList;
@@ -46,19 +48,25 @@ class GroupActionSheet extends StatelessWidget {
         color: isFavorite ? Colors.redAccent : Colors.black,
         isTablet: isTablet,
       ),
-      _buildActionItem(
-        context,
-        icon: Icons.list_alt_outlined,
-        label: "Add to list",
-        onTap: onAddToList,
-        isTablet: isTablet,
-      ),
+      // _buildActionItem(
+      //   context,
+      //   icon: Icons.list_alt_outlined,
+      //   label: "Add to list",
+      //   onTap: onAddToList,
+      //   isTablet: isTablet,
+      // ),
       if (isGroupChat) ...[
         _buildActionItem(
           context,
           icon: Icons.exit_to_app,
           label: "Exit group",
-          onTap: onExitGroup,
+          onTap: () {
+            MoreOptionsButton.showExitGroupDialog(
+              context,
+              fullName ?? "Group",
+              onExit: onExitGroup,
+            );
+          },
           color: Colors.redAccent,
           isTablet: isTablet,
         ),
@@ -66,7 +74,10 @@ class GroupActionSheet extends StatelessWidget {
           context,
           icon: Icons.thumb_down_alt_outlined,
           label: "Report group",
-          onTap: onReportGroup,
+          onTap: () {
+            MoreOptionsButton.showReportDialog(context,
+                name: fullName ?? "Group", isGroup: true);
+          },
           color: Colors.redAccent,
           isTablet: isTablet,
         ),
@@ -83,7 +94,10 @@ class GroupActionSheet extends StatelessWidget {
           context,
           icon: Icons.thumb_down_alt_outlined,
           label: "Report $fullName",
-          onTap: onReportGroup,
+          onTap: () {
+            MoreOptionsButton.showReportDialog(context,
+                name: fullName ?? "Contact", isGroup: false);
+          },
           color: Colors.redAccent,
           isTablet: isTablet,
         ),

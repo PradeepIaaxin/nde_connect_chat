@@ -20,6 +20,8 @@ class ProfileDialog extends StatelessWidget {
   final String userName;
   final List<ProfileAction> actions;
   final String? groupName;
+  final bool isGroup;
+  final String? grpId;
 
   const ProfileDialog({
     super.key,
@@ -29,6 +31,8 @@ class ProfileDialog extends StatelessWidget {
     required this.userName,
     required this.actions,
     this.groupName,
+    this.isGroup = false,
+    this.grpId,
   });
 
   @override
@@ -72,9 +76,11 @@ class ProfileDialog extends StatelessWidget {
                               username: userName,
                               grpname: groupName,
                               heroTag: tag,
+                              isGroup: isGroup,
+                              grpId: grpId,
                             ),
-                            transitionsBuilder:
-                                (_, animation, __, child) {
+                            transitionsBuilder: 
+                            (_, animation, __, child) {
                               return FadeTransition(
                                   opacity: animation, child: child);
                             },
@@ -84,9 +90,9 @@ class ProfileDialog extends StatelessWidget {
                       child: RepaintBoundary(
                         child: ProfileAvatar(
                           imageUrl: imageUrl,
-                          name: userName.isNotEmpty
-                              ? userName
-                              : fallbackText,
+                          name: userName.isNotEmpty 
+                          ? userName 
+                          : fallbackText,
                           size: 220,
                         ),
                       ),
@@ -100,15 +106,15 @@ class ProfileDialog extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: actions.map((action) {
                       return Padding(
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 10),
+                        padding: 
+                        const EdgeInsets.symmetric(horizontal: 10),
                         child: GestureDetector(
                           onTap: action.onTap,
                           child: CircleAvatar(
                             backgroundColor: Colors.white,
                             radius: 28,
-                            child:
-                                Icon(action.icon, color: Colors.blue),
+                            child: 
+                            Icon(action.icon, color: Colors.blue),
                           ),
                         ),
                       );
