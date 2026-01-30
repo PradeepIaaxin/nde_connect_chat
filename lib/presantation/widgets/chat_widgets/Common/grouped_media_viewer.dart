@@ -93,13 +93,33 @@ class GroupedMediaWidget extends StatelessWidget {
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              Stack(
-                clipBehavior: Clip.none,
+              Row(
+                mainAxisAlignment:isSentByMe
+                    ? MainAxisAlignment.end
+                    : MainAxisAlignment.start,
                 children: [
+                  isSentByMe?Center(
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(20),
+                        onTap: onForwardTap,
+                        child: CircleAvatar(
+                          radius: 16,
+                          backgroundColor: Colors.white,
+                          child: Image.asset(
+                            "assets/images/forward.png",
+                            height: 20,
+                            width: 20,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ):SizedBox(),
                   Container(
                     margin: EdgeInsets.only(
-                      left: isSentByMe ? 60 : 0,
-                      right: isSentByMe ? 1 : 60,
+                      left: isSentByMe ? 20 : 0,
+                      right: isSentByMe ? 1 : 20,
                       bottom: 8,
                     ),
                     width: bubbleWidth,
@@ -118,14 +138,14 @@ class GroupedMediaWidget extends StatelessWidget {
                           color: isSelected
                               ? selectedMessageColor
                               : isSentByMe
-                                  ? senderColor
-                                  : receiverColor,
+                              ? senderColor
+                              : receiverColor,
                           width: 5),
                       color: isSelected
                           ? selectedMessageColor
                           : isSentByMe
-                              ? senderColor
-                              : receiverColor,
+                          ? senderColor
+                          : receiverColor,
                     ),
                     clipBehavior: Clip.antiAlias,
                     child: Column(
@@ -179,29 +199,24 @@ class GroupedMediaWidget extends StatelessWidget {
                       ],
                     ),
                   ),
-                  Positioned(
-                    top: 160,
-                    right: isSentByMe ? 420 : null,
-                    left: isSentByMe ? null : 420,
-                    child: Center(
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(20),
-                          onTap: onForwardTap,
-                          child: CircleAvatar(
-                            radius: 16,
-                            backgroundColor: Colors.white,
-                            child: Image.asset(
-                              "assets/images/forward.png",
-                              height: 20,
-                              width: 20,
-                            ),
+                  !isSentByMe? Center(
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(20),
+                        onTap: onForwardTap,
+                        child: CircleAvatar(
+                          radius: 16,
+                          backgroundColor: Colors.white,
+                          child: Image.asset(
+                            "assets/images/forward.png",
+                            height: 20,
+                            width: 20,
                           ),
                         ),
                       ),
                     ),
-                  ),
+                  ):SizedBox(),
                 ],
               ),
               // Only show timestamp overlay when there's no caption
@@ -232,30 +247,6 @@ class GroupedMediaWidget extends StatelessWidget {
                     ),
                   ),
                 ),
-
-              // Positioned(
-              //   top: 8,
-              //   right: isSentByMe ? 8 : null,
-              //   left: isSentByMe ? null : 8,
-              //   child: Center(
-              //     child: Material(
-              //       color: Colors.transparent,
-              //       child: InkWell(
-              //         borderRadius: BorderRadius.circular(20),
-              //         onTap: onForwardTap,
-              //         child: CircleAvatar(
-              //           radius: 16,
-              //           backgroundColor: Colors.white,
-              //           child: Image.asset(
-              //             "assets/images/forward.png",
-              //             height: 20,
-              //             width: 20,
-              //           ),
-              //         ),
-              //       ),
-              //     ),
-              //   ),
-              // ),
               if (message['reactions'] != null &&
                   (message['reactions'] as List).isNotEmpty &&
                  buildReactionsBar != null)

@@ -1207,8 +1207,12 @@ class SocketService {
     String contentType = 'text',
     Duration ackTimeout = const Duration(seconds: 8),
   }) async {
+    log("senderId $senderId");
+    log("receiverIds $receiverIds");
+    log("originalMessageId $originalMessageId");
+    log("workspaceId $workspaceId");
+    log("isConnected $isConnected");
     final results = <Map<String, dynamic>>[];
-
     if (senderId.isEmpty ||
         receiverIds.isEmpty ||
         originalMessageId.isEmpty ||

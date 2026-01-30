@@ -178,3 +178,10 @@ class MessageAckReceived extends MessagerState {
     required this.status,
   });
 }
+class MessageDeletedSuccessfully extends MessagerState {
+  final List<String> deletedMessageIds;
+
+  MessageDeletedSuccessfully({required this.deletedMessageIds});
+
+  List<Object?> get props => [deletedMessageIds];
+}
