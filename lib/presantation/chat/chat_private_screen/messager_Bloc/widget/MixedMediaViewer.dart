@@ -461,31 +461,35 @@ class _MixedMediaViewerState extends State<MixedMediaViewer> {
               // 🎥 VIDEO PAGE
               if (item.isVideo) {
                 return PhotoViewGalleryPageOptions.customChild(
-                  heroAttributes: PhotoViewHeroAttributes(tag: item.mediaUrl),
-                  child: RotatedBox(
-                    quarterTurns: _rotationTurns[index] ?? 0,
-                    child: PhotoView(
-                      imageProvider: item.mediaUrl.startsWith('http')
-                          ? CachedNetworkImageProvider(item.mediaUrl)
-                          : FileImage(File(item.mediaUrl)) as ImageProvider,
-                      initialScale: PhotoViewComputedScale.contained,
-                      minScale: PhotoViewComputedScale.contained,
-                      maxScale: PhotoViewComputedScale.covered * 3,
-                      backgroundDecoration:
-                      const BoxDecoration(color: Colors.transparent),
+                  disableGestures: true,
+                  child: Center(
+                    child: RotatedBox(
+                      quarterTurns: _rotationTurns[index] ?? 0,
+                      child: InlineVideoPlayer(
+                        path: item.mediaUrl,
+                        isNetwork: item.mediaUrl.startsWith('http'),
+                      ),
                     ),
                   ),
                 );
               }
 
               // 🖼 IMAGE PAGE (ZOOMABLE)
-              return PhotoViewGalleryPageOptions(
+              return PhotoViewGalleryPageOptions.customChild(
                 heroAttributes: PhotoViewHeroAttributes(tag: item.mediaUrl),
-                imageProvider: item.mediaUrl.startsWith('http')
-                    ? CachedNetworkImageProvider(item.mediaUrl)
-                    : FileImage(File(item.mediaUrl)) as ImageProvider,
-                minScale: PhotoViewComputedScale.contained,
-                maxScale: PhotoViewComputedScale.covered * 3,
+                child: RotatedBox(
+                  quarterTurns: _rotationTurns[index] ?? 0,
+                  child: PhotoView(
+                    imageProvider: item.mediaUrl.startsWith('http')
+                        ? CachedNetworkImageProvider(item.mediaUrl)
+                        : FileImage(File(item.mediaUrl)) as ImageProvider,
+                    initialScale: PhotoViewComputedScale.contained,
+                    minScale: PhotoViewComputedScale.contained,
+                    maxScale: PhotoViewComputedScale.covered * 3,
+                    backgroundDecoration:
+                        const BoxDecoration(color: Colors.transparent),
+                  ),
+                ),
               );
             },
           ),
