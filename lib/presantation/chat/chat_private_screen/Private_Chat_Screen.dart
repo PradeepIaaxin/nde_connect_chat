@@ -341,8 +341,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   void _applyCrdtMessages(
     String convoId,
     Map<String, dynamic> messagesMap,
-  )
-  {
+  ) {
     // log("messssssssssssssss $messagesMap");
     if (convoId != widget.convoId) return;
 
@@ -530,7 +529,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           .map<Map<String, dynamic>>((raw) => normalizeMessage(raw))
           .where((m) => m.isNotEmpty)
           .toList();
-     // dbMessages.addAll(normalized);
+      // dbMessages.addAll(normalized);
       _allMessages
         ..clear()
         ..addAll(normalized);
@@ -545,7 +544,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       // 2) cached local messages
 
       final loaded = LocalChatStorage.loadMessages(widget.convoId);
-     // log("messssssssssssssssss ${loaded}");
+      // log("messssssssssssssssss ${loaded}");
       final normalized = loaded
           .where((msg) => msg.isNotEmpty)
           .map((msg) => normalizeMessage(msg))
@@ -635,8 +634,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   void sendReaction({
     required String emoji,
     required String messageId,
-  })
-  {
+  }) {
     print('Sending reaction: $emoji to messageId: $messageId');
     print('Current convoId: ${widget.convoId}');
     SocketService().emitReaction(
@@ -940,8 +938,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
   /// Collect reactions for a message id from all local lists and merge them
   List<Map<String, dynamic>> _collectMergedReactionsForMessage(
-      String messageId)
-  {
+      String messageId) {
     final Map<String, Map<String, dynamic>> byUser = {};
 
     List<List<Map<String, dynamic>>> sources = [
@@ -1233,8 +1230,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     String? originalKey = rawMsg['originalKey'];
 
     if (rawReply is Map) {
-      log(" rawReply['isGroupedMessageId'] ${ rawReply['group_message_id']}");
-      log(" rawReply['isGroupedMessageId'] ${ rawReply['is_grouped_message']}");
+      log(" rawReply['isGroupedMessageId'] ${rawReply['group_message_id']}");
+      log(" rawReply['isGroupedMessageId'] ${rawReply['is_grouped_message']}");
       final String? replyUrl = rawReply['replyUrl'] ??
           rawReply['originalUrl'] ??
           rawReply['fileUrl'];
@@ -1724,8 +1721,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   Future<bool> _scrollToMessageById(
     String messageId, {
     bool fetchIfMissing = false,
-  })
-  async {
+  }) async {
     final ctx = _messageContexts[messageId];
 
     if (ctx != null && ctx.mounted) {
@@ -1853,8 +1849,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   double _estimateScrollOffset(
-      int listIndex, List<Map<String, dynamic>> messages)
-  {
+      int listIndex, List<Map<String, dynamic>> messages) {
     double offset = 0.0;
     for (int i = 0; i < listIndex; i++) {
       final realIndex = messages.length - 1 - i;
@@ -2466,8 +2461,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   List<Map<String, dynamic>> _inferGrouping(
-      List<Map<String, dynamic>> messages)
-  {
+      List<Map<String, dynamic>> messages) {
     if (messages.isEmpty) return messages;
 
     messages
@@ -2684,8 +2678,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   // ------------------ UI builders ------------------
   Widget _buildMessageBubble(
       Map<String, dynamic> message, bool isSentByMe, bool isReply,
-      {int? length})
-  {
+      {int? length}) {
     final String? bubbleSenderId = _getMessageSenderId(message);
     final bool correctIsSentByMe = bubbleSenderId == currentUserId;
 
@@ -2989,8 +2982,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   Future<void> _showReactionsBottomSheet(
-      Map<String, dynamic> message, String initialEmoji)
-  async {
+      Map<String, dynamic> message, String initialEmoji) async {
     // helper to build normalized reactions list for a message object
     List<Map<String, dynamic>> _normalizeFromMap(Map<String, dynamic> msg) {
       final List<Map<String, dynamic>> out = [];
@@ -3401,8 +3393,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   Future<void> _handleReactionTap(
     Map<String, dynamic> message,
     String emoji,
-  ) async
-  {
+  ) async {
     try {
       final rawId = (message['message_id'] ??
               message['messageId'] ??
@@ -3497,8 +3488,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   List<Map<String, dynamic>> _extractReactionsFromMessage(
-      Map<String, dynamic> message)
-  {
+      Map<String, dynamic> message) {
     final List<Map<String, dynamic>> list = [];
 
     if (message['reactions'] is List) {
@@ -3569,6 +3559,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             ],
             initialIndex: 0,
             currentUserId: currentUser,
+            conversionalId: widget.convoId,
+            fullName: widget.userName,
+            isGroup: false,
+            receiverId: widget.receiverId,
           ),
         ),
       );
@@ -3650,8 +3644,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     });
   }
 
-  void _toggleMessageSelection(Map<String, dynamic> msg)
-  {
+  void _toggleMessageSelection(Map<String, dynamic> msg) {
     final key = _generateMessageKey(msg);
     final String? messageId = msg['message_id']?.toString();
 
@@ -3670,8 +3663,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   void _markMessagesAsDeleted(List<String> messageIds,
-      {String deleteFor = 'everyone'})
-  {
+      {String deleteFor = 'everyone'}) {
     if (messageIds.isEmpty) return;
 
     bool changed = false;
@@ -3723,8 +3715,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
   }
 
-  void _forwardSelectedMessages()
-  {
+  void _forwardSelectedMessages() {
     MyRouter.pushReplace(
       screen: ForwardMessageScreen(
         messages: _selectedMessages.toList(),
@@ -3784,8 +3775,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     List<Map<String, dynamic>> messages,
     bool isSendMe,
     String currentUserId,
-  )
-  {
+  ) {
     int imageCount = 0;
     int videoCount = 0;
 
@@ -3837,8 +3827,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   void _replyToMessage(
     Map<String, dynamic> message, {
     bool isSendMe = false,
-  })
-  {
+  }) {
     if (message.isEmpty) return;
 
     log("Reply source (swiped) => $message");
@@ -4164,8 +4153,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   List<Map<String, dynamic>> _getGroupedMessages(
     List<Map<String, dynamic>> combinedMessages,
     int index,
-  )
-  {
+  ) {
     final message = combinedMessages[index];
     final String? groupId = message['group_message_id']?.toString();
 
@@ -4214,6 +4202,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   Map<String, dynamic> _resolveReplySource(Map<String, dynamic> message) {
     return message;
   }
+
   String? senderIdOf(Map msg) {
     return msg['sender']?['_id']?.toString();
   }
@@ -4224,10 +4213,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     for (int i = 0; i < raw.length; i++) {
       final current = raw[i];
 
-      final bool isMedia =
-          current['imageUrl'] != null ||
-              current['originalUrl'] != null ||
-              current['fileUrl'] != null;
+      final bool isMedia = current['imageUrl'] != null ||
+          current['originalUrl'] != null ||
+          current['fileUrl'] != null;
 
       if (!isMedia) {
         result.add(current);
@@ -4250,10 +4238,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           continue;
         }
 
-        final bool prevIsMedia =
-            prev['imageUrl'] != null ||
-                prev['originalUrl'] != null ||
-                prev['fileUrl'] != null;
+        final bool prevIsMedia = prev['imageUrl'] != null ||
+            prev['originalUrl'] != null ||
+            prev['fileUrl'] != null;
 
         if (!prevIsMedia) {
           result.add(current);
@@ -4265,15 +4252,14 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             .inSeconds
             .abs();
 
-        final String prevType =
-        (prev['fileType'] ?? prev['mimeType'] ?? '')
+        final String prevType = (prev['fileType'] ?? prev['mimeType'] ?? '')
             .toString()
             .toLowerCase();
 
         final String currType =
-        (current['fileType'] ?? current['mimeType'] ?? '')
-            .toString()
-            .toLowerCase();
+            (current['fileType'] ?? current['mimeType'] ?? '')
+                .toString()
+                .toLowerCase();
 
         final bool sameMediaType = _sameMediaType(prevType, currType);
 
@@ -4303,7 +4289,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     return result;
   }
-
 
   // bool _canGroupTogether(String a, String b) {
   //   final bool aIsVisual = a.startsWith('image') || a.startsWith('video');
@@ -4895,7 +4880,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                         previewUrl: mediaUrl,
                                         mediaUrl: mediaUrl,
                                         isVideo: false,
-                                        uniqueId: uniqueId,   message: nextMsg));
+                                        uniqueId: uniqueId,
+                                        message: nextMsg));
                                   } else if (isVideo) {
                                     final preview = previewUrl ?? fileUrl ?? '';
                                     final media = fileUrl ?? mediaUrl ?? '';
@@ -4904,7 +4890,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                           previewUrl: preview,
                                           mediaUrl: media,
                                           isVideo: true,
-                                          uniqueId: uniqueId,   message: nextMsg));
+                                          uniqueId: uniqueId,
+                                          message: nextMsg));
                                     }
                                   }
                                 }
@@ -4979,8 +4966,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                                 setState(
                                                     () => recentEmojis = list);
                                               },
-                                              buildReactionsBar:
-                                                  (msg, sentByMe) =>
+                                              buildReactionsBar: (msg, sentByMe) =>
                                                   _buildReactionsBar(
                                                       msg, sentByMe),
                                               onReact: (msg, emoji) {
@@ -5027,8 +5013,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                               isSentByMe: isSentByMe,
                                               time: TimeUtils.formatUtcToIst(
                                                   message['time']),
-                                              messageStatus:
-                                                  message['messageStatus']
+                                              messageStatus: message['messageStatus']
                                                       ?.toString() ??
                                                   'sent',
                                               buildStatusIcon: (status) =>
@@ -5063,12 +5048,15 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                                     pageBuilder: (_, __, ___) =>
                                                         MixedMediaViewer(
                                                       items: conversationMedia,
-
-                                                      initialIndex: startIndex < 0 ? 0 : startIndex,
-                                                      currentUserId: currentUser,
-
-
-
+                                                      initialIndex:
+                                                          startIndex < 0
+                                                              ? 0
+                                                              : startIndex,
+                                                      currentUserId:
+                                                          currentUser,
+                                                      isGroup: false,
+                                                      receiverId:
+                                                          widget.receiverId,
                                                     ),
                                                   ),
                                                 );
@@ -5290,6 +5278,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       ),
     );
   }
+
   void _sendAudioMessage(String path, int duration) {
     debugPrint("Sending audio message: $path, duration: $duration");
 
@@ -5468,8 +5457,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   Map<String, dynamic>? resolveRepliedMessage({
     required Map<String, dynamic> message,
     required List<Map<String, dynamic>> allMessages,
-  })
-  {
+  }) {
     if (message['isReplyMessage'] != true) return null;
 
     // already resolved

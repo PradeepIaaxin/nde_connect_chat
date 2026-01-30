@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/widget/grp_create_screen.dart';
+import 'package:nde_email/utils/router/router.dart';
+import 'package:share_plus/share_plus.dart';
 
 class ViewImage extends StatefulWidget {
   final String username;
   final String imageurl;
   final String? grpname;
   final String heroTag;
+  final bool isGroup;
+  final String? grpId;
 
   const ViewImage({
     super.key,
@@ -14,6 +19,8 @@ class ViewImage extends StatefulWidget {
     required this.username,
     this.grpname,
     required this.heroTag,
+    this.isGroup = false,
+    this.grpId,
   });
 
   @override
@@ -172,6 +179,29 @@ class _ViewImageState extends State<ViewImage>
                           ),
                         ),
                       ),
+                      if (widget.isGroup) ...[
+                        IconButton(
+                          icon: const Icon(Icons.edit, color: Colors.white),
+                          onPressed: () {
+                            MyRouter.push(
+                              screen: GroupNameEditScreen(
+                                initialValue: widget.username,
+                                keyToEdit: "group_name",
+                                groupId: widget.grpId ?? "",
+                                groupImage: widget.imageurl,
+                              ),
+                            );
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.share, color: Colors.white),
+                          onPressed: () {
+                            if (widget.imageurl.isNotEmpty) {
+                              Share.share(widget.imageurl);
+                            }
+                          },
+                        ),
+                      ],
                     ],
                   ),
                 ),
