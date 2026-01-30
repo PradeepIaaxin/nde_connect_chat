@@ -28,6 +28,8 @@ class _GroupNameEditScreenState extends State<GroupNameEditScreen> {
   bool _isLoading = false;
   File? _selectedImage;
   final ImagePicker _picker = ImagePicker();
+  bool _isImageDeleted = false;
+
 
   @override
   void initState() {
@@ -190,6 +192,17 @@ class _GroupNameEditScreenState extends State<GroupNameEditScreen> {
                   _pickImage(ImageSource.gallery);
                 },
               ),
+              ListTile(
+                leading: const Icon(Icons.delete, color: chatColor),
+                title: const Text("Delete"),
+                onTap: () {
+                  Navigator.pop(context);
+                  setState(() {
+                    _selectedImage = null;
+                       _isImageDeleted = true; 
+                  });
+                },
+              ),
             ],
           ),
         );
@@ -225,16 +238,34 @@ class _GroupNameEditScreenState extends State<GroupNameEditScreen> {
                     backgroundColor: Colors.grey[300],
                     backgroundImage: _selectedImage != null
                         ? FileImage(_selectedImage!)
-                        : (widget.groupImage != null &&
+                        : (!_isImageDeleted &&
+                                widget.groupImage != null &&
                                 widget.groupImage!.trim().isNotEmpty)
                             ? NetworkImage(widget.groupImage!)
                             : null,
                     child: (_selectedImage == null &&
-                            (widget.groupImage == null ||
+                            (_isImageDeleted ||
+                                widget.groupImage == null ||
                                 widget.groupImage!.trim().isEmpty))
                         ? const Icon(Icons.group, size: 50, color: Colors.white)
                         : null,
                   ),
+
+                  // CircleAvatar(
+                  //   radius: 50,
+                  //   backgroundColor: Colors.grey[300],
+                  //   backgroundImage: _selectedImage != null
+                  //       ? FileImage(_selectedImage!)
+                  //       : (widget.groupImage != null &&
+                  //               widget.groupImage!.trim().isNotEmpty)
+                  //           ? NetworkImage(widget.groupImage!)
+                  //           : null,
+                  //   child: (_selectedImage == null &&
+                  //           (widget.groupImage == null ||
+                  //               widget.groupImage!.trim().isEmpty))
+                  //       ? const Icon(Icons.group, size: 50, color: Colors.white)
+                  //       : null,
+                  // ),
                   CircleAvatar(
                     radius: 16,
                     backgroundColor: chatColor,
