@@ -5220,9 +5220,22 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                             .withValues(alpha: 0.3)
                                             : Colors.transparent,
                                         child: !hasReply
-                                            ? _buildMessageBubble(message,
-                                            correctIsSentByMe, hasReply,
-                                            length: groupMedia.length)
+                                            ?  Column(
+                                      crossAxisAlignment:
+                                      correctIsSentByMe
+                                      ? CrossAxisAlignment.end
+                                          : CrossAxisAlignment
+                                        .start,
+                                        children: [
+                                          if (showDate)
+                                            DateSeparator(
+                                                dateTime: _parseTime(
+                                                    message['time'])),
+                                          _buildMessageBubble(message,
+                                              correctIsSentByMe, hasReply,
+                                              length: groupMedia.length),
+                                        ],
+                                      )
                                             : Align(
                                           alignment: correctIsSentByMe
                                               ? Alignment.centerRight
@@ -5238,6 +5251,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                                 DateSeparator(
                                                     dateTime: _parseTime(
                                                         message['time'])),
+
+
+
+
                                               Container(
                                                 margin: const EdgeInsets
                                                     .symmetric(
@@ -5293,6 +5310,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                                 ),
                                                 child: Column(
                                                   children: [
+                                                    if (showDate)
+                                                      DateSeparator(
+                                                          dateTime: _parseTime(
+                                                              message['time'])),
                                                     _buildMessageBubble(
                                                         message,
                                                         correctIsSentByMe,
