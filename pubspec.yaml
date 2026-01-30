@@ -136,6 +136,8 @@ dependencies:
   firebase_messaging: ^16.1.1
   awesome_notifications: ^0.10.1
   flutter_secure_storage: ^10.0.0
+  image_editor_plus: ^1.0.8
+  flutter_image_compress: ^2.4.0
   
 
 dev_dependencies:

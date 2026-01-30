@@ -443,7 +443,7 @@ class ShowAltDialog {
                           selectedImages = [];
                           selectedLabel = null;
                         }),
-                        child: const Text("Choose Another"),
+                        child: const Text(""),
                       ),
                     ]
                   ],

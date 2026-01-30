@@ -20,6 +20,7 @@ import 'package:nde_email/presantation/widgets/chat_widgets/Common/grouped_media
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/message_caption.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/AudioMessageWidget.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/grp_showbottom_sheet.dart';
+import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/show_Bottom_Sheet.dart';
 import 'package:nde_email/utils/reusbale/colour_utlis.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/whatsapp_swipe_to_reply.dart';
@@ -149,6 +150,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   final Map<String, String> _pendingStatusUpdates =
       {}; // Buffer for race conditions
 
+  // Helper: sanitize strings so Flutter Text rendering doesn't throw
+  // removes lone surrogate code units (U+D800..U+DFFF) that cause "not well-formed UTF-16"
+  String sanitizeString(String? s) {
+    if (s == null) return '';
+    return s.replaceAll(RegExp(r'[\uD800-\uDFFF]'), '');
+  }
+
   List<InlineSpan> _buildHighlightSpans(String text, TextStyle baseStyle) {
     if (_searchController.text.isEmpty ||
         !text.toLowerCase().contains(_searchController.text.toLowerCase())) {
@@ -237,7 +245,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final Set<String> groupMatchIds = {};
 
     for (final msg in combined) {
-      final content = (msg['content']?.toString() ?? '').toLowerCase();
+      final content = sanitizeString(msg['content']?.toString()).toLowerCase();
       final fileName = (msg['fileName']?.toString() ?? '').toLowerCase();
       final isDeleted = msg['is_deleted'] == true ||
           msg['messageStatus'] == 'deleted' ||
@@ -1033,7 +1041,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final keys = merged.keys.toList();
     for (final k in keys) {
       final v = merged[k];
-      if (v is String) merged[k] = v;
+      if (v is String) merged[k] = sanitizeString(v);
     }
 
     return merged;
@@ -1911,10 +1919,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 : null,
 
             // content
-            'content':
-                _replyPreview?['content'] ?? _replyMessage!['content'] ?? '',
-            'replyContent':
-                _replyPreview?['content'] ?? _replyMessage!['content'] ?? '',
+            'content': sanitizeString(
+                _replyPreview?['content'] ?? _replyMessage!['content'] ?? ''),
+            'replyContent': sanitizeString(
+                _replyPreview?['content'] ?? _replyMessage!['content'] ?? ''),
 
             // media (prefer grouped media info when replying to grouped)
             'originalUrl': groupedMediaInfo?['originalUrl'] ??
@@ -2005,7 +2013,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     final message = {
       'message_id': tempId,
-      'content': _messageController.text.trim(),
+      'content': sanitizeString(_messageController.text.trim()),
       'sender': {'_id': currentUserId},
       'receiver': {'_id': widget.datumId},
       // 🟢 Check connectivity for initial status
@@ -2252,6 +2260,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   List<InlineSpan> _buildMessageTextSpans(String content, bool isDeleted) {
+    // Sanitize input before processing for links/mentions to avoid UTF-16 errors
+    content = sanitizeString(content);
     final List<InlineSpan> spans = [];
     if (content.isEmpty) return spans;
 
@@ -2775,6 +2785,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           contentPreview = 'Video × $videoCount';
         }
       }
+
+      // SANITIZE reply preview content to avoid UTF-16 issues in rendering
+      contentPreview = sanitizeString(contentPreview);
 
       _replyPreview = {
         'message_id': replySource['message_id'] ??
@@ -4542,24 +4555,25 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   Widget _buildMessageBubble(Map<String, dynamic> message, bool isSentByMe) {
     // Sanitize message content early to avoid invalid strings in any downstream Text widgets
-    final String content = message['content']?.toString() ?? '';
+    final String content = sanitizeString(message['content']?.toString() ?? '');
     final String? imageUrl = message['imageUrl'] ?? _imageFile;
     final String? fileUrl = message['fileUrl'] ?? _fileUrl;
-    final String? fileName = message['fileName']?.toString() ?? '';
+    final String? fileName =
+        sanitizeString(message['fileName']?.toString() ?? '');
     final String? fileType = message['fileType'];
     final bool? isForwarded = message['isForwarded'] ?? false;
 
     final String userName =
         (message['userName']?.toString().trim().isNotEmpty == true)
-            ? (message['userName']?.toString() ?? '')
+            ? sanitizeString(message['userName']?.toString())
             : (() {
                 final s = message['sender'];
                 if (s is Map) {
                   final first =
-                      (s['first_name'] ?? s['firstName'] ?? '').toString();
+                      sanitizeString(s['first_name'] ?? s['firstName'] ?? '');
                   final last =
-                      (s['last_name'] ?? s['lastName'] ?? '').toString();
-                  return [first, last, (s['name'] ?? '').toString()]
+                      sanitizeString(s['last_name'] ?? s['lastName'] ?? '');
+                  return [first, last, sanitizeString(s['name'] ?? '')]
                       .where((e) => e != null && e.toString().trim().isNotEmpty)
                       .join(' ')
                       .trim();
@@ -5960,31 +5974,27 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       focusNode: _focusNode,
       onSendPressed: _sendMessage,
       onEmojiPressed: _toggleEmojiKeyboard,
-      onAttachmentPressed: () => GrpShowAltDialog.grpshowOptionsDialog(
-        context,
-        conversationId: widget.conversationId,
-        senderId: currentUserId,
-        receiverId: widget.datumId,
-        isGroupChat: true,
-        groupBloc: _groupBloc,
-        onOptionSelected:
-            () {}, // Changed from _sendMessageImage to empty callback to prevent duplicate sending. onMessageSent handles the UI/send logic.
-        onMessageSent: (List<Map<String, dynamic>> messages) {
-          if (messages.isEmpty) return;
+      onAttachmentPressed: () => ShowAltDialog.showOptionsDialog(context,
+          conversationId: widget.conversationId,
+          senderId: currentUserId,
+          receiverId: widget.datumId,
+          isGroupChat: true,
+          onOptionSelected: (List<Map<String, dynamic>> localMessages) {
+        if (localMessages.isEmpty) return;
 
-          setState(() {
-            for (var msg in messages) {
-              _seenMessageIds.add(msg['message_id'] ?? msg['messageId'] ?? '');
-              // Add to socketMessages for immediate UI update
-              socketMessages.add(msg);
-            }
-          });
+        setState(() {
+          socketMessages.addAll(localMessages);
+          for (var msg in localMessages) {
+            final id = (msg['message_id'] ?? '').toString();
+            if (id.isNotEmpty) _seenMessageIds.add(id);
+          }
+        });
+        _updateNotifier();
 
-          _updateNotifier();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
           _scrollToBottom();
-        },
-        onFilesSelected: _sendMultipleFiles,
-      ),
+        });
+      }),
       onCameraPressed: _openCamera,
       onRecordPressed: _isRecording ? _stopRecordingFs : _startRecordingFs,
       isRecording: _isRecording,
@@ -6886,13 +6896,18 @@ class MentionTextEditingController extends TextEditingController {
     notifyListeners();
   }
 
+  String sanitizeString(String? s) {
+    if (s == null) return '';
+    return s.replaceAll(RegExp(r'[\uD800-\uDFFF]'), '');
+  }
+
   @override
   TextSpan buildTextSpan(
       {required BuildContext context,
       TextStyle? style,
       required bool withComposing}) {
     final List<InlineSpan> children = [];
-    final String content = text;
+    final String content = sanitizeString(text);
 
     if (content.isEmpty) {
       return super.buildTextSpan(

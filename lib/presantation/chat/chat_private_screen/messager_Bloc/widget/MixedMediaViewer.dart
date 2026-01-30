@@ -12,6 +12,7 @@ import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/Me
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_event.dart'
     as group_event;
 import 'package:nde_email/presantation/chat/widget/delete_dialogue.dart';
+import 'package:nde_email/utils/snackbar/snackbar.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
 
@@ -134,9 +135,8 @@ class _MixedMediaViewerState extends State<MixedMediaViewer> {
         final status = await Permission.storage.request();
         final status2 = await Permission.manageExternalStorage.request();
         if (!status.isGranted && !status2.isGranted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Storage permission denied')),
-          );
+          Messenger.alertError('Storage permission denied');
+
           return;
         }
       }
@@ -174,17 +174,12 @@ class _MixedMediaViewerState extends State<MixedMediaViewer> {
       // 4. Update Gallery via MediaScanner
       await MediaScanner.loadMedia(path: finalPath);
 
-      // 5. Show Feedback
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Saved to NowDigitalEasy/Media')),
-      );
+      Messenger.alertSuccess('Saved to NowDigitalEasy/Media');
     } catch (e) {
       print("Error saving media: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error saving media: $e')),
-      );
     }
   }
+
   void _showAllMedia() {
     MyRouter.push(
       screen: UsermediaScreen(
@@ -401,7 +396,7 @@ class _MixedMediaViewerState extends State<MixedMediaViewer> {
             message: "",
             deleteFor: deleteFor,
           ));
-          log("Group msg deleting..");
+      log("Group msg deleting..");
     } else {
       context
           .read<private.MessagerBloc>()
@@ -413,9 +408,9 @@ class _MixedMediaViewerState extends State<MixedMediaViewer> {
             message: "",
             deleteFor: deleteFor,
           ));
-          log("Private msg deleting..");
+      log("Private msg deleting..");
     }
-    Navigator.pop(context); 
+    Navigator.pop(context);
   }
 
   Widget _buildGallery() {
