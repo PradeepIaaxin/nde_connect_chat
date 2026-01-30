@@ -91,6 +91,8 @@ class GroupProfileHeader extends StatelessWidget {
               imageurl: profileAvatarUrl,
               username: fullName,
               heroTag: "group_$groupId",
+              isGroup: grpChat,
+              grpId: groupId,
             ),
             transitionsBuilder: (_, animation, __, child) {
               return FadeTransition(opacity: animation, child: child);

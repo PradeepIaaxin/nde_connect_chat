@@ -152,6 +152,8 @@ class ChatListTile extends StatelessWidget {
         fallbackText: profileAvatar,
         userName: chat.firstName ?? "",
         groupName: chat.name ?? "",
+        isGroup: chat.isGroupChat ?? false,
+        grpId: chat.groupId,
         actions: [
           /// ✅ OPEN CHAT SCREEN
           ProfileAction(

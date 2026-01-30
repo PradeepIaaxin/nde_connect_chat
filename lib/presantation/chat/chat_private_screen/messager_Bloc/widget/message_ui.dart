@@ -43,6 +43,8 @@ class MessageBubble extends StatefulWidget {
   final List<String> recentEmojis;
   final Function(List<String>) onEmojiUpdated;
   final bool isSelectionMode;
+  final String? conversionalId;
+  final String? fullName;
 
   const MessageBubble(
       {super.key,
@@ -72,7 +74,9 @@ class MessageBubble extends StatefulWidget {
       required this.recentEmojis,
       required this.onEmojiUpdated,
       this.searchText,
-      required this.isSelectionMode});
+      required this.isSelectionMode,
+      this.conversionalId,
+      this.fullName});
 
   @override
   State<MessageBubble> createState() => _MessageBubbleState();
@@ -766,6 +770,8 @@ class _MessageBubbleState extends State<MessageBubble> {
           items: media,
           initialIndex: index,
           currentUserId: widget.currentUserId,
+          conversionalId: widget.conversionalId,
+          fullName: widget.fullName,
         ),
       ),
     );

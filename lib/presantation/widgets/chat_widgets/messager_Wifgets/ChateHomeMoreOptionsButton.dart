@@ -51,7 +51,8 @@ class MoreOptionsButton extends StatefulWidget {
     required bool favouite,
     required VoidCallback onSearchTap,
     String? resvId,
-    bool hasLeftGroup = false, // ADD THIS PARAMETER
+    bool hasLeftGroup = false,
+    VoidCallback? onExitGroup,
   }) {
     // Create menu items based on whether user has left the group
     final List<PopupMenuItem<int>> menuItems = [
@@ -155,23 +156,111 @@ class MoreOptionsButton extends StatefulWidget {
           userName: userName,
           mailName: mailName,
           lastname: lastname,
-          convoid: coverstionId,
-          grpId: grpId ?? "",
+          coverstionId: coverstionId,
+          grpId: grpId,
           resvId: resvId,
           grpChat: grpChat,
-          favorite: favouite,
-          hasLeftGroup: hasLeftGroup, // PASS THIS
+          favouite: favouite,
+          onSearchTap: onSearchTap,
+          hasLeftGroup: hasLeftGroup,
+          onExitGroup: onExitGroup,
         );
       }
     });
   }
 
-  static void showMoreOptions(BuildContext context,
-      {bool hasLeftGroup = false,
-      String? userName,
-      bool isFavourite = false,
-      String? conversationId,
-      bool isGroup = false}) {
+  static void handleMenuOptions(
+    BuildContext context,
+    int value, {
+    required String profileAvatarUrl,
+    required String userName,
+    required String mailName,
+    required String lastname,
+    required String coverstionId,
+    String? resvId,
+    String? grpId,
+    required bool grpChat,
+    required bool favouite,
+    required VoidCallback onSearchTap,
+    bool hasLeftGroup = false,
+    VoidCallback? onExitGroup,
+  }) {
+    switch (value) {
+      case 0:
+        MyRouter.push(
+          screen: UserProfileScreen(
+            profileAvatarUrl: profileAvatarUrl,
+            userName: userName,
+            mailName: mailName,
+            lastname: lastname,
+            conversionalId: coverstionId,
+            grpId: grpId,
+            isGrp: grpChat,
+            reciverId: resvId ?? "",
+            favourite: favouite,
+          ),
+        );
+        break;
+      case 3:
+        if (hasLeftGroup) {
+          _showLeftGroupMessage(context);
+          return;
+        }
+        String fullName = '$userName $lastname';
+        log('Media, Link & Docs tapped for $fullName');
+        MyRouter.push(
+          screen: UsermediaScreen(
+            username: fullName,
+            userId: coverstionId,
+          ),
+        );
+        break;
+      case 4:
+        if (hasLeftGroup) {
+          _showLeftGroupMessage(context);
+          return;
+        }
+        log('Mute notifications tapped');
+        _showMuteNotificationsDialog(context);
+        break;
+      case 5:
+        if (hasLeftGroup) {
+          _showLeftGroupMessage(context);
+          return;
+        }
+        log('Disappearing messages tapped');
+        _showDisappearingMessagesDialog(context);
+        break;
+      case 6:
+        log('Chat theme tapped');
+        break;
+      case 7:
+        if (hasLeftGroup) {
+          _showLeftGroupMessage(context);
+          return;
+        }
+        showMoreOptions(
+          context,
+          hasLeftGroup: hasLeftGroup,
+          userName: userName,
+          isFavourite: favouite,
+          conversationId: coverstionId,
+          isGroup: grpChat,
+          onExitGroup: onExitGroup,
+        );
+        break;
+    }
+  }
+
+  static void showMoreOptions(
+    BuildContext context, {
+    bool hasLeftGroup = false,
+    String? userName,
+    bool isFavourite = false,
+    String? conversationId,
+    bool isGroup = false,
+    VoidCallback? onExitGroup,
+  }) {
     final List<PopupMenuEntry<int>> moreItems = [
       const PopupMenuItem<int>(
           value: 10,
@@ -237,98 +326,30 @@ class MoreOptionsButton extends StatefulWidget {
       items: moreItems,
     ).then((value) {
       if (value != null) {
-        handleMoreOptions(context, value,
-            hasLeftGroup: hasLeftGroup,
-            userName: userName,
-            isFavourite: isFavourite,
-            conversationId: conversationId);
+        handleMoreOptions(
+          context,
+          value,
+          hasLeftGroup: hasLeftGroup,
+          userName: userName,
+          isFavourite: isFavourite,
+          conversationId: conversationId,
+          isGroup: isGroup,
+          onExitGroup: onExitGroup,
+        );
       }
     });
   }
 
-  static void handleMenuOptions(
+  static void handleMoreOptions(
     BuildContext context,
     int value, {
-    required String profileAvatarUrl,
-    required String userName,
-    required String mailName,
-    required String lastname,
-    required String convoid,
-    String? grpId,
-    String? resvId,
-    required bool grpChat,
-    required bool favorite,
-    required bool hasLeftGroup,
+    bool hasLeftGroup = false,
+    String? userName,
+    bool isFavourite = false,
+    String? conversationId,
+    bool isGroup = false,
+    VoidCallback? onExitGroup,
   }) {
-    switch (value) {
-      case 0:
-        MyRouter.push(
-          screen: UserProfileScreen(
-            profileAvatarUrl: profileAvatarUrl,
-            userName: userName,
-            mailName: mailName,
-            lastname: lastname,
-            conversionalId: convoid,
-            grpId: grpId ?? "",
-            isGrp: grpChat,
-            reciverId: resvId ?? "",
-            favourite: favorite,
-          ),
-        );
-        break;
-      case 3:
-        if (hasLeftGroup) {
-          _showLeftGroupMessage(context);
-          return;
-        }
-        String fullName = '$userName $lastname';
-        log('Media, Link & Docs tapped for $fullName');
-        MyRouter.push(
-          screen: UsermediaScreen(
-            username: fullName,
-            userId: convoid,
-          ),
-        );
-        break;
-      case 4:
-        if (hasLeftGroup) {
-          _showLeftGroupMessage(context);
-          return;
-        }
-        log('Mute notifications tapped');
-        _showMuteNotificationsDialog(context);
-        break;
-      case 5:
-        if (hasLeftGroup) {
-          _showLeftGroupMessage(context);
-          return;
-        }
-        log('Disappearing messages tapped');
-        _showDisappearingMessagesDialog(context);
-        break;
-      case 6:
-        log('Chat theme tapped');
-        break;
-      case 7:
-        if (hasLeftGroup) {
-          _showLeftGroupMessage(context);
-          return;
-        }
-        showMoreOptions(context,
-            hasLeftGroup: hasLeftGroup,
-            userName: userName,
-            isFavourite: favorite,
-            conversationId: convoid,
-            isGroup: grpChat);
-        break;
-    }
-  }
-
-  static void handleMoreOptions(BuildContext context, int value,
-      {bool hasLeftGroup = false,
-      String? userName,
-      bool isFavourite = false,
-      String? conversationId}) {
     switch (value) {
       case 2:
         if (hasLeftGroup) {
@@ -341,7 +362,9 @@ class MoreOptionsButton extends StatefulWidget {
         break;
       case 8:
         log('Report tapped');
-        _showReportGroupDialog(context);
+        showReportDialog(context,
+            name: userName ?? (isGroup ? "Group" : "Contact"),
+            isGroup: isGroup);
         break;
       case 10:
         log('Clear chat tapped');
@@ -359,12 +382,13 @@ class MoreOptionsButton extends StatefulWidget {
           return;
         }
         log('Exit group tapped');
-        _showExitGroupDialog(context, userName ?? "Group");
+        showExitGroupDialog(context, userName ?? "Group", onExit: onExitGroup);
         break;
     }
   }
 
-  static void _showExitGroupDialog(BuildContext context, String groupName) {
+  static void showExitGroupDialog(BuildContext context, String groupName,
+      {VoidCallback? onExit, VoidCallback? onExitAndDelete}) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -385,6 +409,7 @@ class MoreOptionsButton extends StatefulWidget {
                 onPressed: () {
                   Navigator.pop(context);
                   log('User confirmed exit group');
+                  if (onExit != null) onExit();
                 },
                 child: const Text('Exit group',
                     style: TextStyle(color: chatColor, fontSize: 16)),
@@ -398,6 +423,7 @@ class MoreOptionsButton extends StatefulWidget {
                 onPressed: () {
                   Navigator.pop(context);
                   log('User confirmed exit and delete');
+                  if (onExitAndDelete != null) onExitAndDelete();
                 },
                 child: const Text('Exit and delete for me',
                     style: TextStyle(color: chatColor, fontSize: 16)),
@@ -832,8 +858,9 @@ class MoreOptionsButton extends StatefulWidget {
     );
   }
 
-  static void _showReportGroupDialog(BuildContext context) {
-    bool exitAndDelete = true;
+  static void showReportDialog(BuildContext context,
+      {required String name, required bool isGroup}) {
+    bool blockOrExitAndDelete = true;
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -842,35 +869,42 @@ class MoreOptionsButton extends StatefulWidget {
           surfaceTintColor: Colors.white,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-          title: const Text('Report this group to NowDigitalEasy?',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500)),
+          title: Text(
+              'Report ${isGroup ? "this group" : name} to NowDigitalEasy?',
+              style:
+                  const TextStyle(fontSize: 20, fontWeight: FontWeight.w500)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'The last 5 messages from this group will be forwarded to NowDigitalEasy. If you exit this group and delete the chat, messages will only be removed from this device and your devices on the newer versions of NowDigitalEasy.',
-                style: TextStyle(color: Colors.grey, fontSize: 14),
+              Text(
+                'The last 5 messages from ${isGroup ? "this group" : "this contact"} will be forwarded to NowDigitalEasy. If you ${isGroup ? "exit this group" : "block this contact"} and delete the chat, messages will only be removed from this device and your devices on the newer versions of NowDigitalEasy.',
+                style: const TextStyle(color: Colors.grey, fontSize: 14),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'No one in this group will be notified.',
-                style: TextStyle(color: Colors.grey, fontSize: 14),
+              Text(
+                isGroup
+                    ? 'No one in this group will be notified.'
+                    : 'This contact will not be notified.',
+                style: const TextStyle(color: Colors.grey, fontSize: 14),
               ),
               const SizedBox(height: 16),
               Row(
                 children: [
                   Checkbox(
-                    value: exitAndDelete,
+                    value: blockOrExitAndDelete,
                     activeColor: chatColor,
                     onChanged: (value) {
                       setState(() {
-                        exitAndDelete = value ?? false;
+                        blockOrExitAndDelete = value ?? false;
                       });
                     },
                   ),
-                  const Text('Exit group and delete chat',
-                      style: TextStyle(fontSize: 14)),
+                  Expanded(
+                    child: Text(
+                        '${isGroup ? "Exit group" : "Block contact"} and delete chat',
+                        style: const TextStyle(fontSize: 14)),
+                  ),
                 ],
               ),
             ],
@@ -884,7 +918,7 @@ class MoreOptionsButton extends StatefulWidget {
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
-                log('User reported group. Exit and delete: $exitAndDelete');
+                log('User reported ${isGroup ? "group" : "contact"}. Block/Exit and delete: $blockOrExitAndDelete');
               },
               child: const Text('Report',
                   style: TextStyle(color: chatColor, fontSize: 16)),
