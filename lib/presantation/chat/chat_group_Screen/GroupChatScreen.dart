@@ -79,6 +79,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   List<Map<String, dynamic>> messages = [];
   List<Map<String, dynamic>> socketMessages = [];
   final SocketService socketService = SocketService();
+  double _prevScrollExtentBeforeLoad = 0.0;
 
   StreamSubscription<String>? _messageDeletedSubscription;
   final AudioRecorder _audioRecorder = AudioRecorder();
@@ -128,6 +129,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   List<String> _searchMatchIds = [];
   int _currentSearchMatchIndex = -1;
   bool _permissionChecked = false;
+  bool _showScrollToBottomButton = false;
 
   // Pagination / Windowing
   final List<Map<String, dynamic>> _allMessages = [];
@@ -433,13 +435,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         final serverStatus = state.sentMessage.messageStatus;
 
         if (serverMessageId.isNotEmpty) {
-          debugPrint(
-              '📤 Message sent successfully: $serverMessageId with status: $serverStatus');
+
           _updateMessageStatus(serverMessageId, serverStatus);
         }
       } else if (state is GrpMessageAckReceived) {
-        debugPrint(
-            '✅ ACK Received: ${state.tempId} -> ${state.realId} (${state.status})');
+
         _replaceTempMessageWithReal(
           tempId: state.tempId,
           realId: state.realId,
@@ -448,8 +448,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       } else if (state is GroupDetailsLoaded) {
         _updateGroupMembers(state.groupDetails);
       } else if (state is GroupChatLoaded) {
-        debugPrint(
-            "📨 GroupChatLoaded received in initState! knownMemberIds: ${_knownMemberIds.length}");
       }
     });
 
@@ -514,7 +512,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         });
       }
     } catch (e) {
-      log('❌ Error opening camera: $e');
       Messenger.alert(msg: "Could not open camera.");
     }
   }
@@ -541,7 +538,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         Messenger.alert(msg: "Microphone permission denied");
       }
     } catch (e) {
-      log('Error starting recording: $e');
       setState(() => _isRecording = false);
     }
   }
@@ -568,8 +564,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       msg = Map<String, dynamic>.from(rawData);
     }
 
-    print(widget.conversationId);
-    log("log message daa ${widget.conversationId}");
 
     // ✅ Filter by conversationId (GROUP SAFETY)
     final String? incomingConvoId =
@@ -696,13 +690,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       if (existingIndex != -1) {
         // Update existing message with server data
         socketMessages[existingIndex] = newMessage;
-        log("🔄 UPDATED existing message in socketMessages: $messageId");
       } else {
         // Add as new message
         socketMessages.add(newMessage);
         _scrollToBottom();
         if (_visibleCount > 0) _visibleCount++;
-        log("➕ ADDED new message to socketMessages: $messageId");
       }
 
       final combined = _getCombinedMessages();
@@ -711,9 +703,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       _updateNotifier();
     });
 
-    log(
-      "✅ GROUP MESSAGE SHOWN → ${newMessage['content']} | sender=${newMessage['userName']}",
-    );
+
   }
 
   void _handleReactionUpdate(dynamic reactionData) {
@@ -730,7 +720,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       if (reaction == null) return;
       _updateMessageWithReaction(reaction);
     } catch (e, st) {
-      debugPrint('❌ Group reaction update failed: $e\n$st');
     }
   }
 
@@ -754,7 +743,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     _messageDeletedSubscription?.cancel();
     _messageDeletedSubscription =
         socketService.messageDeletedStream.listen((messageId) {
-      log("🗑️ Received message_deleted event for: $messageId");
       _markMessagesAsDeleted([messageId], deleteFor: 'everyone');
     });
   }
@@ -775,7 +763,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           statusUpdate['singleMessageId'] ??
           statusUpdate['messageId'];
 
-      debugPrint('📥 Group Status update received: $statusUpdate');
 
       // normalize to List<String>
       final List<String> idList = [];
@@ -814,8 +801,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             newMsg['messageStatus'] = status;
             list[i] = newMsg;
             updated = true;
-            debugPrint(
-                '✅ Updated message $messageId status to $status in $listName');
+
           }
           break;
         }
@@ -834,8 +820,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         // ⚠️ Race condition handling: Message might be temporary (pending replacement)
         // Store status to apply later when real ID arrives
         _pendingStatusUpdates[messageId] = status;
-        debugPrint(
-            '⏳ Buffered status update for missing ID: $messageId -> $status');
+
       }
       _updateNotifier();
       _refreshMessages();
@@ -921,7 +906,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         'groupMessageIds': replyRaw['groupMessageIds'] ?? [],
       };
     } catch (e) {
-      debugPrint('❌ Error extracting reply data: $e');
+
       return null;
     }
   }
@@ -1054,14 +1039,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     bool updated = false;
     final targetId = normalizeId(reaction.messageId);
-    log('🔍 _updateMessageWithReaction: Target ID: $targetId, Emoji: ${reaction.emoji}');
 
     void updateReactions(List<Map<String, dynamic>> list, String listName) {
       for (var msg in list) {
         final msgId = normalizeId(
             msg['message_id'] ?? msg['messageId'] ?? msg['_id'] ?? msg['id']);
         if (msgId == targetId) {
-          log('✅ Found message in $listName. Updating reactions...');
           List<Map<String, dynamic>> oldReactions =
               List<Map<String, dynamic>>.from(msg['reactions'] ?? []);
 
@@ -1093,7 +1076,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     updateReactions(socketMessages, 'socketMessages');
 
     if (updated) {
-      log('🔄 Reaction update successful. Triggering rebuild.');
       setState(() {
         // _reactionRebuildCounter++; // Force rebuild - Removed
         _updateNotifier();
@@ -1101,7 +1083,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       final combined = _getCombinedMessages();
       GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
     } else {
-      log('⚠️ Message with ID $targetId not found in any list.');
     }
   }
 
@@ -1234,8 +1215,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           continue;
         }
 
-        debugPrint(
-            "⚡ [GroupChat] Optimistic reaction update for $targetMessageId in $listName");
+
 
         // Normalize existing reactions
         final reactions = _extractReactions(msg['reactions']);
@@ -1280,15 +1260,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       updateList(socketMessages, "socketMessages");
 
       if (changed) {
-        debugPrint(
-            "✅ [GroupChat] Reaction state updated locally. Saving to storage.");
+
         // We need to ensure _getCombinedMessages will pick up the changes.
         // Since we modified the source lists in place (with new maps), it should work.
         final combined = _getCombinedMessages();
         GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
       } else {
-        debugPrint(
-            "⚠️ [GroupChat] Reaction target $targetMessageId (API: $apiTargetId) not found locally.");
+
       }
       _updateNotifier();
     });
@@ -1309,7 +1287,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           .toString();
 
       if (rawId.isEmpty) {
-        log('⚠️ Skipping reaction: message has empty id');
         return;
       }
 
@@ -1391,7 +1368,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         });
       }
     } catch (e, st) {
-      log('❌ Error handling reaction tap: $e\n$st');
     }
   }
 
@@ -1757,7 +1733,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Future<void> _initializeSocket() async {
     final String? token = await UserPreferences.getAccessToken();
     if (token == null) {
-      log("Access token is null. Socket connection not initialized.");
       return;
     }
 
@@ -1808,7 +1783,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
 // Add this method to handle permission state changes
   void _handlePermissionResponse(Map<String, dynamic>? response) {
-    print("Handling permission response: $response");
 
     if (response != null && response['type'] == 'left') {
       if (mounted) {
@@ -1817,7 +1791,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         });
       }
 
-      print("❌ User has left the group: $_hasLeftGroup");
 
       // Clear any draft messages
       if (mounted) {
@@ -1842,7 +1815,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         });
       }
 
-      print("✅ User has permission to chat: $_hasLeftGroup");
     }
   }
 
@@ -2110,7 +2082,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         status: 'sent',
       );
     } catch (e) {
-      log('❌ Send message error: $e');
       _updateMessageStatus(tempId, 'failed');
     }
   }
@@ -2120,36 +2091,29 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   List<String> _knownMemberIds = [];
 
   void _updateGroupMembers(Map<String, dynamic> groupDetails) {
-    debugPrint("👥 _updateGroupMembers called with keys: ${groupDetails.keys}");
 
     // Try to extract member IDs from various possible keys
     List<dynamic>? memberData;
     if (groupDetails['groupMembers'] is List) {
       memberData = groupDetails['groupMembers'];
-      debugPrint("✅ Found 'groupMembers' key with ${memberData!.length} items");
     } else if (groupDetails['members'] is List) {
       memberData = groupDetails['members'];
-      debugPrint("✅ Found 'members' key with ${memberData!.length} items");
     } else if (groupDetails['participants'] is List) {
       memberData = groupDetails['participants'];
-      debugPrint("✅ Found 'participants' key with ${memberData!.length} items");
     } else if (groupDetails['users'] is List) {
       memberData = groupDetails['users'];
-      debugPrint("✅ Found 'users' key with ${memberData!.length} items");
     } else if (groupDetails['data'] is Map &&
         groupDetails['data']['members'] is List) {
       memberData = groupDetails['data']['members'];
-      debugPrint(
-          "✅ Found nested 'data.members' with ${memberData!.length} items");
+
     } else if (groupDetails['group'] is Map &&
         groupDetails['group']['members'] is List) {
       memberData = groupDetails['group']['members'];
-      debugPrint(
-          "✅ Found nested 'group.members' with ${memberData!.length} items");
+
     }
 
     if (memberData != null && memberData.isNotEmpty) {
-      debugPrint("🔍 First element type: ${memberData.first.runtimeType}");
+
 
       final List<String> ids = [];
       final List<Map<String, dynamic>> normalizedMembers = [];
@@ -2183,16 +2147,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           _groupMembersList = normalizedMembers;
           _messageController.setMembers(_groupMembersList);
         });
-        debugPrint(
-            "✅ Populated ${_groupMembersList.length} members from API details");
+
       }
 
       // Always try to supplement/update from messages to get most recent names/pics
       _buildMemberDetailsFromMessages(_knownMemberIds);
 
-      debugPrint("💾 Stored ${_knownMemberIds.length} member IDs");
+
     } else {
-      log("⚠️ No members found in group details. Keys: ${groupDetails.keys}");
       // Try to extract from messages as fallback
       _buildMemberDetailsFromMessages(
           _knownMemberIds.isNotEmpty ? _knownMemberIds : null);
@@ -2200,11 +2162,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   void _buildMemberDetailsFromMessages(List<String>? knownMemberIds) {
-    debugPrint("🔍 Building member list from messages...");
-    debugPrint("   - dbMessages: ${dbMessages.length}");
-    debugPrint("   - messages: ${messages.length}");
-    debugPrint("   - socketMessages: ${socketMessages.length}");
-    debugPrint("   - knownMemberIds: ${knownMemberIds?.length ?? 'null'}");
 
     // Extract unique member details from all messages
     final Map<String, Map<String, dynamic>> membersMap = {};
@@ -2255,8 +2212,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       _messageController.setMembers(_groupMembersList);
     });
 
-    debugPrint(
-        "✅ Built group members list from messages: ${_groupMembersList.length} members");
+
   }
 
   List<InlineSpan> _buildMessageTextSpans(String content, bool isDeleted) {
@@ -2358,7 +2314,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                     throw 'Could not launch $uri';
                   }
                 } catch (e) {
-                  debugPrint('Could not launch url: $e');
                 }
               },
           ),
@@ -2381,7 +2336,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   void _sendMultipleFiles(List<XFile> files) async {
     if (files.isEmpty) return;
-    log("📤 Sending ${files.length} multiple files");
 
     final count = files.length;
     final isGrouped = count >= 4;
@@ -2448,78 +2402,130 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
   }
 
+  // void _scrollListener() {
+  //   if (!_scrollController.hasClients) return;
+  //
+  //   if (_scrollController.position.pixels <=
+  //       _scrollController.position.minScrollExtent + 50) {
+  //     final total = _allMessages.length;
+  //
+  //     log('🔍 Scroll at top - total: $total, visible: $_visibleCount, hasNextPage: $_hasNextPage, isLoading: $_isLoadingMore');
+  //     final shouldShowArrow = !_isNearBottom();
+  //
+  //     if (shouldShowArrow != _showScrollToBottomButton) {
+  //       setState(() {
+  //         _showScrollToBottomButton = shouldShowArrow;
+  //       });
+  //     }
+  //     // 1. Client-side pagination: Show more from local cache
+  //     if (_visibleCount < total && !_isLoadingMore) {
+  //       setState(() {
+  //         _isLoadingMore = true;
+  //       });
+  //
+  //       // Increase visible window locally first for snappier UI
+  //       Future.delayed(const Duration(milliseconds: 300), () {
+  //         if (!mounted) return;
+  //
+  //         final newVisibleCount = (_visibleCount + _pageStep).clamp(0, total);
+  //
+  //         setState(() {
+  //           _visibleCount = newVisibleCount;
+  //           _isLoadingMore = false;
+  //         });
+  //
+  //         _updateNotifierFromAll();
+  //         log('📜 Client Pagination: Loaded more messages. Now showing $_visibleCount of $total (local cache)');
+  //
+  //         // ✅ AUTO-FETCH: If we just showed ALL local messages AND there's more on server
+  //         if (_visibleCount >= total && _hasNextPage) {
+  //           log('🔄 Auto-triggering server fetch after client pagination');
+  //           Future.delayed(const Duration(milliseconds: 200), () {
+  //             if (!mounted || _isLoadingMore) return;
+  //
+  //             setState(() => _isLoadingMore = true);
+  //             _currentPage++;
+  //             log('📡 Server Pagination: Fetching page $_currentPage from server... (hasNextPage: $_hasNextPage)');
+  //
+  //             _groupBloc.add(
+  //               FetchGroupMessages(
+  //                 convoId: widget.conversationId,
+  //                 page: _currentPage,
+  //                 limit: _limit,
+  //               ),
+  //             );
+  //           });
+  //         }
+  //       });
+  //     }
+  //     // 2. Server-side pagination: User scrolled with all local messages already shown
+  //     else if (_visibleCount >= total && _hasNextPage && !_isLoadingMore) {
+  //       setState(() {
+  //         _isLoadingMore = true;
+  //       });
+  //
+  //       _currentPage++;
+  //       log('📡 Server Pagination: Fetching page $_currentPage from server... (hasNextPage: $_hasNextPage)');
+  //
+  //       _groupBloc.add(
+  //         FetchGroupMessages(
+  //           convoId: widget.conversationId,
+  //           page: _currentPage,
+  //           limit: _limit,
+  //         ),
+  //       );
+  //     } else {
+  //       log('🛑 Pagination stopped - visibleCount: $_visibleCount, total: $total, hasNextPage: $_hasNextPage, isLoading: $_isLoadingMore');
+  //     }
+  //   }
+  // }
+
+  bool _isNearBottom() {
+    if (!_scrollController.hasClients) return true;
+    return _scrollController.offset < 80; // 👈 threshold
+  }
+
   void _scrollListener() {
     if (!_scrollController.hasClients) return;
 
-    if (_scrollController.position.pixels <=
-        _scrollController.position.minScrollExtent + 50) {
-      final total = _allMessages.length;
+    final offset = _scrollController.offset;
 
-      log('🔍 Scroll at top - total: $total, visible: $_visibleCount, hasNextPage: $_hasNextPage, isLoading: $_isLoadingMore');
+    // ✅ WhatsApp logic
+    final shouldShowArrow = !_isNearBottom();
 
-      // 1. Client-side pagination: Show more from local cache
-      if (_visibleCount < total && !_isLoadingMore) {
+    if (shouldShowArrow != _showScrollToBottomButton) {
+      setState(() {
+        _showScrollToBottomButton = shouldShowArrow;
+      });
+    }
+
+    // =========================
+    // PAGINATION (TOP LOAD)
+    // =========================
+    final maxExtent = _scrollController.position.maxScrollExtent;
+
+    if (offset < maxExtent - 120) return;
+
+    final total = _allMessages.length;
+
+
+    if (_visibleCount < total && !_isLoadingMore) {
+      _isLoadingMore = true;
+
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (!mounted) return;
+
         setState(() {
-          _isLoadingMore = true;
+          _visibleCount = (_visibleCount + _pageStep).clamp(0, total);
+          _isLoadingMore = false;
         });
 
-        // Increase visible window locally first for snappier UI
-        Future.delayed(const Duration(milliseconds: 300), () {
-          if (!mounted) return;
-
-          final newVisibleCount = (_visibleCount + _pageStep).clamp(0, total);
-
-          setState(() {
-            _visibleCount = newVisibleCount;
-            _isLoadingMore = false;
-          });
-
-          _updateNotifierFromAll();
-          log('📜 Client Pagination: Loaded more messages. Now showing $_visibleCount of $total (local cache)');
-
-          // ✅ AUTO-FETCH: If we just showed ALL local messages AND there's more on server
-          if (_visibleCount >= total && _hasNextPage) {
-            log('🔄 Auto-triggering server fetch after client pagination');
-            Future.delayed(const Duration(milliseconds: 200), () {
-              if (!mounted || _isLoadingMore) return;
-
-              setState(() => _isLoadingMore = true);
-              _currentPage++;
-              log('📡 Server Pagination: Fetching page $_currentPage from server... (hasNextPage: $_hasNextPage)');
-
-              _groupBloc.add(
-                FetchGroupMessages(
-                  convoId: widget.conversationId,
-                  page: _currentPage,
-                  limit: _limit,
-                ),
-              );
-            });
-          }
-        });
-      }
-      // 2. Server-side pagination: User scrolled with all local messages already shown
-      else if (_visibleCount >= total && _hasNextPage && !_isLoadingMore) {
-        setState(() {
-          _isLoadingMore = true;
-        });
-
-        _currentPage++;
-        log('📡 Server Pagination: Fetching page $_currentPage from server... (hasNextPage: $_hasNextPage)');
-
-        _groupBloc.add(
-          FetchGroupMessages(
-            convoId: widget.conversationId,
-            page: _currentPage,
-            limit: _limit,
-          ),
-        );
-      } else {
-        log('🛑 Pagination stopped - visibleCount: $_visibleCount, total: $total, hasNextPage: $_hasNextPage, isLoading: $_isLoadingMore');
-      }
+        _updateNotifierFromAll();
+      });
+    } else if (_visibleCount >= total && _hasNextPage && !_isLoadingMore) {
+     // _triggerServerFetch();
     }
   }
-
   String _formatDateTime(DateTime? dateTime) {
     if (dateTime == null) return '';
     final now = DateTime.now();
@@ -2534,7 +2540,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   void _markMessagesAsDeleted(List<String> messageIds,
       {String deleteFor = 'everyone'}) {
-    log("Marking messages as deleted: $messageIds (for $deleteFor)");
 
     setState(() {
       List<Map<String, dynamic>> updateMessages(
@@ -2584,7 +2589,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   void _deleteSelectedMessages(String deleteFor) {
     if (_selectedMessageIds.isEmpty) {
-      log("No messages selected to delete");
       return;
     }
 
@@ -2711,7 +2715,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }) {
     if (message.isEmpty) return;
 
-    log("Group Reply source (swiped) => $message");
 
     // ✅ ALWAYS reply to the swiped message itself
     final Map<String, dynamic> replySource = Map<String, dynamic>.from(message);
@@ -2819,7 +2822,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         'group_message_id': groupId,
       };
 
-      log(" _replyPreview $_replyPreview");
       _focusNode.requestFocus();
     });
   }
@@ -2837,7 +2839,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     if (isDeleted) return;
 
-    debugPrint('📩 tapped message id: ${message['message_id']}');
 
     // 🔥 Fallback: If message failed, show resend dialog on tap
     final status = message['messageStatus']?.toString() ?? '';
@@ -2877,7 +2878,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
 
     final replyId = extractReplyId(message);
-    debugPrint('📌 extracted replyId: $replyId');
 
     if (replyId != null && replyId.isNotEmpty) {
       final found = await _scrollToMessageById(replyId, fetchIfMissing: true);
@@ -3017,7 +3017,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       // If we found a group of 2+ media items
       if (groupIndices.length > 1) {
         final groupId = ObjectId().toString();
-        log('🔍 Inferring group $groupId for ${groupIndices.length} media items');
 
         // ✅ CRITICAL: Persist grouping info to the ORIGINAL SOURCE messages
         for (final index in groupIndices) {
@@ -3189,8 +3188,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       _visibleCount =
           total >= _initialVisible ? _initialVisible : total; // Show last N
     }
-    debugPrint(
-        '🔄 _updateNotifier: total=${_allMessages.length}, visible=$_visibleCount');
+
 
     _updateNotifierFromAll();
   }
@@ -3204,14 +3202,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     // We want the *last* `count` messages (the newest ones).
     // Start index = total - count.
     final startIndex = total - count;
-    debugPrint(
-        '📊 _updateNotifierFromAll: total=$total, count=$count, startIndex=$startIndex');
+
 
     final visibleSlice = (count == 0)
         ? <Map<String, dynamic>>[]
         : _allMessages.sublist(startIndex, total);
 
-    debugPrint('   - visibleSlice length: ${visibleSlice.length}');
 
     // List passed to ListView (reverse: true).
     // The list itself is [OldestSlice, ..., NewestSlice].
@@ -3606,7 +3602,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           });
         } else if (state is GroupChatLoaded) {
           // 🔍 Track every GroupChatLoaded emission
-          log('\ud83d\udea8 GroupChatLoaded RECEIVED - Page: $_currentPage, isLoadingMore: $_isLoadingMore, total on server: ${state.response.total}');
 
           // ALWAYS update these flags when state arrives, even if data is same
           _hasNextPage = state.response.hasNextPage;
@@ -3637,13 +3632,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           // Calculate total pages for debugging
           final totalPages = (state.response.total / _limit).ceil();
 
-          log('📊 PAGINATION INFO:');
-          log('   📄 Current page: $_currentPage of $totalPages');
-          log('   📥 Total messages on server: ${state.response.total}');
-          log('   📦 Incoming messages this page: ${incomingNormalized.length}');
-          log('   💾 Current local messages: ${dbMessages.length}');
-          log('   ⏭️  Has next page: ${state.response.hasNextPage}');
-          log('   ⏮️  Has previous page: ${state.response.hasPreviousPage}');
 
           setState(() {
             // --- ROBUST MERGE STRATEGY ---
@@ -3651,16 +3639,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             // This preserves older history when Page 1 is refreshed
             final Map<String, Map<String, dynamic>> messagesMap = {};
 
-            log('🔀 MERGE STRATEGY:');
-            log('   📝 Existing dbMessages: ${dbMessages.length}');
-            log('   📥 Incoming messages: ${incomingNormalized.length}');
 
             // 1. Put existing messages into map
             for (var m in dbMessages) {
               final id = (m['message_id'] ?? m['id'] ?? '').toString();
               if (id.isNotEmpty) messagesMap[id] = m;
             }
-            log('   🗄️  Messages in map after existing: ${messagesMap.length}');
 
             // 2. Overlay incoming messages (may override existing or add new)
             for (var m in incomingNormalized) {
@@ -3670,14 +3654,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 //  log('   ➕ Added/Updated message: $id');
               }
             }
-            log('   🗄️  Messages in map after incoming: ${messagesMap.length}');
 
             // 3. Rebuild dbMessages from merged map
             dbMessages = messagesMap.values.toList();
-            log('   ✅ After merge, dbMessages count: ${dbMessages.length}');
             if (_knownMemberIds.isNotEmpty && _groupMembersList.isEmpty) {
-              debugPrint(
-                  "🔄 Rebuilding member list after dbMessages population");
               _buildMemberDetailsFromMessages(_knownMemberIds);
             }
           });
@@ -3697,22 +3677,17 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               _visibleCount = _allMessages.length;
             });
             _updateNotifierFromAll();
-            debugPrint(
-                '   - Page $_currentPage: Set _visibleCount to $_visibleCount to show all messages');
+
           }
 
-          debugPrint(
-              '✅ GroupChatLoaded processed: total=${_allMessages.length}, visible=$_visibleCount');
         } else if (state is GroupDetailsLoaded) {
-          debugPrint(
-              'ℹ️ GroupDetailsLoaded emitted. Ignoring for message list.');
+
         }
       },
       child: ValueListenableBuilder<List<Map<String, dynamic>>>(
         valueListenable: _messagesNotifier,
         builder: (context, combinedMessages, child) {
-          debugPrint(
-              '🎨 Rebuild UI with ${combinedMessages.length} messages. State: ${_groupBloc.state.runtimeType}');
+
 
           if (combinedMessages.isNotEmpty) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -3723,12 +3698,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           return BlocBuilder<GroupChatBloc, GroupChatState>(
             bloc: _groupBloc,
             builder: (context, state) {
-              debugPrint('🏗️ BlocBuilder state: ${state.runtimeType}');
-              final bool showShimmer = state is GroupChatLoading &&
-                  _currentPage == 1 &&
-                  combinedMessages
-                      .isEmpty; // Check combinedMessages instead of _allMessages directly for safety
 
+              final bool showShimmer =
+                  messages.isEmpty &&
+                  socketMessages.isEmpty &&
+                  combinedMessages.isEmpty;// Check combinedMessages instead of _allMessages directly for safety
               if (showShimmer) {
                 return ListView.builder(
                   itemCount: 10,
@@ -3879,7 +3853,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                               final bool isGroupSelected = groupMessagesList
                                   .any((m) => _selectedMessageKeys
                                       .contains(_generateMessageKey(m)));
+                              final screenWidth = MediaQuery.of(context).size.width;
 
+                              // ✅ WhatsApp-like bubble width
+                              final double bubbleWidth =
+                              screenWidth < 600 ? screenWidth * 0.72 : screenWidth * 0.5;
                               return _hasLeftGroup
                                   ? const SizedBox.shrink()
                                   : AnimatedContainer(
@@ -4016,6 +3994,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                         : 38),
                                                                 child:
                                                                     Container(
+                                                                      width: bubbleWidth,
+                                                                  height: 200,
                                                                   margin:
                                                                       EdgeInsets
                                                                           .only(
@@ -4023,6 +4003,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                         isSentByMe
                                                                             ? 0
                                                                             : 0,
+
                                                                     right: 0,
                                                                     top: 0,
                                                                     bottom: (message['reactions'] !=
@@ -4201,7 +4182,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                               child: GestureDetector(
                                                                                 behavior: HitTestBehavior.translucent,
                                                                                 onTap: () {
-                                                                                  log("Reaction tapped");
                                                                                   final reactions = _extractReactions(message['reactions']);
                                                                                   final firstEmoji = reactions.isNotEmpty ? (reactions.first['emoji']?.toString() ?? '') : '';
                                                                                   _showReactionsBottomSheet(message, firstEmoji);
@@ -4431,39 +4411,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               ),
             ),
           ),
-          Positioned(
-            top: 0,
-            bottom: 0,
-            left: isSentByMe ? -60 : null,
-            right: isSentByMe ? null : -60,
-            child: Center(
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(20),
-                  onTap: () {
-                    MyRouter.pushReplace(
-                      screen: ForwardMessageScreen(
-                        messages: [normalizeMessage(message)],
-                        currentUserId: currentUserId,
-                        conversionalid: widget.conversationId,
-                        username: widget.groupName,
-                      ),
-                    );
-                  },
-                  child: CircleAvatar(
-                    maxRadius: 16,
-                    backgroundColor: Colors.white,
-                    child: Image.asset(
-                      "assets/images/forward.png",
-                      height: 20,
-                      width: 20,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
+
           if ((message['content']?.toString() ?? '').isEmpty)
             Positioned(
               bottom: 6,
@@ -4641,7 +4589,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 message['_id'])
             ?.toString() ??
         '';
-
+    final bool hasFile = fileUrl != null && fileUrl.isNotEmpty;
     return message['content'].contains('Group created by')
         ? voidBox
         : (contentType == "system" &&
@@ -4697,238 +4645,483 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                 child: Stack(
                                     clipBehavior: Clip.none,
                                     children: [
-                                      Padding(
-                                        padding:
-                                            const EdgeInsets.only(left: 30),
-                                        child: Container(
-                                          margin: EdgeInsets.only(
-                                            left: 5,
-                                            right: 5,
-                                            top: 0,
-                                            bottom:
-                                                (message['reactions'] != null &&
-                                                        message['reactions']
-                                                            .isNotEmpty)
-                                                    ? 20
-                                                    : 0,
-                                          ),
-                                          padding: hasReply
-                                              ? EdgeInsets.only(
-                                                  left: 5, bottom: 3, right: 6)
-                                              : const EdgeInsets.only(
-                                                  top: 8,
-                                                  left: 10,
-                                                  right: 6,
-                                                  bottom: 8),
-                                          constraints: BoxConstraints(
-                                              maxWidth: 250,
-                                              minWidth: hasReply ? 120 : 0),
-                                          decoration: BoxDecoration(
-                                            color: isSelected
-                                                ? senderColor.withOpacity(0.2)
-                                                : (isSentByMe
-                                                    ? senderColor
-                                                    : receiverColor),
-                                            borderRadius: BorderRadius.only(
-                                              topLeft: isSentByMe
-                                                  ? const Radius.circular(18)
-                                                  : const Radius.circular(18),
-                                              topRight: isSentByMe
-                                                  ? const Radius.circular(18)
-                                                  : const Radius.circular(18),
-                                              bottomLeft: isSentByMe
-                                                  ? const Radius.circular(18)
-                                                  : Radius.zero,
-                                              bottomRight: isSentByMe
-                                                  ? Radius.zero
-                                                  : const Radius.circular(16),
-                                            ),
-                                            border: isSelected
-                                                ? Border.all(
-                                                    color: Colors.blue,
-                                                    width: 2)
-                                                : null,
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: Colors.black
-                                                    .withOpacity(0.05),
-                                                blurRadius: 4,
-                                                offset: const Offset(0, 2),
+                                      Row(
+                                        mainAxisAlignment:isSentByMe
+                                            ? MainAxisAlignment.end
+                                            : MainAxisAlignment.start,
+                                        children: [
+                                          if (isSentByMe &&
+                                              (isVideo ||
+                                                  isImage ||
+                                                  hasFile ||
+                                                  (content.isNotEmpty &&
+                                                      RegExp(r'((https?:\/\/)|(www\.))[^\s]+',
+                                                          caseSensitive: false)
+                                                          .hasMatch(content))))  Center(
+                                            child: Material(
+                                              color: Colors.transparent,
+                                              child: InkWell(
+                                                borderRadius: BorderRadius.circular(20),
+                                                onTap: () {
+                                                  MyRouter.pushReplace(
+                                                    screen: ForwardMessageScreen(
+                                                      messages: [
+                                                        normalizeMessage(message)
+                                                      ],
+                                                      currentUserId: currentUserId,
+                                                      conversionalid: widget.conversationId,
+                                                      username: widget.groupName,
+                                                    ),
+                                                  );
+                                                },
+                                                child: CircleAvatar(
+                                                  maxRadius: 16,
+                                                  backgroundColor: Colors.white,
+                                                  child: Image.asset(
+                                                    "assets/images/forward.png",
+                                                    height: 20,
+                                                    width: 20,
+                                                  ),
+                                                ),
                                               ),
-                                            ],
+                                            ),
                                           ),
-                                          child: Stack(
-                                            children: [
-                                              Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
+                                          Flexible(
+                                            child: Padding(
+                                              padding:
+                                                  const EdgeInsets.only(left: 30),
+                                              child: Container(
+                                                margin: EdgeInsets.only(
+                                                  left: 5,
+                                                  right: 5,
+                                                  top: 0,
+                                                  bottom:
+                                                      (message['reactions'] != null &&
+                                                              message['reactions']
+                                                                  .isNotEmpty)
+                                                          ? 20
+                                                          : 0,
+                                                ),
+                                                padding: hasReply
+                                                    ? EdgeInsets.only(
+                                                        left: 5, bottom: 3, right: 6)
+                                                    : const EdgeInsets.only(
+                                                        top: 8,
+                                                        left: 10,
+                                                        right: 6,
+                                                        bottom: 8),
+                                                constraints: BoxConstraints(
+                                                    maxWidth: 250,
+                                                    minWidth: hasReply ? 120 : 0),
+                                                decoration: BoxDecoration(
+                                                  color: isSelected
+                                                      ? senderColor.withOpacity(0.2)
+                                                      : (isSentByMe
+                                                          ? senderColor
+                                                          : receiverColor),
+                                                  borderRadius: BorderRadius.only(
+                                                    topLeft: isSentByMe
+                                                        ? const Radius.circular(18)
+                                                        : const Radius.circular(18),
+                                                    topRight: isSentByMe
+                                                        ? const Radius.circular(18)
+                                                        : const Radius.circular(18),
+                                                    bottomLeft: isSentByMe
+                                                        ? const Radius.circular(18)
+                                                        : Radius.zero,
+                                                    bottomRight: isSentByMe
+                                                        ? Radius.zero
+                                                        : const Radius.circular(16),
+                                                  ),
+                                                  border: isSelected
+                                                      ? Border.all(
+                                                          color: Colors.blue,
+                                                          width: 2)
+                                                      : null,
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: Colors.black
+                                                          .withOpacity(0.05),
+                                                      blurRadius: 4,
+                                                      offset: const Offset(0, 2),
+                                                    ),
+                                                  ],
+                                                ),
+                                                child: Stack(
                                                   children: [
-                                                    if (!isSentByMe &&
-                                                        userName.isNotEmpty)
-                                                      Padding(
-                                                        padding:
-                                                            EdgeInsets.only(
-                                                                bottom: 4,
-                                                                left: 7,
-                                                                right: 6,
-                                                                top: hasReply
-                                                                    ? 6.5
-                                                                    : 0),
-                                                        child: Text(
-                                                          userName,
-                                                          style: TextStyle(
-                                                            fontWeight:
-                                                                FontWeight.bold,
-                                                            color: ColorUtil
-                                                                .getColorFromAlphabet(
-                                                                    userName),
-                                                            fontSize: 14,
-                                                          ),
-                                                        ),
-                                                      ),
-
-                                                    if (isForwarded == true)
-                                                      Padding(
-                                                        padding:
-                                                            const EdgeInsets
-                                                                .only(
-                                                                bottom: 4.0,
-                                                                left: 7,
-                                                                right: 6),
-                                                        child: Row(
-                                                          mainAxisSize:
-                                                              MainAxisSize.min,
-                                                          children: [
-                                                            Image.asset(
-                                                              "assets/images/forward.png",
-                                                              height: 14,
-                                                              width: 14,
-                                                            ),
-                                                            const SizedBox(
-                                                                width: 4),
-                                                            Text(
-                                                              "Forwarded",
-                                                              style: TextStyle(
-                                                                fontSize: 12,
-                                                                color: Colors
-                                                                    .grey[700],
+                                                    Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment.start,
+                                                        children: [
+                                                          if (!isSentByMe &&
+                                                              userName.isNotEmpty)
+                                                            Padding(
+                                                              padding:
+                                                                  EdgeInsets.only(
+                                                                      bottom: 4,
+                                                                      left: 7,
+                                                                      right: 6,
+                                                                      top: hasReply
+                                                                          ? 6.5
+                                                                          : 0),
+                                                              child: Text(
+                                                                userName,
+                                                                style: TextStyle(
+                                                                  fontWeight:
+                                                                      FontWeight.bold,
+                                                                  color: ColorUtil
+                                                                      .getColorFromAlphabet(
+                                                                          userName),
+                                                                  fontSize: 14,
+                                                                ),
                                                               ),
                                                             ),
-                                                          ],
-                                                        ),
-                                                      ),
 
-                                                    // REPLY PREVIEW - opacity trick for measurement
-                                                    if (hasReply)
-                                                      Opacity(
-                                                        opacity: 0,
-                                                        child:
-                                                            GroupRepliedMessagePreview(
-                                                          key: ValueKey(
-                                                              '${messageId}_${message['replyContent']}_placeholder'),
-                                                          replied: (message[
-                                                                          'repliedMessage'] ??
-                                                                      message[
-                                                                          'reply'])
-                                                                  is Map
-                                                              ? Map<String,
-                                                                  dynamic>.from(message[
-                                                                      'repliedMessage'] ??
-                                                                  message[
-                                                                      'reply'])
-                                                              : <String,
-                                                                  dynamic>{},
-                                                          receiver: message[
-                                                                      'receiver']
-                                                                  is Map
-                                                              ? Map<String,
-                                                                      dynamic>.from(
-                                                                  message[
-                                                                      'receiver'])
-                                                              : {},
-                                                          isSender: isSentByMe,
-                                                          groupMediaLength:
-                                                              _calculateGroupMediaLength(
-                                                                  _mergeReplyData(message[
-                                                                          'repliedMessage'] ??
-                                                                      message[
-                                                                          'reply'])),
-                                                          onTap: null,
-                                                        ),
-                                                      ),
+                                                          if (isForwarded == true)
+                                                            Padding(
+                                                              padding:
+                                                                  const EdgeInsets
+                                                                      .only(
+                                                                      bottom: 4.0,
+                                                                      left: 7,
+                                                                      right: 6),
+                                                              child: Row(
+                                                                mainAxisSize:
+                                                                    MainAxisSize.min,
+                                                                children: [
+                                                                  Image.asset(
+                                                                    "assets/images/forward.png",
+                                                                    height: 14,
+                                                                    width: 14,
+                                                                  ),
+                                                                  const SizedBox(
+                                                                      width: 4),
+                                                                  Text(
+                                                                    "Forwarded",
+                                                                    style: TextStyle(
+                                                                      fontSize: 12,
+                                                                      color: Colors
+                                                                          .grey[700],
+                                                                    ),
+                                                                  ),
+                                                                ],
+                                                              ),
+                                                            ),
 
-                                                    // Main content with proper padding when reply exists
-                                                    Padding(
-                                                      padding: hasReply
-                                                          ? const EdgeInsets
-                                                              .only(
-                                                              left: 7,
-                                                              right: 0,
-                                                              bottom: 0,
-                                                              top: 0)
-                                                          : EdgeInsets.zero,
-                                                      child: Column(
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .start,
-                                                        children: [
-                                                          if (imageUrl !=
-                                                                  null &&
-                                                              imageUrl
-                                                                  .isNotEmpty &&
-                                                              (isImage ||
-                                                                  imageUrl !=
-                                                                      fileUrl))
-                                                            content ==
-                                                                    "Message Deleted"
-                                                                ? const SizedBox
-                                                                    .shrink()
-                                                                : Stack(
+                                                          // REPLY PREVIEW - opacity trick for measurement
+                                                          if (hasReply)
+                                                            Opacity(
+                                                              opacity: 0,
+                                                              child:
+                                                                  GroupRepliedMessagePreview(
+                                                                key: ValueKey(
+                                                                    '${messageId}_${message['replyContent']}_placeholder'),
+                                                                replied: (message[
+                                                                                'repliedMessage'] ??
+                                                                            message[
+                                                                                'reply'])
+                                                                        is Map
+                                                                    ? Map<String,
+                                                                        dynamic>.from(message[
+                                                                            'repliedMessage'] ??
+                                                                        message[
+                                                                            'reply'])
+                                                                    : <String,
+                                                                        dynamic>{},
+                                                                receiver: message[
+                                                                            'receiver']
+                                                                        is Map
+                                                                    ? Map<String,
+                                                                            dynamic>.from(
+                                                                        message[
+                                                                            'receiver'])
+                                                                    : {},
+                                                                isSender: isSentByMe,
+                                                                groupMediaLength:
+                                                                    _calculateGroupMediaLength(
+                                                                        _mergeReplyData(message[
+                                                                                'repliedMessage'] ??
+                                                                            message[
+                                                                                'reply'])),
+                                                                onTap: null,
+                                                              ),
+                                                            ),
+
+                                                          // Main content with proper padding when reply exists
+                                                          Padding(
+                                                            padding: hasReply
+                                                                ? const EdgeInsets
+                                                                    .only(
+                                                                    left: 7,
+                                                                    right: 0,
+                                                                    bottom: 0,
+                                                                    top: 0)
+                                                                : EdgeInsets.zero,
+                                                            child: Column(
+                                                              crossAxisAlignment:
+                                                                  CrossAxisAlignment
+                                                                      .start,
+                                                              children: [
+                                                                if (imageUrl !=
+                                                                        null &&
+                                                                    imageUrl
+                                                                        .isNotEmpty &&
+                                                                    (isImage ||
+                                                                        imageUrl !=
+                                                                            fileUrl))
+                                                                  content ==
+                                                                          "Message Deleted"
+                                                                      ? const SizedBox
+                                                                          .shrink()
+                                                                      : Stack(
+                                                                          clipBehavior:
+                                                                              Clip.none,
+                                                                          children: [
+                                                                            GestureDetector(
+                                                                              onTap: () => _showFullImage(
+                                                                                  context,
+                                                                                  imageUrl),
+                                                                              child:
+                                                                                  ClipRRect(
+                                                                                borderRadius:
+                                                                                    BorderRadius.circular(12),
+                                                                                child: imageUrl.startsWith('https') || imageUrl.startsWith('http')
+                                                                                    ? CachedNetworkImage(
+                                                                                        imageUrl: imageUrl,
+                                                                                        width: 240,
+                                                                                        height: 300,
+                                                                                        fit: BoxFit.cover,
+                                                                                        placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+                                                                                        errorWidget: (context, url, error) => const Icon(Icons.error, color: Colors.red),
+                                                                                      )
+                                                                                    : Image.file(File(imageUrl), width: 240, height: 240, fit: BoxFit.cover),
+                                                                              ),
+                                                                            ),
+
+                                                                            if (content
+                                                                                .isEmpty)
+                                                                              Positioned(
+                                                                                bottom:
+                                                                                    5,
+                                                                                right:
+                                                                                    4,
+                                                                                child:
+                                                                                    Container(
+                                                                                  padding:
+                                                                                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                                                  decoration:
+                                                                                      BoxDecoration(
+                                                                                    boxShadow: [
+                                                                                      BoxShadow(
+                                                                                        color: Colors.black.withOpacity(0.2),
+                                                                                        blurRadius: 2,
+                                                                                        offset: const Offset(0, 1),
+                                                                                      ),
+                                                                                    ],
+                                                                                    color: Colors.black45.withOpacity(0.1),
+                                                                                    borderRadius: BorderRadius.circular(8),
+                                                                                  ),
+                                                                                  child:
+                                                                                      Row(
+                                                                                    mainAxisSize: MainAxisSize.min,
+                                                                                    children: [
+                                                                                      Text(
+                                                                                        TimeUtils.formatUtcToIst(message['time']),
+                                                                                        style: const TextStyle(
+                                                                                          fontSize: 10,
+                                                                                          color: Colors.white,
+                                                                                        ),
+                                                                                      ),
+                                                                                      if (isSentByMe) ...[
+                                                                                        const SizedBox(width: 4),
+                                                                                        Builder(builder: (context) {
+                                                                                          switch (messageStatus) {
+                                                                                            case 'sent':
+                                                                                              return const Icon(Icons.check, size: 12, color: Colors.white);
+                                                                                            case 'delivered':
+                                                                                              return const Icon(Icons.done_all_rounded, size: 12, color: Colors.white);
+                                                                                            case 'read':
+                                                                                              return const Icon(Icons.done_all, size: 12, color: Colors.blue);
+                                                                                            default:
+                                                                                              return const SizedBox.shrink();
+                                                                                          }
+                                                                                        }),
+                                                                                      ],
+                                                                                    ],
+                                                                                  ),
+                                                                                ),
+                                                                              ),
+                                                                          ],
+                                                                        ),
+                                                                if (fileUrl != null &&
+                                                                    fileUrl
+                                                                        .isNotEmpty &&
+                                                                    isVideo)
+                                                                  _buildVideoPreviewTile(
+                                                                    context,
+                                                                    fileUrl,
+                                                                    fileName ?? "",
+                                                                    isSentByMe,
+                                                                    message,
+                                                                  )
+                                                                else if (fileUrl !=
+                                                                        null &&
+                                                                    fileUrl
+                                                                        .isNotEmpty &&
+                                                                    isAudio)
+                                                                  AudioMessageWidget(
+                                                                    audioUrl: fileUrl,
+                                                                    profileAvatarUrl:
+                                                                        profileImageUrl,
+                                                                    isSender:
+                                                                        isSentByMe,
+                                                                    duration: message[
+                                                                            'duration']
+                                                                        ?.toString(),
+                                                                    timestamp: TimeUtils
+                                                                        .formatUtcToIst(
+                                                                            message[
+                                                                                'time']),
+                                                                    status:
+                                                                        messageStatus,
+                                                                    showContainer:
+                                                                        false,
+                                                                  )
+                                                                else if (fileUrl !=
+                                                                        null &&
+                                                                    fileUrl
+                                                                        .isNotEmpty &&
+                                                                    !(content ==
+                                                                            "Message Deleted" ||
+                                                                        isImage || // Use pre-calculated isImage
+                                                                        (fileType !=
+                                                                                null &&
+                                                                            fileType
+                                                                                .toLowerCase()
+                                                                                .startsWith(
+                                                                                    "image")) ||
+                                                                        (fileName !=
+                                                                                null &&
+                                                                            RegExp(r'\.(jpg|jpeg|png|gif|webp|bmp)$',
+                                                                                    caseSensitive:
+                                                                                        false)
+                                                                                .hasMatch(
+                                                                                    fileName))))
+                                                                  Stack(
                                                                     clipBehavior:
                                                                         Clip.none,
                                                                     children: [
-                                                                      GestureDetector(
-                                                                        onTap: () => _showFullImage(
-                                                                            context,
-                                                                            imageUrl),
-                                                                        child:
-                                                                            ClipRRect(
-                                                                          borderRadius:
-                                                                              BorderRadius.circular(12),
-                                                                          child: imageUrl.startsWith('https') || imageUrl.startsWith('http')
-                                                                              ? CachedNetworkImage(
-                                                                                  imageUrl: imageUrl,
-                                                                                  width: 240,
-                                                                                  height: 300,
-                                                                                  fit: BoxFit.cover,
-                                                                                  placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-                                                                                  errorWidget: (context, url, error) => const Icon(Icons.error, color: Colors.red),
-                                                                                )
-                                                                              : Image.file(File(imageUrl), width: 240, height: 240, fit: BoxFit.cover),
-                                                                        ),
+                                                                      Column(
+                                                                        crossAxisAlignment:
+                                                                            CrossAxisAlignment
+                                                                                .end,
+                                                                        children: [
+                                                                          Container(
+                                                                            width:
+                                                                                300,
+                                                                            margin: const EdgeInsets
+                                                                                .only(
+                                                                                top:
+                                                                                    8),
+                                                                            padding:
+                                                                                const EdgeInsets
+                                                                                    .all(
+                                                                                    8),
+                                                                            decoration:
+                                                                                BoxDecoration(
+                                                                              color: Colors
+                                                                                  .grey[200],
+                                                                              borderRadius:
+                                                                                  BorderRadius.circular(12),
+                                                                            ),
+                                                                            child:
+                                                                                Row(
+                                                                              mainAxisSize:
+                                                                                  MainAxisSize.min,
+                                                                              children: [
+                                                                                Icon(
+                                                                                    _getFileIcon(fileType),
+                                                                                    color: chatColor,
+                                                                                    size: 30),
+                                                                                const SizedBox(
+                                                                                    width: 8),
+                                                                                Expanded(
+                                                                                  child:
+                                                                                      RichText(
+                                                                                    overflow: TextOverflow.ellipsis,
+                                                                                    text: TextSpan(
+                                                                                      children: _buildHighlightSpans(
+                                                                                        isDeleted ? '' : (fileName ?? 'Download file'),
+                                                                                        const TextStyle(
+                                                                                          fontWeight: FontWeight.w500,
+                                                                                          color: Colors.black,
+                                                                                        ),
+                                                                                      ),
+                                                                                    ),
+                                                                                  ),
+                                                                                ),
+                                                                                IconButton(
+                                                                                  icon:
+                                                                                      const Icon(Icons.download_rounded),
+                                                                                  onPressed: () =>
+                                                                                      _openFile(fileUrl, fileType),
+                                                                                ),
+                                                                              ],
+                                                                            ),
+                                                                          ),
+                                                                          // Only show time/status for documents without caption
+                                                                          if (content
+                                                                              .isEmpty)
+                                                                            Padding(
+                                                                              padding: const EdgeInsets
+                                                                                  .only(
+                                                                                  top:
+                                                                                      0,
+                                                                                  right:
+                                                                                      0),
+                                                                              child:
+                                                                                  Row(
+                                                                                mainAxisSize:
+                                                                                    MainAxisSize.min,
+                                                                                children: [
+                                                                                  Text(
+                                                                                    TimeUtils.formatUtcToIst(message['time']),
+                                                                                    style: const TextStyle(fontSize: 10, color: Colors.black54),
+                                                                                  ),
+                                                                                  const SizedBox(width: 4),
+                                                                                  if (isSentByMe)
+                                                                                    _buildStatusIcon(messageStatus, message),
+                                                                                ],
+                                                                              ),
+                                                                            ),
+                                                                        ],
                                                                       ),
                                                                       Positioned(
                                                                         top: 0,
-                                                                        bottom:
-                                                                            0,
-                                                                        left: isSentByMe
-                                                                            ? -60
-                                                                            : null,
-                                                                        right: isSentByMe
-                                                                            ? null
-                                                                            : -60,
-                                                                        child:
-                                                                            Center(
+                                                                        bottom: 0,
+                                                                        left:
+                                                                            isSentByMe
+                                                                                ? -60
+                                                                                : null,
+                                                                        right:
+                                                                            isSentByMe
+                                                                                ? null
+                                                                                : -60,
+                                                                        child: Center(
                                                                           child:
                                                                               Material(
-                                                                            color:
-                                                                                Colors.transparent,
+                                                                            color: Colors
+                                                                                .transparent,
                                                                             child:
                                                                                 InkWell(
-                                                                              borderRadius: BorderRadius.circular(20),
-                                                                              onTap: () {
-                                                                                MyRouter.pushReplace(
-                                                                                  screen: ForwardMessageScreen(
+                                                                              borderRadius:
+                                                                                  BorderRadius.circular(20),
+                                                                              onTap:
+                                                                                  () {
+                                                                                MyRouter
+                                                                                    .pushReplace(
+                                                                                  screen:
+                                                                                      ForwardMessageScreen(
                                                                                     messages: [
                                                                                       normalizeMessage(message)
                                                                                     ],
@@ -4938,492 +5131,268 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                                   ),
                                                                                 );
                                                                               },
-                                                                              child: CircleAvatar(
-                                                                                maxRadius: 16,
-                                                                                backgroundColor: Colors.white,
-                                                                                child: Image.asset(
+                                                                              child:
+                                                                                  CircleAvatar(
+                                                                                maxRadius:
+                                                                                    16,
+                                                                                backgroundColor:
+                                                                                    Colors.white,
+                                                                                child:
+                                                                                    Image.asset(
                                                                                   "assets/images/forward.png",
-                                                                                  height: 20,
-                                                                                  width: 20,
+                                                                                  height:
+                                                                                      20,
+                                                                                  width:
+                                                                                      20,
                                                                                 ),
                                                                               ),
                                                                             ),
                                                                           ),
                                                                         ),
                                                                       ),
-                                                                      if (content
-                                                                          .isEmpty)
-                                                                        Positioned(
-                                                                          bottom:
-                                                                              5,
-                                                                          right:
-                                                                              4,
-                                                                          child:
-                                                                              Container(
-                                                                            padding:
-                                                                                const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                                            decoration:
-                                                                                BoxDecoration(
-                                                                              boxShadow: [
-                                                                                BoxShadow(
-                                                                                  color: Colors.black.withOpacity(0.2),
-                                                                                  blurRadius: 2,
-                                                                                  offset: const Offset(0, 1),
-                                                                                ),
-                                                                              ],
-                                                                              color: Colors.black45.withOpacity(0.1),
-                                                                              borderRadius: BorderRadius.circular(8),
-                                                                            ),
-                                                                            child:
-                                                                                Row(
-                                                                              mainAxisSize: MainAxisSize.min,
-                                                                              children: [
-                                                                                Text(
-                                                                                  TimeUtils.formatUtcToIst(message['time']),
-                                                                                  style: const TextStyle(
-                                                                                    fontSize: 10,
-                                                                                    color: Colors.white,
-                                                                                  ),
-                                                                                ),
-                                                                                if (isSentByMe) ...[
-                                                                                  const SizedBox(width: 4),
-                                                                                  Builder(builder: (context) {
-                                                                                    switch (messageStatus) {
-                                                                                      case 'sent':
-                                                                                        return const Icon(Icons.check, size: 12, color: Colors.white);
-                                                                                      case 'delivered':
-                                                                                        return const Icon(Icons.done_all_rounded, size: 12, color: Colors.white);
-                                                                                      case 'read':
-                                                                                        return const Icon(Icons.done_all, size: 12, color: Colors.blue);
-                                                                                      default:
-                                                                                        return const SizedBox.shrink();
-                                                                                    }
-                                                                                  }),
-                                                                                ],
-                                                                              ],
-                                                                            ),
-                                                                          ),
-                                                                        ),
                                                                     ],
-                                                                  ),
-                                                          if (fileUrl != null &&
-                                                              fileUrl
-                                                                  .isNotEmpty &&
-                                                              isVideo)
-                                                            _buildVideoPreviewTile(
-                                                              context,
-                                                              fileUrl,
-                                                              fileName ?? "",
-                                                              isSentByMe,
-                                                              message,
-                                                            )
-                                                          else if (fileUrl !=
-                                                                  null &&
-                                                              fileUrl
-                                                                  .isNotEmpty &&
-                                                              isAudio)
-                                                            AudioMessageWidget(
-                                                              audioUrl: fileUrl,
-                                                              profileAvatarUrl:
-                                                                  profileImageUrl,
-                                                              isSender:
-                                                                  isSentByMe,
-                                                              duration: message[
-                                                                      'duration']
-                                                                  ?.toString(),
-                                                              timestamp: TimeUtils
-                                                                  .formatUtcToIst(
-                                                                      message[
-                                                                          'time']),
-                                                              status:
-                                                                  messageStatus,
-                                                              showContainer:
-                                                                  false,
-                                                            )
-                                                          else if (fileUrl !=
-                                                                  null &&
-                                                              fileUrl
-                                                                  .isNotEmpty &&
-                                                              !(content ==
-                                                                      "Message Deleted" ||
-                                                                  isImage || // Use pre-calculated isImage
-                                                                  (fileType !=
-                                                                          null &&
-                                                                      fileType
-                                                                          .toLowerCase()
-                                                                          .startsWith(
-                                                                              "image")) ||
-                                                                  (fileName !=
-                                                                          null &&
-                                                                      RegExp(r'\.(jpg|jpeg|png|gif|webp|bmp)$',
-                                                                              caseSensitive:
-                                                                                  false)
-                                                                          .hasMatch(
-                                                                              fileName))))
-                                                            Stack(
-                                                              clipBehavior:
-                                                                  Clip.none,
-                                                              children: [
-                                                                Column(
-                                                                  crossAxisAlignment:
-                                                                      CrossAxisAlignment
-                                                                          .end,
-                                                                  children: [
-                                                                    Container(
-                                                                      width:
-                                                                          300,
-                                                                      margin: const EdgeInsets
-                                                                          .only(
-                                                                          top:
-                                                                              8),
+                                                                  )
+                                                                else
+                                                                  const SizedBox
+                                                                      .shrink(),
+                                                                if (content
+                                                                    .isNotEmpty)
+                                                                  // Use MessageCaption for image/video/document captions to position time/status in the right corner
+                                                                  if ((isImage &&
+                                                                          (imageUrl !=
+                                                                                  null &&
+                                                                              imageUrl
+                                                                                  .isNotEmpty)) ||
+                                                                      (isVideo &&
+                                                                          fileUrl !=
+                                                                              null &&
+                                                                          fileUrl
+                                                                              .isNotEmpty) ||
+                                                                      (fileUrl !=
+                                                                              null &&
+                                                                          fileUrl
+                                                                              .isNotEmpty &&
+                                                                          !isImage &&
+                                                                          !isVideo &&
+                                                                          !isAudio))
+                                                                    MessageCaption(
+                                                                      content:
+                                                                          content,
+                                                                      time: TimeUtils
+                                                                          .formatUtcToIst(
+                                                                              message[
+                                                                                  'time']),
+                                                                      isSentByMe:
+                                                                          isSentByMe,
+                                                                      messageStatus:
+                                                                          messageStatus,
+                                                                      buildStatusIcon:
+                                                                          (status) =>
+                                                                              _buildStatusIcon(
+                                                                                  status,
+                                                                                  message),
+                                                                      searchText:
+                                                                          _searchController
+                                                                              .text,
+                                                                      isDeleted:
+                                                                          isDeleted,
+                                                                    )
+                                                                  else
+                                                                    Padding(
                                                                       padding:
                                                                           const EdgeInsets
-                                                                              .all(
-                                                                              8),
-                                                                      decoration:
-                                                                          BoxDecoration(
-                                                                        color: Colors
-                                                                            .grey[200],
-                                                                        borderRadius:
-                                                                            BorderRadius.circular(12),
-                                                                      ),
-                                                                      child:
-                                                                          Row(
+                                                                              .only(
+                                                                              top: 0),
+                                                                      child: Column(
+                                                                        crossAxisAlignment: hasReply
+                                                                            ? CrossAxisAlignment
+                                                                                .start
+                                                                            : CrossAxisAlignment
+                                                                                .start,
                                                                         mainAxisSize:
-                                                                            MainAxisSize.min,
+                                                                            MainAxisSize
+                                                                                .min,
                                                                         children: [
-                                                                          Icon(
-                                                                              _getFileIcon(fileType),
-                                                                              color: chatColor,
-                                                                              size: 30),
-                                                                          const SizedBox(
-                                                                              width: 8),
-                                                                          Expanded(
-                                                                            child:
-                                                                                RichText(
-                                                                              overflow: TextOverflow.ellipsis,
-                                                                              text: TextSpan(
-                                                                                children: _buildHighlightSpans(
-                                                                                  isDeleted ? '' : (fileName ?? 'Download file'),
-                                                                                  const TextStyle(
-                                                                                    fontWeight: FontWeight.w500,
-                                                                                    color: Colors.black,
-                                                                                  ),
-                                                                                ),
-                                                                              ),
-                                                                            ),
-                                                                          ),
-                                                                          IconButton(
-                                                                            icon:
-                                                                                const Icon(Icons.download_rounded),
-                                                                            onPressed: () =>
-                                                                                _openFile(fileUrl, fileType),
-                                                                          ),
-                                                                        ],
-                                                                      ),
-                                                                    ),
-                                                                    // Only show time/status for documents without caption
-                                                                    if (content
-                                                                        .isEmpty)
-                                                                      Padding(
-                                                                        padding: const EdgeInsets
-                                                                            .only(
-                                                                            top:
-                                                                                0,
-                                                                            right:
-                                                                                0),
-                                                                        child:
-                                                                            Row(
-                                                                          mainAxisSize:
-                                                                              MainAxisSize.min,
-                                                                          children: [
-                                                                            Text(
-                                                                              TimeUtils.formatUtcToIst(message['time']),
-                                                                              style: const TextStyle(fontSize: 10, color: Colors.black54),
-                                                                            ),
-                                                                            const SizedBox(width: 4),
-                                                                            if (isSentByMe)
-                                                                              _buildStatusIcon(messageStatus, message),
-                                                                          ],
-                                                                        ),
-                                                                      ),
-                                                                  ],
-                                                                ),
-                                                                Positioned(
-                                                                  top: 0,
-                                                                  bottom: 0,
-                                                                  left:
-                                                                      isSentByMe
-                                                                          ? -60
-                                                                          : null,
-                                                                  right:
-                                                                      isSentByMe
-                                                                          ? null
-                                                                          : -60,
-                                                                  child: Center(
-                                                                    child:
-                                                                        Material(
-                                                                      color: Colors
-                                                                          .transparent,
-                                                                      child:
-                                                                          InkWell(
-                                                                        borderRadius:
-                                                                            BorderRadius.circular(20),
-                                                                        onTap:
-                                                                            () {
-                                                                          MyRouter
-                                                                              .pushReplace(
-                                                                            screen:
-                                                                                ForwardMessageScreen(
-                                                                              messages: [
-                                                                                normalizeMessage(message)
-                                                                              ],
-                                                                              currentUserId: currentUserId,
-                                                                              conversionalid: widget.conversationId,
-                                                                              username: widget.groupName,
-                                                                            ),
-                                                                          );
-                                                                        },
-                                                                        child:
-                                                                            CircleAvatar(
-                                                                          maxRadius:
-                                                                              16,
-                                                                          backgroundColor:
-                                                                              Colors.white,
-                                                                          child:
-                                                                              Image.asset(
-                                                                            "assets/images/forward.png",
-                                                                            height:
-                                                                                20,
-                                                                            width:
-                                                                                20,
-                                                                          ),
-                                                                        ),
-                                                                      ),
-                                                                    ),
-                                                                  ),
-                                                                ),
-                                                              ],
-                                                            )
-                                                          else
-                                                            const SizedBox
-                                                                .shrink(),
-                                                          if (content
-                                                              .isNotEmpty)
-                                                            // Use MessageCaption for image/video/document captions to position time/status in the right corner
-                                                            if ((isImage &&
-                                                                    (imageUrl !=
-                                                                            null &&
-                                                                        imageUrl
-                                                                            .isNotEmpty)) ||
-                                                                (isVideo &&
-                                                                    fileUrl !=
-                                                                        null &&
-                                                                    fileUrl
-                                                                        .isNotEmpty) ||
-                                                                (fileUrl !=
-                                                                        null &&
-                                                                    fileUrl
-                                                                        .isNotEmpty &&
-                                                                    !isImage &&
-                                                                    !isVideo &&
-                                                                    !isAudio))
-                                                              MessageCaption(
-                                                                content:
-                                                                    content,
-                                                                time: TimeUtils
-                                                                    .formatUtcToIst(
-                                                                        message[
-                                                                            'time']),
-                                                                isSentByMe:
-                                                                    isSentByMe,
-                                                                messageStatus:
-                                                                    messageStatus,
-                                                                buildStatusIcon:
-                                                                    (status) =>
-                                                                        _buildStatusIcon(
-                                                                            status,
-                                                                            message),
-                                                                searchText:
-                                                                    _searchController
-                                                                        .text,
-                                                                isDeleted:
-                                                                    isDeleted,
-                                                              )
-                                                            else
-                                                              Padding(
-                                                                padding:
-                                                                    const EdgeInsets
-                                                                        .only(
-                                                                        top: 0),
-                                                                child: Column(
-                                                                  crossAxisAlignment: hasReply
-                                                                      ? CrossAxisAlignment
-                                                                          .start
-                                                                      : CrossAxisAlignment
-                                                                          .start,
-                                                                  mainAxisSize:
-                                                                      MainAxisSize
-                                                                          .min,
-                                                                  children: [
-                                                                    if (RegExp(
-                                                                            r'((https?:\/\/)|(www\.))[^\s]+',
-                                                                            caseSensitive:
-                                                                                false)
-                                                                        .hasMatch(
-                                                                            content))
-                                                                      Stack(
-                                                                        clipBehavior:
-                                                                            Clip.none,
-                                                                        children: [
-                                                                          Padding(
-                                                                            padding:
-                                                                                const EdgeInsets.symmetric(vertical: 0.0),
-                                                                            child:
-                                                                                ClipRRect(
-                                                                              borderRadius: BorderRadius.circular(12),
-                                                                              child: AnyLinkPreview(
-                                                                                link: (() {
-                                                                                  final match = RegExp(r'((https?:\/\/)|(www\.))[^\s]+', caseSensitive: false).firstMatch(content);
-                                                                                  if (match == null) {
-                                                                                    return '';
-                                                                                  }
-                                                                                  String url = match.group(0)!;
-                                                                                  try {
-                                                                                    final uri = Uri.parse(url.startsWith('www.') ? 'https://$url' : url);
-                                                                                    return uri.toString();
-                                                                                  } catch (e) {
-                                                                                    return url;
-                                                                                  }
-                                                                                })(),
-                                                                                displayDirection: UIDirection.uiDirectionVertical,
-                                                                                showMultimedia: true,
-                                                                                backgroundColor: Colors.grey.shade100,
-                                                                                bodyStyle: const TextStyle(
-                                                                                  color: Colors.black87,
-                                                                                  fontSize: 12,
-                                                                                  fontWeight: FontWeight.w400,
-                                                                                ),
-                                                                                titleStyle: const TextStyle(
-                                                                                  color: Colors.black,
-                                                                                  fontSize: 14,
-                                                                                  fontWeight: FontWeight.bold,
-                                                                                ),
-                                                                                cache: const Duration(hours: 1),
-                                                                                borderRadius: 12,
-                                                                                errorBody: 'Could not load link preview',
-                                                                                errorTitle: 'Link Preview',
-                                                                                errorWidget: Container(
-                                                                                  height: 100,
-                                                                                  color: Colors.grey[200],
-                                                                                  child: const Center(child: Icon(Icons.link_off)),
-                                                                                ),
-                                                                              ),
-                                                                            ),
-                                                                          ),
-                                                                          Positioned(
-                                                                            top:
-                                                                                20,
-                                                                            bottom:
-                                                                                0,
-                                                                            left: isSentByMe
-                                                                                ? -60
-                                                                                : null,
-                                                                            right: isSentByMe
-                                                                                ? null
-                                                                                : -60,
-                                                                            child:
-                                                                                Center(
-                                                                              child: Material(
-                                                                                color: Colors.transparent,
-                                                                                child: InkWell(
-                                                                                  borderRadius: BorderRadius.circular(20),
-                                                                                  onTap: () {
-                                                                                    MyRouter.pushReplace(
-                                                                                      screen: ForwardMessageScreen(
-                                                                                        messages: [
-                                                                                          normalizeMessage(message)
-                                                                                        ],
-                                                                                        currentUserId: currentUserId,
-                                                                                        conversionalid: widget.conversationId,
-                                                                                        username: widget.groupName,
+                                                                          if (RegExp(
+                                                                                  r'((https?:\/\/)|(www\.))[^\s]+',
+                                                                                  caseSensitive:
+                                                                                      false)
+                                                                              .hasMatch(
+                                                                                  content))
+                                                                            Stack(
+                                                                              clipBehavior:
+                                                                                  Clip.none,
+                                                                              children: [
+                                                                                Padding(
+                                                                                  padding:
+                                                                                      const EdgeInsets.symmetric(vertical: 0.0),
+                                                                                  child:
+                                                                                      ClipRRect(
+                                                                                    borderRadius: BorderRadius.circular(12),
+                                                                                    child: AnyLinkPreview(
+                                                                                      link: (() {
+                                                                                        final match = RegExp(r'((https?:\/\/)|(www\.))[^\s]+', caseSensitive: false).firstMatch(content);
+                                                                                        if (match == null) {
+                                                                                          return '';
+                                                                                        }
+                                                                                        String url = match.group(0)!;
+                                                                                        try {
+                                                                                          final uri = Uri.parse(url.startsWith('www.') ? 'https://$url' : url);
+                                                                                          return uri.toString();
+                                                                                        } catch (e) {
+                                                                                          return url;
+                                                                                        }
+                                                                                      })(),
+                                                                                      displayDirection: UIDirection.uiDirectionVertical,
+                                                                                      showMultimedia: true,
+                                                                                      backgroundColor: Colors.grey.shade100,
+                                                                                      bodyStyle: const TextStyle(
+                                                                                        color: Colors.black87,
+                                                                                        fontSize: 12,
+                                                                                        fontWeight: FontWeight.w400,
                                                                                       ),
-                                                                                    );
-                                                                                  },
-                                                                                  child: CircleAvatar(
-                                                                                    maxRadius: 16,
-                                                                                    backgroundColor: Colors.white,
-                                                                                    child: Image.asset(
-                                                                                      "assets/images/forward.png",
-                                                                                      height: 20,
-                                                                                      width: 20,
+                                                                                      titleStyle: const TextStyle(
+                                                                                        color: Colors.black,
+                                                                                        fontSize: 14,
+                                                                                        fontWeight: FontWeight.bold,
+                                                                                      ),
+                                                                                      cache: const Duration(hours: 1),
+                                                                                      borderRadius: 12,
+                                                                                      errorBody: 'Could not load link preview',
+                                                                                      errorTitle: 'Link Preview',
+                                                                                      errorWidget: Container(
+                                                                                        height: 100,
+                                                                                        color: Colors.grey[200],
+                                                                                        child: const Center(child: Icon(Icons.link_off)),
+                                                                                      ),
                                                                                     ),
                                                                                   ),
                                                                                 ),
-                                                                              ),
+                                                                                // Positioned(
+                                                                                //   top:
+                                                                                //       20,
+                                                                                //   bottom:
+                                                                                //       0,
+                                                                                //   left: isSentByMe
+                                                                                //       ? -60
+                                                                                //       : null,
+                                                                                //   right: isSentByMe
+                                                                                //       ? null
+                                                                                //       : -60,
+                                                                                //   child:
+                                                                                //       Center(
+                                                                                //     child: Material(
+                                                                                //       color: Colors.transparent,
+                                                                                //       child: InkWell(
+                                                                                //         borderRadius: BorderRadius.circular(20),
+                                                                                //         onTap: () {
+                                                                                //           MyRouter.pushReplace(
+                                                                                //             screen: ForwardMessageScreen(
+                                                                                //               messages: [
+                                                                                //                 normalizeMessage(message)
+                                                                                //               ],
+                                                                                //               currentUserId: currentUserId,
+                                                                                //               conversionalid: widget.conversationId,
+                                                                                //               username: widget.groupName,
+                                                                                //             ),
+                                                                                //           );
+                                                                                //         },
+                                                                                //         child: CircleAvatar(
+                                                                                //           maxRadius: 16,
+                                                                                //           backgroundColor: Colors.white,
+                                                                                //           child: Image.asset(
+                                                                                //             "assets/images/forward.png",
+                                                                                //             height: 20,
+                                                                                //             width: 20,
+                                                                                //           ),
+                                                                                //         ),
+                                                                                //       ),
+                                                                                //     ),
+                                                                                //   ),
+                                                                                // ),
+                                                                              ],
                                                                             ),
-                                                                          ),
-                                                                        ],
-                                                                      ),
-                                                                    Stack(
-                                                                      children: [
-                                                                        StatefulBuilder(
-                                                                          builder:
-                                                                              (context, setState) {
-                                                                            const maxCharsPerLine =
-                                                                                30;
-                                                                            final bool
-                                                                                isTextLong =
-                                                                                (content.length / maxCharsPerLine).ceil() > 10;
-                                                                            bool
-                                                                                isExpanded =
-                                                                                (message['isExpanded'] ?? false) == true;
-                                                                            return Stack(
-                                                                              clipBehavior: Clip.none,
-                                                                              children: [
-                                                                                Padding(
-                                                                                  padding: const EdgeInsets.only(bottom: 3.0, top: 1.0),
-                                                                                  child: Column(
-                                                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                                          Stack(
+                                                                            children: [
+                                                                              StatefulBuilder(
+                                                                                builder:
+                                                                                    (context, setState) {
+                                                                                  const maxCharsPerLine =
+                                                                                      30;
+                                                                                  final bool
+                                                                                      isTextLong =
+                                                                                      (content.length / maxCharsPerLine).ceil() > 10;
+                                                                                  bool
+                                                                                      isExpanded =
+                                                                                      (message['isExpanded'] ?? false) == true;
+                                                                                  return Stack(
+                                                                                    clipBehavior: Clip.none,
                                                                                     children: [
-                                                                                      RichText(
-                                                                                        maxLines: !isExpanded && isTextLong ? 9 : null,
-                                                                                        overflow: !isExpanded && isTextLong ? TextOverflow.ellipsis : TextOverflow.visible,
-                                                                                        text: TextSpan(
+                                                                                      Padding(
+                                                                                        padding: const EdgeInsets.only(bottom: 3.0, top: 1.0),
+                                                                                        child: Column(
+                                                                                          crossAxisAlignment: CrossAxisAlignment.start,
                                                                                           children: [
-                                                                                            ..._buildMessageTextSpans(content, isDeleted),
-                                                                                            WidgetSpan(
-                                                                                              child: SizedBox(width: isSentByMe ? 75 : 60, height: 20),
+                                                                                            RichText(
+                                                                                              maxLines: !isExpanded && isTextLong ? 9 : null,
+                                                                                              overflow: !isExpanded && isTextLong ? TextOverflow.ellipsis : TextOverflow.visible,
+                                                                                              text: TextSpan(
+                                                                                                children: [
+                                                                                                  ..._buildMessageTextSpans(content, isDeleted),
+                                                                                                  WidgetSpan(
+                                                                                                    child: SizedBox(width: isSentByMe ? 75 : 60, height: 20),
+                                                                                                  ),
+                                                                                                ],
+                                                                                              ),
                                                                                             ),
+                                                                                            if (!isExpanded && isTextLong)
+                                                                                              GestureDetector(
+                                                                                                onTap: () => setState(() => message['isExpanded'] = true),
+                                                                                                child: const Padding(
+                                                                                                  padding: EdgeInsets.symmetric(vertical: 4),
+                                                                                                  child: Text(
+                                                                                                    "Read more",
+                                                                                                    style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                                                                                                  ),
+                                                                                                ),
+                                                                                              ),
+                                                                                            if (isExpanded)
+                                                                                              GestureDetector(
+                                                                                                onTap: () => setState(() => message['isExpanded'] = false),
+                                                                                                child: const Padding(
+                                                                                                  padding: EdgeInsets.symmetric(vertical: 4),
+                                                                                                  child: Text(
+                                                                                                    "Read less",
+                                                                                                    style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                                                                                                  ),
+                                                                                                ),
+                                                                                              ),
+                                                                                            if (!isExpanded && isTextLong)
+                                                                                              Align(
+                                                                                                alignment: Alignment.centerRight,
+                                                                                                child: Row(
+                                                                                                  mainAxisSize: MainAxisSize.min,
+                                                                                                  children: [
+                                                                                                    Text(
+                                                                                                      TimeUtils.formatUtcToIst(message['time']),
+                                                                                                      style: const TextStyle(fontSize: 10, color: Colors.black54),
+                                                                                                    ),
+                                                                                                    const SizedBox(width: 4),
+                                                                                                    if (isSentByMe && content != "Message Deleted") _buildStatusIcon(messageStatus, message),
+                                                                                                  ],
+                                                                                                ),
+                                                                                              ),
                                                                                           ],
                                                                                         ),
                                                                                       ),
-                                                                                      if (!isExpanded && isTextLong)
-                                                                                        GestureDetector(
-                                                                                          onTap: () => setState(() => message['isExpanded'] = true),
-                                                                                          child: const Padding(
-                                                                                            padding: EdgeInsets.symmetric(vertical: 4),
-                                                                                            child: Text(
-                                                                                              "Read more",
-                                                                                              style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
-                                                                                            ),
-                                                                                          ),
-                                                                                        ),
-                                                                                      if (isExpanded)
-                                                                                        GestureDetector(
-                                                                                          onTap: () => setState(() => message['isExpanded'] = false),
-                                                                                          child: const Padding(
-                                                                                            padding: EdgeInsets.symmetric(vertical: 4),
-                                                                                            child: Text(
-                                                                                              "Read less",
-                                                                                              style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
-                                                                                            ),
-                                                                                          ),
-                                                                                        ),
-                                                                                      if (!isExpanded && isTextLong)
-                                                                                        Align(
-                                                                                          alignment: Alignment.centerRight,
+
+                                                                                      /// ---- TIMESTAMP & STATUS (Positioned like private chat) ----
+                                                                                      if (!(!isExpanded && isTextLong) && !hasReply)
+                                                                                        Positioned(
+                                                                                          bottom: 3,
+                                                                                          right: 3,
                                                                                           child: Row(
+                                                                                            mainAxisAlignment: MainAxisAlignment.end,
                                                                                             mainAxisSize: MainAxisSize.min,
                                                                                             children: [
                                                                                               Text(
@@ -5436,173 +5405,193 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                                           ),
                                                                                         ),
                                                                                     ],
-                                                                                  ),
-                                                                                ),
-
-                                                                                /// ---- TIMESTAMP & STATUS (Positioned like private chat) ----
-                                                                                if (!(!isExpanded && isTextLong) && !hasReply)
-                                                                                  Positioned(
-                                                                                    bottom: 3,
-                                                                                    right: 3,
-                                                                                    child: Row(
-                                                                                      mainAxisAlignment: MainAxisAlignment.end,
-                                                                                      mainAxisSize: MainAxisSize.min,
-                                                                                      children: [
-                                                                                        Text(
-                                                                                          TimeUtils.formatUtcToIst(message['time']),
-                                                                                          style: const TextStyle(fontSize: 10, color: Colors.black54),
-                                                                                        ),
-                                                                                        const SizedBox(width: 4),
-                                                                                        if (isSentByMe && content != "Message Deleted") _buildStatusIcon(messageStatus, message),
-                                                                                      ],
-                                                                                    ),
-                                                                                  ),
-                                                                              ],
-                                                                            );
-                                                                          },
-                                                                        ),
-                                                                        Positioned(
-                                                                          top:
-                                                                              0,
-                                                                          bottom:
-                                                                              0,
-                                                                          left: isSentByMe
-                                                                              ? -60
-                                                                              : null,
-                                                                          right: isSentByMe
-                                                                              ? null
-                                                                              : -60,
-                                                                          child:
-                                                                              Center(
-                                                                            child:
-                                                                                Material(
-                                                                              color: Colors.transparent,
-                                                                              child: InkWell(
-                                                                                borderRadius: BorderRadius.circular(20),
-                                                                                onTap: () {
-                                                                                  MyRouter.pushReplace(
-                                                                                    screen: ForwardMessageScreen(
-                                                                                      messages: [
-                                                                                        normalizeMessage(message)
-                                                                                      ],
-                                                                                      currentUserId: currentUserId,
-                                                                                      conversionalid: widget.conversationId,
-                                                                                      username: widget.groupName,
-                                                                                    ),
                                                                                   );
                                                                                 },
-                                                                                child: CircleAvatar(
-                                                                                  maxRadius: 16,
-                                                                                  backgroundColor: Colors.white,
-                                                                                  child: Image.asset(
-                                                                                    "assets/images/forward.png",
-                                                                                    height: 20,
-                                                                                    width: 20,
+                                                                              ),
+                                                                              Positioned(
+                                                                                top:
+                                                                                    0,
+                                                                                bottom:
+                                                                                    0,
+                                                                                left: isSentByMe
+                                                                                    ? -60
+                                                                                    : null,
+                                                                                right: isSentByMe
+                                                                                    ? null
+                                                                                    : -60,
+                                                                                child:
+                                                                                    Center(
+                                                                                  child:
+                                                                                      Material(
+                                                                                    color: Colors.transparent,
+                                                                                    child: InkWell(
+                                                                                      borderRadius: BorderRadius.circular(20),
+                                                                                      onTap: () {
+                                                                                        MyRouter.pushReplace(
+                                                                                          screen: ForwardMessageScreen(
+                                                                                            messages: [
+                                                                                              normalizeMessage(message)
+                                                                                            ],
+                                                                                            currentUserId: currentUserId,
+                                                                                            conversionalid: widget.conversationId,
+                                                                                            username: widget.groupName,
+                                                                                          ),
+                                                                                        );
+                                                                                      },
+                                                                                      child: CircleAvatar(
+                                                                                        maxRadius: 16,
+                                                                                        backgroundColor: Colors.white,
+                                                                                        child: Image.asset(
+                                                                                          "assets/images/forward.png",
+                                                                                          height: 20,
+                                                                                          width: 20,
+                                                                                        ),
+                                                                                      ),
+                                                                                    ),
                                                                                   ),
                                                                                 ),
                                                                               ),
-                                                                            ),
+                                                                            ],
                                                                           ),
-                                                                        ),
-                                                                      ],
+                                                                        ],
+                                                                      ),
                                                                     ),
-                                                                  ],
-                                                                ),
-                                                              ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  ]),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                        ]),
 
-                                              // Positioned reply preview (visible)
-                                              if (hasReply)
-                                                Positioned(
-                                                  top: (!isSentByMe &&
-                                                          userName.isNotEmpty)
-                                                      ? 25
-                                                      : 0,
-                                                  left: 0,
-                                                  right: 0,
-                                                  child:
-                                                      GroupRepliedMessagePreview(
-                                                    key: ValueKey(
-                                                        '${messageId}_${message['replyContent']}'),
-                                                    replied: _mergeReplyData(
-                                                        message['repliedMessage'] ??
-                                                            message['reply']),
-                                                    receiver: message[
-                                                            'receiver'] is Map
-                                                        ? Map<String,
-                                                                dynamic>.from(
-                                                            message['receiver'])
-                                                        : {},
-                                                    isSender: isSentByMe,
-                                                    groupMediaLength:
-                                                        _calculateGroupMediaLength(
-                                                            _mergeReplyData(message[
-                                                                    'repliedMessage'] ??
-                                                                message[
-                                                                    'reply'])),
-                                                    onTap: () async {
-                                                      final replyId = ((message[
-                                                                              'repliedMessage'] ??
-                                                                          message[
-                                                                              'reply'])?[
-                                                                      'id'] ??
-                                                                  (message['repliedMessage'] ??
-                                                                          message[
-                                                                              'reply'])?[
-                                                                      'message_id'] ??
-                                                                  (message['repliedMessage'] ??
-                                                                          message[
-                                                                              'reply'])?[
-                                                                      'messageId'])
-                                                              ?.toString() ??
-                                                          '';
-                                                      if (replyId.isNotEmpty) {
-                                                        await _scrollToMessageById(
-                                                            replyId,
-                                                            fetchIfMissing:
-                                                                true);
-                                                      }
-                                                    },
-                                                  ),
-                                                ),
-                                              // TIMESTAMP & STATUS - Positioned at Container Stack level for replied messages
-                                              if (hasReply &&
-                                                  content.isNotEmpty)
-                                                Positioned(
-                                                  bottom: 3,
-                                                  right: 3,
-                                                  child: Row(
-                                                    mainAxisAlignment:
-                                                        MainAxisAlignment.end,
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      Text(
-                                                        TimeUtils
-                                                            .formatUtcToIst(
-                                                                message[
-                                                                    'time']),
-                                                        style: const TextStyle(
-                                                            fontSize: 10,
-                                                            color:
-                                                                Colors.black54),
+                                                    // Positioned reply preview (visible)
+                                                    if (hasReply)
+                                                      Positioned(
+                                                        top: (!isSentByMe &&
+                                                                userName.isNotEmpty)
+                                                            ? 25
+                                                            : 0,
+                                                        left: 0,
+                                                        right: 0,
+                                                        child:
+                                                            GroupRepliedMessagePreview(
+                                                          key: ValueKey(
+                                                              '${messageId}_${message['replyContent']}'),
+                                                          replied: _mergeReplyData(
+                                                              message['repliedMessage'] ??
+                                                                  message['reply']),
+                                                          receiver: message[
+                                                                  'receiver'] is Map
+                                                              ? Map<String,
+                                                                      dynamic>.from(
+                                                                  message['receiver'])
+                                                              : {},
+                                                          isSender: isSentByMe,
+                                                          groupMediaLength:
+                                                              _calculateGroupMediaLength(
+                                                                  _mergeReplyData(message[
+                                                                          'repliedMessage'] ??
+                                                                      message[
+                                                                          'reply'])),
+                                                          onTap: () async {
+                                                            final replyId = ((message[
+                                                                                    'repliedMessage'] ??
+                                                                                message[
+                                                                                    'reply'])?[
+                                                                            'id'] ??
+                                                                        (message['repliedMessage'] ??
+                                                                                message[
+                                                                                    'reply'])?[
+                                                                            'message_id'] ??
+                                                                        (message['repliedMessage'] ??
+                                                                                message[
+                                                                                    'reply'])?[
+                                                                            'messageId'])
+                                                                    ?.toString() ??
+                                                                '';
+                                                            if (replyId.isNotEmpty) {
+                                                              await _scrollToMessageById(
+                                                                  replyId,
+                                                                  fetchIfMissing:
+                                                                      true);
+                                                            }
+                                                          },
+                                                        ),
                                                       ),
-                                                      const SizedBox(width: 4),
-                                                      if (isSentByMe &&
-                                                          content !=
-                                                              "Message Deleted")
-                                                        _buildStatusIcon(
-                                                            messageStatus,
-                                                            message),
-                                                    ],
+                                                    // TIMESTAMP & STATUS - Positioned at Container Stack level for replied messages
+                                                    if (hasReply &&
+                                                        content.isNotEmpty)
+                                                      Positioned(
+                                                        bottom: 3,
+                                                        right: 3,
+                                                        child: Row(
+                                                          mainAxisAlignment:
+                                                              MainAxisAlignment.end,
+                                                          mainAxisSize:
+                                                              MainAxisSize.min,
+                                                          children: [
+                                                            Text(
+                                                              TimeUtils
+                                                                  .formatUtcToIst(
+                                                                      message[
+                                                                          'time']),
+                                                              style: const TextStyle(
+                                                                  fontSize: 10,
+                                                                  color:
+                                                                      Colors.black54),
+                                                            ),
+                                                            const SizedBox(width: 4),
+                                                            if (isSentByMe &&
+                                                                content !=
+                                                                    "Message Deleted")
+                                                              _buildStatusIcon(
+                                                                  messageStatus,
+                                                                  message),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          if (!isSentByMe &&
+                                              (isVideo ||
+                                                  isImage ||
+                                                  hasFile ||
+                                                  (content.isNotEmpty &&
+                                                      RegExp(r'((https?:\/\/)|(www\.))[^\s]+',
+                                                          caseSensitive: false)
+                                                          .hasMatch(content))))Center(
+                                            child: Material(
+                                              color: Colors.transparent,
+                                              child: Padding(
+                                                padding: const EdgeInsets.only(left: 15.0),
+                                                child: InkWell(
+                                                  borderRadius: BorderRadius.circular(20),
+                                                  onTap: () {
+                                                    MyRouter.pushReplace(
+                                                      screen: ForwardMessageScreen(
+                                                        messages: [
+                                                          normalizeMessage(message)
+                                                        ],
+                                                        currentUserId: currentUserId,
+                                                        conversionalid: widget.conversationId,
+                                                        username: widget.groupName,
+                                                      ),
+                                                    );
+                                                  },
+                                                  child: CircleAvatar(
+                                                    maxRadius: 16,
+                                                    backgroundColor: Colors.white,
+                                                    child: Image.asset(
+                                                      "assets/images/forward.png",
+                                                      height: 20,
+                                                      width: 20,
+                                                    ),
                                                   ),
                                                 ),
-                                            ],
+                                              ),
+                                            ),
                                           ),
-                                        ),
+                                        ],
                                       ),
                                     ]),
                               ),
@@ -5648,10 +5637,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                     ),
                                     child: GestureDetector(
                                       onTap: () {
-                                        debugPrint(
-                                            '🔥 Tapped on reacted emoji!');
-                                        debugPrint(
-                                            '🔥 Message: ${message['message_id']}');
                                         final reactions = _extractReactions(
                                             message['reactions']);
                                         final firstEmoji = reactions.isNotEmpty
@@ -5659,8 +5644,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                     ?.toString() ??
                                                 '')
                                             : '';
-                                        debugPrint(
-                                            '🔥 About to call _showReactionsBottomSheet');
                                         _showReactionsBottomSheet(
                                             message, firstEmoji);
                                       },
@@ -5801,7 +5784,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         status: 'sent',
       );
     } catch (e) {
-      debugPrint('❌ Resend failed: $e');
       _updateMessageStatus(oldMessageId, 'failed');
       if (e is! TimeoutException) {
         Messenger.alertError("Resend failed: $e");
@@ -5924,7 +5906,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   void _sendRecording() {
     if (_recordedFilePath != null) {
-      log("Send: $_recordedFilePath");
     }
   }
 
@@ -6066,7 +6047,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   PreferredSizeWidget _buildAppBar() {
-    print(widget.conversationId);
     return CommonAppBarBuilder.build(
       context: context,
       showSearchAppBar: _showSearchAppBar,
@@ -6139,81 +6119,95 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Widget build(BuildContext context) {
     return BlocProvider.value(
       value: _groupBloc,
-      child: ReusableChatScaffold(
-        appBar: _buildAppBar(),
-        chatBody: _buildChatBody(),
-        voiceRecordingUI: _buildVoiceRecordingUI(),
-        messageInputBuilder: (context) {
-          return BlocListener<GroupChatBloc, GroupChatState>(
-            bloc: _groupBloc,
-            listenWhen: (previous, current) =>
-                current is GroupLeftState ||
-                current is GroupChatError ||
-                current is GroupDetailsLoaded,
-            listener: (context, state) {
-              if (state is GroupLeftState) {
-                setState(() {
-                  _hasLeftGroup = true;
-                });
-              }
-              if (state is GroupDetailsLoaded) {
-                if (mounted) {
-                  setState(() {
-                    final members = state.groupDetails['groupMembers'];
-                    if (members.isNotEmpty) {
-                      debugPrint("🔍 First member object: ${members.first}");
-                      debugPrint(
-                          "🔍 First member type: ${members.first.runtimeType}");
-                    }
-                    if (members is List) {
-                      groupMembers = members.map((m) {
-                        if (m is Map) {
-                          return (m['member_id'] ?? m['id'] ?? m['_id'] ?? "")
-                              .toString();
+      child: Stack(
+        children: [
+          ReusableChatScaffold(
+            appBar: _buildAppBar(),
+            chatBody: _buildChatBody(),
+            voiceRecordingUI: _buildVoiceRecordingUI(),
+            messageInputBuilder: (context) {
+              return BlocListener<GroupChatBloc, GroupChatState>(
+                bloc: _groupBloc,
+                listenWhen: (previous, current) =>
+                    current is GroupLeftState ||
+                    current is GroupChatError ||
+                    current is GroupDetailsLoaded,
+                listener: (context, state) {
+                  if (state is GroupLeftState) {
+                    setState(() {
+                      _hasLeftGroup = true;
+                    });
+                  }
+                  if (state is GroupDetailsLoaded) {
+                    if (mounted) {
+                      setState(() {
+                        final members = state.groupDetails['groupMembers'];
+                        if (members.isNotEmpty) {
+
                         }
-                        return m.toString();
-                      }).toList();
-                      // CRITICAL FIX: Store member IDs for later rebuild
-                      _knownMemberIds = List<String>.from(groupMembers);
+                        if (members is List) {
+                          groupMembers = members.map((m) {
+                            if (m is Map) {
+                              return (m['member_id'] ?? m['id'] ?? m['_id'] ?? "")
+                                  .toString();
+                            }
+                            return m.toString();
+                          }).toList();
+                          // CRITICAL FIX: Store member IDs for later rebuild
+                          _knownMemberIds = List<String>.from(groupMembers);
 
-                      print("✅ Updated Group Members from API: $groupMembers");
+                        }
+                      });
                     }
-                  });
-                }
-              }
-              if (state is GroupChatError) {
-                log("GroupChatError: ${state.message}");
-              }
+                  }
+                  if (state is GroupChatError) {
+                  }
+                },
+                child: BlocBuilder<GroupChatBloc, GroupChatState>(
+                  bloc: _groupBloc,
+                  buildWhen: (previous, current) => current is! GroupLeftState,
+                  builder: (context, state) {
+                    if (_hasLeftGroup) {
+                      return const Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Text(
+                          'You have left the group',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.redAccent,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      );
+                    }
+
+                    final isKeyboardVisible =
+                        WidgetsBinding.instance.window.viewInsets.bottom > 0;
+
+                    /// Normal message input UI
+                    return _buildMessageInputField(isKeyboardVisible, false);
+                  },
+                ),
+              );
             },
-            child: BlocBuilder<GroupChatBloc, GroupChatState>(
-              bloc: _groupBloc,
-              buildWhen: (previous, current) => current is! GroupLeftState,
-              builder: (context, state) {
-                if (_hasLeftGroup) {
-                  return const Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: Text(
-                      'You have left the group',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.redAccent,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  );
-                }
-
-                final isKeyboardVisible =
-                    WidgetsBinding.instance.window.viewInsets.bottom > 0;
-
-                /// Normal message input UI
-                return _buildMessageInputField(isKeyboardVisible, false);
-              },
+            isRecording: _isRecording,
+            bloc: _groupBloc,
+          ),
+          if (_showScrollToBottomButton)
+            Positioned(
+              right: 16,
+              bottom: 90, // above message input
+              child: FloatingActionButton(
+                mini: true,
+                backgroundColor: chatColor,
+                onPressed: () {
+                  _scrollToBottom();
+                  setState(() => _showScrollToBottomButton = false);
+                },
+                child: const Icon(Icons.keyboard_double_arrow_down_outlined,color: Colors.white,),
+              ),
             ),
-          );
-        },
-        isRecording: _isRecording,
-        bloc: _groupBloc,
+        ],
       ),
     );
   }
@@ -6345,10 +6339,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     List<Map<String, dynamic>> allReacts = _normalizeFromMap(message);
 
     // Debug logging
-    debugPrint('🔍 _showReactionsBottomSheet called');
-    debugPrint('🔍 Message reactions raw: ${message['reactions']}');
-    debugPrint('🔍 Normalized reactions: $allReacts');
-    debugPrint('🔍 Initial emoji: $initialEmoji');
 
     // Allow showing sheet even if empty - users can still add reactions
     // if (allReacts.isEmpty) {
@@ -6556,8 +6546,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                 _handleReactionTap(message, emo);
                                 Navigator.pop(context);
                               } catch (e) {
-                                debugPrint(
-                                    'Error while handling reaction pick: $e');
+
                               }
 
                               // hide picker and refresh sheet lists
@@ -6762,7 +6751,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       // For simplicity, we assume buffered is always newer/better than "sent"
       finalStatus = bufferedStatus;
       _pendingStatusUpdates.remove(realId);
-      debugPrint('🚀 Applied buffered status $finalStatus to new ID $realId');
     }
 
     void updateList(List<Map<String, dynamic>> list) {
@@ -6881,7 +6869,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           status: 'sent',
         );
       } catch (e) {
-        debugPrint('❌ Flush failed for $tempId: $e');
         _updateMessageStatus(tempId, 'failed');
       }
     }

@@ -64,6 +64,7 @@ class _MixedMediaViewerState extends State<MixedMediaViewer> {
   late int _currentIndex;
   bool _showUI = true;
   double _dragOffset = 0;
+  final Map<int, int> _rotationTurns = {};
   @override
   void initState() {
     super.initState();
@@ -237,13 +238,14 @@ class _MixedMediaViewerState extends State<MixedMediaViewer> {
                 ),
                 GestureDetector(
                   onTap: () {
+                    log("currentMessage?????????? $currentMessage");
                     if (currentMessage == null) return;
                     Navigator.pop(context);
                     MyRouter.pushReplace(
                       screen: ForwardMessageScreen(
                         isForward: isSentByMe,
                         messages: [currentMessage],
-                        currentUserId: currentMessage['senderId'] ?? '',
+                        currentUserId:  currentMessage['sender']?["_id"]??currentMessage['senderId'] ?? '',
                         conversionalid: "",
                         username: currentMessage['senderName'] ?? '',
                       ),
@@ -288,7 +290,12 @@ class _MixedMediaViewerState extends State<MixedMediaViewer> {
                                 .isNotEmpty ??
                             false) {
                           textToShare = currentMessage['imageUrl'];
-                        } else if (currentMessage['fileUrl']
+                        } 
+                        
+                        
+                        
+                        
+                        else if (currentMessage['fileUrl']
                                 ?.toString()
                                 .trim()
                                 .isNotEmpty ??
@@ -306,6 +313,12 @@ class _MixedMediaViewerState extends State<MixedMediaViewer> {
                     }
                     if (value == 'delete') {
                       _deleteMedia();
+                    }
+                    if (value == 'rotate') {
+                      setState(() {
+                        _rotationTurns[_currentIndex] =
+                            ((_rotationTurns[_currentIndex] ?? 0) + 1) % 4;
+                      });
                     }
                   },
                   itemBuilder: (BuildContext context) =>
@@ -448,11 +461,18 @@ class _MixedMediaViewerState extends State<MixedMediaViewer> {
               // 🎥 VIDEO PAGE
               if (item.isVideo) {
                 return PhotoViewGalleryPageOptions.customChild(
-                  disableGestures: true,
-                  child: Center(
-                    child: InlineVideoPlayer(
-                      path: item.mediaUrl,
-                      isNetwork: item.mediaUrl.startsWith('http'),
+                  heroAttributes: PhotoViewHeroAttributes(tag: item.mediaUrl),
+                  child: RotatedBox(
+                    quarterTurns: _rotationTurns[index] ?? 0,
+                    child: PhotoView(
+                      imageProvider: item.mediaUrl.startsWith('http')
+                          ? CachedNetworkImageProvider(item.mediaUrl)
+                          : FileImage(File(item.mediaUrl)) as ImageProvider,
+                      initialScale: PhotoViewComputedScale.contained,
+                      minScale: PhotoViewComputedScale.contained,
+                      maxScale: PhotoViewComputedScale.covered * 3,
+                      backgroundDecoration:
+                      const BoxDecoration(color: Colors.transparent),
                     ),
                   ),
                 );
