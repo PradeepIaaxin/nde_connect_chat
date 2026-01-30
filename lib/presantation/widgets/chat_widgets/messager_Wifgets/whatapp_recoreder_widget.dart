@@ -446,7 +446,7 @@ class _WhatsAppRecorderWidgetState extends State<WhatsAppRecorderWidget> {
               ),
               const SizedBox(width: 12),
 
-               Expanded(
+              Expanded(
                 child: AudioWaveforms(
                   enableGesture: false,
                   size: const Size(double.infinity, 30),
