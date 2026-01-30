@@ -59,6 +59,8 @@ import '../chat_list/chat_bloc.dart';
 import '../chat_list/chat_event.dart';
 
 import '../model/emoj_model.dart';
+import 'package:nde_email/presantation/chat/chat_ userprofile_screen/bloc/profile_screen_bloc.dart';
+import 'package:nde_email/presantation/chat/chat_ userprofile_screen/bloc/profile_screen_event.dart';
 
 class GroupChatScreen extends StatefulWidget {
   const GroupChatScreen({
@@ -1633,6 +1635,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           builder: (_) => MixedMediaViewer(
             items: media,
             initialIndex: index,
+            conversionalId: widget.conversationId,
+            fullName: widget.groupName,
+            isGroup: true,
+            receiverId: widget.groupId,
           ),
         ),
       );
@@ -4038,6 +4044,53 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                         isSentByMe
                                                                             ? 0
                                                                             : 0,
+                                                                      ),
+                                                                      child:
+                                                                          GroupedMediaWidget(
+                                                                        mediaUrls:
+                                                                            groupImages,
+                                                                        searchText:
+                                                                            _searchController.text,
+                                                                        caption:
+                                                                            message['content'],
+                                                                        isSentByMe:
+                                                                            isSentByMe,
+                                                                        time: message['time'] ??
+                                                                            '',
+                                                                        messageStatus:
+                                                                            message['messageStatus']?.toString() ??
+                                                                                'sent',
+                                                                        onMediaTap:
+                                                                            (index) {
+                                                                          final media =
+                                                                              buildConversationMedia(
+                                                                            combinedMessages,
+                                                                            currentUserId:
+                                                                                currentUserId,
+                                                                          );
+                                                                          final tappedUrl =
+                                                                              groupImages[index];
+                                                                          final startIndex = media.indexWhere((m) =>
+                                                                              m.mediaUrl ==
+                                                                              tappedUrl);
+
+                                                                          if (startIndex !=
+                                                                              -1) {
+                                                                            Navigator.push(
+                                                                              context,
+                                                                              MaterialPageRoute(
+                                                                                builder: (_) => MixedMediaViewer(
+                                                                                  items: media,
+                                                                                  initialIndex: startIndex,
+                                                                                  conversionalId: widget.conversationId,
+                                                                                  fullName: widget.groupName,
+                                                                                  isGroup: true,
+                                                                                ),
+                                                                              ),
+                                                                            );
+                                                                          }
+                                                                        },
+                                                                      ),
                                                                     right: 0,
                                                                     top: 0,
                                                                     bottom: (message['reactions'] !=
@@ -6141,6 +6194,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           ? 0
           : (_searchMatchIds.length - 1 - _currentSearchMatchIndex),
       hasLeftGroup: _hasLeftGroup,
+      onExitGroup: () {
+        if (widget.groupId != null || widget.datumId != null) {
+          context
+              .read<MediaBloc>()
+              .add(ExitGroup(grpId: widget.groupId ?? widget.datumId));
+        }
+      },
     );
   }
 
