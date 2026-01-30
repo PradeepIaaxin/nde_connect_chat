@@ -205,7 +205,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     });
 
     _userStatusSub = socketService.userStatusStream.listen((data) {
-      log("👤 User status update received: $data");
+      // log("👤 User status update received: $data");
 
       final userId = data['userId']?.toString();
       if (userId == widget.receiverId || userId == widget.datumId) {
@@ -1233,12 +1233,12 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     String? originalKey = rawMsg['originalKey'];
 
     if (rawReply is Map) {
-      log(" rawReply['isGroupedMessageId'] ${ rawReply['group_message_id']}");
-      log(" rawReply['isGroupedMessageId'] ${ rawReply['is_grouped_message']}");
+      // log(" rawReply['isGroupedMessageId'] ${ rawReply['group_message_id']}");
+      // log(" rawReply['isGroupedMessageId'] ${ rawReply['is_grouped_message']}");
       final String? replyUrl = rawReply['replyUrl'] ??
           rawReply['originalUrl'] ??
           rawReply['fileUrl'];
-      log("rawReply['replyContent'] ${rawReply['replyContent']}");
+      // log("rawReply['replyContent'] ${rawReply['replyContent']}");
       final String? fileName = rawReply['fileName'];
       final String? contentType =
           rawReply['ContentType'] ?? rawReply['fileType'];
