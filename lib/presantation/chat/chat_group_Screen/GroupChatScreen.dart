@@ -4360,6 +4360,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             onTap: () {
               final isNetwork = fileUrl.startsWith('http://') ||
                   fileUrl.startsWith('https://');
+              final media = buildConversationMedia(
+      _allMessages,
+      currentUserId: currentUserId,
+    );
+              final index = media.indexWhere((m) => m.mediaUrl == fileUrl);
 
               Navigator.push(
                 context,
