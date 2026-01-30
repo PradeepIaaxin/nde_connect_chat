@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/user_profile_screen.dart';
+import 'package:nde_email/presantation/chat/chat_ userprofile_screen/user_profile_screen.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/ChateHomeMoreOptionsButton.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/SearchAppBar_Widget.dart'
     show SearchAppBar;
@@ -13,7 +13,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../../utils/imports/common_imports.dart';
 import '../chat_ userprofile_screen/bloc/profile_screen_state.dart';
-import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/model/contact_model.dart';
+import 'package:nde_email/presantation/chat/chat_ userprofile_screen/model/contact_model.dart';
 import 'package:nde_email/presantation/chat/widget/profile_avatar.dart';
 
 class CommonAppBarBuilder {
@@ -48,6 +48,7 @@ class CommonAppBarBuilder {
     int searchMatchCount = 0,
     int searchMatchIndex = 0,
     bool isSendByMe=false,
+    VoidCallback? onExitGroup,
   }) {
     if (showSearchAppBar) {
       return SearchAppBar(
@@ -399,6 +400,7 @@ class CommonAppBarBuilder {
                   grpChat: grpChat,
                   favouite: favouitre,
                   onSearchTap: onSearchTap,
+                  onExitGroup: onExitGroup,
                 );
               },
             ),
