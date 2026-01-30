@@ -2,16 +2,18 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:developer';
 import 'package:bloc/bloc.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
 import 'package:nde_email/data/respiratory.dart';
+import 'package:nde_email/presantation/chat/chat_api_service/secure/secure_storage.dart';
 
 import 'package:nde_email/presantation/chat/chat_contact_list/local_strorage.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/localstorage/local_storage.dart';
 import 'package:nde_email/presantation/drive/Bloc/file_bloc/drive_local_storage.dart'
     show LocalDriveStorage;
-    import 'package:nde_email/presantation/chat/Socket/socket_service.dart';
+import 'package:nde_email/presantation/chat/Socket/socket_service.dart';
 import 'package:nde_email/presantation/drive/Bloc/sharred_bloc/sharred_local.dart';
 import 'package:nde_email/presantation/drive/Bloc/starred_bloc/stared_local.dart';
 import 'package:nde_email/presantation/login/login_api.dart';
@@ -62,6 +64,59 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
     }
   }
 
+  // Future<void> _onLoginSubmitted(
+  //   LoginApi event,
+  //   Emitter<LoginState> emit,
+  // ) async {
+  //   emit(state.copyWith(
+  //     status: LoginStatus.loading,
+  //     message: "",
+  //   ));
+
+  //   try {
+  //     final loginRequest = LoginRequestModel(
+  //       email: event.email,
+  //       password: event.password,
+  //     );
+
+  //     await Future.delayed(const Duration(milliseconds: 40));
+
+  //     final userId = await UserPreferences.getUserId();
+  //     final workspaceId = await UserPreferences.getDefaultWorkspace();
+  //     final token = await UserPreferences.getAccessToken();
+
+  //     if (token != null && userId != null && workspaceId != null) {
+  //       await SocketService().initialize();
+  //     }
+  //     await authRepository.login(loginRequest);
+  //     await SecureStorage.saveToken(newAccessToken!);
+  //     await SecureStorage.saveRefreshToken(newRefreshToken!);
+  //     await SecureStorage.saveUserId(userId!);
+  //     await SecureStorage.saveWorkspace(workspaceId!);
+
+  //     // ✅ Initialize socket ONCE
+  //     await SocketService().initialize();
+
+  //     // ✅ WAIT until socket is REALLY connected
+  //     await SocketService().waitUntilConnected();
+
+  //     _startRefreshTimer();
+
+  //     emit(state.copyWith(
+  //       status: LoginStatus.success,
+  //       message: "Login successful!",
+  //     ));
+  //   } catch (e, stackTrace) {
+  //     log("Login error: $e", stackTrace: stackTrace);
+
+  //     emit(state.copyWith(
+  //       status: LoginStatus.errorScreen,
+  //       message: _getErrorMessage(e),
+  //       hasSubmitted: true,
+  //     ));
+  //   }
+  // }
+
   Future<void> _onLoginSubmitted(
     LoginApi event,
     Emitter<LoginState> emit,
@@ -77,21 +132,30 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
         password: event.password,
       );
 
-      await Future.delayed(const Duration(milliseconds: 40));
+      await authRepository.login(loginRequest);
 
+      // 🔥 GET SAVED TOKENS AFTER LOGIN
       final userId = await UserPreferences.getUserId();
       final workspaceId = await UserPreferences.getDefaultWorkspace();
-      final token = await UserPreferences.getAccessToken();
+      final accessToken = await UserPreferences.getAccessToken();
+      final refreshToken = await UserPreferences.getrefreshToken();
 
-      if (token != null && userId != null && workspaceId != null) {
-        await SocketService().initialize();
+      // 🔐 SAVE TO SECURE STORAGE
+      if (accessToken != null) {
+        await SecureStorage.saveToken(accessToken);
       }
-      await authRepository.login(loginRequest);
+      if (refreshToken != null) {
+        await SecureStorage.saveRefreshToken(refreshToken);
+      }
+      if (userId != null) {
+        await SecureStorage.saveUserId(userId);
+      }
+      if (workspaceId != null) {
+        await SecureStorage.saveWorkspace(workspaceId);
+      }
 
       // ✅ Initialize socket ONCE
       await SocketService().initialize();
-
-      // ✅ WAIT until socket is REALLY connected
       await SocketService().waitUntilConnected();
 
       _startRefreshTimer();
@@ -110,53 +174,6 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
       ));
     }
   }
-
-  // Future<void> _onLoginSubmitted(
-  //   LoginApi event,
-  //   Emitter<LoginState> emit,
-  // ) async {
-  //   emit(state.copyWith(
-  //     status: LoginStatus.loading,
-  //     message: "",
-  //   ));
-
-  //   try {
-  //     final loginRequest = LoginRequestModel(
-  //       email: event.email,
-  //       password: event.password,
-  //     );
-
-  //     final response = await authRepository.login(loginRequest);
-
-  //     // 🟢 WAIT A LITTLE for SharedPreferences to finish writing
-  //     // await Future.delayed(const Duration(milliseconds: 300));
-
-  //     final userId = await UserPreferences.getUserId();
-  //     final workspaceId = await UserPreferences.getDefaultWorkspace();
-  //     final token = await UserPreferences.getAccessToken();
-
-  //     if (token != null && userId != null && workspaceId != null) {
-  //       //  await socketService.ensureConnected();
-  //     }
-  //     await socketService.initialize();
-  //     log("Socket initialized successfully after login – ready for instant messaging");
-  //     // 🟢 Start periodic token refresh AFTER socket
-  //     _startRefreshTimer();
-
-  //     emit(state.copyWith(
-  //       status: LoginStatus.success,
-  //       message: "Login successful!",
-  //     ));
-  //   } catch (e, stackTrace) {
-  //           await socketService.initialize();
-  //     log("  Login error: $e", stackTrace: stackTrace);
-  //     emit(state.copyWith(
-  //       status: LoginStatus.errorScreen,
-  //       message: _getErrorMessage(e),
-  //       hasSubmitted: true,
-  //     ));
-  //   }
-  // }
 
   void _onStatusReset(LoginStatusReset event, Emitter<LoginState> emit) {
     emit(state.copyWith(status: LoginStatus.initial));
@@ -232,6 +249,8 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
         final newRefreshToken = data['refreshToken'];
 
         await UserPreferences.updateTokens(newAccessToken, newRefreshToken);
+        await SecureStorage.saveRefreshToken(newRefreshToken);
+
         log('Tokens refreshed successfully on startup');
 
         _startRefreshTimer();
@@ -279,6 +298,8 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
         final newRefreshToken = data['refreshToken'];
 
         await UserPreferences.updateTokens(newAccessToken, newRefreshToken);
+        await SecureStorage.saveToken(newAccessToken);
+
         log('Tokens refreshed successfully');
 
         _refreshCompleter!.complete();

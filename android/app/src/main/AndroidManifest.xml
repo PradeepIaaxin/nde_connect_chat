@@ -30,7 +30,7 @@
         android:maxSdkVersion="28" />
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
 
-    <!-- Android 12+ alarms (OEM stability) -->
+    <!-- Android 12+ alarms -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
     <!-- ================= QUERIES ================= -->
@@ -48,36 +48,8 @@
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true"
         android:requestLegacyExternalStorage="true"
-        android:enableOnBackInvokedCallback="true"
         android:allowBackup="true"
         android:networkSecurityConfig="@xml/network_security_config">
-
-        <!-- ================= FLUTTER LOCAL NOTIFICATIONS ================= -->
-
-        <!-- Foreground Service -->
-        <service
-            android:name="com.dexterous.flutterlocalnotifications.ForegroundService"
-            android:exported="false"
-            android:foregroundServiceType="dataSync" />
-
-        <!-- Scheduled Notifications -->
-        <receiver
-            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"
-            android:exported="false" />
-
-        <receiver
-            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
-            android:exported="false"
-            android:permission="android.permission.RECEIVE_BOOT_COMPLETED">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-            </intent-filter>
-        </receiver>
-
-        <!-- 🔥 IMPORTANT: Reply Action Receiver -->
-        <receiver
-            android:name="com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver"
-            android:exported="true" />
 
         <!-- ================= FILE PROVIDER ================= -->
         <provider
@@ -98,8 +70,7 @@
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
-            android:windowSoftInputMode="adjustResize"
-            android:taskAffinity="">
+            android:windowSoftInputMode="adjustResize">
 
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
@@ -134,12 +105,19 @@
 
         </activity>
 
-        <!-- ================= FIREBASE META ================= -->
+        <!-- ================= AWESOME NOTIFICATIONS ================= -->
+        <receiver
+            android:name="me.carda.awesome_notifications.core.receivers.ActionReceiver"
+            android:exported="true" />
 
-        <!-- IMPORTANT: Must match Flutter channel ID -->
+        <receiver
+            android:name="me.carda.awesome_notifications.core.receivers.DismissedNotificationReceiver"
+            android:exported="true" />
+
+        <!-- ================= FIREBASE META ================= -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="chat_messages" />
+            android:value="chat_channel" />
 
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"

@@ -5,6 +5,8 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:nde_email/bridge_generated.dart/frb_generated.dart';
 import 'package:nde_email/convo_list_crdt.dart';
 import 'package:nde_email/message_list_crdt.dart';
+import 'package:nde_email/presantation/chat/chat_api_service/bloc/chat_send_bloc.dart';
+import 'package:nde_email/presantation/chat/chat_api_service/service/chat_api_service.dart';
 import 'package:nde_email/presantation/chat/device/api/device_api.dart';
 import 'package:nde_email/presantation/chat/device/bloc/device_bloc.dart';
 import 'package:nde_email/presantation/login/login_screen.dart';
@@ -28,16 +30,34 @@ bool hasIncomingShare = false;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  AppLifecycleService().init();
-  await InternetService.initialize();
 
+  await InternetService.initialize();
   await Firebase.initializeApp();
   await AwesomeNotificationService.init();
+  AppLifecycleService().init();
 
-  // Handle app opened from notification (TERMINATED)
+  // IMPORTANT
+  AwesomeNotifications().setListeners(
+    onActionReceivedMethod: notificationActionHandler,
+  );
+
+// Handle killed notification open
   final action = await AwesomeNotifications().getInitialNotificationAction();
+  if (action != null) {
+  if (action.buttonKeyPressed == "") {
+    // user tapped notification
+    AwesomeNotificationService.openChatFromPayload(action.payload);
+  } 
+  // DO NOTHING for REPLY
+}
 
-  // ================= FCM INIT =================
+
+  // if (action != null && action.buttonKeyPressed.isEmpty) {
+  //   Future.delayed(Duration(seconds: 1), () {
+  //     AwesomeNotificationService.openChatFromPayload(action.payload);
+  //   });
+  // }
+  
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
   FirebaseMessaging.onMessage.listen((message) {
@@ -82,6 +102,8 @@ void main() async {
   // PARALLEL INIT — MAX SPEED
   await initializeStorage();
 
+  await ChatApiService().init();
+
   // ✅ check first
   final status = await Permission.storage.status;
   if (!status.isGranted) {
@@ -103,12 +125,13 @@ void main() async {
   }
 
   runApp(MyRootApp(isLoggedIn: isLoggedIn, isFirstOpen: isFirstOpen));
-  // OPEN CHAT WHEN APP OPENED FROM NOTIFICATION
-  if (action != null) {
-    Future.delayed(const Duration(seconds: 1), () {
-      AwesomeNotificationService.openChatFromPayload(action.payload);
-    });
-  }
+}
+
+@pragma('vm:entry-point')
+Future<void> notificationActionHandler(ReceivedAction action) async {
+  await Firebase.initializeApp();
+  await ChatApiService().init();
+  await AwesomeNotificationService.onAction(action);
 }
 
 Future<void> getFcmToken() async {
@@ -168,6 +191,9 @@ class MyRootApp extends StatelessWidget {
                 AppBarBloc(FetchMailBoxesApi())..add(FetchMailboxesEvent())),
         BlocProvider(
             create: (context) => CallBloc()..add(FetchCallHistoryEvent())),
+        BlocProvider(
+          create: (_) => ChatSendBloc(ChatApiService()),
+        ),
         BlocProvider(create: (context) => BottomNavigationBloc()),
         BlocProvider(
             create: (context) => MailListBloc(apiService: FetchMailListapi())),

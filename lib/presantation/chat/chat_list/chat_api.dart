@@ -78,7 +78,7 @@ class ChatListApiService {
     final decoded = jsonDecode(jsonString);
 
     final List data = decoded["chatDataList"] ?? [];
-    log(data.toString());
+    // log(data.toString());
 
     return data.map((e) => Datu.fromJson(e)).toList();
   }
