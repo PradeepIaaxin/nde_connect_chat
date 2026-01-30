@@ -1,18 +1,7 @@
-import 'dart:async';
 import 'dart:convert';
-import 'dart:developer';
-import 'dart:io';
-import 'package:any_link_preview/any_link_preview.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_sound/public/flutter_sound_player.dart';
-import 'package:flutter_sound/public/flutter_sound_recorder.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:mime/mime.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/local_strorage.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/GroupRepliedMessagePreview.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/api_servicer.dart';
@@ -31,20 +20,10 @@ import 'package:nde_email/presantation/widgets/chat_widgets/Common/grouped_media
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/message_caption.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/AudioMessageWidget.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/grp_showbottom_sheet.dart';
-import 'package:nde_email/utils/const/consts.dart';
-import 'package:nde_email/utils/datetime/date_time_utils.dart';
+import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/show_Bottom_Sheet.dart';
 import 'package:nde_email/utils/reusbale/colour_utlis.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
-import 'package:nde_email/utils/router/router.dart';
-import 'package:nde_email/utils/snackbar/snackbar.dart';
-import 'package:nde_email/utils/spacer/spacer.dart';
-import 'package:objectid/objectid.dart';
-import 'package:open_file/open_file.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:record/record.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/whatsapp_swipe_to_reply.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../data/respiratory.dart';
 import '../../../utils/simmer_effect.dart/chat_simmerefect.dart';
 import '../../widgets/chat_widgets/messager_Wifgets/ForwardMessageScreen_widget.dart';
@@ -4145,10 +4124,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                                     MaterialPageRoute(
                                                                                       builder: (_) => MixedMediaViewer(
                                                                                         items: media,
-                                                                                  initialIndex: startIndex,
-                                                                                  conversionalId: widget.conversationId,
-                                                                                  fullName: widget.groupName,
-                                                                                  isGroup: true,
+                                                                                        initialIndex: startIndex,
+                                                                                        conversionalId: widget.conversationId,
+                                                                                        fullName: widget.groupName,
+                                                                                        isGroup: true,
                                                                                       ),
                                                                                     ),
                                                                                   );
@@ -5976,31 +5955,27 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       focusNode: _focusNode,
       onSendPressed: _sendMessage,
       onEmojiPressed: _toggleEmojiKeyboard,
-      onAttachmentPressed: () => GrpShowAltDialog.grpshowOptionsDialog(
-        context,
-        conversationId: widget.conversationId,
-        senderId: currentUserId,
-        receiverId: widget.datumId,
-        isGroupChat: true,
-        groupBloc: _groupBloc,
-        onOptionSelected:
-            () {}, // Changed from _sendMessageImage to empty callback to prevent duplicate sending. onMessageSent handles the UI/send logic.
-        onMessageSent: (List<Map<String, dynamic>> messages) {
-          if (messages.isEmpty) return;
+      onAttachmentPressed: () => ShowAltDialog.showOptionsDialog(context,
+          conversationId: widget.conversationId,
+          senderId: currentUserId,
+          receiverId: widget.datumId,
+          isGroupChat: true,
+          onOptionSelected: (List<Map<String, dynamic>> localMessages) {
+        if (localMessages.isEmpty) return;
 
-          setState(() {
-            for (var msg in messages) {
-              _seenMessageIds.add(msg['message_id'] ?? msg['messageId'] ?? '');
-              // Add to socketMessages for immediate UI update
-              socketMessages.add(msg);
-            }
-          });
+        setState(() {
+          socketMessages.addAll(localMessages);
+          for (var msg in localMessages) {
+            final id = (msg['message_id'] ?? '').toString();
+            if (id.isNotEmpty) _seenMessageIds.add(id);
+          }
+        });
+        _updateNotifier();
 
-          _updateNotifier();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
           _scrollToBottom();
-        },
-        onFilesSelected: _sendMultipleFiles,
-      ),
+        });
+      }),
       onCameraPressed: _openCamera,
       onRecordPressed: _isRecording ? _stopRecordingFs : _startRecordingFs,
       isRecording: _isRecording,

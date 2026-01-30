@@ -192,7 +192,7 @@ class _MessageBubbleState extends State<MessageBubble> {
       return const SizedBox.shrink();
     }
     bool _ignoreParentTap = false;
-
+  
     return Padding(
       padding:
           EdgeInsets.symmetric(vertical: widget.emojpicker != null ? 6.0 : 0),
