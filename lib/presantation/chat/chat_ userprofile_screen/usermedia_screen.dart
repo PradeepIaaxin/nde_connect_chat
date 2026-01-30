@@ -87,7 +87,7 @@ class _UsermediaScreenState extends State<UsermediaScreen>
           BlocProvider(
             create: (_) => MediaBloc(mediaRepository)
               ..add(FetchMedia(userId: widget.userId, type: 'media')),
-            child: MediaTab(),
+            child: MediaTab(userId: widget.userId, username: widget.username),
           ),
           BlocProvider(
             create: (_) => MediaBloc(mediaRepository)
@@ -106,7 +106,9 @@ class _UsermediaScreenState extends State<UsermediaScreen>
 }
 
 class MediaTab extends StatelessWidget {
-  MediaTab({super.key});
+  final String userId;
+  final String username;
+  MediaTab({super.key, required this.userId, required this.username});
 
   /// 🔥 THUMBNAIL FUTURE CACHE (VERY IMPORTANT)
   final Map<String, Future<File?>> _thumbFutureCache = {};
@@ -187,6 +189,8 @@ class MediaTab extends StatelessWidget {
                         );
                       }).toList(),
                       initialIndex: index,
+                      conversionalId: userId,
+                      fullName: username,
                     ),
                   );
                 },

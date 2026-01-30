@@ -59,6 +59,8 @@ import '../chat_list/chat_bloc.dart';
 import '../chat_list/chat_event.dart';
 
 import '../model/emoj_model.dart';
+import 'package:nde_email/presantation/chat/chat_ userprofile_screen/bloc/profile_screen_bloc.dart';
+import 'package:nde_email/presantation/chat/chat_ userprofile_screen/bloc/profile_screen_event.dart';
 
 class GroupChatScreen extends StatefulWidget {
   const GroupChatScreen({
@@ -1633,6 +1635,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           builder: (_) => MixedMediaViewer(
             items: media,
             initialIndex: index,
+            conversionalId: widget.conversationId,
+            fullName: widget.groupName,
+            isGroup: true,
+            receiverId: widget.groupId,
           ),
         ),
       );
@@ -4051,7 +4057,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                           0, 2),
                                                                 ),
                                                               ],
-                                                                ),
+                                                            ),
                                                             child: Column(
                                                               crossAxisAlignment:
                                                                   CrossAxisAlignment
@@ -4095,9 +4101,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                           GroupedMediaWidget(
                                                                         mediaUrls:
                                                                             groupImages,
-                                                                             searchText:
-                                                                        _searchController
-                                                                            .text,
+                                                                        searchText:
+                                                                            _searchController.text,
                                                                         caption:
                                                                             message['content'],
                                                                         isSentByMe:
@@ -4129,6 +4134,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                                 builder: (_) => MixedMediaViewer(
                                                                                   items: media,
                                                                                   initialIndex: startIndex,
+                                                                                  conversionalId: widget.conversationId,
+                                                                                  fullName: widget.groupName,
+                                                                                  isGroup: true,
                                                                                 ),
                                                                               ),
                                                                             );
@@ -6145,6 +6153,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           ? 0
           : (_searchMatchIds.length - 1 - _currentSearchMatchIndex),
       hasLeftGroup: _hasLeftGroup,
+      onExitGroup: () {
+        if (widget.groupId != null || widget.datumId != null) {
+          context
+              .read<MediaBloc>()
+              .add(ExitGroup(grpId: widget.groupId ?? widget.datumId));
+        }
+      },
     );
   }
 
