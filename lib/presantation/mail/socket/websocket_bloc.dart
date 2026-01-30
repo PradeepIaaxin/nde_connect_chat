@@ -15,7 +15,6 @@ class WebSocketBloc extends Bloc<WebSocketEvent, WebSocketState> {
   final List<NotificationModel> notifications = [];
 
   WebSocketBloc(this.socketService) : super(WebSocketInitial()) {
-
     /// 🔌 CONNECT SOCKET
     on<ConnectWebSocket>((event, emit) async {
       log("🟢 Bloc: ConnectWebSocket triggered");
@@ -41,7 +40,7 @@ class WebSocketBloc extends Bloc<WebSocketEvent, WebSocketState> {
       Map<String, dynamic> data,
       Emitter<WebSocketState> emit,
     ) async {
-      log("📦 Bloc: Handling notification JSON → $data");
+      // log("📦 Bloc: Handling notification JSON → $data");
 
       final newNotification = NotificationModel.fromJson(data);
       notifications.add(newNotification);
@@ -78,7 +77,7 @@ class WebSocketBloc extends Bloc<WebSocketEvent, WebSocketState> {
             if (item is Map<String, dynamic>) {
               await handleNotification(item, emit);
             } else {
-              log("⚠️ Bloc: List item not Map → $item");
+              // log("⚠️ Bloc: List item not Map → $item");
             }
           }
         } else if (decoded is Map<String, dynamic>) {
