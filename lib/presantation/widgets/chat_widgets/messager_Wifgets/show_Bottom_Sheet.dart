@@ -135,9 +135,6 @@ class ShowAltDialog {
                                 ),
                               ),
                             );
-
-                            // ✅ Return messages to chat
-                            Navigator.of(context).pop();
                             if (localMessages != null &&
                                 localMessages.isNotEmpty) {
                               onOptionSelected(localMessages);
@@ -607,7 +604,7 @@ class ShowAltDialog {
                 conversationId,
                 senderId,
                 receiverId: receiverId,
-                message: caption ?? "", // ✅ Pass caption here
+                message: caption ?? null, // ✅ Pass caption here
                 isGroupMessage: isGroupChat,
                 isGroupMessageChat: isGroupMessage,
                 groupMesageId: groupMessageId,
