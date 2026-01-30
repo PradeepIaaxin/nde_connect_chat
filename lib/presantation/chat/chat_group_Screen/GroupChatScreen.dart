@@ -1866,7 +1866,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         }
       }
     }
-
+log("_replyMessage>>>>>>>>>>>>>> $_replyMessage");
     // 🛠 Construct a clean reply payload (match PrivateChatScreen structure & include snake_case)
     final Map<String, dynamic>? replyPayload = _replyMessage != null
         ? {
@@ -2715,7 +2715,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }) {
     if (message.isEmpty) return;
 
-
+log(">>>>>>>>>>>>Message $message");
     // ✅ ALWAYS reply to the swiped message itself
     final Map<String, dynamic> replySource = Map<String, dynamic>.from(message);
 
@@ -3995,7 +3995,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                 child:
                                                                     Container(
                                                                       width: bubbleWidth,
-                                                                  height: 200,
                                                                   margin:
                                                                       EdgeInsets
                                                                           .only(
@@ -4616,6 +4615,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                         child: GestureDetector(
                           onTap: () => _onMessageTap(message),
                           onLongPress: () {
+                            log("messssssssssssssssssssss $message");
                             if (_isSelectionMode) {
                               _toggleMessageSelection(message);
                             } else if (!isDeleted) {
@@ -5096,60 +5096,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                             ),
                                                                         ],
                                                                       ),
-                                                                      Positioned(
-                                                                        top: 0,
-                                                                        bottom: 0,
-                                                                        left:
-                                                                            isSentByMe
-                                                                                ? -60
-                                                                                : null,
-                                                                        right:
-                                                                            isSentByMe
-                                                                                ? null
-                                                                                : -60,
-                                                                        child: Center(
-                                                                          child:
-                                                                              Material(
-                                                                            color: Colors
-                                                                                .transparent,
-                                                                            child:
-                                                                                InkWell(
-                                                                              borderRadius:
-                                                                                  BorderRadius.circular(20),
-                                                                              onTap:
-                                                                                  () {
-                                                                                MyRouter
-                                                                                    .pushReplace(
-                                                                                  screen:
-                                                                                      ForwardMessageScreen(
-                                                                                    messages: [
-                                                                                      normalizeMessage(message)
-                                                                                    ],
-                                                                                    currentUserId: currentUserId,
-                                                                                    conversionalid: widget.conversationId,
-                                                                                    username: widget.groupName,
-                                                                                  ),
-                                                                                );
-                                                                              },
-                                                                              child:
-                                                                                  CircleAvatar(
-                                                                                maxRadius:
-                                                                                    16,
-                                                                                backgroundColor:
-                                                                                    Colors.white,
-                                                                                child:
-                                                                                    Image.asset(
-                                                                                  "assets/images/forward.png",
-                                                                                  height:
-                                                                                      20,
-                                                                                  width:
-                                                                                      20,
-                                                                                ),
-                                                                              ),
-                                                                            ),
-                                                                          ),
-                                                                        ),
-                                                                      ),
+
                                                                     ],
                                                                   )
                                                                 else
@@ -5268,48 +5215,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                                     ),
                                                                                   ),
                                                                                 ),
-                                                                                // Positioned(
-                                                                                //   top:
-                                                                                //       20,
-                                                                                //   bottom:
-                                                                                //       0,
-                                                                                //   left: isSentByMe
-                                                                                //       ? -60
-                                                                                //       : null,
-                                                                                //   right: isSentByMe
-                                                                                //       ? null
-                                                                                //       : -60,
-                                                                                //   child:
-                                                                                //       Center(
-                                                                                //     child: Material(
-                                                                                //       color: Colors.transparent,
-                                                                                //       child: InkWell(
-                                                                                //         borderRadius: BorderRadius.circular(20),
-                                                                                //         onTap: () {
-                                                                                //           MyRouter.pushReplace(
-                                                                                //             screen: ForwardMessageScreen(
-                                                                                //               messages: [
-                                                                                //                 normalizeMessage(message)
-                                                                                //               ],
-                                                                                //               currentUserId: currentUserId,
-                                                                                //               conversionalid: widget.conversationId,
-                                                                                //               username: widget.groupName,
-                                                                                //             ),
-                                                                                //           );
-                                                                                //         },
-                                                                                //         child: CircleAvatar(
-                                                                                //           maxRadius: 16,
-                                                                                //           backgroundColor: Colors.white,
-                                                                                //           child: Image.asset(
-                                                                                //             "assets/images/forward.png",
-                                                                                //             height: 20,
-                                                                                //             width: 20,
-                                                                                //           ),
-                                                                                //         ),
-                                                                                //       ),
-                                                                                //     ),
-                                                                                //   ),
-                                                                                // ),
                                                                               ],
                                                                             ),
                                                                           Stack(
@@ -5408,49 +5313,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                                   );
                                                                                 },
                                                                               ),
-                                                                              Positioned(
-                                                                                top:
-                                                                                    0,
-                                                                                bottom:
-                                                                                    0,
-                                                                                left: isSentByMe
-                                                                                    ? -60
-                                                                                    : null,
-                                                                                right: isSentByMe
-                                                                                    ? null
-                                                                                    : -60,
-                                                                                child:
-                                                                                    Center(
-                                                                                  child:
-                                                                                      Material(
-                                                                                    color: Colors.transparent,
-                                                                                    child: InkWell(
-                                                                                      borderRadius: BorderRadius.circular(20),
-                                                                                      onTap: () {
-                                                                                        MyRouter.pushReplace(
-                                                                                          screen: ForwardMessageScreen(
-                                                                                            messages: [
-                                                                                              normalizeMessage(message)
-                                                                                            ],
-                                                                                            currentUserId: currentUserId,
-                                                                                            conversionalid: widget.conversationId,
-                                                                                            username: widget.groupName,
-                                                                                          ),
-                                                                                        );
-                                                                                      },
-                                                                                      child: CircleAvatar(
-                                                                                        maxRadius: 16,
-                                                                                        backgroundColor: Colors.white,
-                                                                                        child: Image.asset(
-                                                                                          "assets/images/forward.png",
-                                                                                          height: 20,
-                                                                                          width: 20,
-                                                                                        ),
-                                                                                      ),
-                                                                                    ),
-                                                                                  ),
-                                                                                ),
-                                                                              ),
+
                                                                             ],
                                                                           ),
                                                                         ],

@@ -5219,8 +5219,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                             ? Colors.blueAccent
                                             .withValues(alpha: 0.3)
                                             : Colors.transparent,
-                                        child: !hasReply
-                                            ?  Column(
+                                        child: Column(
                                       crossAxisAlignment:
                                       correctIsSentByMe
                                       ? CrossAxisAlignment.end
@@ -5236,96 +5235,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                               length: groupMedia.length),
                                         ],
                                       )
-                                            : Align(
-                                          alignment: correctIsSentByMe
-                                              ? Alignment.centerRight
-                                              : Alignment.centerLeft,
-                                          child: Column(
-                                            crossAxisAlignment:
-                                            correctIsSentByMe
-                                                ? CrossAxisAlignment.end
-                                                : CrossAxisAlignment
-                                                .start,
-                                            children: [
-                                              if (showDate)
-                                                DateSeparator(
-                                                    dateTime: _parseTime(
-                                                        message['time'])),
 
-
-
-
-                                              Container(
-                                                margin: const EdgeInsets
-                                                    .symmetric(
-                                                    horizontal: 5,
-                                                    vertical: 0),
-                                                constraints:
-                                                const BoxConstraints(
-                                                    maxWidth: 160),
-                                                decoration: BoxDecoration(
-                                                  border: Border.all(
-                                                      color: _selectedMessageKeys
-                                                          .contains(
-                                                          _generateMessageKey(
-                                                              message))
-                                                          ? Colors.blue
-                                                          : Colors
-                                                          .transparent,
-                                                      width: 2),
-                                                  color: (isSentByMe
-                                                      ? const Color(
-                                                      0xFFD8E1FE)
-                                                      : Colors.white),
-                                                  borderRadius:
-                                                  BorderRadius.only(
-                                                    topLeft: isSentByMe
-                                                        ? const Radius
-                                                        .circular(18)
-                                                        : const Radius
-                                                        .circular(18),
-                                                    topRight: isSentByMe
-                                                        ? const Radius
-                                                        .circular(18)
-                                                        : const Radius
-                                                        .circular(18),
-                                                    bottomLeft: isSentByMe
-                                                        ? const Radius
-                                                        .circular(18)
-                                                        : Radius.zero,
-                                                    bottomRight: isSentByMe
-                                                        ? Radius.zero
-                                                        : const Radius
-                                                        .circular(16),
-                                                  ),
-                                                  boxShadow: [
-                                                    BoxShadow(
-                                                      color: Colors.black
-                                                          .withOpacity(0.05),
-                                                      blurRadius: 4,
-                                                      offset:
-                                                      const Offset(0, 2),
-                                                    ),
-                                                  ],
-                                                ),
-                                                child: Column(
-                                                  children: [
-                                                    if (showDate)
-                                                      DateSeparator(
-                                                          dateTime: _parseTime(
-                                                              message['time'])),
-                                                    _buildMessageBubble(
-                                                        message,
-                                                        correctIsSentByMe,
-                                                        hasReply,
-                                                        length: groupMedia
-                                                            .length),
-                                                  ],
-                                                ),
-                                              )
-                                            ],
-                                          ),
-                                        ),
                                       ),
                                     );
                                   });
