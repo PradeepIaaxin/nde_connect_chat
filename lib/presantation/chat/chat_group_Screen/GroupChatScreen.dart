@@ -3934,343 +3934,21 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                   alignment: isSentByMe
                                                       ? Alignment.centerRight
                                                       : Alignment.centerLeft,
-                                                  child: Stack(
-                                                    clipBehavior: Clip.none,
+                                                  child: Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .center,
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment.end,
                                                     children: [
-                                                      GestureDetector(
-                                                        behavior:
-                                                            HitTestBehavior
-                                                                .opaque,
-                                                        onTap: () {
-                                                          if (_isSelectionMode) {
-                                                            for (final gm
-                                                                in groupMessagesList) {
-                                                              _toggleMessageSelection(
-                                                                  gm);
-                                                            }
-                                                          }
-                                                        },
-                                                        onLongPress: () {
-                                                          if (!isDeleted) {
-                                                            _showReactionPicker(
-                                                                context,
-                                                                message);
-                                                          }
-
-                                                          setState(() {
-                                                            _isSelectionMode =
-                                                                true;
-                                                          });
-
-                                                          for (final gm
-                                                              in groupMessagesList) {
-                                                            _toggleMessageSelection(
-                                                                gm);
-                                                          }
-                                                        },
-                                                        child: Padding(
+                                                      if (isSentByMe)
+                                                        Padding(
                                                           padding:
-                                                              EdgeInsets.only(
-                                                                  left:
-                                                                      isSentByMe
-                                                                          ? 0
-                                                                          : 38),
-                                                          child: Container(
-                                                            margin:
-                                                                EdgeInsets.only(
-                                                              left: isSentByMe
-                                                                  ? 0
-                                                                  : 0,
-                                                              right: 0,
-                                                              top: 0,
-                                                              bottom: (message[
-                                                                              'reactions'] !=
-                                                                          null &&
-                                                                      message['reactions']
-                                                                          .isNotEmpty)
-                                                                  ? 20
-                                                                  : 0,
-                                                            ),
-                                                            padding:
-                                                                const EdgeInsets
-                                                                    .all(7),
-                                                            constraints:
-                                                                BoxConstraints(
-                                                              maxWidth: MediaQuery.of(
-                                                                          context)
-                                                                      .size
-                                                                      .width *
-                                                                  0.75,
-                                                            ),
-                                                            decoration:
-                                                                BoxDecoration(
-                                                              color: isGroupSelected
-                                                                  ? senderColor
-                                                                      .withOpacity(
-                                                                          0.2)
-                                                                  : (isSentByMe
-                                                                      ? senderColor
-                                                                      : receiverColor),
-                                                              borderRadius:
-                                                                  BorderRadius
-                                                                      .only(
-                                                                topLeft:
-                                                                    const Radius
-                                                                        .circular(
-                                                                        18),
-                                                                topRight:
-                                                                    const Radius
-                                                                        .circular(
-                                                                        18),
-                                                                bottomLeft: isSentByMe
-                                                                    ? const Radius
-                                                                        .circular(
-                                                                        18)
-                                                                    : Radius
-                                                                        .zero,
-                                                                bottomRight: isSentByMe
-                                                                    ? Radius
-                                                                        .zero
-                                                                    : const Radius
-                                                                        .circular(
-                                                                        16),
-                                                              ),
-                                                              border: isGroupSelected
-                                                                  ? Border.all(
-                                                                      color: Colors
-                                                                          .blue,
-                                                                      width: 2)
-                                                                  : null,
-                                                              boxShadow: const [
-                                                                BoxShadow(
-                                                                  color: Colors
-                                                                      .black12,
-                                                                  blurRadius: 4,
-                                                                  offset:
-                                                                      Offset(
-                                                                          0, 2),
-                                                                ),
-                                                              ],
-                                                                ),
-                                                            child: Column(
-                                                              crossAxisAlignment:
-                                                                  CrossAxisAlignment
-                                                                      .start,
-                                                              children: [
-                                                                if (!isSentByMe &&
-                                                                    userName
-                                                                        .isNotEmpty)
-                                                                  Padding(
-                                                                    padding: const EdgeInsets
-                                                                        .only(
-                                                                        bottom:
-                                                                            4.0),
-                                                                    child: Text(
-                                                                      userName,
-                                                                      style:
-                                                                          TextStyle(
-                                                                        fontWeight:
-                                                                            FontWeight.bold,
-                                                                        color: ColorUtil.getColorFromAlphabet(
-                                                                            userName),
-                                                                        fontSize:
-                                                                            14,
-                                                                      ),
-                                                                    ),
-                                                                  ),
-                                                                Stack(
-                                                                  clipBehavior:
-                                                                      Clip.none,
-                                                                  children: [
-                                                                    Padding(
-                                                                      padding:
-                                                                          EdgeInsets
-                                                                              .only(
-                                                                        bottom: (message['reactions'] != null &&
-                                                                                message['reactions'].isNotEmpty)
-                                                                            ? 5
-                                                                            : 0,
-                                                                      ),
-                                                                      child:
-                                                                          GroupedMediaWidget(
-                                                                        mediaUrls:
-                                                                            groupImages,
-                                                                             searchText:
-                                                                        _searchController
-                                                                            .text,
-                                                                        caption:
-                                                                            message['content'],
-                                                                        isSentByMe:
-                                                                            isSentByMe,
-                                                                        time: message['time'] ??
-                                                                            '',
-                                                                        messageStatus:
-                                                                            message['messageStatus']?.toString() ??
-                                                                                'sent',
-                                                                        onMediaTap:
-                                                                            (index) {
-                                                                          final media =
-                                                                              buildConversationMedia(
-                                                                            combinedMessages,
-                                                                            currentUserId:
-                                                                                currentUserId,
-                                                                          );
-                                                                          final tappedUrl =
-                                                                              groupImages[index];
-                                                                          final startIndex = media.indexWhere((m) =>
-                                                                              m.mediaUrl ==
-                                                                              tappedUrl);
-
-                                                                          if (startIndex !=
-                                                                              -1) {
-                                                                            Navigator.push(
-                                                                              context,
-                                                                              MaterialPageRoute(
-                                                                                builder: (_) => MixedMediaViewer(
-                                                                                  items: media,
-                                                                                  initialIndex: startIndex,
-                                                                                ),
-                                                                              ),
-                                                                            );
-                                                                          }
-                                                                        },
-                                                                      ),
-                                                                    ),
-                                                                    if (message['content'] ==
-                                                                            null ||
-                                                                        message['content']
-                                                                            .toString()
-                                                                            .isEmpty)
-                                                                      Positioned(
-                                                                        bottom:
-                                                                            5,
-                                                                        right:
-                                                                            5,
-                                                                        child:
-                                                                            Container(
-                                                                          padding: const EdgeInsets
-                                                                              .symmetric(
-                                                                              horizontal: 6,
-                                                                              vertical: 2),
-                                                                          decoration:
-                                                                              BoxDecoration(
-                                                                            color:
-                                                                                Colors.black.withOpacity(0.45),
-                                                                            borderRadius:
-                                                                                BorderRadius.circular(8),
-                                                                          ),
-                                                                          child:
-                                                                              Row(
-                                                                            mainAxisSize:
-                                                                                MainAxisSize.min,
-                                                                            children: [
-                                                                              Text(
-                                                                                TimeUtils.formatUtcToIst(message['time']),
-                                                                                style: const TextStyle(fontSize: 10, color: Colors.white),
-                                                                              ),
-                                                                              if (isSentByMe) ...[
-                                                                                const SizedBox(width: 4),
-                                                                                Builder(builder: (context) {
-                                                                                  final status = message['messageStatus']?.toString() ?? 'sent';
-                                                                                  switch (status) {
-                                                                                    case 'sent':
-                                                                                      return const Icon(Icons.check, size: 12, color: Colors.white);
-                                                                                    case 'delivered':
-                                                                                      return const Icon(Icons.done_all_rounded, size: 12, color: Colors.white);
-                                                                                    case 'read':
-                                                                                      return const Icon(Icons.done_all, size: 12, color: Colors.blueAccent);
-                                                                                    default:
-                                                                                      return const Icon(Icons.access_time, size: 12, color: Colors.white);
-                                                                                  }
-                                                                                }),
-                                                                              ],
-                                                                            ],
-                                                                          ),
-                                                                        ),
-                                                                      ),
-                                                                    if (message['reactions'] !=
-                                                                            null &&
-                                                                        message['reactions']
-                                                                            .isNotEmpty)
-                                                                      Positioned(
-                                                                        bottom:
-                                                                            -16,
-                                                                        right: isSentByMe
-                                                                            ? 5
-                                                                            : null,
-                                                                        left: isSentByMe
-                                                                            ? null
-                                                                            : 2,
-                                                                        child:
-                                                                            GestureDetector(
-                                                                          behavior:
-                                                                              HitTestBehavior.translucent,
-                                                                          onTap:
-                                                                              () {
-                                                                            log("Reaction tapped");
-                                                                            final reactions =
-                                                                                _extractReactions(message['reactions']);
-                                                                            final firstEmoji = reactions.isNotEmpty
-                                                                                ? (reactions.first['emoji']?.toString() ?? '')
-                                                                                : '';
-                                                                            _showReactionsBottomSheet(message,
-                                                                                firstEmoji);
-                                                                          },
-                                                                          child:
-                                                                              _buildReactionsBar(
-                                                                            message,
-                                                                            isSentByMe,
-                                                                          ),
-                                                                        ),
-                                                                      ),
-                                                                  ],
-                                                                ),
-                                                              ],
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      ),
-                                                      if (!isSentByMe)
-                                                        Positioned(
-                                                          left: 2,
-                                                          top: 10,
-                                                          child: CircleAvatar(
-                                                            radius: 16,
-                                                            backgroundColor:
-                                                                Colors
-                                                                    .transparent,
-                                                            child: ClipOval(
-                                                              child: profileImageUrl
-                                                                      .isNotEmpty
-                                                                  ? CachedNetworkImage(
-                                                                      imageUrl:
-                                                                          profileImageUrl,
-                                                                      fit: BoxFit
-                                                                          .cover,
-                                                                      width: 32,
-                                                                      height:
-                                                                          32,
-                                                                      errorWidget: (context,
-                                                                              url,
-                                                                              error) =>
-                                                                          _buildAvatarWithInitial(
-                                                                              userName),
-                                                                    )
-                                                                  : _buildAvatarWithInitial(
-                                                                      userName),
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      Positioned(
-                                                        top: 0,
-                                                        bottom: 0,
-                                                        left: isSentByMe
-                                                            ? -60
-                                                            : null,
-                                                        right: isSentByMe
-                                                            ? null
-                                                            : -50,
-                                                        child: Center(
+                                                              const EdgeInsets
+                                                                  .only(
+                                                                  right: 8.0),
                                                           child: Material(
                                                             color: Colors
                                                                 .transparent,
@@ -4298,7 +3976,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                               },
                                                               child:
                                                                   CircleAvatar(
-                                                                maxRadius: 16,
+                                                                radius: 16,
                                                                 backgroundColor:
                                                                     Colors
                                                                         .white,
@@ -4312,7 +3990,325 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                             ),
                                                           ),
                                                         ),
+                                                      Flexible(
+                                                        child: Stack(
+                                                          clipBehavior:
+                                                              Clip.none,
+                                                          children: [
+                                                            GestureDetector(
+                                                              behavior:
+                                                                  HitTestBehavior
+                                                                      .opaque,
+                                                              onTap: () {
+                                                                if (_isSelectionMode) {
+                                                                  for (final gm
+                                                                      in groupMessagesList) {
+                                                                    _toggleMessageSelection(
+                                                                        gm);
+                                                                  }
+                                                                }
+                                                              },
+                                                              onLongPress: () {
+                                                                if (!isDeleted) {
+                                                                  _showReactionPicker(
+                                                                      context,
+                                                                      message);
+                                                                }
+                                                                setState(() {
+                                                                  _isSelectionMode =
+                                                                      true;
+                                                                });
+                                                                for (final gm
+                                                                    in groupMessagesList) {
+                                                                  _toggleMessageSelection(
+                                                                      gm);
+                                                                }
+                                                              },
+                                                              child: Padding(
+                                                                padding: EdgeInsets.only(
+                                                                    left: isSentByMe
+                                                                        ? 0
+                                                                        : 38),
+                                                                child:
+                                                                    Container(
+                                                                  margin:
+                                                                      EdgeInsets
+                                                                          .only(
+                                                                    left:
+                                                                        isSentByMe
+                                                                            ? 0
+                                                                            : 0,
+                                                                    right: 0,
+                                                                    top: 0,
+                                                                    bottom: (message['reactions'] !=
+                                                                                null &&
+                                                                            message['reactions'].isNotEmpty)
+                                                                        ? 20
+                                                                        : 0,
+                                                                  ),
+                                                                  padding:
+                                                                      const EdgeInsets
+                                                                          .all(
+                                                                          7),
+                                                                  constraints:
+                                                                      BoxConstraints(
+                                                                    maxWidth: MediaQuery.of(context)
+                                                                            .size
+                                                                            .width *
+                                                                        0.75,
+                                                                  ),
+                                                                  decoration:
+                                                                      BoxDecoration(
+                                                                    color: isGroupSelected
+                                                                        ? senderColor.withOpacity(
+                                                                            0.2)
+                                                                        : (isSentByMe
+                                                                            ? senderColor
+                                                                            : receiverColor),
+                                                                    borderRadius:
+                                                                        BorderRadius
+                                                                            .only(
+                                                                      topLeft: const Radius
+                                                                          .circular(
+                                                                          18),
+                                                                      topRight: const Radius
+                                                                          .circular(
+                                                                          18),
+                                                                      bottomLeft: isSentByMe
+                                                                          ? const Radius
+                                                                              .circular(
+                                                                              18)
+                                                                          : Radius
+                                                                              .zero,
+                                                                      bottomRight: isSentByMe
+                                                                          ? Radius
+                                                                              .zero
+                                                                          : const Radius
+                                                                              .circular(
+                                                                              16),
+                                                                    ),
+                                                                    border: isGroupSelected
+                                                                        ? Border.all(
+                                                                            color:
+                                                                                Colors.blue,
+                                                                            width: 2)
+                                                                        : null,
+                                                                    boxShadow: const [
+                                                                      BoxShadow(
+                                                                        color: Colors
+                                                                            .black12,
+                                                                        blurRadius:
+                                                                            4,
+                                                                        offset: Offset(
+                                                                            0,
+                                                                            2),
+                                                                      ),
+                                                                    ],
+                                                                  ),
+                                                                  child: Column(
+                                                                    crossAxisAlignment:
+                                                                        CrossAxisAlignment
+                                                                            .start,
+                                                                    children: [
+                                                                      if (!isSentByMe &&
+                                                                          userName
+                                                                              .isNotEmpty)
+                                                                        Padding(
+                                                                          padding: const EdgeInsets
+                                                                              .only(
+                                                                              bottom: 4.0),
+                                                                          child:
+                                                                              Text(
+                                                                            userName,
+                                                                            style:
+                                                                                TextStyle(
+                                                                              fontWeight: FontWeight.bold,
+                                                                              color: ColorUtil.getColorFromAlphabet(userName),
+                                                                              fontSize: 14,
+                                                                            ),
+                                                                          ),
+                                                                        ),
+                                                                      Stack(
+                                                                        clipBehavior:
+                                                                            Clip.none,
+                                                                        children: [
+                                                                          Padding(
+                                                                            padding:
+                                                                                EdgeInsets.only(
+                                                                              bottom: (message['reactions'] != null && message['reactions'].isNotEmpty) ? 5 : 0,
+                                                                            ),
+                                                                            child:
+                                                                                GroupedMediaWidget(
+                                                                              mediaUrls: groupImages,
+                                                                              searchText: _searchController.text,
+                                                                              caption: message['content'],
+                                                                              isSentByMe: isSentByMe,
+                                                                              time: message['time'] ?? '',
+                                                                              messageStatus: message['messageStatus']?.toString() ?? 'sent',
+                                                                              onMediaTap: (index) {
+                                                                                final media = buildConversationMedia(
+                                                                                  combinedMessages,
+                                                                                  currentUserId: currentUserId,
+                                                                                );
+                                                                                final tappedUrl = groupImages[index];
+                                                                                final startIndex = media.indexWhere((m) => m.mediaUrl == tappedUrl);
+                                                                                if (startIndex != -1) {
+                                                                                  Navigator.push(
+                                                                                    context,
+                                                                                    MaterialPageRoute(
+                                                                                      builder: (_) => MixedMediaViewer(
+                                                                                        items: media,
+                                                                                        initialIndex: startIndex,
+                                                                                      ),
+                                                                                    ),
+                                                                                  );
+                                                                                }
+                                                                              },
+                                                                            ),
+                                                                          ),
+                                                                          if (message['content'] == null ||
+                                                                              message['content'].toString().isEmpty)
+                                                                            Positioned(
+                                                                              bottom: 5,
+                                                                              right: 5,
+                                                                              child: Container(
+                                                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                                                decoration: BoxDecoration(
+                                                                                  color: Colors.black.withOpacity(0.45),
+                                                                                  borderRadius: BorderRadius.circular(8),
+                                                                                ),
+                                                                                child: Row(
+                                                                                  mainAxisSize: MainAxisSize.min,
+                                                                                  children: [
+                                                                                    Text(
+                                                                                      TimeUtils.formatUtcToIst(message['time']),
+                                                                                      style: const TextStyle(fontSize: 10, color: Colors.white),
+                                                                                    ),
+                                                                                    if (isSentByMe) ...[
+                                                                                      const SizedBox(width: 4),
+                                                                                      Builder(builder: (context) {
+                                                                                        final status = message['messageStatus']?.toString() ?? 'sent';
+                                                                                        switch (status) {
+                                                                                          case 'sent':
+                                                                                            return const Icon(Icons.check, size: 12, color: Colors.white);
+                                                                                          case 'delivered':
+                                                                                            return const Icon(Icons.done_all_rounded, size: 12, color: Colors.white);
+                                                                                          case 'read':
+                                                                                            return const Icon(Icons.done_all, size: 12, color: Colors.blueAccent);
+                                                                                          default:
+                                                                                            return const Icon(Icons.access_time, size: 12, color: Colors.white);
+                                                                                        }
+                                                                                      }),
+                                                                                    ],
+                                                                                  ],
+                                                                                ),
+                                                                              ),
+                                                                            ),
+                                                                          if (message['reactions'] != null &&
+                                                                              message['reactions'].isNotEmpty)
+                                                                            Positioned(
+                                                                              bottom: -16,
+                                                                              right: isSentByMe ? 5 : null,
+                                                                              left: isSentByMe ? null : 2,
+                                                                              child: GestureDetector(
+                                                                                behavior: HitTestBehavior.translucent,
+                                                                                onTap: () {
+                                                                                  log("Reaction tapped");
+                                                                                  final reactions = _extractReactions(message['reactions']);
+                                                                                  final firstEmoji = reactions.isNotEmpty ? (reactions.first['emoji']?.toString() ?? '') : '';
+                                                                                  _showReactionsBottomSheet(message, firstEmoji);
+                                                                                },
+                                                                                child: _buildReactionsBar(message, isSentByMe),
+                                                                              ),
+                                                                            ),
+                                                                        ],
+                                                                      ),
+                                                                    ],
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                            ),
+                                                            if (!isSentByMe)
+                                                              Positioned(
+                                                                left: 2,
+                                                                top: 10,
+                                                                child:
+                                                                    CircleAvatar(
+                                                                  radius: 16,
+                                                                  backgroundColor:
+                                                                      Colors
+                                                                          .transparent,
+                                                                  child:
+                                                                      ClipOval(
+                                                                    child: profileImageUrl
+                                                                            .isNotEmpty
+                                                                        ? CachedNetworkImage(
+                                                                            imageUrl:
+                                                                                profileImageUrl,
+                                                                            fit:
+                                                                                BoxFit.cover,
+                                                                            width:
+                                                                                32,
+                                                                            height:
+                                                                                32,
+                                                                            errorWidget: (context, url, error) =>
+                                                                                _buildAvatarWithInitial(userName),
+                                                                          )
+                                                                        : _buildAvatarWithInitial(
+                                                                            userName),
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                          ],
+                                                        ),
                                                       ),
+                                                      if (!isSentByMe)
+                                                        Padding(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .only(
+                                                                  left: 8.0),
+                                                          child: Material(
+                                                            color: Colors
+                                                                .transparent,
+                                                            child: InkWell(
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                          20),
+                                                              onTap: () {
+                                                                MyRouter
+                                                                    .pushReplace(
+                                                                  screen:
+                                                                      ForwardMessageScreen(
+                                                                    messages:
+                                                                        groupMessagesList,
+                                                                    currentUserId:
+                                                                        currentUserId,
+                                                                    conversionalid:
+                                                                        widget
+                                                                            .conversationId,
+                                                                    username: widget
+                                                                        .groupName,
+                                                                  ),
+                                                                );
+                                                              },
+                                                              child:
+                                                                  CircleAvatar(
+                                                                radius: 16,
+                                                                backgroundColor:
+                                                                    Colors
+                                                                        .white,
+                                                                child:
+                                                                    Image.asset(
+                                                                  "assets/images/forward.png",
+                                                                  height: 20,
+                                                                  width: 20,
+                                                                ),
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ),
                                                     ],
                                                   ),
                                                 );
