@@ -44,20 +44,19 @@ void main() async {
 // Handle killed notification open
   final action = await AwesomeNotifications().getInitialNotificationAction();
   if (action != null) {
-  if (action.buttonKeyPressed == "") {
-    // user tapped notification
-    AwesomeNotificationService.openChatFromPayload(action.payload);
-  } 
-  // DO NOTHING for REPLY
-}
-
+    if (action.buttonKeyPressed == "") {
+      // user tapped notification
+      AwesomeNotificationService.openChatFromPayload(action.payload);
+    }
+    // DO NOTHING for REPLY
+  }
 
   // if (action != null && action.buttonKeyPressed.isEmpty) {
   //   Future.delayed(Duration(seconds: 1), () {
   //     AwesomeNotificationService.openChatFromPayload(action.payload);
   //   });
   // }
-  
+
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
   FirebaseMessaging.onMessage.listen((message) {

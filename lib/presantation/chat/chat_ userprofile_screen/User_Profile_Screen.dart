@@ -131,7 +131,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     log('''
 🧾 Conversation Details
 -----------------------
-profileAvatarUrl : $profileAvatarUrl
+// profileAvatarUrl : $profileAvatarUrl
 userName         : $userName
 mailName         : $mailName
 country          : ${country ?? 'N/A'}
@@ -155,53 +155,32 @@ hasLeftGroup     : $hasLeftGroup
         surfaceTintColor: Colors.white,
         title: const Text('Profile'),
         centerTitle: true,
-        actions: [
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              if (value == 'rename') {
-                MyRouter.push(
-                  screen: GroupNameEditScreen(
-                    initialValue: widget.userName,
-                    keyToEdit: "group_name",
-                    groupId: widget.grpId ?? "",
-                    groupImage: widget.profileAvatarUrl,
-                  ),
-                );
-              } else if (value == 'share') {
-                // Handle share action
-              } else if (value == 'edit') {
-                // Handle edit action
-              }
-            },
-            itemBuilder: (context) {
-              if (widget.isGrp == true) {
-                return const [
-                  PopupMenuItem(
-                    value: 'rename',
-                    child: ListTile(
-                      title: Text('Change Group name'),
+        actions: widget.isGrp == true
+            ? [
+                PopupMenuButton<String>(
+                  onSelected: (value) {
+                    if (value == 'rename') {
+                      MyRouter.push(
+                        screen: GroupNameEditScreen(
+                          initialValue: widget.userName,
+                          keyToEdit: "group_name",
+                          groupId: widget.grpId ?? "",
+                          groupImage: widget.profileAvatarUrl,
+                        ),
+                      );
+                    }
+                  },
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(
+                      value: 'rename',
+                      child: ListTile(
+                        title: Text('Change Group name'),
+                      ),
                     ),
-                  ),
-                ];
-              } else {
-                return const [
-                  PopupMenuItem(
-                    value: 'share',
-                    child: ListTile(
-                      title: Text('Share'),
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'edit',
-                    child: ListTile(
-                      title: Text('Edit'),
-                    ),
-                  ),
-                ];
-              }
-            },
-          ),
-        ],
+                  ],
+                ),
+              ]
+            : [],
       ),
       body: _buildProfileContent(),
     );

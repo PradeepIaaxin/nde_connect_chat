@@ -319,26 +319,26 @@ class _MixedMediaViewerState extends State<MixedMediaViewer> {
                       value: 'all_media',
                       child: Text('All media'),
                     ),
-                    const PopupMenuItem<String>(
-                      value: 'show_in_chat',
-                      child: Text('Show in chat'),
-                    ),
-                    const PopupMenuItem<String>(
-                      value: 'share',
-                      child: Text('Share'),
-                    ),
+                    // const PopupMenuItem<String>(
+                    //   value: 'show_in_chat',
+                    //   child: Text('Show in chat'),
+                    // ),
+                    // const PopupMenuItem<String>(
+                    //   value: 'share',
+                    //   child: Text('Share'),
+                    // ),
                     const PopupMenuItem<String>(
                       value: 'save',
                       child: Text('Save'),
                     ),
-                    const PopupMenuItem<String>(
-                      value: 'rotate',
-                      child: Text('Rotate'),
-                    ),
-                    const PopupMenuItem<String>(
-                      value: 'delete',
-                      child: Text('Delete'),
-                    ),
+                    // const PopupMenuItem<String>(
+                    //   value: 'rotate',
+                    //   child: Text('Rotate'),
+                    // ),
+                    // const PopupMenuItem<String>(
+                    //   value: 'delete',
+                    //   child: Text('Delete'),
+                    // ),
                   ],
                 ),
                 SizedBox(

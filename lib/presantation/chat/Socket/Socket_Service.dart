@@ -895,7 +895,7 @@ class SocketService {
     if (!_userStatusController.isClosed) {
       if (data is Map<String, dynamic>) {
         _userStatusController.add(data);
-        log("👤 User status update received: $data");
+        // log("👤 User status update received: $data");
       } else {
         _userStatusController.add({
           'userId': userId,

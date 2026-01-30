@@ -69,7 +69,7 @@ class MessagerApiService {
           log('🧪 Decoded snapshot length: ${jsonString.length} chars');
 
           final decoded = jsonDecode(jsonString);
-          log('🔍 Snapshot keys: ${decoded["messages"]}');
+          // log('🔍 Snapshot keys: ${decoded["messages"]}');
 
           final Map? messagesMap = decoded["messages"];
           if (messagesMap == null) {
@@ -100,7 +100,7 @@ class MessagerApiService {
 
               // Log for debugging
               if (flat.isEmpty) {
-                log('🔍 First message structure:');
+                // log('🔍 First message structure:');
                 // messageMap.forEach((key, value) {
                 //   log('   $key: $value (${value.runtimeType})');
                 // });
