@@ -97,7 +97,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
   // Notifier for the UI list
   final ValueNotifier<List<Map<String, dynamic>>> _messagesNotifier =
-      ValueNotifier([]);
+  ValueNotifier([]);
   bool _isOnline = true;
   StreamSubscription<List<ConnectivityResult>>? _connSub;
   // State
@@ -339,9 +339,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   void _applyCrdtMessages(
-    String convoId,
-    Map<String, dynamic> messagesMap,
-  ) {
+      String convoId,
+      Map<String, dynamic> messagesMap,
+      )
+  {
     // log("messssssssssssssss $messagesMap");
     if (convoId != widget.convoId) return;
 
@@ -381,7 +382,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     /// 3️⃣ Sort Old → New (web behavior)
     final mergedList = merged.values.toList()
       ..sort(
-        (a, b) => handler
+            (a, b) => handler
             .parseTime(a['time'])
             .compareTo(handler.parseTime(b['time'])),
       );
@@ -603,7 +604,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           }
         });
         final String? newConversationId =
-            _currentConversationId.isEmpty ? null : _currentConversationId;
+        _currentConversationId.isEmpty ? null : _currentConversationId;
 
         _messagerBloc.add(
           SendMessageEvent(
@@ -634,7 +635,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   void sendReaction({
     required String emoji,
     required String messageId,
-  }) {
+  })
+  {
     print('Sending reaction: $emoji to messageId: $messageId');
     print('Current convoId: ${widget.convoId}');
     SocketService().emitReaction(
@@ -706,11 +708,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
 
     final visibleSlice =
-        _allMessages.map((msg) => Map<String, dynamic>.from(msg)).toList();
+    _allMessages.map((msg) => Map<String, dynamic>.from(msg)).toList();
 
     // ✅ immutable list
     _messagesNotifier.value =
-        List<Map<String, dynamic>>.unmodifiable(visibleSlice);
+    List<Map<String, dynamic>>.unmodifiable(visibleSlice);
 
     debugPrint('📊 UI now showing: ${_messagesNotifier.value.length} messages');
   }
@@ -726,8 +728,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     if (_allMessages.isNotEmpty) {
       debugPrint('Last 3 messages in _allMessages:');
       for (var i = math.max(0, _allMessages.length - 3);
-          i < _allMessages.length;
-          i++) {
+      i < _allMessages.length;
+      i++) {
         final msg = _allMessages[i];
         debugPrint(
             '  [$i] id: ${msg['message_id']}, content: "${msg['content']?.toString().substring(0, msg['content']?.toString().length ?? 0)}", sender: ${msg['senderId']}');
@@ -760,7 +762,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       // Check if we already have this message
       final existingIndex = _allMessages.indexWhere((m) {
         final mid =
-            (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '').toString();
+        (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '').toString();
         return mid == realId;
       });
 
@@ -897,25 +899,25 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     if (reply != null && reply.isNotEmpty) {
       final id = (reply['id'] ??
-              reply['message_id'] ??
-              reply['messageId'] ??
-              reply['reply_message_id'] ??
-              reply['_id'])
+          reply['message_id'] ??
+          reply['messageId'] ??
+          reply['reply_message_id'] ??
+          reply['_id'])
           ?.toString();
 
       final replyContent =
-          (reply['replyContent'] ?? reply['content'] ?? reply['message'] ?? '')
-              .toString();
+      (reply['replyContent'] ?? reply['content'] ?? reply['message'] ?? '')
+          .toString();
 
       final hasMedia = (reply['originalUrl'] ??
-                  reply['fileUrl'] ??
-                  reply['imageUrl'] ??
-                  reply['replyUrl'] ??
-                  reply['reply_url'] ??
-                  reply['thumbnailUrl'] ??
-                  reply['thumbnail_url'])
-              ?.toString()
-              .isNotEmpty ==
+          reply['fileUrl'] ??
+          reply['imageUrl'] ??
+          reply['replyUrl'] ??
+          reply['reply_url'] ??
+          reply['thumbnailUrl'] ??
+          reply['thumbnail_url'])
+          ?.toString()
+          .isNotEmpty ==
           true;
 
       if ((id != null && id.isNotEmpty) ||
@@ -926,10 +928,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
 
     final topReplyId = (message['reply_message_id'] ??
-            message['replyMessageId'] ??
-            message['reply_to'] ??
-            message['replyId'] ??
-            message['repliedMessageId'])
+        message['replyMessageId'] ??
+        message['reply_to'] ??
+        message['replyId'] ??
+        message['repliedMessageId'])
         ?.toString();
     if (topReplyId != null && topReplyId.isNotEmpty) return true;
 
@@ -938,7 +940,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
   /// Collect reactions for a message id from all local lists and merge them
   List<Map<String, dynamic>> _collectMergedReactionsForMessage(
-      String messageId) {
+      String messageId)
+  {
     final Map<String, Map<String, dynamic>> byUser = {};
 
     List<List<Map<String, dynamic>>> sources = [
@@ -974,8 +977,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             'userId': userId,
             'user': user is Map ? Map<String, dynamic>.from(user) : null,
             'reacted_at': (r['reacted_at'] ??
-                    r['createdAt'] ??
-                    DateTime.now().toIso8601String())
+                r['createdAt'] ??
+                DateTime.now().toIso8601String())
                 .toString(),
           };
         }
@@ -993,63 +996,63 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         senderId: currentUserId, receiverId: widget.receiverId ?? ""));
     _statusSubscription ??=
         socketService.statusUpdateStream.listen((statusUpdate) {
-      if (!mounted) return;
+          if (!mounted) return;
 
-      final dynamic rawStatus =
-          statusUpdate['messageStatus'] ?? statusUpdate['status'];
-      final status = (rawStatus ?? '').toString().trim();
-      if (status.isEmpty) return;
+          final dynamic rawStatus =
+              statusUpdate['messageStatus'] ?? statusUpdate['status'];
+          final status = (rawStatus ?? '').toString().trim();
+          if (status.isEmpty) return;
 
-      final ids = statusUpdate['messageIds'] ??
-          statusUpdate['singleMessageId'] ??
-          statusUpdate['messageId'];
+          final ids = statusUpdate['messageIds'] ??
+              statusUpdate['singleMessageId'] ??
+              statusUpdate['messageId'];
 
-      debugPrint('📥 Status update received: $statusUpdate');
+          debugPrint('📥 Status update received: $statusUpdate');
 
-      // normalize to List<String>
-      final List<String> idList = [];
-      if (ids is List) {
-        for (final id in ids) {
-          if (id != null) idList.add(id.toString());
-        }
-      } else if (ids != null) {
-        idList.add(ids.toString());
-      }
+          // normalize to List<String>
+          final List<String> idList = [];
+          if (ids is List) {
+            for (final id in ids) {
+              if (id != null) idList.add(id.toString());
+            }
+          } else if (ids != null) {
+            idList.add(ids.toString());
+          }
 
-      for (final id in idList) {
-        // find local message
-        final local = _getCombinedMessages().firstWhere(
-          (m) {
-            final mid = _normalizeMessageIdForApi(
-                (m['message_id'] ?? m['messageId'] ?? '').toString());
-            final incomingIdNormalized = _normalizeMessageIdForApi(mid);
-            return mid == incomingIdNormalized;
-          },
-          orElse: () => {},
-        );
+          for (final id in idList) {
+            // find local message
+            final local = _getCombinedMessages().firstWhere(
+                  (m) {
+                final mid = _normalizeMessageIdForApi(
+                    (m['message_id'] ?? m['messageId'] ?? '').toString());
+                final incomingIdNormalized = _normalizeMessageIdForApi(mid);
+                return mid == incomingIdNormalized;
+              },
+              orElse: () => {},
+            );
 
-        final senderId = (local.isNotEmpty)
-            ? (local['senderId'] ?? local['sender']?['_id'] ?? local['sender'])
+            final senderId = (local.isNotEmpty)
+                ? (local['senderId'] ?? local['sender']?['_id'] ?? local['sender'])
                 ?.toString()
-            : null;
+                : null;
 
-        // If this status is about a message we sent, avoid treating it as a 'read' coming from remote.
-        if (senderId != null && senderId == currentUserId && status == 'read') {
-          log("⚠️ Ignoring server 'read' status for my own message id=$id");
-          continue;
-        }
+            // If this status is about a message we sent, avoid treating it as a 'read' coming from remote.
+            if (senderId != null && senderId == currentUserId && status == 'read') {
+              log("⚠️ Ignoring server 'read' status for my own message id=$id");
+              continue;
+            }
 
-        // apply update normally
-        _updateMessageStatus(id, status);
-      }
-    });
+            // apply update normally
+            _updateMessageStatus(id, status);
+          }
+        });
 
     //messgae deleted listener
     _messageDeletedSubscription =
         socketService.messageDeletedStream.listen((messageId) {
-      log("🗑️ Received message_deleted event for: $messageId");
-      _markMessagesAsDeleted([messageId], deleteFor: 'everyone');
-    });
+          log("🗑️ Received message_deleted event for: $messageId");
+          _markMessagesAsDeleted([messageId], deleteFor: 'everyone');
+        });
   }
 
   void _setupReactionListener() {
@@ -1221,17 +1224,17 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     // ================= STATUS =================
     m['messageStatus'] = (rawMsg['messageStatus'] ??
-            rawMsg['status'] ??
-            rawMsg['deliveryStatus'] ??
-            'sent')
+        rawMsg['status'] ??
+        rawMsg['deliveryStatus'] ??
+        'sent')
         .toString();
 
     final rawReply = rawMsg['reply'] ?? rawMsg['repliedMessage'];
     String? originalKey = rawMsg['originalKey'];
 
     if (rawReply is Map) {
-      log(" rawReply['isGroupedMessageId'] ${rawReply['group_message_id']}");
-      log(" rawReply['isGroupedMessageId'] ${rawReply['is_grouped_message']}");
+      log(" rawReply['isGroupedMessageId'] ${ rawReply['group_message_id']}");
+      log(" rawReply['isGroupedMessageId'] ${ rawReply['is_grouped_message']}");
       final String? replyUrl = rawReply['replyUrl'] ??
           rawReply['originalUrl'] ??
           rawReply['fileUrl'];
@@ -1316,7 +1319,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     if (m['ContentType'] == null || m['ContentType'].toString().isEmpty) {
       final fname = (m['fileName'] ?? '').toString().toLowerCase();
       final furl =
-          (m['fileUrl'] ?? m['originalUrl'] ?? '').toString().toLowerCase();
+      (m['fileUrl'] ?? m['originalUrl'] ?? '').toString().toLowerCase();
       if (fname.contains('audio_') ||
           fname.endsWith('.m4a') ||
           fname.endsWith('.mp3') ||
@@ -1366,7 +1369,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     if (rawReply is Map) {
       m['reply'] = {
         'reply_message_id':
-            rawReply['reply_message_id'] ?? rawReply['message_id'],
+        rawReply['reply_message_id'] ?? rawReply['message_id'],
         'message_id': rawReply['reply_message_id'] ?? rawReply['message_id'],
         'id': rawReply['reply_message_id'] ?? rawReply['message_id'],
         'replyContent': rawReply['replyContent'] ?? rawReply['content'] ?? '',
@@ -1483,10 +1486,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     final String? replyMessageId = reply == null
         ? null
         : (reply['message_id'] ?? reply['messageId'] ?? reply['id'])
-            ?.toString();
+        ?.toString();
 
     final String? replyGroupMessageId =
-        reply == null ? null : reply['group_message_id']?.toString();
+    reply == null ? null : reply['group_message_id']?.toString();
 
     final bool replyIsGroupMessage =
         reply != null && reply['is_grouped_message'] == true;
@@ -1494,26 +1497,26 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     final replyPayload = reply == null
         ? null
         : <String, dynamic>{
-            'id': replyMessageId,
-            'message_id': replyMessageId,
-            'reply_message_id': replyMessageId,
-            'group_message_id': reply['group_message_id'],
-            'is_grouped_message': reply['group_message_id'] != null,
-            'content': (reply['content'] ?? reply['message'] ?? '').toString(),
-            'replyContent': _replyPreview?["content"] ??
-                (reply['content'] ?? reply['message'] ?? '').toString(),
-            'originalUrl': reply['originalUrl'] ??
-                reply['fileUrl'] ??
-                reply['imageUrl'] ??
-                '',
-            'imageUrl': reply['imageUrl'] ?? '',
-            'fileUrl': reply['fileUrl'] ?? '',
-            'fileName': reply['fileName'] ?? '',
-            'fileType':
-                (reply['fileType'] ?? reply['mimeType'] ?? '').toString(),
-            'imageCount': _replyPreview?['imageCount'],
-            'videoCount': _replyPreview?['videoCount'],
-          };
+      'id': replyMessageId,
+      'message_id': replyMessageId,
+      'reply_message_id': replyMessageId,
+      'group_message_id': reply['group_message_id'],
+      'is_grouped_message': reply['group_message_id'] != null,
+      'content': (reply['content'] ?? reply['message'] ?? '').toString(),
+      'replyContent': _replyPreview?["content"] ??
+          (reply['content'] ?? reply['message'] ?? '').toString(),
+      'originalUrl': reply['originalUrl'] ??
+          reply['fileUrl'] ??
+          reply['imageUrl'] ??
+          '',
+      'imageUrl': reply['imageUrl'] ?? '',
+      'fileUrl': reply['fileUrl'] ?? '',
+      'fileName': reply['fileName'] ?? '',
+      'fileType':
+      (reply['fileType'] ?? reply['mimeType'] ?? '').toString(),
+      'imageCount': _replyPreview?['imageCount'],
+      'videoCount': _replyPreview?['videoCount'],
+    };
 
     // ---------- TEMP MESSAGE ----------
     final localId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
@@ -1555,7 +1558,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     _allMessages.add(localMessage);
 
     _allMessages.sort(
-      (a, b) => _parseTime(a['time']).compareTo(_parseTime(b['time'])),
+          (a, b) => _parseTime(a['time']).compareTo(_parseTime(b['time'])),
     );
 
     _visibleCount = _allMessages.length;
@@ -1634,8 +1637,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       for (var i = 0; i < list.length; i++) {
         final m = list[i];
         final mid =
-            (m['message_id'] ?? m['messageId'] ?? m['id'] ?? m['_id'] ?? '')
-                .toString();
+        (m['message_id'] ?? m['messageId'] ?? m['id'] ?? m['_id'] ?? '')
+            .toString();
 
         if (mid == tempId) {
           final copy = Map<String, dynamic>.from(m);
@@ -1645,7 +1648,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             copy['_localHasReply'] = true;
             try {
               copy['_localReply'] =
-                  Map<String, dynamic>.from(copy['reply'] ?? {});
+              Map<String, dynamic>.from(copy['reply'] ?? {});
             } catch (_) {
               copy['_localReply'] = copy['reply'];
             }
@@ -1720,9 +1723,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   Future<bool> _scrollToMessageById(
-    String messageId, {
-    bool fetchIfMissing = false,
-  }) async {
+      String messageId, {
+        bool fetchIfMissing = false,
+      })
+  async {
     final ctx = _messageContexts[messageId];
 
     if (ctx != null && ctx.mounted) {
@@ -1733,7 +1737,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     final combinedMessages = _messagesNotifier.value;
     final int msgIndex = combinedMessages.indexWhere((m) {
       final mid =
-          (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '').toString();
+      (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '').toString();
       return mid == messageId;
     });
 
@@ -1741,7 +1745,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       final int listIndex = combinedMessages.length - 1 - msgIndex;
 
       final double estimatedOffset =
-          _estimateScrollOffset(listIndex, combinedMessages);
+      _estimateScrollOffset(listIndex, combinedMessages);
 
       if (_scrollController.hasClients) {
         _scrollController.jumpTo(estimatedOffset.clamp(
@@ -1850,7 +1854,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   double _estimateScrollOffset(
-      int listIndex, List<Map<String, dynamic>> messages) {
+      int listIndex, List<Map<String, dynamic>> messages)
+  {
     double offset = 0.0;
     for (int i = 0; i < listIndex; i++) {
       final realIndex = messages.length - 1 - i;
@@ -1871,7 +1876,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     try {
       final currentTime = _parseTime(message['time']);
       final prevTime =
-          index > 0 ? _parseTime(messages[index - 1]['time']) : null;
+      index > 0 ? _parseTime(messages[index - 1]['time']) : null;
       if (index == 0 || !isSameDay(currentTime, prevTime)) {
         separatorHeight = 40.0;
       }
@@ -1903,7 +1908,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     // Media
     if ((message['imageUrl'] != null &&
-            message['imageUrl'].toString().isNotEmpty) ||
+        message['imageUrl'].toString().isNotEmpty) ||
         (message['localImagePath'] != null &&
             message['localImagePath'].toString().isNotEmpty) ||
         (message['fileUrl'] != null &&
@@ -1929,7 +1934,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     _highlightTimer?.cancel();
     _highlightTimer = Timer(
       const Duration(milliseconds: 1500),
-      () {
+          () {
         if (!mounted) return;
         setState(() => _highlightedMessageId = null);
       },
@@ -1941,7 +1946,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   Future<void> _openCamera() async {
     try {
       final XFile? file =
-          await ImagePicker().pickImage(source: ImageSource.camera);
+      await ImagePicker().pickImage(source: ImageSource.camera);
 
       if (file == null) return;
 
@@ -2063,10 +2068,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           // remove any reaction from this user
           merged = existing
               .where((r) =>
-                  (r['userId']?.toString() ??
-                      r['user']?['_id']?.toString() ??
-                      '') !=
-                  userId)
+          (r['userId']?.toString() ??
+              r['user']?['_id']?.toString() ??
+              '') !=
+              userId)
               .toList();
         } else {
           // union by userId, prefer incoming for this user
@@ -2335,7 +2340,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       final msg = _findLocalMessageById(id);
       final senderId = (msg != null && msg.isNotEmpty)
           ? (msg['senderId'] ?? msg['sender']?['_id'] ?? msg['sender'])
-              ?.toString()
+          ?.toString()
           : null;
 
       // If we have a local message and senderId equals currentUserId then skip it.
@@ -2366,7 +2371,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       final msg = _findLocalMessageById(id);
       final senderId = (msg != null && msg.isNotEmpty)
           ? (msg['senderId'] ?? msg['sender']?['_id'] ?? msg['sender'])
-              ?.toString()
+          ?.toString()
           : null;
 
       if (senderId != null && senderId != currentUserId) {
@@ -2378,7 +2383,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
 
     final computedRoomId =
-        socketService.generateRoomId(currentUserId, widget.datumId ?? '');
+    socketService.generateRoomId(currentUserId, widget.datumId ?? '');
     socketService.sendReadReceipts(
       messageIds: unique,
       conversationId: widget.convoId,
@@ -2526,7 +2531,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   List<Map<String, dynamic>> _inferGrouping(
-      List<Map<String, dynamic>> messages) {
+      List<Map<String, dynamic>> messages)
+  {
     if (messages.isEmpty) return messages;
 
     messages
@@ -2543,17 +2549,17 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
       // 🔹 detect image
       final hasImage = (currentMsg['imageUrl'] != null &&
-              currentMsg['imageUrl'].toString().isNotEmpty) ||
+          currentMsg['imageUrl'].toString().isNotEmpty) ||
           (currentMsg['localImagePath'] != null &&
               currentMsg['localImagePath'].toString().isNotEmpty);
 
       // 🔹 detect video
       final String fileType =
-          (currentMsg['fileType'] ?? currentMsg['mimeType'] ?? '')
-              .toString()
-              .toLowerCase();
+      (currentMsg['fileType'] ?? currentMsg['mimeType'] ?? '')
+          .toString()
+          .toLowerCase();
       final String fileUrl =
-          (currentMsg['fileUrl'] ?? currentMsg['originalUrl'] ?? '').toString();
+      (currentMsg['fileUrl'] ?? currentMsg['originalUrl'] ?? '').toString();
 
       final bool hasVideo = fileType.startsWith('video/') ||
           ['.mp4', '.mov', '.mkv', '.avi', '.webm']
@@ -2578,16 +2584,16 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
         // detect media for next
         final nextHasImage = (nextMsg['imageUrl'] != null &&
-                nextMsg['imageUrl'].toString().isNotEmpty) ||
+            nextMsg['imageUrl'].toString().isNotEmpty) ||
             (nextMsg['localImagePath'] != null &&
                 nextMsg['localImagePath'].toString().isNotEmpty);
 
         final String nextFileType =
-            (nextMsg['fileType'] ?? nextMsg['mimeType'] ?? '')
-                .toString()
-                .toLowerCase();
+        (nextMsg['fileType'] ?? nextMsg['mimeType'] ?? '')
+            .toString()
+            .toLowerCase();
         final String nextFileUrl =
-            (nextMsg['fileUrl'] ?? nextMsg['originalUrl'] ?? '').toString();
+        (nextMsg['fileUrl'] ?? nextMsg['originalUrl'] ?? '').toString();
         final bool nextHasVideo = nextFileType.startsWith('video/') ||
             ['.mp4', '.mov', '.mkv', '.avi', '.webm']
                 .any((ext) => nextFileUrl.toLowerCase().endsWith(ext));
@@ -2678,9 +2684,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   //   };
   // }
   Map<String, dynamic>? resolveReplyOriginal(
-    Map<String, dynamic> message,
-    List<Map<String, dynamic>> allMessages,
-  ) {
+      Map<String, dynamic> message,
+      List<Map<String, dynamic>> allMessages,
+      ) {
     final reply = message['reply'];
 
     final replyId =
@@ -2701,14 +2707,14 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   Map<String, dynamic> _mapReplyWithReplyPayload(
-    Map<String, dynamic> original,
-    Map<String, dynamic>? replyPayload,
-  ) {
+      Map<String, dynamic> original,
+      Map<String, dynamic>? replyPayload,
+      ) {
     String replyText = (replyPayload?['replyContent'] ??
-            replyPayload?['content'] ??
-            original['replyContent'] ??
-            original['content'] ??
-            '')
+        replyPayload?['content'] ??
+        original['replyContent'] ??
+        original['content'] ??
+        '')
         .toString()
         .trim();
 
@@ -2743,7 +2749,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   // ------------------ UI builders ------------------
   Widget _buildMessageBubble(
       Map<String, dynamic> message, bool isSentByMe, bool isReply,
-      {int? length}) {
+      {int? length})
+  {
     final String? bubbleSenderId = _getMessageSenderId(message);
     final bool correctIsSentByMe = bubbleSenderId == currentUserId;
 
@@ -2768,8 +2775,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       'resolvedReply': resolved,
     };
     final messageId =
-        (message['message_id'] ?? message['messageId'] ?? message['id'] ?? '')
-            .toString();
+    (message['message_id'] ?? message['messageId'] ?? message['id'] ?? '')
+        .toString();
     int replyMediaCount = 0;
     final replyData = message['reply'] ?? message['repliedMessage'];
     if (replyData != null) {
@@ -2777,8 +2784,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       if (replyGroupId != null && replyGroupId.isNotEmpty) {
         replyMediaCount = _allMessages
             .where((m) =>
-                m['group_message_id']?.toString() == replyGroupId &&
-                m['is_deleted'] != true)
+        m['group_message_id']?.toString() == replyGroupId &&
+            m['is_deleted'] != true)
             .length;
       }
 
@@ -2836,13 +2843,13 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         isReply: isReply,
         onReplyTap: () {
           final replyId = (message['reply']?['reply_message_id'] ??
-                  message['reply']?['message_id'] ??
-                  message['reply']?['id'] ??
-                  message['repliedMessage']?['reply_message_id'] ??
-                  message['repliedMessage']?['message_id'] ??
-                  message['repliedMessage']?['id'] ??
-                  message['reply_message_id'] ??
-                  message['replyMessageId'])
+              message['reply']?['message_id'] ??
+              message['reply']?['id'] ??
+              message['repliedMessage']?['reply_message_id'] ??
+              message['repliedMessage']?['message_id'] ??
+              message['repliedMessage']?['id'] ??
+              message['reply_message_id'] ??
+              message['replyMessageId'])
               ?.toString();
 
           if (replyId != null && replyId.isNotEmpty) {
@@ -2855,7 +2862,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
               if (!found && mounted) {
                 Messenger.alert(
                   msg:
-                      "Original message not loaded. Scroll up to load older messages.",
+                  "Original message not loaded. Scroll up to load older messages.",
                 );
               }
             }).catchError((error) {
@@ -2880,8 +2887,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
   Widget _buildReactionsBar(Map<String, dynamic> message, bool sentByMe) {
     final messageId =
-        (message['message_id'] ?? message['messageId'] ?? message['id'] ?? '')
-            .toString();
+    (message['message_id'] ?? message['messageId'] ?? message['id'] ?? '')
+        .toString();
     final mergedReactions = messageId.isNotEmpty
         ? _collectMergedReactionsForMessage(messageId)
         : <Map<String, dynamic>>[];
@@ -3047,7 +3054,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   Future<void> _showReactionsBottomSheet(
-      Map<String, dynamic> message, String initialEmoji) async {
+      Map<String, dynamic> message, String initialEmoji)
+  async {
     // helper to build normalized reactions list for a message object
     List<Map<String, dynamic>> _normalizeFromMap(Map<String, dynamic> msg) {
       final List<Map<String, dynamic>> out = [];
@@ -3117,23 +3125,23 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         // local UI state inside sheet
         bool showEmojiPicker = false;
         Map<String, List<Map<String, dynamic>>> grouped =
-            buildGroupedFromList(allReacts);
+        buildGroupedFromList(allReacts);
         final emojis = grouped.keys.toList();
         String selectedEmoji = emojis.contains(initialEmoji)
             ? initialEmoji
             : (emojis.isNotEmpty
-                ? emojis.first
-                : (initialEmoji.isNotEmpty
-                    ? initialEmoji
-                    : pickerEmojis.first));
+            ? emojis.first
+            : (initialEmoji.isNotEmpty
+            ? initialEmoji
+            : pickerEmojis.first));
 
         // function to attempt to refresh `message` from current combined store
         void refreshFromStore(StateSetter setStateSB) {
           try {
             final id = (message['message_id'] ??
-                    message['messageId'] ??
-                    message['id'] ??
-                    '')
+                message['messageId'] ??
+                message['id'] ??
+                '')
                 .toString();
             if (id.isNotEmpty) {
               final latest = _getCombinedMessages().firstWhere((m) {
@@ -3213,7 +3221,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                 SizedBox(width: 6),
                                 Text('Add',
                                     style:
-                                        TextStyle(fontWeight: FontWeight.w600)),
+                                    TextStyle(fontWeight: FontWeight.w600)),
                               ],
                             ),
                           ),
@@ -3234,7 +3242,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                     setStateSB(() {
                                       selectedEmoji = e;
                                       showEmojiPicker =
-                                          false; // hide picker if open
+                                      false; // hide picker if open
                                     });
                                   },
                                   child: Container(
@@ -3256,7 +3264,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                       children: [
                                         Text(e,
                                             style:
-                                                const TextStyle(fontSize: 18)),
+                                            const TextStyle(fontSize: 18)),
                                         const SizedBox(width: 6),
                                         Text('$cnt',
                                             style: const TextStyle(
@@ -3331,12 +3339,12 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                   // header: "X reactions"
                   Padding(
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: Row(
                       children: [
                         Text('${grouped[selectedEmoji]?.length ?? 0} reactions',
                             style:
-                                const TextStyle(fontWeight: FontWeight.w600)),
+                            const TextStyle(fontWeight: FontWeight.w600)),
                         const Spacer(),
                         TextButton(
                             onPressed: () => Navigator.of(ctx).pop(),
@@ -3365,15 +3373,15 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
                         if (user is Map) {
                           userId = (user['_id'] ??
-                                  user['id'] ??
-                                  user['userId'] ??
-                                  '')
+                              user['id'] ??
+                              user['userId'] ??
+                              '')
                               .toString();
                           displayName = (user['first_name'] ??
-                                  user['name'] ??
-                                  user['firstName'] ??
-                                  user['email'] ??
-                                  '')
+                              user['name'] ??
+                              user['firstName'] ??
+                              user['email'] ??
+                              '')
                               .toString();
                           avatarUrl = user['avatar']?.toString();
                         } else {
@@ -3386,58 +3394,58 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                         return ListTile(
                           leading: CircleAvatar(
                             backgroundImage:
-                                avatarUrl != null && avatarUrl.isNotEmpty
-                                    ? NetworkImage(avatarUrl) as ImageProvider
-                                    : null,
+                            avatarUrl != null && avatarUrl.isNotEmpty
+                                ? NetworkImage(avatarUrl) as ImageProvider
+                                : null,
                             child: (avatarUrl == null || avatarUrl.isEmpty)
                                 ? Text(displayName.isNotEmpty
-                                    ? displayName
-                                        .trim()
-                                        .characters
-                                        .first
-                                        .toUpperCase()
-                                    : '?')
+                                ? displayName
+                                .trim()
+                                .characters
+                                .first
+                                .toUpperCase()
+                                : '?')
                                 : null,
                           ),
                           title: Text(isMe
                               ? 'You'
                               : (displayName.isNotEmpty
-                                  ? displayName
-                                  : userId)),
+                              ? displayName
+                              : userId)),
                           subtitle: isMe
                               ? const Text('Tap to remove',
-                                  style: TextStyle(fontSize: 12))
+                              style: TextStyle(fontSize: 12))
                               : null,
                           trailing: isMe
                               ? TextButton(
-                                  onPressed: () async {
-                                    Navigator.of(ctx).pop(); // close sheet
-                                    final msgId = (message['message_id'] ??
-                                            message['messageId'] ??
-                                            '')
-                                        .toString();
-                                    if (msgId.isEmpty) return;
+                            onPressed: () async {
+                              Navigator.of(ctx).pop(); // close sheet
+                              final msgId = (message['message_id'] ??
+                                  message['messageId'] ??
+                                  '')
+                                  .toString();
+                              if (msgId.isEmpty) return;
 
-                                    // optimistic local removal of current user's reaction
-                                    _updateLocalReactions(msgId,
-                                        null); // remove my reaction locally
-                                    final apiMessageId =
-                                        _normalizeMessageIdForApi(msgId);
+                              // optimistic local removal of current user's reaction
+                              _updateLocalReactions(msgId,
+                                  null); // remove my reaction locally
+                              final apiMessageId =
+                              _normalizeMessageIdForApi(msgId);
 
-                                    // dispatch your RemoveReaction event
-                                    _messagerBloc.add(RemoveReaction(
-                                      messageId: apiMessageId,
-                                      conversationId: widget.convoId,
-                                      emoji: selectedEmoji,
-                                      userId: currentUserId,
-                                      receiverId: widget.receiverId ?? "",
-                                      firstName: widget.firstname ?? "",
-                                      lastName: widget.lastname ?? "",
-                                    ));
-                                  },
-                                  child: const Text('Remove',
-                                      style: TextStyle(color: Colors.red)),
-                                )
+                              // dispatch your RemoveReaction event
+                              _messagerBloc.add(RemoveReaction(
+                                messageId: apiMessageId,
+                                conversationId: widget.convoId,
+                                emoji: selectedEmoji,
+                                userId: currentUserId,
+                                receiverId: widget.receiverId ?? "",
+                                firstName: widget.firstname ?? "",
+                                lastName: widget.lastname ?? "",
+                              ));
+                            },
+                            child: const Text('Remove',
+                                style: TextStyle(color: Colors.red)),
+                          )
                               : null,
                           onTap: () {
                             // optional: open user profile
@@ -3456,15 +3464,16 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   Future<void> _handleReactionTap(
-    Map<String, dynamic> message,
-    String emoji,
-  ) async {
+      Map<String, dynamic> message,
+      String emoji,
+      ) async
+  {
     try {
       final rawId = (message['message_id'] ??
-              message['messageId'] ??
-              message['id'] ??
-              message['_id'] ??
-              '')
+          message['messageId'] ??
+          message['id'] ??
+          message['_id'] ??
+          '')
           .toString();
 
       if (rawId.isEmpty) {
@@ -3476,7 +3485,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
       // 🔥 Extract reactions safely
       final List<Map<String, dynamic>> reactions =
-          _extractReactionsFromMessage(message);
+      _extractReactionsFromMessage(message);
 
       int myIndex = -1;
       String? oldEmoji;
@@ -3553,7 +3562,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   List<Map<String, dynamic>> _extractReactionsFromMessage(
-      Map<String, dynamic> message) {
+      Map<String, dynamic> message)
+  {
     final List<Map<String, dynamic>> list = [];
 
     if (message['reactions'] is List) {
@@ -3624,10 +3634,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             ],
             initialIndex: 0,
             currentUserId: currentUser,
-            conversionalId: widget.convoId,
-            fullName: widget.userName,
-            isGroup: false,
-            receiverId: widget.receiverId,
           ),
         ),
       );
@@ -3709,7 +3715,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     });
   }
 
-  void _toggleMessageSelection(Map<String, dynamic> msg) {
+  void _toggleMessageSelection(Map<String, dynamic> msg)
+  {
     final key = _generateMessageKey(msg);
     final String? messageId = msg['message_id']?.toString();
 
@@ -3728,7 +3735,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   void _markMessagesAsDeleted(List<String> messageIds,
-      {String deleteFor = 'everyone'}) {
+      {String deleteFor = 'everyone'})
+  {
     if (messageIds.isEmpty) return;
 
     bool changed = false;
@@ -3780,7 +3788,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
   }
 
-  void _forwardSelectedMessages() {
+  void _forwardSelectedMessages()
+  {
     MyRouter.pushReplace(
       screen: ForwardMessageScreen(
         messages: _selectedMessages.toList(),
@@ -3810,7 +3819,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         senderId: currentUserId,
         receiverId: widget.receiverId ?? "",
         message:
-            _selectedMessageKeys.isNotEmpty ? _selectedMessageKeys.first : "",
+        _selectedMessageKeys.isNotEmpty ? _selectedMessageKeys.first : "",
         deleteFor: deleteFor));
 
     setState(() {
@@ -3837,16 +3846,17 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   Map<String, dynamic> buildReplyPreviewFromGroup(
-    List<Map<String, dynamic>> messages,
-    bool isSendMe,
-    String currentUserId,
-  ) {
+      List<Map<String, dynamic>> messages,
+      bool isSendMe,
+      String currentUserId,
+      )
+  {
     int imageCount = 0;
     int videoCount = 0;
 
     for (final m in messages) {
       final String fileType =
-          (m['fileType'] ?? m['mimeType'] ?? '').toString().toLowerCase();
+      (m['fileType'] ?? m['mimeType'] ?? '').toString().toLowerCase();
       final String? fileUrl = m['fileUrl']?.toString();
       final String? imageUrl = m['imageUrl']?.toString();
 
@@ -3890,9 +3900,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   void _replyToMessage(
-    Map<String, dynamic> message, {
-    bool isSendMe = false,
-  }) {
+      Map<String, dynamic> message, {
+        bool isSendMe = false,
+      })
+  {
     if (message.isEmpty) return;
 
     log("Reply source (swiped) => $message");
@@ -3922,22 +3933,22 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         // Find all messages in this group
         final groupMessages = _allMessages
             .where((m) =>
-                m['group_message_id']?.toString() == groupId &&
-                m['is_deleted'] != true)
+        m['group_message_id']?.toString() == groupId &&
+            m['is_deleted'] != true)
             .toList();
 
         for (var m in groupMessages) {
           final String fType = (m['mimeType'] ??
-                  m['fileType'] ??
-                  m['mimetype'] ??
-                  m['ContentType'] ??
-                  '')
+              m['fileType'] ??
+              m['mimetype'] ??
+              m['ContentType'] ??
+              '')
               .toString()
               .toLowerCase();
           final String mUrl =
-              (m['originalUrl'] ?? m['imageUrl'] ?? m['fileUrl'] ?? '')
-                  .toString()
-                  .toLowerCase();
+          (m['originalUrl'] ?? m['imageUrl'] ?? m['fileUrl'] ?? '')
+              .toString()
+              .toLowerCase();
 
           if (fType.startsWith('video/') ||
               mUrl.endsWith('.mp4') ||
@@ -4090,8 +4101,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   bool _isUnreadMessage(dynamic msg) {
     if (msg is Map<String, dynamic>) {
       final senderId =
-          (msg['senderId'] ?? msg['sender']?['_id'] ?? msg['sender']?['id'])
-              ?.toString();
+      (msg['senderId'] ?? msg['sender']?['_id'] ?? msg['sender']?['id'])
+          ?.toString();
 
       return msg['messageStatus'] != 'read' &&
           senderId != currentUserId &&
@@ -4152,7 +4163,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     // compute consistent roomId
     final computedRoomId =
-        socketService.generateRoomId(currentUserId, widget.datumId ?? '');
+    socketService.generateRoomId(currentUserId, widget.datumId ?? '');
     socketService.sendReadReceipts(
       messageIds: unread,
       conversationId: widget.convoId,
@@ -4177,9 +4188,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   List<Map<String, dynamic>> _getGroupedMessages(
-    List<Map<String, dynamic>> combinedMessages,
-    int index,
-  ) {
+      List<Map<String, dynamic>> combinedMessages,
+      int index,
+      )
+  {
     final message = combinedMessages[index];
     final String? groupId = message['group_message_id']?.toString();
 
@@ -4207,7 +4219,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     final String? fileUrl = m['fileUrl'];
     final String fileType =
-        (m['fileType'] ?? m['mimeType'] ?? '').toString().toLowerCase();
+    (m['fileType'] ?? m['mimeType'] ?? '').toString().toLowerCase();
 
     final bool isVideo = fileType.startsWith('video/') ||
         (fileUrl != null &&
@@ -4228,7 +4240,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   Map<String, dynamic> _resolveReplySource(Map<String, dynamic> message) {
     return message;
   }
-
   String? senderIdOf(Map msg) {
     return msg['sender']?['_id']?.toString();
   }
@@ -4239,9 +4250,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     for (int i = 0; i < raw.length; i++) {
       final current = raw[i];
 
-      final bool isMedia = current['imageUrl'] != null ||
-          current['originalUrl'] != null ||
-          current['fileUrl'] != null;
+      final bool isMedia =
+          current['imageUrl'] != null ||
+              current['originalUrl'] != null ||
+              current['fileUrl'] != null;
 
       if (!isMedia) {
         result.add(current);
@@ -4264,9 +4276,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           continue;
         }
 
-        final bool prevIsMedia = prev['imageUrl'] != null ||
-            prev['originalUrl'] != null ||
-            prev['fileUrl'] != null;
+        final bool prevIsMedia =
+            prev['imageUrl'] != null ||
+                prev['originalUrl'] != null ||
+                prev['fileUrl'] != null;
 
         if (!prevIsMedia) {
           result.add(current);
@@ -4278,14 +4291,15 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             .inSeconds
             .abs();
 
-        final String prevType = (prev['fileType'] ?? prev['mimeType'] ?? '')
+        final String prevType =
+        (prev['fileType'] ?? prev['mimeType'] ?? '')
             .toString()
             .toLowerCase();
 
         final String currType =
-            (current['fileType'] ?? current['mimeType'] ?? '')
-                .toString()
-                .toLowerCase();
+        (current['fileType'] ?? current['mimeType'] ?? '')
+            .toString()
+            .toLowerCase();
 
         final bool sameMediaType = _sameMediaType(prevType, currType);
 
@@ -4316,6 +4330,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     return result;
   }
 
+
   // bool _canGroupTogether(String a, String b) {
   //   final bool aIsVisual = a.startsWith('image') || a.startsWith('video');
   //   final bool bIsVisual = b.startsWith('image') || b.startsWith('video');
@@ -4332,7 +4347,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
   void _selectGroupedMessages(List<Map<String, dynamic>> grouped) {
     final bool isGroupSelected = grouped.any(
-      (m) => _selectedMessageKeys.contains(_generateMessageKey(m)),
+          (m) => _selectedMessageKeys.contains(_generateMessageKey(m)),
     );
 
     setState(() {
@@ -4435,7 +4450,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                       if (id != null && id.isNotEmpty) {
                         // ✅ Check if not already in _allMessages (single source of truth)
                         final exists =
-                            _allMessages.any((m) => (m['message_id'] ?? '') == id);
+                        _allMessages.any((m) => (m['message_id'] ?? '') == id);
 
                         if (!exists) {
                           setState(() {
@@ -4490,7 +4505,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                         ..addAll(merged.values);
 
                       _allMessages.sort(
-                        (a, b) =>
+                            (a, b) =>
                             _parseTime(a['time']).compareTo(_parseTime(b['time'])),
                       );
 
@@ -4507,7 +4522,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                       var newDbMessages = allMessages
                           .map<Map<String, dynamic>>(
                             (datum) => normalizeMessage(datum.toJson()),
-                          )
+                      )
                           .where((m) => m.isNotEmpty)
                           .toList();
                       // log("allMessagesssss $newDbMessages");
@@ -4519,9 +4534,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                       final Map<String, Map<String, dynamic>> previousById = {};
                       for (final old in dbMessages) {
                         final id = (old['message_id'] ??
-                                old['messageId'] ??
-                                old['id'] ??
-                                '')
+                            old['messageId'] ??
+                            old['id'] ??
+                            '')
                             .toString();
                         if (id.isEmpty) continue;
                         previousById[id] = old;
@@ -4529,8 +4544,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
                       for (final m in newDbMessages) {
                         final id =
-                            (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '')
-                                .toString();
+                        (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '')
+                            .toString();
                         if (id.isEmpty) continue;
                         final prev = previousById[id];
                         if (prev == null) continue;
@@ -4545,16 +4560,16 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                             try {
                               if (prev['_localReply'] != null) {
                                 m['reply'] =
-                                    Map<String, dynamic>.from(prev['_localReply']);
+                                Map<String, dynamic>.from(prev['_localReply']);
                               } else if (prev['reply'] != null) {
                                 m['reply'] =
-                                    Map<String, dynamic>.from(prev['reply']);
+                                Map<String, dynamic>.from(prev['reply']);
                               }
                               m['reply_message_id'] ??= (m['reply'] != null)
                                   ? (m['reply']['id'] ??
-                                          m['reply']['message_id'] ??
-                                          m['reply']['reply_message_id'])
-                                      ?.toString()
+                                  m['reply']['message_id'] ??
+                                  m['reply']['reply_message_id'])
+                                  ?.toString()
                                   : m['reply_message_id'];
                               m['isReplyMessage'] = true;
                               // carry the local marker forward so future merges still know
@@ -4578,10 +4593,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
                         /// preserve local 'read' only if we locally marked it
                         final prevStatus =
-                            (prev['messageStatus'] ?? prev['status'] ?? '')
-                                .toString();
+                        (prev['messageStatus'] ?? prev['status'] ?? '')
+                            .toString();
                         final newStatus =
-                            (m['messageStatus'] ?? m['status'] ?? '').toString();
+                        (m['messageStatus'] ?? m['status'] ?? '').toString();
                         final bool prevLocallyMarkedRead =
                             prev['_localMarkedRead'] == true;
                         if (prevLocallyMarkedRead &&
@@ -4600,9 +4615,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                         // overlay fresh messages from server
                         for (final fresh in newDbMessages) {
                           final id = (fresh['message_id'] ??
-                                      fresh['messageId'] ??
-                                      fresh['id'])
-                                  ?.toString() ??
+                              fresh['messageId'] ??
+                              fresh['id'])
+                              ?.toString() ??
                               '';
                           if (id.isEmpty) {
                             final tempKey =
@@ -4613,20 +4628,20 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
                           // if we already had a local version, merge some important local-only fields
                           final prev = byId[
-                              id]; // this checks values already in byId (from cached dbMessages earlier)
+                          id]; // this checks values already in byId (from cached dbMessages earlier)
                           // If `prev` is null, try to find a cached local message from your existing dbMessages:
                           final localPrev = prev ??
                               dbMessages.firstWhere(
-                                (m) =>
-                                    (m['message_id'] ?? m['messageId'] ?? m['id'])
-                                        ?.toString() ==
+                                    (m) =>
+                                (m['message_id'] ?? m['messageId'] ?? m['id'])
+                                    ?.toString() ==
                                     id,
                                 orElse: () => {},
                               );
 
                           // Start with fresh copy we'll store
                           final Map<String, dynamic> merged =
-                              Map<String, dynamic>.from(fresh);
+                          Map<String, dynamic>.from(fresh);
 
                           // ---- Preserve reply info if local had it but server omitted it ----
                           try {
@@ -4644,15 +4659,15 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                     localPrev['_localReply']);
                               } else if (localPrev['reply'] != null) {
                                 merged['reply'] =
-                                    Map<String, dynamic>.from(localPrev['reply']);
+                                Map<String, dynamic>.from(localPrev['reply']);
                               }
 
                               // ensure top-level id fields exist
                               if (merged['reply'] != null) {
                                 merged['reply_message_id'] ??= (merged['reply']
-                                            ['id'] ??
-                                        merged['reply']['message_id'] ??
-                                        merged['reply']['reply_message_id'])
+                                ['id'] ??
+                                    merged['reply']['message_id'] ??
+                                    merged['reply']['reply_message_id'])
                                     ?.toString();
                               }
 
@@ -4670,7 +4685,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                 ? _extractReactions(localPrev['reactions'])
                                 : <Map<String, dynamic>>[];
                             final newReactions =
-                                _extractReactions(merged['reactions']);
+                            _extractReactions(merged['reactions']);
                             if (newReactions.isEmpty && prevReactions.isNotEmpty) {
                               merged['reactions'] = prevReactions;
                             }
@@ -4681,8 +4696,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                             final prevLocallyMarkedRead = (localPrev.isNotEmpty) &&
                                 localPrev['_localMarkedRead'] == true;
                             final newStatus =
-                                (merged['messageStatus'] ?? merged['status'] ?? '')
-                                    .toString();
+                            (merged['messageStatus'] ?? merged['status'] ?? '')
+                                .toString();
                             if (prevLocallyMarkedRead && newStatus != 'read') {
                               merged['messageStatus'] = 'read';
                               merged['_localMarkedRead'] = true;
@@ -4703,8 +4718,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                       // 5) Track seen IDs
                       for (var m in newDbMessages) {
                         final id =
-                            (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '')
-                                .toString();
+                        (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '')
+                            .toString();
                         if (id.isNotEmpty) _seenMessageIds.add(id);
                       }
 
@@ -4723,7 +4738,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                                   _scrollController.position.maxScrollExtent;
                               final delta = newMax - _prevScrollExtentBeforeLoad;
                               final newOffset =
-                                  (_scrollController.offset + delta).clamp(
+                              (_scrollController.offset + delta).clamp(
                                 0.0,
                                 _scrollController.position.maxScrollExtent,
                               );
@@ -4786,695 +4801,505 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                             duration: const Duration(milliseconds: 220),
                             child: _isLoadingMore
                                 ? Padding(
-                                    key: const ValueKey('top_loader'),
-                                    padding:
-                                        const EdgeInsets.symmetric(vertical: 8.0),
-                                    child: const SizedBox.shrink(),
-                                  )
+                              key: const ValueKey('top_loader'),
+                              padding:
+                              const EdgeInsets.symmetric(vertical: 8.0),
+                              child: const SizedBox.shrink(),
+                            )
                                 : const SizedBox.shrink(),
                           ),
                           Expanded(
-                            child: Align(
-                              alignment:Alignment.topCenter,
-                              child: ListView.builder(
-                                controller: _scrollController,
-                                itemCount: groupedMessages.length,
-                                reverse: true,
-                                padding: const EdgeInsets.only(top: 8, bottom: 8),
+                            child: ListView.builder(
+                              controller: _scrollController,
+                              itemCount: groupedMessages.length,
+                              reverse: true,
                                 shrinkWrap: true,
-                                itemBuilder: (context, index) {
-                                  // final message = combinedMessages[index];
-                                  final int realIndex =
-                                      groupedMessages.length - 1 - index;
-                                  final message = groupedMessages[realIndex];
-                              final String? senderId =
-                                      _getMessageSenderId(message);
+                              itemBuilder: (context, index) {
+                                // final message = combinedMessages[index];
+                                final int realIndex =
+                                    groupedMessages.length - 1 - index;
+                                final message = groupedMessages[realIndex];
+                                //     log("messagessssssssssssssssssssssssss $message");
+                                final String? senderId =
+                                _getMessageSenderId(message);
 
-                                  final messageId = (message['message_id'] ??
-                                          message['messageId'] ??
-                                          message['id'] ??
-                                          '')
-                                      .toString();
+                                final messageId = (message['message_id'] ??
+                                    message['messageId'] ??
+                                    message['id'] ??
+                                    '')
+                                    .toString();
 
-                                  final bool isHighlighted =
-                                      _highlightedMessageId == messageId ||
-                                          (message['is_grouped_message'] == true &&
-                                              message['group_message_id'] != null &&
-                                              _highlightedMessageId != null &&
-                                              groupedMessages.any((m) =>
-                                                  m['group_message_id']
-                                                          ?.toString() ==
-                                                      message['group_message_id']
-                                                          ?.toString() &&
-                                                  _anyId(m)?.toString() ==
-                                                      _highlightedMessageId));
-                                  final List<GroupMediaItem> groupMedia = [];
+                                final bool isHighlighted =
+                                    _highlightedMessageId == messageId ||
+                                        (message['is_grouped_message'] == true &&
+                                            message['group_message_id'] != null &&
+                                            _highlightedMessageId != null &&
+                                            groupedMessages.any((m) =>
+                                            m['group_message_id']
+                                                ?.toString() ==
+                                                message['group_message_id']
+                                                    ?.toString() &&
+                                                _anyId(m)?.toString() ==
+                                                    _highlightedMessageId));
+                                final List<GroupMediaItem> groupMedia = [];
 
-                                  // 🔥 FIX: Properly determine if message is sent by current user
-                                  final bool isSentByMe =
-                                      senderId == currentUserId &&
-                                          senderId != null &&
-                                          senderId.isNotEmpty;
-                                  currentUser = senderId;
-                                  isSentMe = isSentByMe;
+                                // 🔥 FIX: Properly determine if message is sent by current user
+                                final bool isSentByMe =
+                                    senderId == currentUserId &&
+                                        senderId != null &&
+                                        senderId.isNotEmpty;
+                                currentUser = senderId;
+                                isSentMe = isSentByMe;
 
+                                // Debug logging (remove after fixing)
+                                if (senderId != null) {}
 
-                                  if (senderId != null) {}
+                                final showDate = realIndex == 0 ||
+                                    !isSameDay(
+                                      _parseTime(message['time']),
+                                      _parseTime(
+                                          groupedMessages[realIndex - 1]['time']),
+                                    );
+                                final isGroupMessage =
+                                    message['is_grouped_message'] == true;
+                                final groupMessageId =
+                                message['group_message_id']?.toString();
 
-                                  final showDate = realIndex == 0 ||
-                                      !isSameDay(
-                                        _parseTime(message['time']),
-                                        _parseTime(
-                                            groupedMessages[realIndex - 1]['time']),
-                                      );
-                                  final isGroupMessage =
-                                      message['is_grouped_message'] == true;
-                                  final groupMessageId =
-                                      message['group_message_id']?.toString();
+                                if (isGroupMessage &&
+                                    groupMessageId != null &&
+                                    groupMessageId.isNotEmpty) {
+                                  // Is this the first message in the group?
+                                  final isFirstInGroup = realIndex == 0 ||
+                                      groupedMessages[realIndex - 1]
+                                      ['group_message_id']
+                                          ?.toString() !=
+                                          groupMessageId;
 
-                                  if (isGroupMessage &&
-                                      groupMessageId != null &&
-                                      groupMessageId.isNotEmpty) {
-                                    // Is this the first message in the group?
-                                    final isFirstInGroup = realIndex == 0 ||
-                                        groupedMessages[realIndex - 1]
-                                                    ['group_message_id']
-                                                ?.toString() !=
-                                            groupMessageId;
+                                  // Skip non-first items
+                                  if (!isFirstInGroup) {
+                                    return const SizedBox.shrink();
+                                  }
 
-                                    // Skip non-first items
-                                    if (!isFirstInGroup) {
-                                      return const SizedBox.shrink();
-                                    }
+                                  for (int i = realIndex;
+                                  i < groupedMessages.length;
+                                  i++) {
+                                    final nextMsg = groupedMessages[i];
+                                    final nextGrpId =
+                                    nextMsg['group_message_id']?.toString();
+                                    if (nextGrpId != groupMessageId) break;
 
-                                    for (int i = realIndex;
-                                        i < groupedMessages.length;
-                                        i++) {
-                                      final nextMsg = groupedMessages[i];
-                                      final nextGrpId =
-                                          nextMsg['group_message_id']?.toString();
-                                      if (nextGrpId != groupMessageId) break;
+                                    final String? previewUrl =
+                                        nextMsg['originalUrl']?.toString() ??
+                                            nextMsg['imageUrl']?.toString() ??
+                                            nextMsg['localImagePath']?.toString();
+                                    final String? mediaUrl =
+                                        nextMsg['originalUrl']?.toString() ??
+                                            nextMsg['imageUrl']?.toString() ??
+                                            nextMsg['localImagePath']?.toString();
 
-                                      final String? previewUrl =
-                                          nextMsg['originalUrl']?.toString() ??
-                                              nextMsg['imageUrl']?.toString() ??
-                                              nextMsg['localImagePath']?.toString();
-                                      final String? mediaUrl =
-                                          nextMsg['originalUrl']?.toString() ??
-                                              nextMsg['imageUrl']?.toString() ??
-                                              nextMsg['localImagePath']?.toString();
+                                    final String? fileUrl =
+                                    nextMsg['fileUrl']?.toString();
+                                    final String fileType =
+                                    (nextMsg['fileType'] ??
+                                        nextMsg['mimeType'] ??
+                                        '')
+                                        .toString()
+                                        .toLowerCase();
 
-                                      final String? fileUrl =
-                                          nextMsg['fileUrl']?.toString();
-                                      final String fileType =
-                                          (nextMsg['fileType'] ??
-                                                  nextMsg['mimeType'] ??
-                                                  '')
-                                              .toString()
-                                              .toLowerCase();
-
-                                      final bool isVideo = fileType
-                                              .startsWith('video/') ||
-                                          (fileUrl != null &&
-                                              RegExp(r'\.(mp4|mov|mkv|avi|webm)$',
-                                                      caseSensitive: false)
-                                                  .hasMatch(fileUrl));
-                                      final String uniqueId =
-                                          '${message['message_id']}_${groupMedia.length}';
-                                      if (!isVideo &&
-                                          mediaUrl != null &&
-                                          mediaUrl.isNotEmpty) {
+                                    final bool isVideo = fileType
+                                        .startsWith('video/') ||
+                                        (fileUrl != null &&
+                                            RegExp(r'\.(mp4|mov|mkv|avi|webm)$',
+                                                caseSensitive: false)
+                                                .hasMatch(fileUrl));
+                                    final String uniqueId =
+                                        '${message['message_id']}_${groupMedia.length}';
+                                    if (!isVideo &&
+                                        mediaUrl != null &&
+                                        mediaUrl.isNotEmpty) {
+                                      groupMedia.add(GroupMediaItem(
+                                          previewUrl: mediaUrl,
+                                          mediaUrl: mediaUrl,
+                                          isVideo: false,
+                                          uniqueId: uniqueId,   message: nextMsg));
+                                    } else if (isVideo) {
+                                      final preview = previewUrl ?? fileUrl ?? '';
+                                      final media = fileUrl ?? mediaUrl ?? '';
+                                      if (media.isNotEmpty) {
                                         groupMedia.add(GroupMediaItem(
-                                            previewUrl: mediaUrl,
-                                            mediaUrl: mediaUrl,
-                                            isVideo: false,
+                                            previewUrl: preview,
+                                            mediaUrl: media,
+                                            isVideo: true,
                                             uniqueId: uniqueId,   message: nextMsg));
-                                      } else if (isVideo) {
-                                        final preview = previewUrl ?? fileUrl ?? '';
-                                        final media = fileUrl ?? mediaUrl ?? '';
-                                        if (media.isNotEmpty) {
-                                          groupMedia.add(GroupMediaItem(
-                                              previewUrl: preview,
-                                              mediaUrl: media,
-                                              isVideo: true,
-                                              uniqueId: uniqueId,   message: nextMsg));
-                                        }
                                       }
                                     }
-                                    return Column(
-                                      crossAxisAlignment: isSentByMe
-                                          ? CrossAxisAlignment.end
-                                          : CrossAxisAlignment.start,
-                                      children: [
-                                        if (showDate)
-                                          DateSeparator(
-                                              dateTime:
-                                                  _parseTime(message['time'])),
-                                        Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 8.0, vertical: 4.0),
-                                          child: GroupedMediaWidget(
-                                              isSelectionMode: _isSelectionMode,
-                                              searchText:
-                                                  _searchController.text,
-                                              onLongPress: () {
-                                                final grouped =
-                                                    _getGroupedMessages(
-                                                        groupedMessages,
-                                                        realIndex);
-                                                _selectGroupedMessages(grouped);
-                                              },
-                                              selectedMessageColor: Colors.blue,
-                                              isSelected: _getGroupedMessages(
-                                                      groupedMessages, realIndex)
-                                                  .any((m) => _selectedMessageKeys.contains(
-                                                      _generateMessageKey(m))),
-                                              recentEmojis: recentEmojis,
-                                              onEmojiUpdated: (list) {
-                                                setState(
-                                                    () => recentEmojis = list);
-                                              },
-                                              buildReactionsBar: (msg, sentByMe) =>
-                                                  _buildReactionsBar(
-                                                      msg, sentByMe),
-                                              onReact: (msg, emoji) {
-                                                setState(() {
-                                                  _handleReactionTap(
-                                                      msg, emoji);
-                                                  _showSearchAppBar = false;
-                                                  _isSelectionMode = false;
-                                                  _selectedMessages.clear();
-                                                  _selectedMessageKeys.clear();
-                                                });
-                                              },
-                                              emojpicker: () =>
-                                                  ReactionDialog.show(
-                                                    context: context,
-                                                    messageId:
-                                                        message['message_id']
-                                                                ?.toString() ??
-                                                            '',
-                                                    reactions: message[
-                                                                'reactions']
-                                                            as List<
-                                                                Map<String,
-                                                                    dynamic>>? ??
-                                                        [],
-                                                    currentUserId:
-                                                        currentUserId,
-                                                    convoId: widget.convoId,
-                                                    receiverId:
-                                                        widget.receiverId ?? "",
-                                                    firstName:
-                                                        widget.firstname ?? "",
-                                                    lastName:
-                                                        widget.lastname ?? "",
-                                                  ),
-                                              message: message,
-                                              isForwarded: isForwarded,
-                                              isReaction: isReaction,
-                                              isHighlighted: isHighlighted,
-                                              messageId: groupAnchorMessageId,
-                                              media: groupMedia,
-                                              caption: message['content']
-                                                  ?.toString(),
-                                              isSentByMe: isSentByMe,
-                                              time: TimeUtils.formatUtcToIst(
-                                                  message['time']),
-                                              messageStatus: message['messageStatus']
-                                                      ?.toString() ??
-                                                  'sent',
-                                              buildStatusIcon: (status) =>
-                                                  MessageStatusIcon(
-                                                    status: status,
-                                                    isStatus: true,
-                                                  ),
-                                              onImageTap: (tappedIndex) {
-                                                final conversationMedia =
-                                                    buildConversationMedia(
-                                                        groupedMessages);
-                                                print(
-                                                    "tappedIndex $tappedIndex");
-                                                final tappedItem =
-                                                    groupMedia[tappedIndex];
+                                  }
 
-                                                final startIndex =
-                                                    conversationMedia
-                                                        .indexWhere(
-                                                  (m) =>
-                                                      m.mediaUrl ==
-                                                      tappedItem.mediaUrl,
-                                                );
+                                  // Render grouped media if we have any
+                                  if (groupMedia.isNotEmpty) {
+                                    return Builder(builder: (ctx) {
+                                      final groupId =
+                                      message['group_message_id']?.toString();
+                                      final bool? isForwarded =
+                                          message['isForwarded'] ?? false;
+                                      final messageId =
+                                      _anyId(message)?.toString();
+                                      final isReaction =
+                                          message['reactions'] != null &&
+                                              (message['reactions'] as List)
+                                                  .isNotEmpty;
+                                      final String groupAnchorMessageId =
+                                          message['message_id'] ?? message['id'];
 
-                                                Navigator.push(
-                                                  context,
-                                                  PageRouteBuilder(
-                                                    opaque: false,
-                                                    transitionDuration:
-                                                        const Duration(
-                                                            milliseconds: 300),
-                                                    pageBuilder: (_, __, ___) =>
-                                                        MixedMediaViewer(
-                                                      items: conversationMedia,
-                                                      initialIndex:
-                                                          startIndex < 0
-                                                              ? 0
-                                                              : startIndex,
-                                                      currentUserId:
-                                                          currentUser,
-                                                      isGroup: false,
-                                                      receiverId:
-                                                          widget.receiverId,
-                                                    ),
-                                                  ),
-                                                );
-                                              },
-                                              onForwardTap: () {
-                                                print("realIndexss $realIndex");
-                                                log("combinedMessages ${groupedMessages.length}");
-                                                final forwardMessages =
-                                                    _getGroupedMessages(
-                                                        groupedMessages,
-                                                        realIndex);
+                                      if (groupAnchorMessageId.isNotEmpty) {
+                                        _messageContexts[groupAnchorMessageId] =
+                                            ctx; // 🔥 IMPORTANT
+                                      } else if (messageId != null &&
+                                          messageId.isNotEmpty) {
+                                        _messageContexts[messageId] = ctx;
+                                      }
 
-                                                print(
-                                                    "forwardMessagessss ${forwardMessages.length}");
-                                                for (final m
-                                                    in forwardMessages) {
-                                                  print(
-                                                      "ITEM TYPE => ${m.runtimeType}");
-                                                  log("ITEM VALUE => $m");
-                                                }
-
-                                                MyRouter.pushReplace(
-                                                  screen: ForwardMessageScreen(
-                                                    messages: forwardMessages,
-                                                    currentUserId:
-                                                        message['senderId'] ??
-                                                            '',
-                                                    conversionalid: "",
-                                                    username:
-                                                        message['senderName'] ??
-                                                            '',
-                                                    isForward: isSentByMe,
-                                                  ),
-                                                );
-                                              },
-                                              onRightSwipe: (details) {
-                                                WidgetsBinding.instance
-                                                    .addPostFrameCallback((_) {
-                                                  if (!mounted) return;
-
-                                                  final grouped =
-                                                      _getGroupedMessages(
-                                                          groupedMessages,
-                                                          realIndex);
-
-                                                  final replyPreview =
-                                                      buildReplyPreviewFromGroup(
-                                                    grouped,
-                                                    isSentByMe,
-                                                    currentUserId,
-                                                  );
-
-                                                  setState(() {
-                                                    _replyMessage =
-                                                        grouped.first;
-                                                    _replyPreview =
-                                                        replyPreview;
-                                                  });
-                                                  log("_replyPreview $_replyPreview");
-                                                  log("_replyPreview $_replyMessage");
-
-                                                  // ⌨️ open keyboard AFTER gesture completes
-                                                  _focusNode.requestFocus();
-                                                });
-                                              }),
-
-                                    // Render grouped media if we have any
-                                    if (groupMedia.isNotEmpty) {
-                                      return Builder(builder: (ctx) {
-                                        final groupId =
-                                            message['group_message_id']?.toString();
-                                        final bool? isForwarded =
-                                            message['isForwarded'] ?? false;
-                                        final messageId =
-                                            _anyId(message)?.toString();
-                                        final isReaction =
-                                            message['reactions'] != null &&
-                                                (message['reactions'] as List)
-                                                    .isNotEmpty;
-                                        final String groupAnchorMessageId =
-                                            message['message_id'] ?? message['id'];
-
-                                        if (groupAnchorMessageId.isNotEmpty) {
-                                          _messageContexts[groupAnchorMessageId] =
-                                              ctx; // 🔥 IMPORTANT
-                                        } else if (messageId != null &&
-                                            messageId.isNotEmpty) {
-                                          _messageContexts[messageId] = ctx;
-                                        }
-
-                                        // Register all individual messages in the group
-                                        for (final item in groupMedia) {
-                                          final msg = item.message;
-                                          if (msg != null) {
-                                            final id = (msg['message_id'] ??
-                                                    msg['messageId'] ??
-                                                    msg['id'])
-                                                ?.toString();
-                                            if (id != null && id.isNotEmpty) {
-                                              _messageContexts[id] = ctx;
-                                            }
+                                      // Register all individual messages in the group
+                                      for (final item in groupMedia) {
+                                        final msg = item.message;
+                                        if (msg != null) {
+                                          final id = (msg['message_id'] ??
+                                              msg['messageId'] ??
+                                              msg['id'])
+                                              ?.toString();
+                                          if (id != null && id.isNotEmpty) {
+                                            _messageContexts[id] = ctx;
                                           }
                                         }
-                                        return Column(
-                                          crossAxisAlignment: isSentByMe
+                                      }
+                                      return Column(
+                                        crossAxisAlignment: isSentByMe
+                                            ? CrossAxisAlignment.end
+                                            : CrossAxisAlignment.start,
+                                        children: [
+                                          if (showDate)
+                                            DateSeparator(
+                                                dateTime:
+                                                _parseTime(message['time'])),
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8.0, vertical: 4.0),
+                                            child: GroupedMediaWidget(
+                                                isSelectionMode: _isSelectionMode,
+                                                searchText:
+                                                _searchController.text,
+                                                onLongPress: () {
+                                                  final grouped =
+                                                  _getGroupedMessages(
+                                                      groupedMessages,
+                                                      realIndex);
+                                                  _selectGroupedMessages(grouped);
+                                                },
+                                                selectedMessageColor: Colors.blue,
+                                                isSelected: _getGroupedMessages(
+                                                    groupedMessages, realIndex)
+                                                    .any((m) => _selectedMessageKeys.contains(
+                                                    _generateMessageKey(m))),
+                                                recentEmojis: recentEmojis,
+                                                onEmojiUpdated: (list) {
+                                                  setState(
+                                                          () => recentEmojis = list);
+                                                },
+                                                buildReactionsBar:
+                                                    (msg, sentByMe) =>
+                                                    _buildReactionsBar(
+                                                        msg, sentByMe),
+                                                onReact: (msg, emoji) {
+                                                  setState(() {
+                                                    _handleReactionTap(
+                                                        msg, emoji);
+                                                    _showSearchAppBar = false;
+                                                    _isSelectionMode = false;
+                                                    _selectedMessages.clear();
+                                                    _selectedMessageKeys.clear();
+                                                  });
+                                                },
+                                                emojpicker: () =>
+                                                    ReactionDialog.show(
+                                                      context: context,
+                                                      messageId:
+                                                      message['message_id']
+                                                          ?.toString() ??
+                                                          '',
+                                                      reactions: message[
+                                                      'reactions']
+                                                      as List<
+                                                          Map<String,
+                                                              dynamic>>? ??
+                                                          [],
+                                                      currentUserId:
+                                                      currentUserId,
+                                                      convoId: widget.convoId,
+                                                      receiverId:
+                                                      widget.receiverId ?? "",
+                                                      firstName:
+                                                      widget.firstname ?? "",
+                                                      lastName:
+                                                      widget.lastname ?? "",
+                                                    ),
+                                                message: message,
+                                                isForwarded: isForwarded,
+                                                isReaction: isReaction,
+                                                isHighlighted: isHighlighted,
+                                                messageId: groupAnchorMessageId,
+                                                media: groupMedia,
+                                                caption: message['content']
+                                                    ?.toString(),
+                                                isSentByMe: isSentByMe,
+                                                time: TimeUtils.formatUtcToIst(
+                                                    message['time']),
+                                                messageStatus:
+                                                message['messageStatus']
+                                                    ?.toString() ??
+                                                    'sent',
+                                                buildStatusIcon: (status) =>
+                                                    MessageStatusIcon(
+                                                      status: status,
+                                                      isStatus: true,
+                                                    ),
+                                                onImageTap: (tappedIndex) {
+                                                  final conversationMedia =
+                                                  buildConversationMedia(
+                                                      groupedMessages);
+                                                  print(
+                                                      "tappedIndex $tappedIndex");
+                                                  final tappedItem =
+                                                  groupMedia[tappedIndex];
+
+                                                  final startIndex =
+                                                  conversationMedia
+                                                      .indexWhere(
+                                                        (m) =>
+                                                    m.mediaUrl ==
+                                                        tappedItem.mediaUrl,
+                                                  );
+
+                                                  Navigator.push(
+                                                    context,
+                                                    PageRouteBuilder(
+                                                      opaque: false,
+                                                      transitionDuration:
+                                                      const Duration(
+                                                          milliseconds: 300),
+                                                      pageBuilder: (_, __, ___) =>
+                                                          MixedMediaViewer(
+                                                            items: conversationMedia,
+
+                                                            initialIndex: startIndex < 0 ? 0 : startIndex,
+                                                            currentUserId: currentUser,
+                                                            isGroup: false,
+                                                            receiverId:
+                                                            widget.receiverId,
+
+
+                                                          ),
+                                                    ),
+                                                  );
+                                                },
+                                                onForwardTap: () {
+                                                  print("realIndexss $realIndex");
+                                                  log("combinedMessages ${groupedMessages.length}");
+                                                  final forwardMessages =
+                                                  _getGroupedMessages(
+                                                      groupedMessages,
+                                                      realIndex);
+
+                                                  print(
+                                                      "forwardMessagessss ${forwardMessages.length}");
+                                                  for (final m
+                                                  in forwardMessages) {
+                                                    print(
+                                                        "ITEM TYPE => ${m.runtimeType}");
+                                                    log("ITEM VALUE => $m");
+                                                  }
+
+                                                  MyRouter.pushReplace(
+                                                    screen: ForwardMessageScreen(
+                                                      messages: forwardMessages,
+                                                      currentUserId:
+                                                      message['senderId'] ??
+                                                          '',
+                                                      conversionalid: "",
+                                                      username:
+                                                      message['senderName'] ??
+                                                          '',
+                                                      isForward: isSentByMe,
+                                                    ),
+                                                  );
+                                                },
+                                                onRightSwipe: (details) {
+                                                  WidgetsBinding.instance
+                                                      .addPostFrameCallback((_) {
+                                                    if (!mounted) return;
+
+                                                    final grouped =
+                                                    _getGroupedMessages(
+                                                        groupedMessages,
+                                                        realIndex);
+
+                                                    final replyPreview =
+                                                    buildReplyPreviewFromGroup(
+                                                      grouped,
+                                                      isSentByMe,
+                                                      currentUserId,
+                                                    );
+
+                                                    setState(() {
+                                                      _replyMessage =
+                                                          grouped.first;
+                                                      _replyPreview =
+                                                          replyPreview;
+                                                    });
+                                                    log("_replyPreview $_replyPreview");
+                                                    log("_replyPreview $_replyMessage");
+
+                                                    // ⌨️ open keyboard AFTER gesture completes
+                                                    _focusNode.requestFocus();
+                                                  });
+                                                }),
+                                          ),
+                                        ],
+                                      );
+                                    });
+                                  }
+                                }
+                                final bool hasReaction =
+                                    message['reactions'] != null &&
+                                        (message['reactions'] as List).isNotEmpty;
+                                final hasReply = _hasReplyForMessage(message);
+                                final String? bubbleSenderId =
+                                _getMessageSenderId(message);
+                                final bool correctIsSentByMe =
+                                    bubbleSenderId == currentUserId &&
+                                        bubbleSenderId != null &&
+                                        bubbleSenderId.isNotEmpty;
+
+                                return Builder(builder: (ctx) {
+                                  final messageId = _anyId(message).toString();
+                                  if (messageId.isNotEmpty) {
+                                    _messageContexts[messageId] = ctx;
+                                  }
+                                  final bool isDeleted =
+                                      message['is_deleted'] == true ||
+                                          message['messageStatus'] == 'deleted';
+                                  return SwipeToReply(
+                                    onReply: isDeleted
+                                        ? null
+                                        : () {
+                                      final resolved =
+                                      _resolveReplySource(message);
+                                      _replyToMessage(resolved,
+                                          isSendMe: isSentByMe);
+                                    },
+                                    child: AnimatedContainer(
+                                      key: ValueKey(messageId),
+                                      duration: const Duration(milliseconds: 600),
+                                      curve: Curves.easeOut,
+                                      margin: EdgeInsets.only(
+                                        top: hasReply ? 4 : 0,
+                                        bottom: hasReaction
+                                            ? (hasReply ? 20 : 5)
+                                            : (hasReply ? 10 : 0),
+                                      ),
+                                      color: isHighlighted
+                                          ? Colors.blueAccent
+                                          .withValues(alpha: 0.3)
+                                          : Colors.transparent,
+                                      child: !hasReply
+                                          ? _buildMessageBubble(message,
+                                          correctIsSentByMe, hasReply,
+                                          length: groupMedia.length)
+                                          : Align(
+                                        alignment: correctIsSentByMe
+                                            ? Alignment.centerRight
+                                            : Alignment.centerLeft,
+                                        child: Column(
+                                          crossAxisAlignment:
+                                          correctIsSentByMe
                                               ? CrossAxisAlignment.end
-                                              : CrossAxisAlignment.start,
+                                              : CrossAxisAlignment
+                                              .start,
                                           children: [
                                             if (showDate)
                                               DateSeparator(
-                                                  dateTime:
-                                                      _parseTime(message['time'])),
-                                            Padding(
-                                              padding: const EdgeInsets.symmetric(
-                                                  horizontal: 8.0, vertical: 4.0),
-                                              child: GroupedMediaWidget(
-                                                  isSelectionMode: _isSelectionMode,
-                                                  searchText:
-                                                      _searchController.text,
-                                                  onLongPress: () {
-                                                    final grouped =
-                                                        _getGroupedMessages(
-                                                            groupedMessages,
-                                                            realIndex);
-                                                    _selectGroupedMessages(grouped);
-                                                  },
-                                                  selectedMessageColor: Colors.blue,
-                                                  isSelected: _getGroupedMessages(
-                                                          groupedMessages, realIndex)
-                                                      .any((m) => _selectedMessageKeys.contains(
-                                                          _generateMessageKey(m))),
-                                                  recentEmojis: recentEmojis,
-                                                  onEmojiUpdated: (list) {
-                                                    setState(
-                                                        () => recentEmojis = list);
-                                                  },
-                                                  buildReactionsBar:
-                                                      (msg, sentByMe) =>
-                                                      _buildReactionsBar(
-                                                          msg, sentByMe),
-                                                  onReact: (msg, emoji) {
-                                                    setState(() {
-                                                      _handleReactionTap(
-                                                          msg, emoji);
-                                                      _showSearchAppBar = false;
-                                                      _isSelectionMode = false;
-                                                      _selectedMessages.clear();
-                                                      _selectedMessageKeys.clear();
-                                                    });
-                                                  },
-                                                  emojpicker: () =>
-                                                      ReactionDialog.show(
-                                                        context: context,
-                                                        messageId:
-                                                            message['message_id']
-                                                                    ?.toString() ??
-                                                                '',
-                                                        reactions: message[
-                                                                    'reactions']
-                                                                as List<
-                                                                    Map<String,
-                                                                        dynamic>>? ??
-                                                            [],
-                                                        currentUserId:
-                                                            currentUserId,
-                                                        convoId: widget.convoId,
-                                                        receiverId:
-                                                            widget.receiverId ?? "",
-                                                        firstName:
-                                                            widget.firstname ?? "",
-                                                        lastName:
-                                                            widget.lastname ?? "",
-                                                      ),
-                                                  message: message,
-                                                  isForwarded: isForwarded,
-                                                  isReaction: isReaction,
-                                                  isHighlighted: isHighlighted,
-                                                  messageId: groupAnchorMessageId,
-                                                  media: groupMedia,
-                                                  caption: message['content']
-                                                      ?.toString(),
-                                                  isSentByMe: isSentByMe,
-                                                  time: TimeUtils.formatUtcToIst(
-                                                      message['time']),
-                                                  messageStatus:
-                                                      message['messageStatus']
-                                                          ?.toString() ??
-                                                      'sent',
-                                                  buildStatusIcon: (status) =>
-                                                      MessageStatusIcon(
-                                                        status: status,
-                                                        isStatus: true,
-                                                      ),
-                                                  onImageTap: (tappedIndex) {
-                                                    final conversationMedia =
-                                                        buildConversationMedia(
-                                                            groupedMessages);
-                                                    print(
-                                                        "tappedIndex $tappedIndex");
-                                                    final tappedItem =
-                                                        groupMedia[tappedIndex];
-
-                                                    final startIndex =
-                                                        conversationMedia
-                                                            .indexWhere(
-                                                      (m) =>
-                                                          m.mediaUrl ==
-                                                          tappedItem.mediaUrl,
-                                                    );
-
-                                                    Navigator.push(
-                                                      context,
-                                                      PageRouteBuilder(
-                                                        opaque: false,
-                                                        transitionDuration:
-                                                            const Duration(
-                                                                milliseconds: 300),
-                                                        pageBuilder: (_, __, ___) =>
-                                                            MixedMediaViewer(
-                                                          items: conversationMedia,
-
-                                                          initialIndex: startIndex < 0 ? 0 : startIndex,
-                                                          currentUserId: currentUser,
-                                                              isGroup: false,
-                                                              receiverId:
-                                                              widget.receiverId,
-                                                        ),
-                                                      ),
-                                                    );
-                                                  },
-                                                  onForwardTap: () {
-                                                    print("realIndexss $realIndex");
-                                                    log("combinedMessages ${groupedMessages.length}");
-                                                    final forwardMessages =
-                                                        _getGroupedMessages(
-                                                            groupedMessages,
-                                                            realIndex);
-
-                                                    print(
-                                                        "forwardMessagessss ${forwardMessages.length}");
-                                                    for (final m
-                                                        in forwardMessages) {
-                                                      print(
-                                                          "ITEM TYPE => ${m.runtimeType}");
-                                                      log("ITEM VALUE => $m");
-                                                    }
-
-                                                    MyRouter.pushReplace(
-                                                      screen: ForwardMessageScreen(
-                                                        messages: forwardMessages,
-                                                        currentUserId:
-                                                            message['senderId'] ??
-                                                                '',
-                                                        conversionalid: "",
-                                                        username:
-                                                            message['senderName'] ??
-                                                                '',
-                                                        isForward: isSentByMe,
-                                                      ),
-                                                    );
-                                                  },
-                                                  onRightSwipe: (details) {
-                                                    WidgetsBinding.instance
-                                                        .addPostFrameCallback((_) {
-                                                      if (!mounted) return;
-
-                                                      final grouped =
-                                                          _getGroupedMessages(
-                                                              groupedMessages,
-                                                              realIndex);
-
-                                                      final replyPreview =
-                                                          buildReplyPreviewFromGroup(
-                                                        grouped,
-                                                        isSentByMe,
-                                                        currentUserId,
-                                                      );
-
-                                                      setState(() {
-                                                        _replyMessage =
-                                                            grouped.first;
-                                                        _replyPreview =
-                                                            replyPreview;
-                                                      });
-                                                      log("_replyPreview $_replyPreview");
-                                                      log("_replyPreview $_replyMessage");
-
-                                                      // ⌨️ open keyboard AFTER gesture completes
-                                                      _focusNode.requestFocus();
-                                                    });
-                                                  }),
-                                            ),
-                                          ],
-                                        );
-                                      });
-                                    }
-                                  }
-                                  final bool hasReaction =
-                                      message['reactions'] != null &&
-                                          (message['reactions'] as List).isNotEmpty;
-                                  final hasReply = _hasReplyForMessage(message);
-                                  final String? bubbleSenderId =
-                                      _getMessageSenderId(message);
-                                  final bool correctIsSentByMe =
-                                      bubbleSenderId == currentUserId &&
-                                          bubbleSenderId != null &&
-                                          bubbleSenderId.isNotEmpty;
-
-                                  return Builder(builder: (ctx) {
-                                    final messageId = _anyId(message).toString();
-                                    if (messageId.isNotEmpty) {
-                                      _messageContexts[messageId] = ctx;
-                                    }
-                                    final bool isDeleted =
-                                        message['is_deleted'] == true ||
-                                            message['messageStatus'] == 'deleted';
-                                    return SwipeToReply(
-                                      onReply: isDeleted
-                                          ? null
-                                          : () {
-                                              final resolved =
-                                                  _resolveReplySource(message);
-                                              _replyToMessage(resolved,
-                                                  isSendMe: isSentByMe);
-                                            },
-                                      child: AnimatedContainer(
-                                        key: ValueKey(messageId),
-                                        duration: const Duration(milliseconds: 600),
-                                        curve: Curves.easeOut,
-                                        margin: EdgeInsets.only(
-                                          top: hasReply ? 4 : 0,
-                                          bottom: hasReaction
-                                              ? (hasReply ? 20 : 5)
-                                              : (hasReply ? 10 : 0),
-                                        ),
-                                        color: isHighlighted
-                                            ? Colors.blueAccent
-                                                .withValues(alpha: 0.3)
-                                            : Colors.transparent,
-                                        child: !hasReply
-                                            ? _buildMessageBubble(message,
-                                                correctIsSentByMe, hasReply,
-                                                length: groupMedia.length)
-                                            : Align(
-                                                alignment: correctIsSentByMe
-                                                    ? Alignment.centerRight
-                                                    : Alignment.centerLeft,
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      correctIsSentByMe
-                                                          ? CrossAxisAlignment.end
-                                                          : CrossAxisAlignment
-                                                              .start,
-                                                  children: [
-                                                    if (showDate)
-                                                      DateSeparator(
-                                                          dateTime: _parseTime(
-                                                              message['time'])),
-                                                    Container(
-                                                      margin: const EdgeInsets
-                                                          .symmetric(
-                                                          horizontal: 5,
-                                                          vertical: 0),
-                                                      constraints:
-                                                          const BoxConstraints(
-                                                              maxWidth: 160),
-                                                      decoration: BoxDecoration(
-                                                        border: Border.all(
-                                                            color: _selectedMessageKeys
-                                                                    .contains(
-                                                                        _generateMessageKey(
-                                                                            message))
-                                                                ? Colors.blue
-                                                                : Colors
-                                                                    .transparent,
-                                                            width: 2),
-                                                        color: (isSentByMe
-                                                            ? const Color(
-                                                                0xFFD8E1FE)
-                                                            : Colors.white),
-                                                        borderRadius:
-                                                            BorderRadius.only(
-                                                          topLeft: isSentByMe
-                                                              ? const Radius
-                                                                  .circular(18)
-                                                              : const Radius
-                                                                  .circular(18),
-                                                          topRight: isSentByMe
-                                                              ? const Radius
-                                                                  .circular(18)
-                                                              : const Radius
-                                                                  .circular(18),
-                                                          bottomLeft: isSentByMe
-                                                              ? const Radius
-                                                                  .circular(18)
-                                                              : Radius.zero,
-                                                          bottomRight: isSentByMe
-                                                              ? Radius.zero
-                                                              : const Radius
-                                                                  .circular(16),
-                                                        ),
-                                                        boxShadow: [
-                                                          BoxShadow(
-                                                            color: Colors.black
-                                                                .withOpacity(0.05),
-                                                            blurRadius: 4,
-                                                            offset:
-                                                                const Offset(0, 2),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                      child: Column(
-                                                        children: [
-                                                          _buildMessageBubble(
-                                                              message,
-                                                              correctIsSentByMe,
-                                                              hasReply,
-                                                              length: groupMedia
-                                                                  .length),
-                                                        ],
-                                                      ),
-                                                    )
-                                                  ],
+                                                  dateTime: _parseTime(
+                                                      message['time'])),
+                                            Container(
+                                              margin: const EdgeInsets
+                                                  .symmetric(
+                                                  horizontal: 5,
+                                                  vertical: 0),
+                                              constraints:
+                                              const BoxConstraints(
+                                                  maxWidth: 160),
+                                              decoration: BoxDecoration(
+                                                border: Border.all(
+                                                    color: _selectedMessageKeys
+                                                        .contains(
+                                                        _generateMessageKey(
+                                                            message))
+                                                        ? Colors.blue
+                                                        : Colors
+                                                        .transparent,
+                                                    width: 2),
+                                                color: (isSentByMe
+                                                    ? const Color(
+                                                    0xFFD8E1FE)
+                                                    : Colors.white),
+                                                borderRadius:
+                                                BorderRadius.only(
+                                                  topLeft: isSentByMe
+                                                      ? const Radius
+                                                      .circular(18)
+                                                      : const Radius
+                                                      .circular(18),
+                                                  topRight: isSentByMe
+                                                      ? const Radius
+                                                      .circular(18)
+                                                      : const Radius
+                                                      .circular(18),
+                                                  bottomLeft: isSentByMe
+                                                      ? const Radius
+                                                      .circular(18)
+                                                      : Radius.zero,
+                                                  bottomRight: isSentByMe
+                                                      ? Radius.zero
+                                                      : const Radius
+                                                      .circular(16),
                                                 ),
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: Colors.black
+                                                        .withOpacity(0.05),
+                                                    blurRadius: 4,
+                                                    offset:
+                                                    const Offset(0, 2),
+                                                  ),
+                                                ],
                                               ),
+                                              child: Column(
+                                                children: [
+                                                  _buildMessageBubble(
+                                                      message,
+                                                      correctIsSentByMe,
+                                                      hasReply,
+                                                      length: groupMedia
+                                                          .length),
+                                                ],
+                                              ),
+                                            )
+                                          ],
+                                        ),
                                       ),
-                                    );
-                                  });
-                                },
-                              ),
+                                    ),
+                                  );
+                                });
+                              },
                             ),
                           ),
                         ],
@@ -5519,12 +5344,12 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     _messagerBloc.add(
       SendAudioMessageEvent(
-        senderId: currentUserId,
-        receiverId: widget.receiverId ?? '',
-        audioPath: path,
-        duration: duration.toString(),
-        convoId: widget.convoId,
-        isRecord: true
+          senderId: currentUserId,
+          receiverId: widget.receiverId ?? '',
+          audioPath: path,
+          duration: duration.toString(),
+          convoId: widget.convoId,
+          isRecord: true
       ),
     );
   }
@@ -5668,8 +5493,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
         try {
           final original = messages.firstWhere(
-            (m) =>
-                (m['message_id'] ?? m['messageId'] ?? m['id'])?.toString() ==
+                (m) =>
+            (m['message_id'] ?? m['messageId'] ?? m['id'])?.toString() ==
                 replyId,
           );
 
@@ -5693,7 +5518,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   Map<String, dynamic>? resolveRepliedMessage({
     required Map<String, dynamic> message,
     required List<Map<String, dynamic>> allMessages,
-  }) {
+  })
+  {
     if (message['isReplyMessage'] != true) return null;
 
     // already resolved
@@ -5706,7 +5532,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     try {
       final original = allMessages.firstWhere(
-        (m) => m['message_id']?.toString() == replyId,
+            (m) => m['message_id']?.toString() == replyId,
       );
 
       return {
@@ -5739,21 +5565,21 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           receiverId: widget.receiverId!,
           isGroupChat: false,
           onOptionSelected: (List<Map<String, dynamic>> localMessages) {
-        if (localMessages.isEmpty) return;
+            if (localMessages.isEmpty) return;
 
-        setState(() {
-          socketMessages.addAll(localMessages);
-          for (var msg in localMessages) {
-            final id = (msg['message_id'] ?? '').toString();
-            if (id.isNotEmpty) _seenMessageIds.add(id);
-          }
-        });
-        _updateNotifier();
-        _scheduleSaveMessages();
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _scrollToBottom();
-        });
-      }),
+            setState(() {
+              socketMessages.addAll(localMessages);
+              for (var msg in localMessages) {
+                final id = (msg['message_id'] ?? '').toString();
+                if (id.isNotEmpty) _seenMessageIds.add(id);
+              }
+            });
+            _updateNotifier();
+            _scheduleSaveMessages();
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _scrollToBottom();
+            });
+          }),
       onCameraPressed: _openCamera,
       onRecordPressed: _isRecording
           ? recorderHelper.stopRecording
