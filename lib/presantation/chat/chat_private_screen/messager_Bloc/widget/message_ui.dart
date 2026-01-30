@@ -192,8 +192,7 @@ class _MessageBubbleState extends State<MessageBubble> {
       return const SizedBox.shrink();
     }
     bool _ignoreParentTap = false;
-    log("userId>>>>>>>>>>> $userId");
-    log("userIdssssss>>>>>>>>>>> ${widget.currentUserId}");
+
     return Padding(
       padding:
           EdgeInsets.symmetric(vertical: widget.emojpicker != null ? 6.0 : 0),
