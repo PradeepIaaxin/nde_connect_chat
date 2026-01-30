@@ -5094,9 +5094,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
                                                           initialIndex: startIndex < 0 ? 0 : startIndex,
                                                           currentUserId: currentUser,
-
-
-
+                                                              isGroup: false,
+                                                              receiverId:
+                                                              widget.receiverId,
                                                         ),
                                                       ),
                                                     );
