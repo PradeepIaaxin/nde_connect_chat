@@ -4364,10 +4364,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => VideoPlayerScreen(
-                    path: fileUrl,
-                    isNetwork: isNetwork,
-                  ),
+                  builder: (_) => MixedMediaViewer(
+            items: media,
+            initialIndex: index,
+            conversionalId: widget.conversationId,
+            fullName: widget.groupName,
+            isGroup: true,
+            receiverId: widget.groupId,
+          )
                 ),
               );
             },
