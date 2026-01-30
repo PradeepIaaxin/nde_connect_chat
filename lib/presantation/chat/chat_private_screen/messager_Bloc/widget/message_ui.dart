@@ -199,7 +199,7 @@ class _MessageBubbleState extends State<MessageBubble> {
       child: Align(
         alignment:
             widget.isSentByMe ? Alignment.centerRight : Alignment.centerLeft,
-        widthFactor: widget.isReply ? 1.0 : null,
+        widthFactor: null,
         child: Stack(
           clipBehavior: Clip.none,
           children: [
@@ -220,7 +220,7 @@ class _MessageBubbleState extends State<MessageBubble> {
               //   log("relosveeee ${widget.message["resolvedReplys"]}");
               // },
               onLongPress: () {
-                log(widget.message.toString());
+                log("messsssssage ${widget.message}");
                 _showReactionPicker(context);
                 widget.onLongPress?.call();
               },
@@ -276,15 +276,11 @@ class _MessageBubbleState extends State<MessageBubble> {
                             ? 8
                             : 0,
                       ),
-                      padding: widget.isReply
-                          ? null
-                          : const EdgeInsets.only(
+                      padding: const EdgeInsets.only(
                               top: 3, left: 7, right: 6, bottom: 5),
                       constraints: const BoxConstraints(maxWidth: 250),
                       decoration: BoxDecoration(
-                        color: widget.isReply
-                            ? null
-                            : widget.isSelected
+                        color:  widget.isSelected
                                 ? widget.selectedMessageColor
                                 : (widget.isSentByMe
                                     ? widget.sentMessageColor
@@ -303,9 +299,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                               ? Radius.zero
                               : const Radius.circular(16),
                         ),
-                        border: widget.isReply
-                            ? null
-                            : widget.isSelected
+                        border: widget.isSelected
                                 ? Border.all(
                                     color: widget.borderColor, width: 2)
                                 : null,
@@ -316,25 +310,28 @@ class _MessageBubbleState extends State<MessageBubble> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               if (hasReply)
-                                RepliedMessagePreview(
-                                  key: ValueKey(
-                                      '${widget.message['message_id']}_${widget.message['replyContent']}_placeholder'),
-                                  replied: widget.message['resolvedReply'] ??
-                                      widget.message['reply'] ??
-                                      _buildSyntheticReply(widget.message),
-                                  receiver: widget.message['sender'] is Map
-                                      ? Map<String, dynamic>.from(
-                                          widget.message['sender'])
-                                      : {},
-                                  isSender: widget.isSentByMe,
-                                  onTap: () {
-                                    if (widget.isSelectionMode) {
-                                      widget.onLongPress?.call();
-                                    } else {
-                                      widget.onReplyTap?.call();
-                                    }
-                                  },
-                                  groupMediaLength: widget.groupMediaLength,
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 3.0,bottom: 3),
+                                  child: RepliedMessagePreview(
+                                    key: ValueKey(
+                                        '${widget.message['message_id']}_${widget.message['replyContent']}_placeholder'),
+                                    replied: widget.message['resolvedReply'] ??
+                                        widget.message['reply'] ??
+                                        _buildSyntheticReply(widget.message),
+                                    receiver: widget.message['sender'] is Map
+                                        ? Map<String, dynamic>.from(
+                                            widget.message['sender'])
+                                        : {},
+                                    isSender: widget.isSentByMe,
+                                    onTap: () {
+                                      if (widget.isSelectionMode) {
+                                        widget.onLongPress?.call();
+                                      } else {
+                                        widget.onReplyTap?.call();
+                                      }
+                                    },
+                                    groupMediaLength: widget.groupMediaLength,
+                                  ),
                                 ),
 
                               if (isForwarded == true)
@@ -487,7 +484,10 @@ class _MessageBubbleState extends State<MessageBubble> {
                                     isDeleted: isDeleted,
                                   )
                                 else
-                                  _buildTextMessage(content, messageStatus),
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 3.0,bottom: 3),
+                                    child: _buildTextMessage(content, messageStatus),
+                                  ),
                             ],
                           ),
                           if (isVideo ||
@@ -539,48 +539,32 @@ class _MessageBubbleState extends State<MessageBubble> {
                               top: 0,
                               left: 0,
                               right: 0,
-                              child: RepliedMessagePreview(
-                                key: ValueKey(
-                                    '${widget.message['message_id']}_${widget.message['replyContent']}'),
-                                replied: widget.message['resolvedReply'] ??
-                                    widget.message['reply'] ??
-                                    _buildSyntheticReply(widget.message),
-                                receiver: widget.message['sender'] is Map
-                                    ? Map<String, dynamic>.from(
-                                        widget.message['sender'])
-                                    : {},
-                                isSender: widget.isSentByMe,
-                                onTap: () {
-                                  if (widget.isSelectionMode) {
-                                    widget.onLongPress?.call();
-                                  } else {
-                                    widget.onReplyTap?.call();
-                                  }
-                                },
-                                groupMediaLength: widget.groupMediaLength,
+                              child: Padding(
+                                padding: const EdgeInsets.only(top: 3.0,bottom: 3),
+                                child: RepliedMessagePreview(
+                                  key: ValueKey(
+                                      '${widget.message['message_id']}_${widget.message['replyContent']}'),
+                                  replied: widget.message['resolvedReply'] ??
+                                      widget.message['reply'] ??
+                                      _buildSyntheticReply(widget.message),
+                                  receiver: widget.message['sender'] is Map
+                                      ? Map<String, dynamic>.from(
+                                          widget.message['sender'])
+                                      : {},
+                                  isSender: widget.isSentByMe,
+                                  onTap: () {
+                                    if (widget.isSelectionMode) {
+                                      widget.onLongPress?.call();
+                                    } else {
+                                      widget.onReplyTap?.call();
+                                    }
+                                  },
+                                  groupMediaLength: widget.groupMediaLength,
+                                ),
                               ),
                             )
                           else if (hasReply)
-                            RepliedMessagePreview(
-                              key: ValueKey(
-                                  '${widget.message['message_id']}_${widget.message['replyContent']}'),
-                              replied: widget.message['resolvedReply'] ??
-                                  widget.message['reply'] ??
-                                  _buildSyntheticReply(widget.message),
-                              receiver: widget.message['sender'] is Map
-                                  ? Map<String, dynamic>.from(
-                                      widget.message['sender'])
-                                  : {},
-                              isSender: widget.isSentByMe,
-                              onTap: () {
-                                if (widget.isSelectionMode) {
-                                  widget.onLongPress?.call();
-                                } else {
-                                  widget.onReplyTap?.call();
-                                }
-                              },
-                              groupMediaLength: widget.groupMediaLength,
-                            ),
+                          SizedBox()
                         ],
                       ),
                     ),
