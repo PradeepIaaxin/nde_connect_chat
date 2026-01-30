@@ -1508,7 +1508,7 @@ class SocketService {
       "roomId": roomId,
       "workspaceId": workspaceId,
       "isGroupChat": isGroupChat,
-      "groupId": isGroupChat ? receiverId : "",
+      "groupId": isGroupChat ? receiverId : null,
       "userName": userName,
       "ContentType": contentType ?? "file",
       "mimeType": mimeType,
