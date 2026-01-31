@@ -7,6 +7,7 @@ class GroupRepliedMessagePreview extends StatefulWidget {
   final Map<String, dynamic> receiver;
   final bool isSender;
   final int? groupMediaLength;
+  final bool? hasMixedMedia;
 
   const GroupRepliedMessagePreview({
     super.key,
@@ -15,6 +16,7 @@ class GroupRepliedMessagePreview extends StatefulWidget {
     required this.receiver,
     required this.isSender,
     this.groupMediaLength,
+    this.hasMixedMedia,
   });
 
   @override
@@ -55,27 +57,58 @@ class _GroupRepliedMessagePreviewState
     final bool isGroupedImage = contentType == "image_group";
     final bool isGroupedVideo = contentType == "video_group";
 
+    final String fileName =
+        (widget.replied['fileName'] ?? widget.replied['filename'] ?? '')
+            .toString()
+            .toLowerCase();
+
     final bool isVideo = isGroupedVideo ||
         contentType == 'video' ||
         fileType.startsWith('video/') ||
         ['.mp4', '.mov', '.mkv', '.avi', '.webm']
-            .any((ext) => mediaUrl.toLowerCase().contains(ext));
+            .any((ext) => mediaUrl.toLowerCase().contains(ext)) ||
+        ['.mp4', '.mov', '.mkv', '.avi', '.webm']
+            .any((ext) => fileName.endsWith(ext));
 
     final bool isImage = isGroupedImage ||
         contentType == 'image' ||
         fileType.startsWith('image/') ||
         ['.jpg', '.jpeg', '.png', '.gif', '.webp']
-            .any((ext) => mediaUrl.toLowerCase().contains(ext));
+            .any((ext) => mediaUrl.toLowerCase().contains(ext)) ||
+        ['.jpg', '.jpeg', '.png', '.gif', '.webp']
+            .any((ext) => fileName.endsWith(ext));
 
     final bool isAudio = contentType == 'audio' ||
         fileType.startsWith('audio/') ||
         ['.mp3', '.wav', '.aac', '.m4a']
-            .any((ext) => mediaUrl.toLowerCase().contains(ext));
+            .any((ext) => mediaUrl.toLowerCase().contains(ext)) ||
+        ['.mp3', '.wav', '.aac', '.m4a'].any((ext) => fileName.endsWith(ext));
 
+    // Refined isDocument: explicitly exclude if we detected other types
     final bool isDocument = !isVideo &&
         !isImage &&
         !isAudio &&
-        (contentType == 'file' || contentType == 'document');
+        (contentType == 'file' ||
+            contentType == 'document' ||
+            // Also treat generic empty types as document if they have a non-media filename
+            (contentType.isEmpty &&
+                fileName.isNotEmpty &&
+                ![
+                  '.jpg',
+                  '.jpeg',
+                  '.png',
+                  '.gif',
+                  '.webp',
+                  '.mp4',
+                  '.mov',
+                  '.mkv',
+                  '.avi',
+                  '.webm',
+                  '.mp3',
+                  '.wav',
+                  '.aac',
+                  '.m4a'
+                ].any((ext) => fileName.endsWith(ext))));
 
     if (replyContent.isEmpty &&
         mediaUrl.isEmpty &&
@@ -195,7 +228,16 @@ class _GroupRepliedMessagePreviewState
                           ),
                         ),
                         const SizedBox(height: 2),
-                        if (isVideo)
+                        if (widget.hasMixedMedia == true &&
+                            widget.groupMediaLength != null &&
+                            widget.groupMediaLength! > 1)
+                          Text(
+                            'Media x ${widget.groupMediaLength}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 12),
+                          )
+                        else if (isVideo)
                           Text(
                             widget.groupMediaLength != null &&
                                     widget.groupMediaLength! > 1
@@ -254,7 +296,8 @@ class _GroupRepliedMessagePreviewState
               /// -------- THUMB --------
               if ((isImage || isVideo) &&
                   mediaUrl.isNotEmpty &&
-                  (widget.groupMediaLength ?? 0) <= 1) ...[
+                  (widget.groupMediaLength ?? 0) <= 1 &&
+                  widget.hasMixedMedia != true) ...[
                 const SizedBox(width: 8),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(4),
