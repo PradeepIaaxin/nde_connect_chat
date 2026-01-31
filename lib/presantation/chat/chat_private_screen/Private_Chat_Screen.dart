@@ -517,7 +517,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     // 1) initialMessages (from forwarding)
     if (widget.initialMessages != null && widget.initialMessages!.isNotEmpty) {
-      //  log("messssssssssssssssss ${widget.initialMessages}");
+        log("messssssssssssssssss ${widget.initialMessages}");
       final normalized = widget.initialMessages!
           .map<Map<String, dynamic>>((raw) => normalizeMessage(raw))
           .where((m) => m.isNotEmpty)
@@ -531,16 +531,17 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         if (id.isNotEmpty) _seenMessageIds.add(id);
       }
       _visibleCount = _allMessages.length;
+        log("messssssssssssssssssnormalized ${normalized}");
       _updateNotifierFromAll();
       _scheduleSaveMessages();
     } else if (widget.convoId.isNotEmpty) {
       // 2) cached local messages
 
       final loaded = LocalChatStorage.loadMessages(widget.convoId);
-      // log("messssssssssssssssss ${loaded}");
+       log("messssssssssssssssssloaded ${loaded}");
       final normalized = loaded
           .where((msg) => msg.isNotEmpty)
-          .map((msg) => normalizeMessage(msg))
+          .map((msg) => normalizeMessage(msg,text: "changesss"))
           .toList();
 
       _allMessages
@@ -1052,9 +1053,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   // Update the normalizeMessage function to handle LORRO data structure
-  Map<String, dynamic> normalizeMessage(dynamic rawMsg) {
+  Map<String, dynamic> normalizeMessage(dynamic rawMsg,{String? text}) {
     if (rawMsg == null) return {};
-    // log("rawMsgccccccccccccccccc: $rawMsg");
+     log("rawMsgccccccccccccccccc:${text??""}....> $rawMsg");
     // Handle LORRO specific structure
     if (rawMsg is Map) {
       // Check if it's a LORRO-style message
@@ -1242,8 +1243,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         'fileUrl': replyUrl,
         'fileName': fileName,
         'fileType': contentType,
-        'group_message_id': rawReply['isGroupedMessageId'],
-        'is_grouped_message': rawReply['isGroupedMessage'] ?? false,
+        'group_message_id': rawReply['isGroupedMessageId']??rawReply['is_grouped_message'],
+        'is_grouped_message': rawReply['isGroupedMessage'] ?? rawReply['is_grouped_message']??false,
       };
 
       m['isReplyMessage'] = true;
@@ -1365,8 +1366,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         'content': rawReply['replyContent'] ?? rawReply['content'] ?? '',
         'fileName': rawReply['fileName'],
         'fileType': rawReply['fileType'] ?? rawReply['ContentType'],
-        'group_message_id': rawReply['isGroupedMessageId'],
-        'is_grouped_message': rawReply['isGroupedMessage'] ?? false,
+        'group_message_id': rawReply['group_message_id']??rawReply['isGroupedMessageId']??null,
+        'is_grouped_message':rawReply['is_grouped_message']?? rawReply['isGroupedMessage'] ??false,
         'originalUrl': rawReply['originalUrl'],
         'imageUrl': rawReply['imageUrl'],
         'fileUrl': rawReply['fileUrl'],
@@ -2717,7 +2718,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     //     replyText = 'Photo';
     //   }
     // }
-
+log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
     return {
       'replyContent': replyText,
       'content': replyText,
@@ -4560,12 +4561,13 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                     } else if (state is MessageDeletedSuccessfully) {
                       // Handle optimistic deletion UI update
                       _markMessagesAsDeleted(state.deletedMessageIds);
-                    } else if (state is MessagerLoaded) {
-                      final flat = state.response.data
-                          .expand((g) => g.messages)
-                          .map((e) => normalizeMessage(e.toJson()))
-                          .where((m) => m.isNotEmpty)
-                          .toList();
+                    }
+                    else if (state is MessagerLoaded) {
+                      // final flat = state.response.data
+                      //     .expand((g) => g.messages)
+                      //     .map((e) => normalizeMessage(e.toJson(),text: "state"))
+                      //     .where((m) => m.isNotEmpty)
+                      //     .toList();
 
                       // 🔥 MERGE, DO NOT REPLACE
                       final Map<String, Map<String, dynamic>> merged = {
@@ -4573,10 +4575,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                           if (m['message_id'] != null) m['message_id']: m,
                       };
 
-                      for (final m in flat) {
-                        final id = m['message_id'];
-                        if (id != null) merged[id] = m;
-                      }
+                      // for (final m in flat) {
+                      //   final id = m['message_id'];
+                      //   if (id != null) merged[id] = m;
+                      // }
 
                       _allMessages
                         ..clear()
@@ -4599,7 +4601,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                       // 2) Normalize server data
                       var newDbMessages = allMessages
                           .map<Map<String, dynamic>>(
-                            (datum) => normalizeMessage(datum.toJson()),
+                            (datum) => normalizeMessage(datum.toJson(),text: "newDbMessages"),
                           )
                           .where((m) => m.isNotEmpty)
                           .toList();
@@ -4656,7 +4658,23 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                             } catch (_) {}
                           }
                         }
+                        try {
+                          final prevReply = prev['reply'];
+                          final newReply = m['reply'];
 
+                          final prevGrouped = prevReply?['isGroupedMessage'] == true;
+                          final newGrouped =
+                              newReply?['isGroupedMessage'] == true ||
+                                  newReply?['isGroupedMessageId'] != null;
+
+                          // Server upgraded reply → overwrite local reply
+                          if (!prevGrouped && newGrouped) {
+                            m['reply'] = Map<String, dynamic>.from(newReply);
+                            m['isReplyMessage'] = true;
+                            m['_localHasReply'] = true; // keep consistency
+                            m['_localReply'] = m['reply'];
+                          }
+                        } catch (_) {}
                         // preserve local reactions if server omitted them
                         final prevReactions =
                             _extractReactions(prev['reactions']);
@@ -4836,7 +4854,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                           _prevScrollExtentBeforeLoad = 0.0;
                         });
                       }
-                    } else if (state is MessageAckReceived) {
+                    }
+                    else if (state is MessageAckReceived) {
                       _replaceTempMessageWithReal(
                         tempId: state.tempId,
                         realId: state.realId,
@@ -4857,7 +4876,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                       });
                     } else if (state is NewMessageReceivedState) {
                       if (state.message['isGroupChat'] == true) return;
-                      final normalized = normalizeMessage(state.message);
+                      final normalized = normalizeMessage(state.message,text: "normalized");
                       if (normalized.isEmpty) return;
 
                       _handleIncomingRawMessage(normalized);
