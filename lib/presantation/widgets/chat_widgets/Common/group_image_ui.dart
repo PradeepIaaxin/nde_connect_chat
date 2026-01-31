@@ -136,6 +136,7 @@ class GroupedImagesWidget extends StatelessWidget {
             : CachedNetworkImage(
                 imageUrl: imagePath,
                 fit: BoxFit.cover,
+                
                 placeholder: (context, url) => Container(
                   color: Colors.grey[200],
                   child: const Center(

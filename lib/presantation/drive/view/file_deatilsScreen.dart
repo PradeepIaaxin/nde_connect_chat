@@ -122,6 +122,10 @@ class _FileDetailScreenState extends State<FileDetailScreen> {
                             imageUrl: file.owner.profilePic,
                             width: 48,
                             height: 48,
+                             memCacheWidth:
+                                                                                480,
+                                                                            memCacheHeight:
+                                                                                600,
                             fit: BoxFit.cover,
                             placeholder: (_, __) =>
                                 const CircularProgressIndicator(strokeWidth: 2),

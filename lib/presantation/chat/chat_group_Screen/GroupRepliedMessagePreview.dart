@@ -130,6 +130,8 @@ class _GroupRepliedMessagePreviewState
         return CachedNetworkImage(
           imageUrl: mediaUrl,
           fit: BoxFit.cover,
+          memCacheWidth: 480,
+          memCacheHeight: 600,
           placeholder: (_, __) => Container(color: Colors.grey.shade300),
           errorWidget: (_, __, ___) => Container(color: Colors.grey.shade400),
         );

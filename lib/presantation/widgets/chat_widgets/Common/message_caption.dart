@@ -13,7 +13,7 @@ class MessageCaption extends StatefulWidget {
   final bool isDeleted;
 
   const MessageCaption({
-    Key? key,
+    super.key,
     required this.content,
     required this.time,
     this.isSentByMe = false,
@@ -21,7 +21,7 @@ class MessageCaption extends StatefulWidget {
     this.buildStatusIcon,
     this.searchText,
     this.isDeleted = false,
-  }) : super(key: key);
+  });
 
   @override
   State<MessageCaption> createState() => _MessageCaptionState();

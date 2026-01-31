@@ -226,6 +226,8 @@ class _GroupedMediaViewerState extends State<GroupedMediaViewer> {
                                   imageUrl: mediaUrl,
                                   width: 60,
                                   height: 60,
+                                  memCacheWidth: 480,
+                                  memCacheHeight: 600,
                                   fit: BoxFit.cover,
                                 ),
                               // Play icon for videos
