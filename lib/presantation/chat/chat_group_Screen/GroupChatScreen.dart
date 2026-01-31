@@ -1,4 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
+import 'package:dio/dio.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:path/path.dart' as p;
+
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_sound/public/flutter_sound_player.dart';
@@ -178,7 +183,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   List<InlineSpan> _buildHighlightSpans(String text, TextStyle baseStyle) {
-    if (_searchController.text.isEmpty || 
+    if (_searchController.text.isEmpty ||
         !text.toLowerCase().contains(_searchController.text.toLowerCase())) {
       return [TextSpan(text: text, style: baseStyle)];
     }
@@ -1884,7 +1889,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         }
       }
     }
-log("_replyMessage>>>>>>>>>>>>>> $_replyMessage");
+    log("_replyMessage>>>>>>>>>>>>>> $_replyMessage");
     // 🛠 Construct a clean reply payload (match PrivateChatScreen structure & include snake_case)
     final Map<String, dynamic>? replyPayload = _replyMessage != null
         ? {
@@ -2541,7 +2546,7 @@ log("_replyMessage>>>>>>>>>>>>>> $_replyMessage");
         _updateNotifierFromAll();
       });
     } else if (_visibleCount >= total && _hasNextPage && !_isLoadingMore) {
-     // _triggerServerFetch();
+      // _triggerServerFetch();
     }
   }
   String _formatDateTime(DateTime? dateTime) {
@@ -2733,7 +2738,7 @@ log("_replyMessage>>>>>>>>>>>>>> $_replyMessage");
   }) {
     if (message.isEmpty) return;
 
-log(">>>>>>>>>>>>Message $message");
+    log(">>>>>>>>>>>>Message $message");
     // ✅ ALWAYS reply to the swiped message itself
     final Map<String, dynamic> replySource = Map<String, dynamic>.from(message);
 
@@ -4378,21 +4383,21 @@ log(">>>>>>>>>>>>Message $message");
               final isNetwork = fileUrl.startsWith('http://') ||
                   fileUrl.startsWith('https://');
               final media = buildConversationMedia(
-      _allMessages,
-      currentUserId: currentUserId,
-    );
+                _allMessages,
+                currentUserId: currentUserId,
+              );
               final index = media.indexWhere((m) => m.mediaUrl == fileUrl);
 
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => MixedMediaViewer(
-            items: media,
-            initialIndex: index,
-            conversionalId: widget.conversationId,
-            fullName: widget.groupName,
-            isGroup: true,
-            receiverId: widget.groupId,
+                    builder: (_) => MixedMediaViewer(
+                          items: media,
+                          initialIndex: index,
+                          conversionalId: widget.conversationId,
+                          fullName: widget.groupName,
+                          isGroup: true,
+                          receiverId: widget.groupId,
           )
                 ),
               );
@@ -4684,34 +4689,34 @@ log(">>>>>>>>>>>>Message $message");
                                                       RegExp(r'((https?:\/\/)|(www\.))[^\s]+',
                                                           caseSensitive: false)
                                                           .hasMatch(content))))  Center(
-                                            child: Material(
-                                              color: Colors.transparent,
-                                              child: InkWell(
+                                              child: Material(
+                                                color: Colors.transparent,
+                                                child: InkWell(
                                                 borderRadius: BorderRadius.circular(20),
-                                                onTap: () {
-                                                  MyRouter.pushReplace(
+                                                  onTap: () {
+                                                    MyRouter.pushReplace(
                                                     screen: ForwardMessageScreen(
-                                                      messages: [
+                                                        messages: [
                                                         normalizeMessage(message)
-                                                      ],
+                                                        ],
                                                       currentUserId: currentUserId,
                                                       conversionalid: widget.conversationId,
                                                       username: widget.groupName,
-                                                    ),
-                                                  );
-                                                },
-                                                child: CircleAvatar(
-                                                  maxRadius: 16,
+                                                      ),
+                                                    );
+                                                  },
+                                                  child: CircleAvatar(
+                                                    maxRadius: 16,
                                                   backgroundColor: Colors.white,
-                                                  child: Image.asset(
-                                                    "assets/images/forward.png",
-                                                    height: 20,
-                                                    width: 20,
+                                                    child: Image.asset(
+                                                      "assets/images/forward.png",
+                                                      height: 20,
+                                                      width: 20,
+                                                    ),
                                                   ),
                                                 ),
                                               ),
                                             ),
-                                          ),
                                           Flexible(
                                             child: Padding(
                                               padding:
@@ -4723,10 +4728,10 @@ log(">>>>>>>>>>>>Message $message");
                                                   top: 0,
                                                   bottom:
                                                       (message['reactions'] != null &&
-                                                              message['reactions']
-                                                                  .isNotEmpty)
-                                                          ? 20
-                                                          : 0,
+                                                          message['reactions']
+                                                              .isNotEmpty)
+                                                      ? 20
+                                                      : 0,
                                                 ),
                                                 padding: hasReply
                                                     ? EdgeInsets.only(
@@ -4866,9 +4871,9 @@ log(">>>>>>>>>>>>Message $message");
                                                                 groupMediaLength:
                                                                     _calculateGroupMediaLength(
                                                                         _mergeReplyData(message[
-                                                                                'repliedMessage'] ??
-                                                                            message[
-                                                                                'reply'])),
+                                                                            'repliedMessage'] ??
+                                                                        message[
+                                                                            'reply'])),
                                                                 onTap: null,
                                                               ),
                                                             ),
@@ -5025,7 +5030,7 @@ log(">>>>>>>>>>>>Message $message");
                                                                             fileType
                                                                                 .toLowerCase()
                                                                                 .startsWith(
-                                                                                    "image")) ||
+                                                                                "image")) ||
                                                                         (fileName !=
                                                                                 null &&
                                                                             RegExp(r'\.(jpg|jpeg|png|gif|webp|bmp)$',
@@ -5162,8 +5167,8 @@ log(">>>>>>>>>>>>Message $message");
                                                                       buildStatusIcon:
                                                                           (status) =>
                                                                               _buildStatusIcon(
-                                                                                  status,
-                                                                                  message),
+                                                                          status,
+                                                                          message),
                                                                       searchText:
                                                                           _searchController
                                                                               .text,
@@ -5174,7 +5179,7 @@ log(">>>>>>>>>>>>Message $message");
                                                                     Padding(
                                                                       padding:
                                                                           const EdgeInsets
-                                                                              .only(
+                                                                          .only(
                                                                               top: 0),
                                                                       child: Column(
                                                                         crossAxisAlignment: hasReply
@@ -5339,7 +5344,7 @@ log(">>>>>>>>>>>>Message $message");
                                                                                   );
                                                                                 },
                                                                               ),
-
+                                                                              
                                                                             ],
                                                                           ),
                                                                         ],
@@ -5449,37 +5454,37 @@ log(">>>>>>>>>>>>Message $message");
                                                       RegExp(r'((https?:\/\/)|(www\.))[^\s]+',
                                                           caseSensitive: false)
                                                           .hasMatch(content))))Center(
-                                            child: Material(
-                                              color: Colors.transparent,
-                                              child: Padding(
+                                              child: Material(
+                                                color: Colors.transparent,
+                                                child: Padding(
                                                 padding: const EdgeInsets.only(left: 15.0),
-                                                child: InkWell(
+                                                  child: InkWell(
                                                   borderRadius: BorderRadius.circular(20),
-                                                  onTap: () {
-                                                    MyRouter.pushReplace(
+                                                    onTap: () {
+                                                      MyRouter.pushReplace(
                                                       screen: ForwardMessageScreen(
-                                                        messages: [
+                                                          messages: [
                                                           normalizeMessage(message)
-                                                        ],
+                                                          ],
                                                         currentUserId: currentUserId,
                                                         conversionalid: widget.conversationId,
                                                         username: widget.groupName,
-                                                      ),
-                                                    );
-                                                  },
-                                                  child: CircleAvatar(
-                                                    maxRadius: 16,
+                                                        ),
+                                                      );
+                                                    },
+                                                    child: CircleAvatar(
+                                                      maxRadius: 16,
                                                     backgroundColor: Colors.white,
-                                                    child: Image.asset(
-                                                      "assets/images/forward.png",
-                                                      height: 20,
-                                                      width: 20,
+                                                      child: Image.asset(
+                                                        "assets/images/forward.png",
+                                                        height: 20,
+                                                        width: 20,
+                                                      ),
                                                     ),
                                                   ),
                                                 ),
                                               ),
                                             ),
-                                          ),
                                         ],
                                       ),
                                     ]),
@@ -5550,18 +5555,127 @@ log(">>>>>>>>>>>>Message $message");
   }
 
   void _openFile(String urlOrPath, String? fileType) async {
-    if (urlOrPath.startsWith('http://') || urlOrPath.startsWith('https://')) {
-      try {
-        await launchUrl(Uri.parse(urlOrPath),
-            mode: LaunchMode.externalApplication);
-      } catch (e) {
-        Messenger.alertError("Could not open file from URL.");
-      }
-    } else {
+    // 1. If it's a local file, just open it
+    if (!urlOrPath.startsWith('http')) {
       final result = await OpenFile.open(urlOrPath);
       if (result.type != ResultType.done) {
         Messenger.alertError("Could not open local file.");
       }
+      return;
+    }
+
+    // 2. It's a URL - Check if we already have it downloaded
+    try {
+      final String packageName = "com.nowdigitaleasy.NDEconnect";
+      final String baseDir =
+          "/storage/emulated/0/Android/media/$packageName/NowDigitalEasy/Media";
+
+      final Directory directory = Directory(baseDir);
+      if (!await directory.exists()) {
+        await directory.create(recursive: true);
+      }
+
+      // Extract filename
+      final String fileName = urlOrPath.split('/').last.split('?').first;
+      String safeFileName = fileName.isEmpty
+          ? 'document_${DateTime.now().millisecondsSinceEpoch}'
+          : fileName;
+
+      // Check for extension
+      String extension = p.extension(safeFileName);
+      if (extension.isEmpty) {
+        if (fileType != null) {
+          final lowerType = fileType.toLowerCase();
+          if (lowerType.contains('pdf'))
+            extension = '.pdf';
+          else if (lowerType.contains('word') ||
+              lowerType.contains('doc') ||
+              lowerType.contains('msword'))
+            extension = '.docx';
+          else if (lowerType.contains('excel') ||
+              lowerType.contains('sheet') ||
+              lowerType.contains('spreadsheet'))
+            extension = '.xlsx';
+          else if (lowerType.contains('presentation') ||
+              lowerType.contains('powerpoint'))
+            extension = '.pptx';
+          else if (lowerType.contains('image'))
+            extension = '.jpg';
+          else if (lowerType.contains('video'))
+            extension = '.mp4';
+          else if (lowerType.contains('text') || lowerType.contains('plain'))
+            extension = '.txt';
+          else if (lowerType.contains('csv'))
+            extension = '.csv';
+          else if (lowerType.contains('zip'))
+            extension = '.zip';
+          else if (lowerType.contains('rar'))
+            extension = '.rar';
+          else if (lowerType.contains('json'))
+            extension = '.json';
+          else if (lowerType.contains('xml')) extension = '.xml';
+        }
+
+        // Fallback checks on filename/url matching common patterns if no type or type didn't match
+        if (extension.isEmpty) {
+          final lowerName = safeFileName.toLowerCase();
+          if (lowerName.contains('pdf'))
+            extension = '.pdf';
+          else if (lowerName.contains('doc'))
+            extension = '.docx';
+          else if (lowerName.contains('xls'))
+            extension = '.xlsx';
+          else if (lowerName.contains('ppt')) extension = '.pptx';
+        }
+
+        if (extension.isNotEmpty) {
+          safeFileName += extension;
+        }
+      }
+
+      final String finalPath = p.join(baseDir, safeFileName);
+      final File targetFile = File(finalPath);
+
+      if (await targetFile.exists()) {
+        // Open existing
+        final result = await OpenFile.open(finalPath);
+        if (result.type != ResultType.done) {
+          Messenger.alertError("Could not open file.");
+        }
+        return;
+      }
+
+      // 3. Not downloaded - Request Permission
+      if (Platform.isAndroid) {
+        final status = await Permission.storage.request();
+        final status2 = await Permission.manageExternalStorage.request();
+        // Note: checking both might be needed depending on Android version
+        // Ideally checking 'storage' is enough for older, 'manage' for newer if targeting full access
+        // But for scoped storage in app-specific public dir, sometimes we just need to ensure dir exists.
+        // Keeping logic similar to MixedMediaViewer which requested these.
+        if (!status.isGranted && !status2.isGranted) {
+          // Continue anyway? MixedMediaViewer returns.
+          // But valid public app folder might be writeable without broad permissions on some versions.
+          // We will try to proceed but warn if allowed.
+          // Actually, complying with MixedMediaViewer logic:
+          // Messenger.alertError('Storage permission denied');
+          // return;
+        }
+      }
+
+      // 4. Download
+      Messenger.alertSuccess('Downloading document...');
+      await Dio().download(urlOrPath, finalPath);
+      Messenger.alertSuccess('Saved to NowDigitalEasy/Media');
+
+      // 5. Open
+      final result = await OpenFile.open(finalPath);
+      if (result.type != ResultType.done) {
+        Messenger.alertError("Could not open downloaded file.");
+      }
+    } catch (e) {
+      print("Error downloading/opening file: $e");
+      Messenger.alertError("Failed to open file.");
     }
   }
 
