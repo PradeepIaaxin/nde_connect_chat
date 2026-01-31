@@ -448,11 +448,26 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   )
   {
     // log("messssssssssssssss $messagesMap");
-    if (convoId != widget.convoId) return;
+
+    // For new conversations, widget.convoId is empty but _currentConversationId gets updated
+    final bool isNewChat =
+        widget.convoId.isEmpty && _currentConversationId.isEmpty;
+    if (!isNewChat &&
+        convoId != widget.convoId &&
+        convoId != _currentConversationId) {
+      return;
+    }
+
+    // Update _currentConversationId if this is a new conversation
+    if (_currentConversationId.isEmpty && convoId.isNotEmpty) {
+      _currentConversationId = convoId;
+      debugPrint('📝 Updated _currentConversationId to: $convoId');
+    }
 
     final handler = MessageHandler(
       currentUserId: currentUserId,
-      convoId: widget.convoId,
+      convoId:
+          widget.convoId.isNotEmpty ? widget.convoId : _currentConversationId,
     );
 
     /// 1️⃣ Normalize CRDT messages
@@ -628,22 +643,26 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     required String emoji,
     required String messageId,
   }) {
+    final convoId =
+        widget.convoId.isNotEmpty ? widget.convoId : _currentConversationId;
     print('Sending reaction: $emoji to messageId: $messageId');
-    print('Current convoId: ${widget.convoId}');
+    print('Current convoId: $convoId');
     SocketService().emitReaction(
         emoji: emoji,
         roomId: roomId,
-        conversationId: widget.convoId,
+        conversationId: convoId,
         messageId: messageId,
         receiverId: widget.receiverId!,
         userId: currentUser!);
   }
 
   Future<void> _saveDraft(String draft) async {
-    if (widget.convoId.isEmpty) return;
-    await LocalChatStorage.saveDraftMessage(widget.convoId, draft);
+    final convoId =
+        widget.convoId.isNotEmpty ? widget.convoId : _currentConversationId;
+    if (convoId.isEmpty) return;
+    await LocalChatStorage.saveDraftMessage(convoId, draft);
     ChatSessionStorage.updateDraftMessage(
-      convoId: widget.convoId,
+      convoId: convoId,
       draftMessage: draft.isEmpty ? null : draft,
     );
     // Trigger UI refresh in chat list
@@ -651,10 +670,12 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   Future<void> _clearDraft() async {
-    if (widget.convoId.isEmpty) return;
-    await LocalChatStorage.clearDraftMessage(widget.convoId);
+    final convoId =
+        widget.convoId.isNotEmpty ? widget.convoId : _currentConversationId;
+    if (convoId.isEmpty) return;
+    await LocalChatStorage.clearDraftMessage(convoId);
     ChatSessionStorage.updateDraftMessage(
-      convoId: widget.convoId,
+      convoId: convoId,
       draftMessage: null,
     );
     // Trigger UI refresh in chat list
@@ -1419,11 +1440,14 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   void _scheduleSaveMessages() {
     _saveDebounceTimer?.cancel();
     _saveDebounceTimer = Timer(_saveDebounceDuration, () {
-      if (widget.convoId.isEmpty) return;
+      // Use _currentConversationId for new chats where widget.convoId is empty
+      final convoId =
+          widget.convoId.isNotEmpty ? widget.convoId : _currentConversationId;
+      if (convoId.isEmpty) return;
 
       // ✅ SAVE SINGLE SOURCE OF TRUTH
       LocalChatStorage.saveMessages(
-        widget.convoId,
+        convoId,
         List<Map<String, dynamic>>.from(_allMessages),
       );
     });
