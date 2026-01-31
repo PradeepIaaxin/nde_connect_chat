@@ -186,7 +186,7 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
     };
 
     // 3. Emit the local message for instant UI display
-    log("localMessage>>>>>>>>>>>>>> $localMessage");
+
     emit(LocalAudioMessageAdded(localMessage));
 
     emit(UploadInProgress(0));
@@ -205,7 +205,7 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
             if (!completer.isCompleted) completer.complete();
             return;
           }
-          log(">>>>>>>>>>>>>>>> ${data["mimetype"]}");
+         
 
           emit(UploadSuccess(data));
 
@@ -218,7 +218,7 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
 
           final roomId =
               socketService.generateRoomId(event.senderId, event.receiverId);
-log(">>>>>>>>>>>>>>>>");
+
 
           // 3. Send via Socket
           socketService.sendMessage(

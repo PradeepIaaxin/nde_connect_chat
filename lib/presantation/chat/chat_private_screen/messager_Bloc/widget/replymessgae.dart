@@ -24,7 +24,6 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
   Widget? trailingThumb;
   @override
   Widget build(BuildContext context) {
-    log("widget.replied['replyContent'  ${widget.replied['replyContent']}");
     const double thumbSize = 70;
     final replyContent =
         (widget.replied['replyContent'] ?? widget.replied['content'] ?? '')
@@ -217,8 +216,6 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
                         ),
                       ],
                     )
-
-
                   else if (isAudio)
                     Row(
                       mainAxisSize: MainAxisSize.min,
@@ -294,7 +291,6 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
                   ),
                 ),
               ),
-
           ],
         ),
       ),

@@ -130,55 +130,7 @@ class GrpMessagerApiService {
         .toList();
   }
 
-  // Future<GroupMessageResponse> fetchMessages({
-  //   required String convoId,
-  //   required int page,
-  //   required int limit,
-  // }) async {
-  //   final token = await UserPreferences.getAccessToken();
-  //   final defaultWorkspace = await UserPreferences.getDefaultWorkspace();
-
-  //   if (token == null || token.isEmpty) {
-  //     throw Exception('Authentication token not found. Please log in again.');
-  //   }
-
-  //   if (defaultWorkspace == null || defaultWorkspace.isEmpty) {
-  //     throw Exception('No default workspace found. Please select a workspace.');
-  //   }
-
-  //   const baseUrl = 'https://api.nowdigitaleasy.com/wschat/v1/messages';
-  //   final queryParams = {
-  //     'convoId': convoId,
-  //     'page': page.toString(),
-  //     'limit': limit.toString(),
-  //   };
-
-  //   final uri = Uri.parse(baseUrl).replace(queryParameters: queryParams);
-
-  //   final response = await http.get(
-  //     uri,
-  //     headers: {
-  //       'Authorization': 'Bearer $token',
-  //       'x-workspace': defaultWorkspace,
-  //       'Content-Type': 'application/json',
-  //     },
-  //   );
-
-  //   if (response.statusCode == 200) {
-  //     final responseData = jsonDecode(response.body) as Map<String, dynamic>;
-  //     log("📦 API RAW RESPONSE KEYS: ${responseData.keys}");
-  //     log("📄 API page=${responseData['page']}");
-  //     log("📊 API total=${responseData['total']}");
-  //     log("📦 API data length=${(responseData['data'] as List).length}");
-
-  //     // log('API Response: ${responseData.toString()}');
-  //     return GroupMessageResponse.fromJson(responseData);
-  //   } else {
-  //     throw Exception(
-  //         'Failed to load messages. Status Code: ${response.statusCode}');
-  //   }
-  // }
-
+ 
   Future<Map<String, dynamic>> fetchGroupDetails(String groupId) async {
     final token = await UserPreferences.getAccessToken();
     final defaultWorkspace = await UserPreferences.getDefaultWorkspace();
