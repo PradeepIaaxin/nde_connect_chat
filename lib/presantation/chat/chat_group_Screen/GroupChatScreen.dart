@@ -19,7 +19,7 @@ import 'package:nde_email/presantation/chat/widget/voicerec_ui.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/grouped_media_widget.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/message_caption.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/AudioMessageWidget.dart';
-import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/grp_showbottom_sheet.dart';
+
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/show_Bottom_Sheet.dart';
 import 'package:nde_email/utils/reusbale/colour_utlis.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
@@ -29,7 +29,7 @@ import '../../../utils/simmer_effect.dart/chat_simmerefect.dart';
 import '../../widgets/chat_widgets/messager_Wifgets/ForwardMessageScreen_widget.dart';
 import '../../widgets/chat_widgets/messager_Wifgets/buildMessageInputField_widgets.dart';
 import '../Socket/socket_service.dart';
-import '../chat_private_screen/messager_Bloc/widget/VideoPlayerScreen.dart';
+
 import '../chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
 import '../chat_private_screen/messager_Bloc/widget/double_tick_ui.dart';
 import 'package:nde_email/presantation/chat/widget/image_viewer.dart';
@@ -152,15 +152,33 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   final Map<String, String> _pendingStatusUpdates =
       {}; // Buffer for race conditions
 
-  // Helper: sanitize strings so Flutter Text rendering doesn't throw
-  // removes lone surrogate code units (U+D800..U+DFFF) that cause "not well-formed UTF-16"
   String sanitizeString(String? s) {
-    if (s == null) return '';
-    return s.replaceAll(RegExp(r'[\uD800-\uDFFF]'), '');
+    if (s == null || s.isEmpty) return '';
+    final List<int> result = [];
+    for (int i = 0; i < s.length; i++) {
+      int unit = s.codeUnitAt(i);
+      if (unit >= 0xD800 && unit <= 0xDBFF) {
+        if (i + 1 < s.length) {
+          int next = s.codeUnitAt(i + 1);
+          if (next >= 0xDC00 && next <= 0xDFFF) {
+            result.add(unit);
+            result.add(next);
+            i++;
+            continue;
+          }
+        }
+        continue;
+      } else if (unit >= 0xDC00 && unit <= 0xDFFF) {
+        continue;
+      } else {
+        result.add(unit);
+      }
+    }
+    return String.fromCharCodes(result);
   }
 
   List<InlineSpan> _buildHighlightSpans(String text, TextStyle baseStyle) {
-    if (_searchController.text.isEmpty ||
+    if (_searchController.text.isEmpty || 
         !text.toLowerCase().contains(_searchController.text.toLowerCase())) {
       return [TextSpan(text: text, style: baseStyle)];
     }
@@ -247,7 +265,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final Set<String> groupMatchIds = {};
 
     for (final msg in combined) {
-      final content = sanitizeString(msg['content']?.toString()).toLowerCase();
+      final content = (msg['content']?.toString() ?? '').toLowerCase();
       final fileName = (msg['fileName']?.toString() ?? '').toLowerCase();
       final isDeleted = msg['is_deleted'] == true ||
           msg['messageStatus'] == 'deleted' ||
@@ -4515,8 +4533,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final String content = sanitizeString(message['content']?.toString() ?? '');
     final String? imageUrl = message['imageUrl'] ?? _imageFile;
     final String? fileUrl = message['fileUrl'] ?? _fileUrl;
-    final String? fileName =
-        sanitizeString(message['fileName']?.toString() ?? '');
+    final String? fileName = message['fileName']?.toString() ?? '';
     final String? fileType = message['fileType'];
     final bool? isForwarded = message['isForwarded'] ?? false;
 
@@ -6115,7 +6132,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           : (_searchMatchIds.length - 1 - _currentSearchMatchIndex),
       hasLeftGroup: _hasLeftGroup,
       onExitGroup: () {
-        if (widget.groupId != null || widget.datumId != null) {
+        if (widget.groupId != null || widget.datumId.isNotEmpty) {
           context
               .read<MediaBloc>()
               .add(ExitGroup(grpId: widget.groupId ?? widget.datumId));
@@ -6893,8 +6910,28 @@ class MentionTextEditingController extends TextEditingController {
   }
 
   String sanitizeString(String? s) {
-    if (s == null) return '';
-    return s.replaceAll(RegExp(r'[\uD800-\uDFFF]'), '');
+    if (s == null || s.isEmpty) return '';
+    final List<int> result = [];
+    for (int i = 0; i < s.length; i++) {
+      int unit = s.codeUnitAt(i);
+      if (unit >= 0xD800 && unit <= 0xDBFF) {
+        if (i + 1 < s.length) {
+          int next = s.codeUnitAt(i + 1);
+          if (next >= 0xDC00 && next <= 0xDFFF) {
+            result.add(unit);
+            result.add(next);
+            i++;
+            continue;
+          }
+        }
+        continue;
+      } else if (unit >= 0xDC00 && unit <= 0xDFFF) {
+        continue;
+      } else {
+        result.add(unit);
+      }
+    }
+    return String.fromCharCodes(result);
   }
 
   @override
