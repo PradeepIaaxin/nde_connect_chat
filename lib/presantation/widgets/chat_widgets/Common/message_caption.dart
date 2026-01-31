@@ -1,9 +1,5 @@
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_linkify/flutter_linkify.dart';
 import 'package:linkify/linkify.dart';
-import 'package:any_link_preview/any_link_preview.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
 
 class MessageCaption extends StatefulWidget {
