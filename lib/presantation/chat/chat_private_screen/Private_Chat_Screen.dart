@@ -1,7 +1,7 @@
-import 'dart:convert';
 import 'dart:math' as math;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/message_handler.dart';
+import 'dart:convert';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/MediaPreviewScreen.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/audio_reuable.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/commonfuntion.dart';
@@ -250,83 +250,181 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     super.dispose();
   }
 
+  // void _onSearchChanged(String query) {
+  //   if (query.isEmpty) {
+  //     setState(() {
+  //       _searchMatchIds = [];
+  //       _currentSearchMatchIndex = -1;
+  //     });
+  //     return;
+  //   }
+  //
+  //   final queryLower = query.toLowerCase();
+  //   final List<Map<String, dynamic>> combined = _getCombinedMessages();
+  //   final List<String> matchIds = [];
+  //   final Set<String> groupMatchIds = {};
+  //
+  //   for (final msg in combined) {
+  //     final content = (msg['content']?.toString() ?? '').toLowerCase();
+  //     final fileName = (msg['fileName']?.toString() ?? '').toLowerCase();
+  //     final isDeleted = msg['is_deleted'] == true ||
+  //         msg['messageStatus'] == 'deleted' ||
+  //         content.contains('this message was deleted');
+  //
+  //     final isSystem = msg['ContentType'] == 'system' ||
+  //         msg['contentType'] == 'system' ||
+  //         content.contains('added') ||
+  //         content.contains('left') ||
+  //         content.contains('created by');
+  //
+  //     if (!isDeleted &&
+  //         !isSystem &&
+  //         (content.contains(queryLower) || fileName.contains(queryLower))) {
+  //       final messageId = _anyId(msg)?.toString() ?? '';
+  //       if (messageId.isEmpty) continue;
+  //
+  //       final groupMsgId = msg['group_message_id']?.toString();
+  //       if (groupMsgId != null && groupMsgId.isNotEmpty) {
+  //         if (!groupMatchIds.contains(groupMsgId)) {
+  //           groupMatchIds.add(groupMsgId);
+  //           matchIds.add(messageId);
+  //         }
+  //       } else {
+  //         matchIds.add(messageId);
+  //       }
+  //     }
+  //   }
+  //
+  //   setState(() {
+  //     _searchMatchIds = matchIds;
+  //     if (matchIds.isNotEmpty) {
+  //       _currentSearchMatchIndex = matchIds.length - 1;
+  //       _scrollToMessageById(matchIds[_currentSearchMatchIndex],
+  //           fetchIfMissing: false);
+  //     } else {
+  //       _currentSearchMatchIndex = -1;
+  //       Messenger.alert(msg: "No results found");
+  //     }
+  //   });
+  // }
+  // void _onSearchChanged(String query) {
+  //   if (query.trim().isEmpty) {
+  //     setState(() {
+  //       _searchMatchIds.clear();
+  //       _currentSearchMatchIndex = 0;
+  //       _highlightedMessageId = null;
+  //     });
+  //     return;
+  //   }
+  //
+  //   final lowerQuery = query.toLowerCase();
+  //
+  //   final matches = _allMessages.where((m) {
+  //     final content = (m['content'] ?? '').toString().toLowerCase();
+  //     return content.contains(lowerQuery);
+  //   }).map((m) {
+  //     return (m['message_id'] ??
+  //         m['messageId'] ??
+  //         m['id'])
+  //         ?.toString();
+  //   }).whereType<String>().toList();
+  //
+  //   setState(() {
+  //     _searchMatchIds = matches;
+  //     _currentSearchMatchIndex = 0;
+  //     _highlightedMessageId =
+  //     _searchMatchIds.isNotEmpty ? _searchMatchIds.first : null;
+  //   });
+  //
+  //   if (_highlightedMessageId != null) {
+  //     _scrollToMessageById(_highlightedMessageId!, fetchIfMissing: false);
+  //   }
+  // }
   void _onSearchChanged(String query) {
-    if (query.isEmpty) {
+    if (query.trim().isEmpty) {
       setState(() {
-        _searchMatchIds = [];
-        _currentSearchMatchIndex = -1;
+        _searchMatchIds.clear();
+        _currentSearchMatchIndex = 0;
+        _highlightedMessageId = null;
       });
       return;
     }
 
-    final queryLower = query.toLowerCase();
-    final List<Map<String, dynamic>> combined = _getCombinedMessages();
-    final List<String> matchIds = [];
-    final Set<String> groupMatchIds = {};
+    final lowerQuery = query.toLowerCase();
+    final List<String> matches = [];
 
-    for (final msg in combined) {
-      final content = (msg['content']?.toString() ?? '').toLowerCase();
-      final fileName = (msg['fileName']?.toString() ?? '').toLowerCase();
+    for (final msg in _allMessages) {
+      final content = (msg['content'] ?? '').toString().toLowerCase();
+      final fileName = (msg['fileName'] ?? '').toString().toLowerCase();
+
       final isDeleted = msg['is_deleted'] == true ||
           msg['messageStatus'] == 'deleted' ||
           content.contains('this message was deleted');
 
-      final isSystem = msg['ContentType'] == 'system' ||
-          msg['contentType'] == 'system' ||
+      final isSystem = msg['contentType'] == 'system' ||
+          msg['ContentType'] == 'system' ||
           content.contains('added') ||
           content.contains('left') ||
           content.contains('created by');
 
-      if (!isDeleted &&
-          !isSystem &&
-          (content.contains(queryLower) || fileName.contains(queryLower))) {
-        final messageId = _anyId(msg)?.toString() ?? '';
-        if (messageId.isEmpty) continue;
+      if (isDeleted || isSystem) continue;
 
-        final groupMsgId = msg['group_message_id']?.toString();
-        if (groupMsgId != null && groupMsgId.isNotEmpty) {
-          if (!groupMatchIds.contains(groupMsgId)) {
-            groupMatchIds.add(groupMsgId);
-            matchIds.add(messageId);
-          }
-        } else {
-          matchIds.add(messageId);
+      if (content.contains(lowerQuery) || fileName.contains(lowerQuery)) {
+        final id = (msg['message_id'] ??
+            msg['messageId'] ??
+            msg['id'])
+            ?.toString();
+
+        if (id != null && id.isNotEmpty) {
+          matches.add(id);
         }
       }
     }
 
+    // ✅ 🔥 ADD THIS LINE HERE
+    final List<String> orderedMatches = matches.reversed.toList();
+
     setState(() {
-      _searchMatchIds = matchIds;
-      if (matchIds.isNotEmpty) {
-        _currentSearchMatchIndex = matchIds.length - 1;
-        _scrollToMessageById(matchIds[_currentSearchMatchIndex],
-            fetchIfMissing: false);
-      } else {
-        _currentSearchMatchIndex = -1;
-        Messenger.alert(msg: "No results found");
-      }
+      _searchMatchIds = orderedMatches;
+      _currentSearchMatchIndex = 0;
+      _highlightedMessageId =
+      orderedMatches.isNotEmpty ? orderedMatches.first : null;
     });
+
+    if (_highlightedMessageId != null) {
+      _scrollToMessageById(_highlightedMessageId!, fetchIfMissing: false);
+    } else {
+      Messenger.alert(msg: "No results found");
+    }
   }
 
   void _onSearchUp() {
     if (_searchMatchIds.isEmpty) return;
+
     setState(() {
       _currentSearchMatchIndex =
           (_currentSearchMatchIndex - 1 + _searchMatchIds.length) %
               _searchMatchIds.length;
-      _scrollToMessageById(_searchMatchIds[_currentSearchMatchIndex],
-          fetchIfMissing: false);
+
+      _highlightedMessageId =
+      _searchMatchIds[_currentSearchMatchIndex];
     });
+
+    _scrollToMessageById(_highlightedMessageId!, fetchIfMissing: false);
   }
 
   void _onSearchDown() {
     if (_searchMatchIds.isEmpty) return;
+
     setState(() {
       _currentSearchMatchIndex =
           (_currentSearchMatchIndex + 1) % _searchMatchIds.length;
-      _scrollToMessageById(_searchMatchIds[_currentSearchMatchIndex],
-          fetchIfMissing: false);
+
+      _highlightedMessageId =
+      _searchMatchIds[_currentSearchMatchIndex];
     });
+
+    _scrollToMessageById(_highlightedMessageId!, fetchIfMissing: false);
   }
 
   void _hideSearchAppBar() {
@@ -400,119 +498,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     _updateNotifierFromAll();
     _scheduleSaveMessages();
   }
-//   void _applyCrdtMessages(
-//     String convoId,
-//     Map<String, dynamic> messagesMap,
-//   )
-//   {
-//     // 1️⃣ ID CHECK
-//     if (convoId != widget.convoId && convoId != _currentConversationId) {
-//       // If we are NOT in a new chat state, return strict.
-//       // If we ARE in a new chat state, we proceed to inspect.
-//       if (widget.convoId.isNotEmpty || _currentConversationId.isNotEmpty) {
-//         return;
-//       }
-//     }
-//
-//     final handler = MessageHandler(
-//       currentUserId: currentUserId,
-//       convoId: _currentConversationId.isNotEmpty
-//           ? _currentConversationId
-//           : widget.convoId,
-//     );
-//
-//     // 2️⃣ NORMALIZE
-//     final incoming = messagesMap.values
-//         .where((raw) => raw['isGroupChat'] != true)
-//         .map((raw) => handler.normalizeMessage(raw))
-//         .where((m) => m.isNotEmpty)
-//         .toList();
-//
-//     if (incoming.isEmpty) return;
-//
-//     // 🆕 NEW CHAT DETECTION:
-//     // If we don't have a conversation ID yet, let's see if these messages belong to us.
-//     if (_currentConversationId.isEmpty && widget.convoId.isEmpty) {
-//       bool belongsToThisChat = false;
-//       for (final m in incoming) {
-//         final sender = m['sender'];
-//         final receiver = m['receiver'];
-//         final sId = (sender is Map ? sender['_id'] : sender)?.toString();
-//         final rId = (receiver is Map ? receiver['_id'] : receiver)?.toString();
-//
-//         // Check if message is participants (Me & Receiver)
-//         final isMe = sId == currentUserId;
-//         final isOther = sId == widget.receiverId;
-//         final receiverIsMe = rId == currentUserId;
-//         final receiverIsOther = rId == widget.receiverId;
-//
-//         // Valid if: (Sender=Me AND Receiver=Other) OR (Sender=Other AND Receiver=Me)
-//         if ((isMe && receiverIsOther) || (isOther && receiverIsMe)) {
-//           belongsToThisChat = true;
-//           break;
-//         }
-//       }
-//
-//       if (belongsToThisChat) {
-//         debugPrint("🔥 MATCHED NEW CHAT ID: $convoId");
-//         _currentConversationId = convoId;
-//         socketService.setActiveConversation(convoId);
-//       } else {
-//         // Did not match participants, so this is just noise from another chat
-//         return;
-//       }
-//     }
-//
-//     // Double check just in case (should match now if we set it above)
-//     if (convoId != widget.convoId && convoId != _currentConversationId) return;
-//
-//     /// 2️⃣ Merge with EXISTING messages (NO CLEAR)
-//     final Map<String, Map<String, dynamic>> merged = {};
-//
-//     // ✅ keep existing (REST + socket optimistic)
-//     for (final m in _allMessages) {
-//       final id = m['message_id']?.toString();
-//       if (id != null) merged[id] = m;
-//     }
-//
-//     // ✅ CRDT overrides same IDs only
-//     for (final m in incoming) {
-//       final senderId = m['senderId']?.toString();
-//       final id = m['message_id']?.toString();
-//
-//       // 🔥 IGNORE MY OWN MESSAGES (already handled optimistically)
-//       if (senderId == currentUserId) {
-//         continue;
-//       }
-//
-//       if (id != null && id.isNotEmpty) {
-//         merged[id] = m;
-//       }
-//     }
-//
-//     /// 3️⃣ Sort Old → New (web behavior)
-//     final mergedList = merged.values.toList()
-//       ..sort(
-//         (a, b) => handler
-//             .parseTime(a['time'])
-//             .compareTo(handler.parseTime(b['time'])),
-//       );
-//
-//     final oldTotal = _allMessages.length;
-//
-//     _allMessages
-//       ..clear()
-//       ..addAll(mergedList);
-//
-// // 🔥 FIX: if CRDT brought new messages, show them
-//     if (_allMessages.length > oldTotal) {
-//       _visibleCount = _allMessages.length;
-//     }
-//
-//     _updateNotifierFromAll();
-//   }
 
-  // ------------------ Initialization ------------------
   Future<void> _initializeChat() async {
     //  log("Initializing chat for convoId: ${widget.convoId}");
     socketMessages.clear();
