@@ -192,7 +192,7 @@ class _MessageBubbleState extends State<MessageBubble> {
       return const SizedBox.shrink();
     }
     bool _ignoreParentTap = false;
-  
+
     return Padding(
       padding:
           EdgeInsets.symmetric(vertical: widget.emojpicker != null ? 6.0 : 0),
@@ -277,14 +277,14 @@ class _MessageBubbleState extends State<MessageBubble> {
                             : 0,
                       ),
                       padding: const EdgeInsets.only(
-                              top: 3, left: 7, right: 6, bottom: 5),
+                          top: 3, left: 7, right: 6, bottom: 5),
                       constraints: const BoxConstraints(maxWidth: 250),
                       decoration: BoxDecoration(
-                        color:  widget.isSelected
-                                ? widget.selectedMessageColor
-                                : (widget.isSentByMe
-                                    ? widget.sentMessageColor
-                                    : widget.receivedMessageColor),
+                        color: widget.isSelected
+                            ? widget.selectedMessageColor
+                            : (widget.isSentByMe
+                                ? widget.sentMessageColor
+                                : widget.receivedMessageColor),
                         borderRadius: BorderRadius.only(
                           topLeft: widget.isSentByMe
                               ? const Radius.circular(18)
@@ -300,9 +300,8 @@ class _MessageBubbleState extends State<MessageBubble> {
                               : const Radius.circular(16),
                         ),
                         border: widget.isSelected
-                                ? Border.all(
-                                    color: widget.borderColor, width: 2)
-                                : null,
+                            ? Border.all(color: widget.borderColor, width: 2)
+                            : null,
                       ),
                       child: Stack(
                         children: [
@@ -311,7 +310,8 @@ class _MessageBubbleState extends State<MessageBubble> {
                             children: [
                               if (hasReply)
                                 Padding(
-                                  padding: const EdgeInsets.only(top: 3.0,bottom: 3),
+                                  padding: const EdgeInsets.only(
+                                      top: 3.0, bottom: 3),
                                   child: RepliedMessagePreview(
                                     key: ValueKey(
                                         '${widget.message['message_id']}_${widget.message['replyContent']}_placeholder'),
@@ -485,8 +485,10 @@ class _MessageBubbleState extends State<MessageBubble> {
                                   )
                                 else
                                   Padding(
-                                    padding: const EdgeInsets.only(top: 3.0,bottom: 3),
-                                    child: _buildTextMessage(content, messageStatus),
+                                    padding: const EdgeInsets.only(
+                                        top: 3.0, bottom: 3),
+                                    child: _buildTextMessage(
+                                        content, messageStatus),
                                   ),
                             ],
                           ),
@@ -540,7 +542,8 @@ class _MessageBubbleState extends State<MessageBubble> {
                               left: 0,
                               right: 0,
                               child: Padding(
-                                padding: const EdgeInsets.only(top: 3.0,bottom: 3),
+                                padding:
+                                    const EdgeInsets.only(top: 3.0, bottom: 3),
                                 child: RepliedMessagePreview(
                                   key: ValueKey(
                                       '${widget.message['message_id']}_${widget.message['replyContent']}'),
@@ -564,7 +567,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                               ),
                             )
                           else if (hasReply)
-                          SizedBox()
+                            SizedBox()
                         ],
                       ),
                     ),
@@ -756,7 +759,6 @@ class _MessageBubbleState extends State<MessageBubble> {
           currentUserId: widget.currentUserId,
           conversionalId: widget.conversionalId,
           fullName: widget.fullName,
-
         ),
       ),
     );
@@ -957,6 +959,8 @@ class _MessageBubbleState extends State<MessageBubble> {
             imageUrl: imageUrl,
             cacheKey: widget.message['message_id']?.toString(),
             width: 260,
+            memCacheWidth: 480,
+            memCacheHeight: 600,
             height: imageExtensions.contains(extension) ? 300 : 200,
             imageBuilder: (context, imageProvider) {
               return Image(

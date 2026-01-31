@@ -144,7 +144,7 @@ class _HomePageState extends State<HomePage>
                       : () {
                           MyRouter.push(
                             screen: FilePreviewScreen(
-                              fileUrl: file.previewpath??"",
+                              fileUrl: file.previewpath ?? "",
                             ),
                           );
                         },
@@ -687,6 +687,8 @@ class _HomePageState extends State<HomePage>
                                     imageUrl: file.profilePic!,
                                     width: 40,
                                     height: 40,
+                                    // memCacheWidth: 480,
+                                    // memCacheHeight: 600,
                                     fit: BoxFit.cover,
                                     placeholder: (context, url) =>
                                         const CircularProgressIndicator(),

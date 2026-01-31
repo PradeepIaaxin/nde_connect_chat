@@ -745,6 +745,8 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                                       imageUrl: file.profilePic!,
                                       width: 40,
                                       height: 40,
+                                      memCacheWidth: 480,
+                                      memCacheHeight: 600,
                                       fit: BoxFit.cover,
                                       placeholder: (context, url) =>
                                           const CircularProgressIndicator(),

@@ -339,7 +339,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     int oldestIndex = combined.length;
     for (final id in matchIds) {
       final idx =
-      combined.indexWhere((m) => (_anyId(m)?.toString() ?? '') == id);
+          combined.indexWhere((m) => (_anyId(m)?.toString() ?? '') == id);
       if (idx != -1 && idx < oldestIndex) {
         oldestIndex = idx;
       }
@@ -363,7 +363,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       _searchMatchGroupIds = matchIds.reversed.toList();
       _currentSearchMatchIndex = 0;
       _highlightedMessageId =
-      _searchMatchGroupIds.isNotEmpty ? _searchMatchGroupIds.first : null;
+          _searchMatchGroupIds.isNotEmpty ? _searchMatchGroupIds.first : null;
     });
 
     if (_highlightedMessageId != null) {
@@ -373,9 +373,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
   }
 
-
-
-
   void _onSearchUp() {
     if (_searchMatchGroupIds.isEmpty) return;
 
@@ -384,8 +381,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           (_currentSearchMatchIndex - 1 + _searchMatchGroupIds.length) %
               _searchMatchGroupIds.length;
 
-      _highlightedMessageId =
-      _searchMatchGroupIds[_currentSearchMatchIndex];
+      _highlightedMessageId = _searchMatchGroupIds[_currentSearchMatchIndex];
     });
 
     _scrollToMessaageById(_highlightedMessageId!, fetchIfMissing: false);
@@ -398,19 +394,16 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       _currentSearchMatchIndex =
           (_currentSearchMatchIndex + 1) % _searchMatchGroupIds.length;
 
-      _highlightedMessageId =
-      _searchMatchGroupIds[_currentSearchMatchIndex];
+      _highlightedMessageId = _searchMatchGroupIds[_currentSearchMatchIndex];
     });
 
     _scrollToMessaageById(_highlightedMessageId!, fetchIfMissing: false);
   }
 
-
   Future<bool> _scrollToMessaageById(
-      String messageId, {
-        bool fetchIfMissing = false,
-      })
-  async {
+    String messageId, {
+    bool fetchIfMissing = false,
+  }) async {
     final ctx = _messageContexts[messageId];
 
     if (ctx != null && ctx.mounted) {
@@ -421,7 +414,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final combinedMessages = _messagesNotifier.value;
     final int msgIndex = combinedMessages.indexWhere((m) {
       final mid =
-      (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '').toString();
+          (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '').toString();
       return mid == messageId;
     });
 
@@ -429,7 +422,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       final int listIndex = combinedMessages.length - 1 - msgIndex;
 
       final double estimatedOffset =
-      _estimateScrollOffset(listIndex, combinedMessages);
+          _estimateScrollOffset(listIndex, combinedMessages);
 
       if (_scrollController.hasClients) {
         _scrollController.jumpTo(estimatedOffset.clamp(
@@ -516,15 +509,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
 
     if (fetchIfMissing) {
-    //  _triggerServerFetch();
+      //  _triggerServerFetch();
       await Future.delayed(const Duration(milliseconds: 300));
       return _scrollToMessageById(messageId);
     }
 
     return false;
   }
-
-
 
   void _hideSearchAppBar() {
     setState(() {
@@ -536,7 +527,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       _highlightedGroupId = null;
     });
   }
-
 
   dynamic _anyId(Map<String, dynamic> m) {
     final candidates = [
@@ -3294,8 +3284,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   Future<bool> _scrollToMessageById(String messageId,
-      {bool fetchIfMissing = true})
-  async {
+      {bool fetchIfMissing = true}) async {
     if (messageId.isEmpty) return false;
 
     // 1️⃣ If widget exists → scroll directly (BEST CASE)
@@ -3307,8 +3296,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     // 2️⃣ Ensure message is visible
     final combined = _getCombinedMessages();
-    final msgIndex = combined.indexWhere((m) =>
-    (_anyId(m)?.toString() ?? '') == messageId);
+    final msgIndex =
+        combined.indexWhere((m) => (_anyId(m)?.toString() ?? '') == messageId);
 
     if (msgIndex == -1) return false;
 
@@ -3348,7 +3337,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     return false;
   }
-
 
   /// Highlight message and scroll to its context
   void _highlightAndScrollToContext(BuildContext ctx, String messageId) {
@@ -3819,11 +3807,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                       _replyToMessage(message),
                                               child: Builder(builder: (ctx) {
                                                 final String anchorMessageId =
-                                                    _anyId(groupMessagesList.first)?.toString() ?? '';
-                                                if (anchorMessageId.isNotEmpty) {
-                                                  _messageContexts[anchorMessageId] = ctx;
+                                                    _anyId(groupMessagesList
+                                                                .first)
+                                                            ?.toString() ??
+                                                        '';
+                                                if (anchorMessageId
+                                                    .isNotEmpty) {
+                                                  _messageContexts[
+                                                      anchorMessageId] = ctx;
                                                 }
-
 
                                                 return Align(
                                                   alignment: isSentByMe
@@ -4633,7 +4625,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                         child: GestureDetector(
                           onTap: () => _onMessageTap(message),
                           onLongPress: () {
-                            log("messssssssssssssssssssss $message");
+                            // log("messssssssssssssssssssss $message");
                             if (_isSelectionMode) {
                               _toggleMessageSelection(message);
                             } else if (!isDeleted) {
@@ -5488,6 +5480,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                               width: 32,
                                               height: 32,
                                               memCacheWidth: 480,
+                                              memCacheHeight: 600,
                                               fit: BoxFit.cover,
                                               placeholder: (context, url) =>
                                                   _buildAvatarWithInitial(
@@ -6012,7 +6005,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       searchMatchIndex: _searchMatchGroupIds.isEmpty
           ? 0
           : (_searchMatchGroupIds.length - _currentSearchMatchIndex),
-
       hasLeftGroup: _hasLeftGroup,
       onExitGroup: () {
         if (widget.groupId != null || widget.datumId.isNotEmpty) {
