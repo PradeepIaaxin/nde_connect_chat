@@ -445,7 +445,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   void _applyCrdtMessages(
     String convoId,
     Map<String, dynamic> messagesMap,
-  ) {
+  )
+  {
     // log("messssssssssssssss $messagesMap");
     if (convoId != widget.convoId) return;
 
