@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter_sound/public/flutter_sound_player.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/local_strorage.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/GroupRepliedMessagePreview.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/api_servicer.dart';
@@ -9,17 +8,19 @@ import 'package:nde_email/presantation/chat/chat_group_Screen/group_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_event.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_model.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_state.dart';
+import 'package:nde_email/presantation/chat/chat_group_Screen/mention_text_editing_controller.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/MediaPreviewScreen.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/MixedMediaViewer.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/audio_reuable.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/commonfuntion.dart';
 import 'package:nde_email/presantation/chat/widget/custom_appbar.dart';
 import 'package:nde_email/presantation/chat/widget/delete_dialogue.dart';
 import 'package:nde_email/presantation/chat/widget/scaffold.dart';
-import 'package:nde_email/presantation/chat/widget/voicerec_ui.dart';
+import 'package:nde_email/presantation/widgets/chat_widgets/Common/grouped_media_viewer.dart'
+    as viewer;
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/grouped_media_widget.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/message_caption.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/AudioMessageWidget.dart';
-
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/show_Bottom_Sheet.dart';
 import 'package:nde_email/utils/reusbale/colour_utlis.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
@@ -75,14 +76,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   final ValueNotifier<bool> isLongPressed = ValueNotifier<bool>(false);
   late List<String> groupMembers;
-
+  final recorderHelper = AudioRecorderHelper();
   List<Map<String, dynamic>> messages = [];
   List<Map<String, dynamic>> socketMessages = [];
   final SocketService socketService = SocketService();
-  double _prevScrollExtentBeforeLoad = 0.0;
 
   StreamSubscription<String>? _messageDeletedSubscription;
-  final AudioRecorder _audioRecorder = AudioRecorder();
+
   bool _hasLeftGroup = false;
   int _currentPage = 1;
 
@@ -94,7 +94,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   File? _imageFile;
   bool _isLoadingMore = false;
-  bool _isPaused = false;
   bool _isRecording = false;
   bool _isSelectionMode = false;
 
@@ -108,11 +107,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       MentionTextEditingController();
   final TextEditingController _searchController = TextEditingController();
 
-  final FlutterSoundPlayer _player = FlutterSoundPlayer();
-  int _recordDuration = 0;
   Timer? _recordTimer;
-  String? _recordedFilePath;
-  final FlutterSoundRecorder _recorder = FlutterSoundRecorder();
+
   Timer? _recordingTimer;
   Map<String, dynamic>? _replyMessage;
   Map<String, dynamic>? _replyPreview;
@@ -178,25 +174,31 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   List<InlineSpan> _buildHighlightSpans(String text, TextStyle baseStyle) {
-    if (_searchController.text.isEmpty || 
-        !text.toLowerCase().contains(_searchController.text.toLowerCase())) {
-      return [TextSpan(text: text, style: baseStyle)];
+    final safeText = sanitizeString(text);
+
+    if (_searchController.text.isEmpty ||
+        !safeText
+            .toLowerCase()
+            .contains(_searchController.text.toLowerCase())) {
+      return [TextSpan(text: safeText, style: baseStyle)];
     }
 
     final List<InlineSpan> spans = [];
     final String query = _searchController.text.toLowerCase();
     int start = 0;
     int indexOfMatch;
-    while ((indexOfMatch = text.toLowerCase().indexOf(query, start)) != -1) {
+
+    while (
+        (indexOfMatch = safeText.toLowerCase().indexOf(query, start)) != -1) {
       if (indexOfMatch > start) {
         spans.add(TextSpan(
-          text: text.substring(start, indexOfMatch),
+          text: safeText.substring(start, indexOfMatch),
           style: baseStyle,
         ));
       }
 
       spans.add(TextSpan(
-        text: text.substring(indexOfMatch, indexOfMatch + query.length),
+        text: safeText.substring(indexOfMatch, indexOfMatch + query.length),
         style: baseStyle.copyWith(
           backgroundColor: Colors.yellow,
           color: Colors.black,
@@ -207,9 +209,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       start = indexOfMatch + query.length;
     }
 
-    if (start < text.length) {
+    if (start < safeText.length) {
       spans.add(TextSpan(
-        text: text.substring(start),
+        text: safeText.substring(start),
         style: baseStyle,
       ));
     }
@@ -217,8 +219,49 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     return spans;
   }
 
+  // List<InlineSpan> _buildHighlightSpans(String text, TextStyle baseStyle) {
+  //   if (_searchController.text.isEmpty ||
+  //       !text.toLowerCase().contains(_searchController.text.toLowerCase())) {
+  //     return [TextSpan(text: text, style: baseStyle)];
+  //   }
+
+  //   final List<InlineSpan> spans = [];
+  //   final String query = _searchController.text.toLowerCase();
+  //   int start = 0;
+  //   int indexOfMatch;
+  //   while ((indexOfMatch = text.toLowerCase().indexOf(query, start)) != -1) {
+  //     if (indexOfMatch > start) {
+  //       spans.add(TextSpan(
+  //         text: text.substring(start, indexOfMatch),
+  //         style: baseStyle,
+  //       ));
+  //     }
+
+  //     spans.add(TextSpan(
+  //       text: text.substring(indexOfMatch, indexOfMatch + query.length),
+  //       style: baseStyle.copyWith(
+  //         backgroundColor: Colors.yellow,
+  //         color: Colors.black,
+  //         fontWeight: FontWeight.bold,
+  //       ),
+  //     ));
+
+  //     start = indexOfMatch + query.length;
+  //   }
+
+  //   if (start < text.length) {
+  //     spans.add(TextSpan(
+  //       text: text.substring(start),
+  //       style: baseStyle,
+  //     ));
+  //   }
+
+  //   return spans;
+  // }
+
   @override
   void dispose() {
+    _draftDebounce?.cancel();
     SocketService().clearActiveConversation();
     _messageDeletedSubscription?.cancel();
     final unsentText = _messageController.text.trim();
@@ -227,7 +270,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     } else {
       _clearDraft();
     }
-    _recorder.closeRecorder();
 
     _messageController.dispose();
     _focusNode.dispose();
@@ -377,6 +419,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     return memberIds.toList();
   }
 
+  Timer? _draftDebounce;
+
   @override
   void initState() {
     super.initState();
@@ -391,6 +435,16 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     _checkingPersmmion();
     _initMessages();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final painter = TextPainter(
+        text: const TextSpan(
+          text: '😀😁😂🤣😍🥰👍🙏🔥❤️',
+          style: TextStyle(fontSize: 16),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+      painter.layout();
+    });
 
     // Check connectivity
     Connectivity().checkConnectivity().then((results) {
@@ -427,15 +481,28 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     _scrollController.addListener(_scrollListener);
     _setupReactionListener();
     _setupMessageListener();
-    // Add text change listener for draft saving
+
     _messageController.addListener(() {
-      final text = _messageController.text.trim();
-      if (text.isEmpty) {
-        _clearDraft();
-      } else {
-        _saveDraft(text);
-      }
+      _draftDebounce?.cancel();
+      _draftDebounce = Timer(const Duration(milliseconds: 400), () {
+        final text = _messageController.text.trim();
+        if (text.isEmpty) {
+          _clearDraft();
+        } else {
+          _saveDraft(text);
+        }
+      });
     });
+
+    // Add text change listener for draft saving
+    // _messageController.addListener(() {
+    //   final text = _messageController.text.trim();
+    //   if (text.isEmpty) {
+    //     _clearDraft();
+    //   } else {
+    //     _saveDraft(text);
+    //   }
+    // });
 
     // Load draft after initialization
     _loadDraft();
@@ -453,11 +520,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         final serverStatus = state.sentMessage.messageStatus;
 
         if (serverMessageId.isNotEmpty) {
-
           _updateMessageStatus(serverMessageId, serverStatus);
         }
       } else if (state is GrpMessageAckReceived) {
-
         _replaceTempMessageWithReal(
           tempId: state.tempId,
           realId: state.realId,
@@ -465,18 +530,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         );
       } else if (state is GroupDetailsLoaded) {
         _updateGroupMembers(state.groupDetails);
-      } else if (state is GroupChatLoaded) {
-      }
+      } else if (state is GroupChatLoaded) {}
     });
-
-    _initRecorder();
-  }
-
-  Future<void> _initRecorder() async {
-    // Open the audio session for FlutterSoundRecorder
-    await _recorder.openRecorder();
-    // Configure usage for voice recording (optional but good practice)
-    await _recorder.setSubscriptionDuration(const Duration(milliseconds: 10));
   }
 
   String currentUserName = "";
@@ -534,32 +589,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
   }
 
-  Future<void> startRecording() async {
-    try {
-      if (await _audioRecorder.hasPermission()) {
-        final directory = await getApplicationDocumentsDirectory();
-        final path =
-            '${directory.path}/audio_message_${DateTime.now().millisecondsSinceEpoch}.m4a';
-
-        await _audioRecorder.start(
-          const RecordConfig(encoder: AudioEncoder.aacLc),
-          path: path,
-        );
-
-        _startTimer();
-
-        setState(() {
-          _isRecording = true;
-          _recordedFilePath = path;
-        });
-      } else {
-        Messenger.alert(msg: "Microphone permission denied");
-      }
-    } catch (e) {
-      setState(() => _isRecording = false);
-    }
-  }
-
   bool isSameDay(DateTime? date1, DateTime? date2) {
     if (date1 == null || date2 == null) return false;
     return date1.year == date2.year &&
@@ -581,7 +610,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     } else {
       msg = Map<String, dynamic>.from(rawData);
     }
-
 
     // ✅ Filter by conversationId (GROUP SAFETY)
     final String? incomingConvoId =
@@ -650,7 +678,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     /// 6️⃣ Normalize message for UI
     final Map<String, dynamic> newMessage = {
       'message_id': messageId,
-      'content': (msg['content'] ?? '').toString(),
+      // 'content': (msg['content'] ?? '').toString(),
+      'content': sanitizeString((msg['content'] ?? '').toString()),
       'sender': sender,
       'senderId': sender['_id']?.toString(),
       'receiver': msg['receiver'] is Map
@@ -720,8 +749,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
       _updateNotifier();
     });
-
-
   }
 
   void _handleReactionUpdate(dynamic reactionData) {
@@ -737,7 +764,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       }
       if (reaction == null) return;
       _updateMessageWithReaction(reaction);
-    } catch (e, st) {
+    } catch (e) {
+      log(e.toString());
     }
   }
 
@@ -781,7 +809,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           statusUpdate['singleMessageId'] ??
           statusUpdate['messageId'];
 
-
       // normalize to List<String>
       final List<String> idList = [];
       if (ids is List) {
@@ -819,7 +846,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             newMsg['messageStatus'] = status;
             list[i] = newMsg;
             updated = true;
-
           }
           break;
         }
@@ -838,7 +864,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         // ⚠️ Race condition handling: Message might be temporary (pending replacement)
         // Store status to apply later when real ID arrives
         _pendingStatusUpdates[messageId] = status;
-
       }
       _updateNotifier();
       _refreshMessages();
@@ -924,7 +949,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         'groupMessageIds': replyRaw['groupMessageIds'] ?? [],
       };
     } catch (e) {
-
       return null;
     }
   }
@@ -1100,8 +1124,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       });
       final combined = _getCombinedMessages();
       GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
-    } else {
-    }
+    } else {}
   }
 
   // ------------------ Reaction Helpers ------------------
@@ -1233,8 +1256,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           continue;
         }
 
-
-
         // Normalize existing reactions
         final reactions = _extractReactions(msg['reactions']);
 
@@ -1278,14 +1299,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       updateList(socketMessages, "socketMessages");
 
       if (changed) {
-
         // We need to ensure _getCombinedMessages will pick up the changes.
         // Since we modified the source lists in place (with new maps), it should work.
         final combined = _getCombinedMessages();
         GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
-      } else {
-
-      }
+      } else {}
       _updateNotifier();
     });
   }
@@ -1385,8 +1403,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           _selectedMessageKeys.clear();
         });
       }
-    } catch (e, st) {
-    }
+    } catch (e, st) {}
   }
 
   Map<String, dynamic> normalizeMessage(dynamic rawMsg) {
@@ -1595,12 +1612,63 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     return url.startsWith('http://') || url.startsWith('https://');
   }
 
-  void _showFullImage(BuildContext context, String imageUrl) {
+  void _showFullImage(BuildContext context, String imageUrl,
+      {Map<String, dynamic>? message}) {
     final media = buildConversationMedia(
       _allMessages,
       currentUserId: currentUserId,
     );
-    final index = media.indexWhere((m) => m.mediaUrl == imageUrl);
+    int index = media.indexWhere((m) {
+      // Handle local file vs network url mismatch if possible
+      if (m.mediaUrl == imageUrl) return true;
+      if (imageUrl.startsWith('http') &&
+          m.mediaUrl.endsWith(imageUrl.split('/').last))
+        return true; // weak match on filename
+      return false;
+    });
+
+    // Fallback: Match by message ID if available
+    if (index == -1 && message != null) {
+      final msgId =
+          (message['message_id'] ?? message['messageId'] ?? message['id'] ?? '')
+              .toString();
+      if (msgId.isNotEmpty) {
+        index = media.indexWhere((m) {
+          final mId = (m.message?['message_id'] ??
+                  m.message?['messageId'] ??
+                  m.message?['id'] ??
+                  '')
+              .toString();
+          return mId == msgId;
+        });
+      }
+    }
+
+    // Double Fallback: Add the item manually if missing (e.g. optimistic update or filtered out)
+    if (index == -1 && message != null) {
+      try {
+        final senderData = message['sender'] is Map ? message['sender'] : {};
+        final senderName = message['userName'] ??
+            senderData['name'] ??
+            senderData['first_name'] ??
+            'Unknown';
+
+        final newItem = viewer.GroupMediaItem(
+          previewUrl: imageUrl,
+          mediaUrl: imageUrl,
+          isVideo: false,
+          senderName: senderName,
+          senderId: (senderData['_id'] ?? senderData['id'] ?? '').toString(),
+          time: message['time']?.toString(),
+          message: message,
+        );
+        media.add(newItem);
+        index = media.length - 1;
+      } catch (e) {
+        debugPrint("Error creating fallback media item: $e");
+      }
+    }
+
     if (index != -1) {
       Navigator.push(
         context,
@@ -1615,8 +1683,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           ),
         ),
       );
-    } else {
-      ImageViewer.show(context, imageUrl);
     }
   }
 
@@ -1652,23 +1718,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
   }
 
-  // Future<void> _initMessages() async {
-  //   final savedMessages =
-  //       await GrpLocalChatStorage.loadMessages(widget.conversationId);
-
-  //   setState(() {
-  //     dbMessages = savedMessages
-  //         .map<Map<String, dynamic>>((msg) => normalizeMessage(msg))
-  //         .where((m) => m.isNotEmpty)
-  //         .toList();
-
-  //     for (var m in dbMessages) {
-  //       final id = (m['message_id'] ?? m['id'])?.toString();
-  //       if (id != null && id.isNotEmpty) _seenMessageIds.add(id);
-  //     }
-  //   });
-  //   _updateNotifier();
-  // }
   Future<void> _initMessages() async {
     // Clear current messages first
     setState(() {
@@ -1771,28 +1820,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
   }
 
-  // void _fetchMessages2() {
-  //   _groupBloc.add(
-  //     FetchGroupMessages(
-  //       convoId: widget.conversationId,
-  //       page: _currentPage,
-  //       limit: _limit,
-  //     ),
-  //   );
-  // }
-
-  // void _fetchMessages() {
-  //   _groupBloc.add(
-  //     FetchGroupMessages(
-  //       convoId: widget.conversationId,
-  //       page: _currentPage,
-  //       limit: _limit,
-  //     ),
-  //   );
-
-  //   // _checkingPersmmion();
-  // }
-
   void _checkingPersmmion() {
     context.read<GroupChatBloc>().add(
           PermissionCheck(widget.datumId),
@@ -1801,14 +1828,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
 // Add this method to handle permission state changes
   void _handlePermissionResponse(Map<String, dynamic>? response) {
-
     if (response != null && response['type'] == 'left') {
       if (mounted) {
         setState(() {
           _hasLeftGroup = true;
         });
       }
-
 
       // Clear any draft messages
       if (mounted) {
@@ -1832,7 +1857,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           _hasLeftGroup = false;
         });
       }
-
     }
   }
 
@@ -1884,7 +1908,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         }
       }
     }
-log("_replyMessage>>>>>>>>>>>>>> $_replyMessage");
+
     // 🛠 Construct a clean reply payload (match PrivateChatScreen structure & include snake_case)
     final Map<String, dynamic>? replyPayload = _replyMessage != null
         ? {
@@ -2013,20 +2037,6 @@ log("_replyMessage>>>>>>>>>>>>>> $_replyMessage");
       'time': nowIso,
       if (replyPayload != null) 'repliedMessage': replyPayload,
       if (replyPayload != null) 'isReplyMessage': true,
-      // 🔥 Ensure top-level grouped flags are present when replying to grouped media
-      // 🔥 Ensure top-level grouped flags are present when replying to grouped media
-      // if (replyPayload != null &&
-      //     ((replyPayload['is_grouped_message'] == true) ||
-      //         (replyPayload['isGroupedMessage'] == true) ||
-      //         (replyPayload['isGroupedReply'] == true) ||
-      //         (_replyPreview?['is_grouped_message'] == true)))
-      //   'is_grouped_message': true,
-      // if (replyPayload != null &&
-      //     ((replyPayload['group_message_id'] ??
-      //             _replyPreview?['group_message_id']) !=
-      //         null))
-      //   'group_message_id': replyPayload['group_message_id'] ??
-      //       _replyPreview?['group_message_id'],
     };
 
     setState(() {
@@ -2109,7 +2119,6 @@ log("_replyMessage>>>>>>>>>>>>>> $_replyMessage");
   List<String> _knownMemberIds = [];
 
   void _updateGroupMembers(Map<String, dynamic> groupDetails) {
-
     // Try to extract member IDs from various possible keys
     List<dynamic>? memberData;
     if (groupDetails['groupMembers'] is List) {
@@ -2123,16 +2132,12 @@ log("_replyMessage>>>>>>>>>>>>>> $_replyMessage");
     } else if (groupDetails['data'] is Map &&
         groupDetails['data']['members'] is List) {
       memberData = groupDetails['data']['members'];
-
     } else if (groupDetails['group'] is Map &&
         groupDetails['group']['members'] is List) {
       memberData = groupDetails['group']['members'];
-
     }
 
     if (memberData != null && memberData.isNotEmpty) {
-
-
       final List<String> ids = [];
       final List<Map<String, dynamic>> normalizedMembers = [];
 
@@ -2165,13 +2170,10 @@ log("_replyMessage>>>>>>>>>>>>>> $_replyMessage");
           _groupMembersList = normalizedMembers;
           _messageController.setMembers(_groupMembersList);
         });
-
       }
 
       // Always try to supplement/update from messages to get most recent names/pics
       _buildMemberDetailsFromMessages(_knownMemberIds);
-
-
     } else {
       // Try to extract from messages as fallback
       _buildMemberDetailsFromMessages(
@@ -2180,7 +2182,6 @@ log("_replyMessage>>>>>>>>>>>>>> $_replyMessage");
   }
 
   void _buildMemberDetailsFromMessages(List<String>? knownMemberIds) {
-
     // Extract unique member details from all messages
     final Map<String, Map<String, dynamic>> membersMap = {};
 
@@ -2229,8 +2230,6 @@ log("_replyMessage>>>>>>>>>>>>>> $_replyMessage");
       _groupMembersList = membersMap.values.toList();
       _messageController.setMembers(_groupMembersList);
     });
-
-
   }
 
   List<InlineSpan> _buildMessageTextSpans(String content, bool isDeleted) {
@@ -2265,13 +2264,6 @@ log("_replyMessage>>>>>>>>>>>>>> $_replyMessage");
     // 2. Combined regex for URLs and Mentions
     final String urlPattern = r'((https?:\/\/)|(www\.))[^\s]+';
 
-    // If we have a search query, we should also include it in the regex to highlight it
-    // But if we want to support both links/mentions AND search highlights, we need a
-    // structured approach.
-
-    // Simplest is to still use regex but handle overlaps.
-    // For now, let's keep it simple: split by search query first if it's there.
-
     if (hasSearchMatch) {
       // Advanced: We'll split the content into searchable parts vs non-searchable?
       // Actually, the most robust way is a nested loop or a single regex pass.
@@ -2300,9 +2292,6 @@ log("_replyMessage>>>>>>>>>>>>>> $_replyMessage");
       final String matchText = content.substring(match.start, match.end);
 
       if (matchText.startsWith('@')) {
-        // It's a mention - apply bold style AND search highlight if it matches query?
-        // Usually we don't highlight search inside mentions if they have their own color,
-        // but user might want it. Let's apply it.
         addTextWithSearchHighlight(
           matchText,
           const TextStyle(
@@ -2332,6 +2321,7 @@ log("_replyMessage>>>>>>>>>>>>>> $_replyMessage");
                     throw 'Could not launch $uri';
                   }
                 } catch (e) {
+                  log(e.toString());
                 }
               },
           ),
@@ -2352,62 +2342,6 @@ log("_replyMessage>>>>>>>>>>>>>> $_replyMessage");
     return spans;
   }
 
-  void _sendMultipleFiles(List<XFile> files) async {
-    if (files.isEmpty) return;
-
-    final count = files.length;
-    final isGrouped = count >= 4;
-    final String? groupMessageId = isGrouped ? ObjectId().toString() : null;
-    final nowIso = DateTime.now().toIso8601String();
-
-    for (final file in files) {
-      final localFile = File(file.path);
-      final String? mimeType = lookupMimeType(file.path);
-      final bool isImage = mimeType != null && mimeType.startsWith('image/');
-      final messageId = ObjectId().toString();
-
-      final message = {
-        'message_id': messageId,
-        'localImagePath': isImage ? file.path : null,
-        'content': '',
-        'sender': {'_id': currentUserId},
-        'receiver': {'_id': widget.datumId},
-        'messageStatus': 'sent',
-        'time': nowIso,
-        'fileName': file.name,
-        'fileType': mimeType,
-        'imageUrl': isImage ? file.path : null,
-        'fileUrl': !isImage ? file.path : null,
-      };
-
-      // 1. Optimistic Update
-      setState(() {
-        socketMessages.add(message);
-        if (_visibleCount > 0) _visibleCount++;
-        _updateNotifier();
-      });
-      context.read<GroupChatBloc>().add(
-            GrpUploadFileEvent(
-              file: localFile,
-              convoId: widget.conversationId,
-              senderId: currentUserId,
-              receiverId: widget.datumId,
-              groupId: widget.datumId,
-              messageId: messageId,
-              message: "",
-              isGroupMessage: isGrouped,
-              groupMessageId: groupMessageId,
-            ),
-          );
-    }
-
-    _scrollToBottom();
-
-    // Persist optimistic messages
-    final combined = [...dbMessages, ...messages, ...socketMessages];
-    GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
-  }
-
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
       Timer(
@@ -2420,87 +2354,9 @@ log("_replyMessage>>>>>>>>>>>>>> $_replyMessage");
     }
   }
 
-  // void _scrollListener() {
-  //   if (!_scrollController.hasClients) return;
-  //
-  //   if (_scrollController.position.pixels <=
-  //       _scrollController.position.minScrollExtent + 50) {
-  //     final total = _allMessages.length;
-  //
-  //     log('🔍 Scroll at top - total: $total, visible: $_visibleCount, hasNextPage: $_hasNextPage, isLoading: $_isLoadingMore');
-  //     final shouldShowArrow = !_isNearBottom();
-  //
-  //     if (shouldShowArrow != _showScrollToBottomButton) {
-  //       setState(() {
-  //         _showScrollToBottomButton = shouldShowArrow;
-  //       });
-  //     }
-  //     // 1. Client-side pagination: Show more from local cache
-  //     if (_visibleCount < total && !_isLoadingMore) {
-  //       setState(() {
-  //         _isLoadingMore = true;
-  //       });
-  //
-  //       // Increase visible window locally first for snappier UI
-  //       Future.delayed(const Duration(milliseconds: 300), () {
-  //         if (!mounted) return;
-  //
-  //         final newVisibleCount = (_visibleCount + _pageStep).clamp(0, total);
-  //
-  //         setState(() {
-  //           _visibleCount = newVisibleCount;
-  //           _isLoadingMore = false;
-  //         });
-  //
-  //         _updateNotifierFromAll();
-  //         log('📜 Client Pagination: Loaded more messages. Now showing $_visibleCount of $total (local cache)');
-  //
-  //         // ✅ AUTO-FETCH: If we just showed ALL local messages AND there's more on server
-  //         if (_visibleCount >= total && _hasNextPage) {
-  //           log('🔄 Auto-triggering server fetch after client pagination');
-  //           Future.delayed(const Duration(milliseconds: 200), () {
-  //             if (!mounted || _isLoadingMore) return;
-  //
-  //             setState(() => _isLoadingMore = true);
-  //             _currentPage++;
-  //             log('📡 Server Pagination: Fetching page $_currentPage from server... (hasNextPage: $_hasNextPage)');
-  //
-  //             _groupBloc.add(
-  //               FetchGroupMessages(
-  //                 convoId: widget.conversationId,
-  //                 page: _currentPage,
-  //                 limit: _limit,
-  //               ),
-  //             );
-  //           });
-  //         }
-  //       });
-  //     }
-  //     // 2. Server-side pagination: User scrolled with all local messages already shown
-  //     else if (_visibleCount >= total && _hasNextPage && !_isLoadingMore) {
-  //       setState(() {
-  //         _isLoadingMore = true;
-  //       });
-  //
-  //       _currentPage++;
-  //       log('📡 Server Pagination: Fetching page $_currentPage from server... (hasNextPage: $_hasNextPage)');
-  //
-  //       _groupBloc.add(
-  //         FetchGroupMessages(
-  //           convoId: widget.conversationId,
-  //           page: _currentPage,
-  //           limit: _limit,
-  //         ),
-  //       );
-  //     } else {
-  //       log('🛑 Pagination stopped - visibleCount: $_visibleCount, total: $total, hasNextPage: $_hasNextPage, isLoading: $_isLoadingMore');
-  //     }
-  //   }
-  // }
-
   bool _isNearBottom() {
     if (!_scrollController.hasClients) return true;
-    return _scrollController.offset < 80; // 👈 threshold
+    return _scrollController.offset < 80;
   }
 
   void _scrollListener() {
@@ -2526,7 +2382,6 @@ log("_replyMessage>>>>>>>>>>>>>> $_replyMessage");
 
     final total = _allMessages.length;
 
-
     if (_visibleCount < total && !_isLoadingMore) {
       _isLoadingMore = true;
 
@@ -2541,9 +2396,10 @@ log("_replyMessage>>>>>>>>>>>>>> $_replyMessage");
         _updateNotifierFromAll();
       });
     } else if (_visibleCount >= total && _hasNextPage && !_isLoadingMore) {
-     // _triggerServerFetch();
+      // _triggerServerFetch();
     }
   }
+
   String _formatDateTime(DateTime? dateTime) {
     if (dateTime == null) return '';
     final now = DateTime.now();
@@ -2558,7 +2414,6 @@ log("_replyMessage>>>>>>>>>>>>>> $_replyMessage");
 
   void _markMessagesAsDeleted(List<String> messageIds,
       {String deleteFor = 'everyone'}) {
-
     setState(() {
       List<Map<String, dynamic>> updateMessages(
           List<Map<String, dynamic>> list) {
@@ -2733,7 +2588,6 @@ log("_replyMessage>>>>>>>>>>>>>> $_replyMessage");
   }) {
     if (message.isEmpty) return;
 
-log(">>>>>>>>>>>>Message $message");
     // ✅ ALWAYS reply to the swiped message itself
     final Map<String, dynamic> replySource = Map<String, dynamic>.from(message);
 
@@ -2856,7 +2710,6 @@ log(">>>>>>>>>>>>Message $message");
         message['content'] == '🚫 This message was deleted';
 
     if (isDeleted) return;
-
 
     // 🔥 Fallback: If message failed, show resend dialog on tap
     final status = message['messageStatus']?.toString() ?? '';
@@ -3207,7 +3060,6 @@ log(">>>>>>>>>>>>Message $message");
           total >= _initialVisible ? _initialVisible : total; // Show last N
     }
 
-
     _updateNotifierFromAll();
   }
 
@@ -3221,11 +3073,9 @@ log(">>>>>>>>>>>>Message $message");
     // Start index = total - count.
     final startIndex = total - count;
 
-
     final visibleSlice = (count == 0)
         ? <Map<String, dynamic>>[]
         : _allMessages.sublist(startIndex, total);
-
 
     // List passed to ListView (reverse: true).
     // The list itself is [OldestSlice, ..., NewestSlice].
@@ -3650,13 +3500,11 @@ log(">>>>>>>>>>>>Message $message");
           // Calculate total pages for debugging
           final totalPages = (state.response.total / _limit).ceil();
 
-
           setState(() {
             // --- ROBUST MERGE STRATEGY ---
             // Overlays incoming messages on top of existing ones by ID
             // This preserves older history when Page 1 is refreshed
             final Map<String, Map<String, dynamic>> messagesMap = {};
-
 
             // 1. Put existing messages into map
             for (var m in dbMessages) {
@@ -3695,18 +3543,12 @@ log(">>>>>>>>>>>>Message $message");
               _visibleCount = _allMessages.length;
             });
             _updateNotifierFromAll();
-
           }
-
-        } else if (state is GroupDetailsLoaded) {
-
-        }
+        } else if (state is GroupDetailsLoaded) {}
       },
       child: ValueListenableBuilder<List<Map<String, dynamic>>>(
         valueListenable: _messagesNotifier,
         builder: (context, combinedMessages, child) {
-
-
           if (combinedMessages.isNotEmpty) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               _markVisibleMessagesAsRead(combinedMessages);
@@ -3716,11 +3558,10 @@ log(">>>>>>>>>>>>Message $message");
           return BlocBuilder<GroupChatBloc, GroupChatState>(
             bloc: _groupBloc,
             builder: (context, state) {
-
-              final bool showShimmer =
-                  messages.isEmpty &&
+              final bool showShimmer = messages.isEmpty &&
                   socketMessages.isEmpty &&
-                  combinedMessages.isEmpty;// Check combinedMessages instead of _allMessages directly for safety
+                  combinedMessages
+                      .isEmpty; // Check combinedMessages instead of _allMessages directly for safety
               if (showShimmer) {
                 return ListView.builder(
                   itemCount: 10,
@@ -3743,6 +3584,9 @@ log(">>>>>>>>>>>>Message $message");
                     ),
                     Expanded(
                       child: ListView.builder(
+                        addAutomaticKeepAlives: true,
+                        addRepaintBoundaries: true,
+                        cacheExtent: 2000,
                         controller: _scrollController,
                         itemCount: combinedMessages.length,
                         reverse: true,
@@ -3871,11 +3715,13 @@ log(">>>>>>>>>>>>Message $message");
                               final bool isGroupSelected = groupMessagesList
                                   .any((m) => _selectedMessageKeys
                                       .contains(_generateMessageKey(m)));
-                              final screenWidth = MediaQuery.of(context).size.width;
+                              final screenWidth =
+                                  MediaQuery.of(context).size.width;
 
                               // ✅ WhatsApp-like bubble width
-                              final double bubbleWidth =
-                              screenWidth < 600 ? screenWidth * 0.72 : screenWidth * 0.5;
+                              final double bubbleWidth = screenWidth < 600
+                                  ? screenWidth * 0.72
+                                  : screenWidth * 0.5;
                               return _hasLeftGroup
                                   ? const SizedBox.shrink()
                                   : AnimatedContainer(
@@ -4012,7 +3858,8 @@ log(">>>>>>>>>>>>Message $message");
                                                                         : 38),
                                                                 child:
                                                                     Container(
-                                                                      width: bubbleWidth,
+                                                                  width:
+                                                                      bubbleWidth,
                                                                   margin:
                                                                       EdgeInsets
                                                                           .only(
@@ -4020,7 +3867,6 @@ log(">>>>>>>>>>>>Message $message");
                                                                         isSentByMe
                                                                             ? 0
                                                                             : 0,
-
                                                                     right: 0,
                                                                     top: 0,
                                                                     bottom: (message['reactions'] !=
@@ -4236,6 +4082,10 @@ log(">>>>>>>>>>>>Message $message");
                                                                                 32,
                                                                             height:
                                                                                 32,
+                                                                            memCacheWidth:
+                                                                                480,
+                                                                            memCacheHeight:
+                                                                                600,
                                                                             errorWidget: (context, url, error) =>
                                                                                 _buildAvatarWithInitial(userName),
                                                                           )
@@ -4378,23 +4228,22 @@ log(">>>>>>>>>>>>Message $message");
               final isNetwork = fileUrl.startsWith('http://') ||
                   fileUrl.startsWith('https://');
               final media = buildConversationMedia(
-      _allMessages,
-      currentUserId: currentUserId,
-    );
+                _allMessages,
+                currentUserId: currentUserId,
+              );
               final index = media.indexWhere((m) => m.mediaUrl == fileUrl);
 
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => MixedMediaViewer(
-            items: media,
-            initialIndex: index,
-            conversionalId: widget.conversationId,
-            fullName: widget.groupName,
-            isGroup: true,
-            receiverId: widget.groupId,
-          )
-                ),
+                    builder: (_) => MixedMediaViewer(
+                          items: media,
+                          initialIndex: index,
+                          conversionalId: widget.conversationId,
+                          fullName: widget.groupName,
+                          isGroup: true,
+                          receiverId: widget.groupId,
+                        )),
               );
             },
             child: ClipRRect(
@@ -4437,7 +4286,6 @@ log(">>>>>>>>>>>>Message $message");
               ),
             ),
           ),
-
           if ((message['content']?.toString() ?? '').isEmpty)
             Positioned(
               bottom: 6,
@@ -4525,6 +4373,82 @@ log(">>>>>>>>>>>>Message $message");
       }
     }
     return count;
+  }
+
+  /// Check if a grouped message contains both images and videos (mixed media)
+  bool _hasMixedMediaTypes(Map<String, dynamic>? replyData) {
+    if (replyData == null) return false;
+
+    // Try multiple field names for group_message_id (server uses different formats)
+    final String? replyGroupId = replyData['group_message_id']?.toString() ??
+        replyData['isGroupedMessageId']?.toString() ??
+        replyData['groupMessageId']?.toString();
+
+    if (replyGroupId != null && replyGroupId.isNotEmpty) {
+      // Find all messages with the same group_message_id
+      final groupedMessages = _allMessages
+          .where((m) =>
+              (m['group_message_id']?.toString() == replyGroupId ||
+                  m['groupMessageId']?.toString() == replyGroupId ||
+                  m['isGroupedMessageId']?.toString() == replyGroupId) &&
+              m['is_deleted'] != true)
+          .toList();
+
+      if (groupedMessages.length > 1) {
+        bool hasImage = false;
+        bool hasVideo = false;
+
+        for (final msg in groupedMessages) {
+          final contentType = (msg['ContentType'] ?? msg['contentType'] ?? '')
+              .toString()
+              .toLowerCase();
+          final fileType =
+              (msg['mimeType'] ?? msg['fileType'] ?? msg['mimetype'] ?? '')
+                  .toString()
+                  .toLowerCase();
+
+          // Check if it's an image
+          if (contentType == 'image' ||
+              fileType.startsWith('image/') ||
+              contentType == 'image_group') {
+            hasImage = true;
+          }
+
+          // Check if it's a video
+          if (contentType == 'video' ||
+              fileType.startsWith('video/') ||
+              contentType == 'video_group') {
+            hasVideo = true;
+          }
+
+          // Early exit if we found both
+          if (hasImage && hasVideo) {
+            return true;
+          }
+        }
+      }
+    }
+
+    // Fallback: Check imageCount and videoCount (from server response)
+    int imgC = int.tryParse(replyData['imageCount']?.toString() ?? '0') ?? 0;
+    int vidC = int.tryParse(replyData['videoCount']?.toString() ?? '0') ?? 0;
+
+    // Check nested reply object
+    if (imgC == 0 && vidC == 0 && replyData['reply'] is Map) {
+      final nested = replyData['reply'];
+      imgC = int.tryParse(nested['imageCount']?.toString() ?? '0') ?? 0;
+      vidC = int.tryParse(nested['videoCount']?.toString() ?? '0') ?? 0;
+    }
+
+    if (imgC > 0 && vidC > 0) return true;
+
+    // 🔥 FINAL FALLBACK: Check the content string itself for "Media x"
+    // This handles cases where metadata is lost but the label was saved
+    final content = (replyData['replyContent'] ?? replyData['content'] ?? '')
+        .toString()
+        .replaceAll('×', 'x');
+
+    return content.contains('Media x ');
   }
 
   Widget _buildMessageBubble(Map<String, dynamic> message, bool isSentByMe) {
@@ -4672,7 +4596,7 @@ log(">>>>>>>>>>>>Message $message");
                                     clipBehavior: Clip.none,
                                     children: [
                                       Row(
-                                        mainAxisAlignment:isSentByMe
+                                        mainAxisAlignment: isSentByMe
                                             ? MainAxisAlignment.end
                                             : MainAxisAlignment.start,
                                         children: [
@@ -4682,55 +4606,67 @@ log(">>>>>>>>>>>>Message $message");
                                                   hasFile ||
                                                   (content.isNotEmpty &&
                                                       RegExp(r'((https?:\/\/)|(www\.))[^\s]+',
-                                                          caseSensitive: false)
-                                                          .hasMatch(content))))  Center(
-                                            child: Material(
-                                              color: Colors.transparent,
-                                              child: InkWell(
-                                                borderRadius: BorderRadius.circular(20),
-                                                onTap: () {
-                                                  MyRouter.pushReplace(
-                                                    screen: ForwardMessageScreen(
-                                                      messages: [
-                                                        normalizeMessage(message)
-                                                      ],
-                                                      currentUserId: currentUserId,
-                                                      conversionalid: widget.conversationId,
-                                                      username: widget.groupName,
+                                                              caseSensitive:
+                                                                  false)
+                                                          .hasMatch(content))))
+                                            Center(
+                                              child: Material(
+                                                color: Colors.transparent,
+                                                child: InkWell(
+                                                  borderRadius:
+                                                      BorderRadius.circular(20),
+                                                  onTap: () {
+                                                    MyRouter.pushReplace(
+                                                      screen:
+                                                          ForwardMessageScreen(
+                                                        messages: [
+                                                          normalizeMessage(
+                                                              message)
+                                                        ],
+                                                        currentUserId:
+                                                            currentUserId,
+                                                        conversionalid: widget
+                                                            .conversationId,
+                                                        username:
+                                                            widget.groupName,
+                                                      ),
+                                                    );
+                                                  },
+                                                  child: CircleAvatar(
+                                                    maxRadius: 16,
+                                                    backgroundColor:
+                                                        Colors.white,
+                                                    child: Image.asset(
+                                                      "assets/images/forward.png",
+                                                      height: 20,
+                                                      width: 20,
                                                     ),
-                                                  );
-                                                },
-                                                child: CircleAvatar(
-                                                  maxRadius: 16,
-                                                  backgroundColor: Colors.white,
-                                                  child: Image.asset(
-                                                    "assets/images/forward.png",
-                                                    height: 20,
-                                                    width: 20,
                                                   ),
                                                 ),
                                               ),
                                             ),
-                                          ),
                                           Flexible(
                                             child: Padding(
-                                              padding:
-                                                  const EdgeInsets.only(left: 30),
+                                              padding: const EdgeInsets.only(
+                                                  left: 30),
                                               child: Container(
                                                 margin: EdgeInsets.only(
                                                   left: 5,
                                                   right: 5,
                                                   top: 0,
-                                                  bottom:
-                                                      (message['reactions'] != null &&
-                                                              message['reactions']
-                                                                  .isNotEmpty)
-                                                          ? 20
-                                                          : 0,
+                                                  bottom: (message[
+                                                                  'reactions'] !=
+                                                              null &&
+                                                          message['reactions']
+                                                              .isNotEmpty)
+                                                      ? 20
+                                                      : 0,
                                                 ),
                                                 padding: hasReply
                                                     ? EdgeInsets.only(
-                                                        left: 5, bottom: 3, right: 6)
+                                                        left: 5,
+                                                        bottom: 3,
+                                                        right: 6)
                                                     : const EdgeInsets.only(
                                                         top: 8,
                                                         left: 10,
@@ -4738,26 +4674,35 @@ log(">>>>>>>>>>>>Message $message");
                                                         bottom: 8),
                                                 constraints: BoxConstraints(
                                                     maxWidth: 250,
-                                                    minWidth: hasReply ? 120 : 0),
+                                                    minWidth:
+                                                        hasReply ? 120 : 0),
                                                 decoration: BoxDecoration(
                                                   color: isSelected
-                                                      ? senderColor.withOpacity(0.2)
+                                                      ? senderColor
+                                                          .withOpacity(0.2)
                                                       : (isSentByMe
                                                           ? senderColor
                                                           : receiverColor),
-                                                  borderRadius: BorderRadius.only(
+                                                  borderRadius:
+                                                      BorderRadius.only(
                                                     topLeft: isSentByMe
-                                                        ? const Radius.circular(18)
-                                                        : const Radius.circular(18),
+                                                        ? const Radius.circular(
+                                                            18)
+                                                        : const Radius.circular(
+                                                            18),
                                                     topRight: isSentByMe
-                                                        ? const Radius.circular(18)
-                                                        : const Radius.circular(18),
+                                                        ? const Radius.circular(
+                                                            18)
+                                                        : const Radius.circular(
+                                                            18),
                                                     bottomLeft: isSentByMe
-                                                        ? const Radius.circular(18)
+                                                        ? const Radius.circular(
+                                                            18)
                                                         : Radius.zero,
                                                     bottomRight: isSentByMe
                                                         ? Radius.zero
-                                                        : const Radius.circular(16),
+                                                        : const Radius.circular(
+                                                            16),
                                                   ),
                                                   border: isSelected
                                                       ? Border.all(
@@ -4769,7 +4714,8 @@ log(">>>>>>>>>>>>Message $message");
                                                       color: Colors.black
                                                           .withOpacity(0.05),
                                                       blurRadius: 4,
-                                                      offset: const Offset(0, 2),
+                                                      offset:
+                                                          const Offset(0, 2),
                                                     ),
                                                   ],
                                                 ),
@@ -4777,13 +4723,15 @@ log(">>>>>>>>>>>>Message $message");
                                                   children: [
                                                     Column(
                                                         crossAxisAlignment:
-                                                            CrossAxisAlignment.start,
+                                                            CrossAxisAlignment
+                                                                .start,
                                                         children: [
                                                           if (!isSentByMe &&
-                                                              userName.isNotEmpty)
+                                                              userName
+                                                                  .isNotEmpty)
                                                             Padding(
-                                                              padding:
-                                                                  EdgeInsets.only(
+                                                              padding: EdgeInsets
+                                                                  .only(
                                                                       bottom: 4,
                                                                       left: 7,
                                                                       right: 6,
@@ -4792,9 +4740,11 @@ log(">>>>>>>>>>>>Message $message");
                                                                           : 0),
                                                               child: Text(
                                                                 userName,
-                                                                style: TextStyle(
+                                                                style:
+                                                                    TextStyle(
                                                                   fontWeight:
-                                                                      FontWeight.bold,
+                                                                      FontWeight
+                                                                          .bold,
                                                                   color: ColorUtil
                                                                       .getColorFromAlphabet(
                                                                           userName),
@@ -4803,17 +4753,20 @@ log(">>>>>>>>>>>>Message $message");
                                                               ),
                                                             ),
 
-                                                          if (isForwarded == true)
+                                                          if (isForwarded ==
+                                                              true)
                                                             Padding(
                                                               padding:
                                                                   const EdgeInsets
                                                                       .only(
-                                                                      bottom: 4.0,
+                                                                      bottom:
+                                                                          4.0,
                                                                       left: 7,
                                                                       right: 6),
                                                               child: Row(
                                                                 mainAxisSize:
-                                                                    MainAxisSize.min,
+                                                                    MainAxisSize
+                                                                        .min,
                                                                 children: [
                                                                   Image.asset(
                                                                     "assets/images/forward.png",
@@ -4824,10 +4777,13 @@ log(">>>>>>>>>>>>Message $message");
                                                                       width: 4),
                                                                   Text(
                                                                     "Forwarded",
-                                                                    style: TextStyle(
-                                                                      fontSize: 12,
+                                                                    style:
+                                                                        TextStyle(
+                                                                      fontSize:
+                                                                          12,
                                                                       color: Colors
-                                                                          .grey[700],
+                                                                              .grey[
+                                                                          700],
                                                                     ),
                                                                   ),
                                                                 ],
@@ -4842,12 +4798,11 @@ log(">>>>>>>>>>>>Message $message");
                                                                   GroupRepliedMessagePreview(
                                                                 key: ValueKey(
                                                                     '${messageId}_${message['replyContent']}_placeholder'),
-                                                                replied: (message[
-                                                                                'repliedMessage'] ??
-                                                                            message[
-                                                                                'reply'])
+                                                                replied: (message['repliedMessage'] ??
+                                                                            message['reply'])
                                                                         is Map
-                                                                    ? Map<String,
+                                                                    ? Map<
+                                                                        String,
                                                                         dynamic>.from(message[
                                                                             'repliedMessage'] ??
                                                                         message[
@@ -4862,13 +4817,13 @@ log(">>>>>>>>>>>>Message $message");
                                                                         message[
                                                                             'receiver'])
                                                                     : {},
-                                                                isSender: isSentByMe,
+                                                                isSender:
+                                                                    isSentByMe,
                                                                 groupMediaLength:
-                                                                    _calculateGroupMediaLength(
-                                                                        _mergeReplyData(message[
-                                                                                'repliedMessage'] ??
-                                                                            message[
-                                                                                'reply'])),
+                                                                    _calculateGroupMediaLength(_mergeReplyData(message[
+                                                                            'repliedMessage'] ??
+                                                                        message[
+                                                                            'reply'])),
                                                                 onTap: null,
                                                               ),
                                                             ),
@@ -4882,7 +4837,8 @@ log(">>>>>>>>>>>>Message $message");
                                                                     right: 0,
                                                                     bottom: 0,
                                                                     top: 0)
-                                                                : EdgeInsets.zero,
+                                                                : EdgeInsets
+                                                                    .zero,
                                                             child: Column(
                                                               crossAxisAlignment:
                                                                   CrossAxisAlignment
@@ -4904,17 +4860,15 @@ log(">>>>>>>>>>>>Message $message");
                                                                               Clip.none,
                                                                           children: [
                                                                             GestureDetector(
-                                                                              onTap: () => _showFullImage(
-                                                                                  context,
-                                                                                  imageUrl),
-                                                                              child:
-                                                                                  ClipRRect(
-                                                                                borderRadius:
-                                                                                    BorderRadius.circular(12),
+                                                                              onTap: () => _showFullImage(context, imageUrl, message: message),
+                                                                              child: ClipRRect(
+                                                                                borderRadius: BorderRadius.circular(12),
                                                                                 child: imageUrl.startsWith('https') || imageUrl.startsWith('http')
                                                                                     ? CachedNetworkImage(
                                                                                         imageUrl: imageUrl,
                                                                                         width: 240,
+                                                                                        memCacheWidth: 480,
+                                                                                        memCacheHeight: 600,
                                                                                         height: 300,
                                                                                         fit: BoxFit.cover,
                                                                                         placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
@@ -4923,20 +4877,13 @@ log(">>>>>>>>>>>>Message $message");
                                                                                     : Image.file(File(imageUrl), width: 240, height: 240, fit: BoxFit.cover),
                                                                               ),
                                                                             ),
-
-                                                                            if (content
-                                                                                .isEmpty)
+                                                                            if (content.isEmpty)
                                                                               Positioned(
-                                                                                bottom:
-                                                                                    5,
-                                                                                right:
-                                                                                    4,
-                                                                                child:
-                                                                                    Container(
-                                                                                  padding:
-                                                                                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                                                  decoration:
-                                                                                      BoxDecoration(
+                                                                                bottom: 5,
+                                                                                right: 4,
+                                                                                child: Container(
+                                                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                                                  decoration: BoxDecoration(
                                                                                     boxShadow: [
                                                                                       BoxShadow(
                                                                                         color: Colors.black.withOpacity(0.2),
@@ -4947,8 +4894,7 @@ log(">>>>>>>>>>>>Message $message");
                                                                                     color: Colors.black45.withOpacity(0.1),
                                                                                     borderRadius: BorderRadius.circular(8),
                                                                                   ),
-                                                                                  child:
-                                                                                      Row(
+                                                                                  child: Row(
                                                                                     mainAxisSize: MainAxisSize.min,
                                                                                     children: [
                                                                                       Text(
@@ -4979,14 +4925,16 @@ log(">>>>>>>>>>>>Message $message");
                                                                               ),
                                                                           ],
                                                                         ),
-                                                                if (fileUrl != null &&
+                                                                if (fileUrl !=
+                                                                        null &&
                                                                     fileUrl
                                                                         .isNotEmpty &&
                                                                     isVideo)
                                                                   _buildVideoPreviewTile(
                                                                     context,
                                                                     fileUrl,
-                                                                    fileName ?? "",
+                                                                    fileName ??
+                                                                        "",
                                                                     isSentByMe,
                                                                     message,
                                                                   )
@@ -4996,7 +4944,8 @@ log(">>>>>>>>>>>>Message $message");
                                                                         .isNotEmpty &&
                                                                     isAudio)
                                                                   AudioMessageWidget(
-                                                                    audioUrl: fileUrl,
+                                                                    audioUrl:
+                                                                        fileUrl,
                                                                     profileAvatarUrl:
                                                                         profileImageUrl,
                                                                     isSender:
@@ -5006,8 +4955,7 @@ log(">>>>>>>>>>>>Message $message");
                                                                         ?.toString(),
                                                                     timestamp: TimeUtils
                                                                         .formatUtcToIst(
-                                                                            message[
-                                                                                'time']),
+                                                                            message['time']),
                                                                     status:
                                                                         messageStatus,
                                                                     showContainer:
@@ -5022,58 +4970,39 @@ log(">>>>>>>>>>>>Message $message");
                                                                         isImage || // Use pre-calculated isImage
                                                                         (fileType !=
                                                                                 null &&
-                                                                            fileType
-                                                                                .toLowerCase()
-                                                                                .startsWith(
-                                                                                    "image")) ||
+                                                                            fileType.toLowerCase().startsWith(
+                                                                                "image")) ||
                                                                         (fileName !=
                                                                                 null &&
-                                                                            RegExp(r'\.(jpg|jpeg|png|gif|webp|bmp)$',
-                                                                                    caseSensitive:
-                                                                                        false)
-                                                                                .hasMatch(
-                                                                                    fileName))))
+                                                                            RegExp(r'\.(jpg|jpeg|png|gif|webp|bmp)$', caseSensitive: false).hasMatch(fileName))))
                                                                   Stack(
                                                                     clipBehavior:
                                                                         Clip.none,
                                                                     children: [
                                                                       Column(
                                                                         crossAxisAlignment:
-                                                                            CrossAxisAlignment
-                                                                                .end,
+                                                                            CrossAxisAlignment.end,
                                                                         children: [
                                                                           Container(
                                                                             width:
                                                                                 300,
-                                                                            margin: const EdgeInsets
-                                                                                .only(
-                                                                                top:
-                                                                                    8),
+                                                                            margin:
+                                                                                const EdgeInsets.only(top: 8),
                                                                             padding:
-                                                                                const EdgeInsets
-                                                                                    .all(
-                                                                                    8),
+                                                                                const EdgeInsets.all(8),
                                                                             decoration:
                                                                                 BoxDecoration(
-                                                                              color: Colors
-                                                                                  .grey[200],
-                                                                              borderRadius:
-                                                                                  BorderRadius.circular(12),
+                                                                              color: Colors.grey[200],
+                                                                              borderRadius: BorderRadius.circular(12),
                                                                             ),
                                                                             child:
                                                                                 Row(
-                                                                              mainAxisSize:
-                                                                                  MainAxisSize.min,
+                                                                              mainAxisSize: MainAxisSize.min,
                                                                               children: [
-                                                                                Icon(
-                                                                                    _getFileIcon(fileType),
-                                                                                    color: chatColor,
-                                                                                    size: 30),
-                                                                                const SizedBox(
-                                                                                    width: 8),
+                                                                                Icon(_getFileIcon(fileType), color: chatColor, size: 30),
+                                                                                const SizedBox(width: 8),
                                                                                 Expanded(
-                                                                                  child:
-                                                                                      RichText(
+                                                                                  child: RichText(
                                                                                     overflow: TextOverflow.ellipsis,
                                                                                     text: TextSpan(
                                                                                       children: _buildHighlightSpans(
@@ -5087,10 +5016,8 @@ log(">>>>>>>>>>>>Message $message");
                                                                                   ),
                                                                                 ),
                                                                                 IconButton(
-                                                                                  icon:
-                                                                                      const Icon(Icons.download_rounded),
-                                                                                  onPressed: () =>
-                                                                                      _openFile(fileUrl, fileType),
+                                                                                  icon: const Icon(Icons.download_rounded),
+                                                                                  onPressed: () => _openFile(fileUrl, fileType),
                                                                                 ),
                                                                               ],
                                                                             ),
@@ -5099,30 +5026,21 @@ log(">>>>>>>>>>>>Message $message");
                                                                           if (content
                                                                               .isEmpty)
                                                                             Padding(
-                                                                              padding: const EdgeInsets
-                                                                                  .only(
-                                                                                  top:
-                                                                                      0,
-                                                                                  right:
-                                                                                      0),
-                                                                              child:
-                                                                                  Row(
-                                                                                mainAxisSize:
-                                                                                    MainAxisSize.min,
+                                                                              padding: const EdgeInsets.only(top: 0, right: 0),
+                                                                              child: Row(
+                                                                                mainAxisSize: MainAxisSize.min,
                                                                                 children: [
                                                                                   Text(
                                                                                     TimeUtils.formatUtcToIst(message['time']),
                                                                                     style: const TextStyle(fontSize: 10, color: Colors.black54),
                                                                                   ),
                                                                                   const SizedBox(width: 4),
-                                                                                  if (isSentByMe)
-                                                                                    _buildStatusIcon(messageStatus, message),
+                                                                                  if (isSentByMe) _buildStatusIcon(messageStatus, message),
                                                                                 ],
                                                                               ),
                                                                             ),
                                                                         ],
                                                                       ),
-
                                                                     ],
                                                                   )
                                                                 else
@@ -5132,8 +5050,7 @@ log(">>>>>>>>>>>>Message $message");
                                                                     .isNotEmpty)
                                                                   // Use MessageCaption for image/video/document captions to position time/status in the right corner
                                                                   if ((isImage &&
-                                                                          (imageUrl !=
-                                                                                  null &&
+                                                                          (imageUrl != null &&
                                                                               imageUrl
                                                                                   .isNotEmpty)) ||
                                                                       (isVideo &&
@@ -5153,17 +5070,14 @@ log(">>>>>>>>>>>>Message $message");
                                                                           content,
                                                                       time: TimeUtils
                                                                           .formatUtcToIst(
-                                                                              message[
-                                                                                  'time']),
+                                                                              message['time']),
                                                                       isSentByMe:
                                                                           isSentByMe,
                                                                       messageStatus:
                                                                           messageStatus,
-                                                                      buildStatusIcon:
-                                                                          (status) =>
-                                                                              _buildStatusIcon(
-                                                                                  status,
-                                                                                  message),
+                                                                      buildStatusIcon: (status) => _buildStatusIcon(
+                                                                          status,
+                                                                          message),
                                                                       searchText:
                                                                           _searchController
                                                                               .text,
@@ -5172,35 +5086,26 @@ log(">>>>>>>>>>>>Message $message");
                                                                     )
                                                                   else
                                                                     Padding(
-                                                                      padding:
-                                                                          const EdgeInsets
-                                                                              .only(
-                                                                              top: 0),
-                                                                      child: Column(
+                                                                      padding: const EdgeInsets
+                                                                          .only(
+                                                                          top:
+                                                                              0),
+                                                                      child:
+                                                                          Column(
                                                                         crossAxisAlignment: hasReply
-                                                                            ? CrossAxisAlignment
-                                                                                .start
-                                                                            : CrossAxisAlignment
-                                                                                .start,
+                                                                            ? CrossAxisAlignment.start
+                                                                            : CrossAxisAlignment.start,
                                                                         mainAxisSize:
-                                                                            MainAxisSize
-                                                                                .min,
+                                                                            MainAxisSize.min,
                                                                         children: [
-                                                                          if (RegExp(
-                                                                                  r'((https?:\/\/)|(www\.))[^\s]+',
-                                                                                  caseSensitive:
-                                                                                      false)
-                                                                              .hasMatch(
-                                                                                  content))
+                                                                          if (RegExp(r'((https?:\/\/)|(www\.))[^\s]+', caseSensitive: false)
+                                                                              .hasMatch(content))
                                                                             Stack(
-                                                                              clipBehavior:
-                                                                                  Clip.none,
+                                                                              clipBehavior: Clip.none,
                                                                               children: [
                                                                                 Padding(
-                                                                                  padding:
-                                                                                      const EdgeInsets.symmetric(vertical: 0.0),
-                                                                                  child:
-                                                                                      ClipRRect(
+                                                                                  padding: const EdgeInsets.symmetric(vertical: 0.0),
+                                                                                  child: ClipRRect(
                                                                                     borderRadius: BorderRadius.circular(12),
                                                                                     child: AnyLinkPreview(
                                                                                       link: (() {
@@ -5246,16 +5151,10 @@ log(">>>>>>>>>>>>Message $message");
                                                                           Stack(
                                                                             children: [
                                                                               StatefulBuilder(
-                                                                                builder:
-                                                                                    (context, setState) {
-                                                                                  const maxCharsPerLine =
-                                                                                      30;
-                                                                                  final bool
-                                                                                      isTextLong =
-                                                                                      (content.length / maxCharsPerLine).ceil() > 10;
-                                                                                  bool
-                                                                                      isExpanded =
-                                                                                      (message['isExpanded'] ?? false) == true;
+                                                                                builder: (context, setState) {
+                                                                                  const maxCharsPerLine = 30;
+                                                                                  final bool isTextLong = (content.length / maxCharsPerLine).ceil() > 10;
+                                                                                  bool isExpanded = (message['isExpanded'] ?? false) == true;
                                                                                   return Stack(
                                                                                     clipBehavior: Clip.none,
                                                                                     children: [
@@ -5339,7 +5238,6 @@ log(">>>>>>>>>>>>Message $message");
                                                                                   );
                                                                                 },
                                                                               ),
-
                                                                             ],
                                                                           ),
                                                                         ],
@@ -5354,7 +5252,8 @@ log(">>>>>>>>>>>>Message $message");
                                                     if (hasReply)
                                                       Positioned(
                                                         top: (!isSentByMe &&
-                                                                userName.isNotEmpty)
+                                                                userName
+                                                                    .isNotEmpty)
                                                             ? 25
                                                             : 0,
                                                         left: 0,
@@ -5365,12 +5264,15 @@ log(">>>>>>>>>>>>Message $message");
                                                               '${messageId}_${message['replyContent']}'),
                                                           replied: _mergeReplyData(
                                                               message['repliedMessage'] ??
-                                                                  message['reply']),
+                                                                  message[
+                                                                      'reply']),
                                                           receiver: message[
-                                                                  'receiver'] is Map
+                                                                      'receiver']
+                                                                  is Map
                                                               ? Map<String,
                                                                       dynamic>.from(
-                                                                  message['receiver'])
+                                                                  message[
+                                                                      'receiver'])
                                                               : {},
                                                           isSender: isSentByMe,
                                                           groupMediaLength:
@@ -5379,23 +5281,28 @@ log(">>>>>>>>>>>>Message $message");
                                                                           'repliedMessage'] ??
                                                                       message[
                                                                           'reply'])),
+                                                          hasMixedMedia: _hasMixedMediaTypes(
+                                                              _mergeReplyData(message[
+                                                                      'repliedMessage'] ??
+                                                                  message[
+                                                                      'reply'])),
+                                                          // groupMediaLength:
+                                                          //     _calculateGroupMediaLength(
+                                                          //         _mergeReplyData(message[
+                                                          //                 'repliedMessage'] ??
+                                                          //             message[
+                                                          //                 'reply'])),
                                                           onTap: () async {
-                                                            final replyId = ((message[
-                                                                                    'repliedMessage'] ??
-                                                                                message[
-                                                                                    'reply'])?[
-                                                                            'id'] ??
+                                                            final replyId = ((message['repliedMessage'] ?? message['reply'])?['id'] ??
                                                                         (message['repliedMessage'] ??
-                                                                                message[
-                                                                                    'reply'])?[
+                                                                                message['reply'])?[
                                                                             'message_id'] ??
                                                                         (message['repliedMessage'] ??
-                                                                                message[
-                                                                                    'reply'])?[
-                                                                            'messageId'])
+                                                                            message['reply'])?['messageId'])
                                                                     ?.toString() ??
                                                                 '';
-                                                            if (replyId.isNotEmpty) {
+                                                            if (replyId
+                                                                .isNotEmpty) {
                                                               await _scrollToMessageById(
                                                                   replyId,
                                                                   fetchIfMissing:
@@ -5412,7 +5319,8 @@ log(">>>>>>>>>>>>Message $message");
                                                         right: 3,
                                                         child: Row(
                                                           mainAxisAlignment:
-                                                              MainAxisAlignment.end,
+                                                              MainAxisAlignment
+                                                                  .end,
                                                           mainAxisSize:
                                                               MainAxisSize.min,
                                                           children: [
@@ -5423,10 +5331,11 @@ log(">>>>>>>>>>>>Message $message");
                                                                           'time']),
                                                               style: const TextStyle(
                                                                   fontSize: 10,
-                                                                  color:
-                                                                      Colors.black54),
+                                                                  color: Colors
+                                                                      .black54),
                                                             ),
-                                                            const SizedBox(width: 4),
+                                                            const SizedBox(
+                                                                width: 4),
                                                             if (isSentByMe &&
                                                                 content !=
                                                                     "Message Deleted")
@@ -5447,39 +5356,51 @@ log(">>>>>>>>>>>>Message $message");
                                                   hasFile ||
                                                   (content.isNotEmpty &&
                                                       RegExp(r'((https?:\/\/)|(www\.))[^\s]+',
-                                                          caseSensitive: false)
-                                                          .hasMatch(content))))Center(
-                                            child: Material(
-                                              color: Colors.transparent,
-                                              child: Padding(
-                                                padding: const EdgeInsets.only(left: 15.0),
-                                                child: InkWell(
-                                                  borderRadius: BorderRadius.circular(20),
-                                                  onTap: () {
-                                                    MyRouter.pushReplace(
-                                                      screen: ForwardMessageScreen(
-                                                        messages: [
-                                                          normalizeMessage(message)
-                                                        ],
-                                                        currentUserId: currentUserId,
-                                                        conversionalid: widget.conversationId,
-                                                        username: widget.groupName,
+                                                              caseSensitive:
+                                                                  false)
+                                                          .hasMatch(content))))
+                                            Center(
+                                              child: Material(
+                                                color: Colors.transparent,
+                                                child: Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                          left: 15.0),
+                                                  child: InkWell(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            20),
+                                                    onTap: () {
+                                                      MyRouter.pushReplace(
+                                                        screen:
+                                                            ForwardMessageScreen(
+                                                          messages: [
+                                                            normalizeMessage(
+                                                                message)
+                                                          ],
+                                                          currentUserId:
+                                                              currentUserId,
+                                                          conversionalid: widget
+                                                              .conversationId,
+                                                          username:
+                                                              widget.groupName,
+                                                        ),
+                                                      );
+                                                    },
+                                                    child: CircleAvatar(
+                                                      maxRadius: 16,
+                                                      backgroundColor:
+                                                          Colors.white,
+                                                      child: Image.asset(
+                                                        "assets/images/forward.png",
+                                                        height: 20,
+                                                        width: 20,
                                                       ),
-                                                    );
-                                                  },
-                                                  child: CircleAvatar(
-                                                    maxRadius: 16,
-                                                    backgroundColor: Colors.white,
-                                                    child: Image.asset(
-                                                      "assets/images/forward.png",
-                                                      height: 20,
-                                                      width: 20,
                                                     ),
                                                   ),
                                                 ),
                                               ),
                                             ),
-                                          ),
                                         ],
                                       ),
                                     ]),
@@ -5498,6 +5419,7 @@ log(">>>>>>>>>>>>Message $message");
                                               imageUrl: profileImageUrl,
                                               width: 32,
                                               height: 32,
+                                              memCacheWidth: 480,
                                               fit: BoxFit.cover,
                                               placeholder: (context, url) =>
                                                   _buildAvatarWithInitial(
@@ -5751,91 +5673,6 @@ log(">>>>>>>>>>>>Message $message");
     });
   }
 
-  void _startRecordingFs() async {
-    await _recorder.startRecorder(toFile: 'voice.aac');
-    setState(() {
-      _isRecording = true;
-      _isPaused = false;
-      _recordDuration = 0;
-    });
-    _startTimer();
-  }
-
-  void _pauseRecordingFs() async {
-    await _recorder.pauseRecorder();
-    setState(() {
-      _isPaused = true;
-    });
-    _timer?.cancel();
-  }
-
-  void _resumeRecordingFs() async {
-    await _recorder.resumeRecorder();
-    setState(() {
-      _isPaused = false;
-    });
-    _startTimer();
-  }
-
-  void _stopRecordingFs() async {
-    String? path = await _recorder.stopRecorder();
-    _timer?.cancel();
-    setState(() {
-      _isRecording = false;
-      _isPaused = false;
-      _recordedFilePath = path;
-    });
-  }
-
-  void _playRecording() async {
-    if (_recordedFilePath != null) {
-      await _player.startPlayer(fromURI: _recordedFilePath);
-    }
-  }
-
-  void _sendRecording() {
-    if (_recordedFilePath != null) {
-    }
-  }
-
-  void _startTimer() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      setState(() {
-        _recordDuration++;
-      });
-    });
-  }
-
-  String _formatDuration(int seconds) {
-    final minutes = (seconds ~/ 60).toString().padLeft(2, '0');
-    final secs = (seconds % 60).toString().padLeft(2, '0');
-    return '$minutes:$secs';
-  }
-
-  Widget _buildVoiceRecordingUI() {
-    return VoiceRecordingWidget(
-      isRecording: _isRecording,
-      isPaused: _isPaused,
-      recordDuration: Duration(seconds: _recordDuration),
-      formatDuration: (duration) => _formatDuration(duration.inSeconds),
-      onStartRecording: _startRecordingFs,
-      onPauseRecording: _pauseRecordingFs,
-      onResumeRecording: _resumeRecordingFs,
-      onStopRecording: _stopRecordingFs,
-      onPlayRecording: _playRecording,
-      onSendRecording: _sendRecording,
-      recordedFilePath: _recordedFilePath,
-      onCancel: () {
-        _timer?.cancel();
-        setState(() {
-          _isRecording = false;
-          _isPaused = false;
-          _recordedFilePath = null;
-        });
-      },
-    );
-  }
-
   Widget _buildMessageInputField(bool isKeyboardVisible, bool thereORleft) {
     return MessageInputField(
       messageController: _messageController,
@@ -5866,7 +5703,9 @@ log(">>>>>>>>>>>>Message $message");
         });
       }),
       onCameraPressed: _openCamera,
-      onRecordPressed: _isRecording ? _stopRecordingFs : _startRecordingFs,
+      onRecordPressed: _isRecording
+          ? recorderHelper.stopRecording
+          : recorderHelper.startRecording,
       isRecording: _isRecording,
       replyText: _replyPreview,
       onCancelReply: _cancelReply,
@@ -5874,24 +5713,27 @@ log(">>>>>>>>>>>>Message $message");
       isGroupChat: true,
       isRecordingLocked: _isRecordingLocked,
       onLockRecording: () async {
-        await _recorder.stopRecorder();
-        _timer?.cancel();
+        recorderHelper.stopRecording();
         setState(() {
           _isRecordingLocked = true;
+
+          _isRecording = true;
         });
       },
       onCancelRecording: () {
-        _stopRecordingFs();
         setState(() {
           _isRecordingLocked = false;
           _isRecording = false;
         });
+        // Stop actual recording if needed
+        recorderHelper.stopRecording();
       },
       onSendRecording: (path, duration) {
         setState(() {
           _isRecordingLocked = false;
           _isRecording = false;
         });
+
         _sendAudioMessage(path, duration);
       },
       groupMembers: _groupMembersList,
@@ -6013,7 +5855,7 @@ log(">>>>>>>>>>>>Message $message");
           ReusableChatScaffold(
             appBar: _buildAppBar(),
             chatBody: _buildChatBody(),
-            voiceRecordingUI: _buildVoiceRecordingUI(),
+            voiceRecordingUI: SizedBox(),
             messageInputBuilder: (context) {
               return BlocListener<GroupChatBloc, GroupChatState>(
                 bloc: _groupBloc,
@@ -6031,26 +5873,25 @@ log(">>>>>>>>>>>>Message $message");
                     if (mounted) {
                       setState(() {
                         final members = state.groupDetails['groupMembers'];
-                        if (members.isNotEmpty) {
-
-                        }
+                        if (members.isNotEmpty) {}
                         if (members is List) {
                           groupMembers = members.map((m) {
                             if (m is Map) {
-                              return (m['member_id'] ?? m['id'] ?? m['_id'] ?? "")
+                              return (m['member_id'] ??
+                                      m['id'] ??
+                                      m['_id'] ??
+                                      "")
                                   .toString();
                             }
                             return m.toString();
                           }).toList();
                           // CRITICAL FIX: Store member IDs for later rebuild
                           _knownMemberIds = List<String>.from(groupMembers);
-
                         }
                       });
                     }
                   }
-                  if (state is GroupChatError) {
-                  }
+                  if (state is GroupChatError) {}
                 },
                 child: BlocBuilder<GroupChatBloc, GroupChatState>(
                   bloc: _groupBloc,
@@ -6079,7 +5920,7 @@ log(">>>>>>>>>>>>Message $message");
                 ),
               );
             },
-            isRecording: _isRecording,
+            isRecording: false,
             bloc: _groupBloc,
           ),
           if (_showScrollToBottomButton)
@@ -6093,7 +5934,10 @@ log(">>>>>>>>>>>>Message $message");
                   _scrollToBottom();
                   setState(() => _showScrollToBottomButton = false);
                 },
-                child: const Icon(Icons.keyboard_double_arrow_down_outlined,color: Colors.white,),
+                child: const Icon(
+                  Icons.keyboard_double_arrow_down_outlined,
+                  color: Colors.white,
+                ),
               ),
             ),
         ],
@@ -6435,7 +6279,7 @@ log(">>>>>>>>>>>>Message $message");
                                 _handleReactionTap(message, emo);
                                 Navigator.pop(context);
                               } catch (e) {
-
+                                log(e.toString());
                               }
 
                               // hide picker and refresh sheet lists
@@ -6761,89 +6605,5 @@ log(">>>>>>>>>>>>Message $message");
         _updateMessageStatus(tempId, 'failed');
       }
     }
-  }
-}
-
-class MentionTextEditingController extends TextEditingController {
-  List<Map<String, dynamic>> _members = [];
-
-  void setMembers(List<Map<String, dynamic>> members) {
-    _members = members;
-    notifyListeners();
-  }
-
-  String sanitizeString(String? s) {
-    if (s == null || s.isEmpty) return '';
-    final List<int> result = [];
-    for (int i = 0; i < s.length; i++) {
-      int unit = s.codeUnitAt(i);
-      if (unit >= 0xD800 && unit <= 0xDBFF) {
-        if (i + 1 < s.length) {
-          int next = s.codeUnitAt(i + 1);
-          if (next >= 0xDC00 && next <= 0xDFFF) {
-            result.add(unit);
-            result.add(next);
-            i++;
-            continue;
-          }
-        }
-        continue;
-      } else if (unit >= 0xDC00 && unit <= 0xDFFF) {
-        continue;
-      } else {
-        result.add(unit);
-      }
-    }
-    return String.fromCharCodes(result);
-  }
-
-  @override
-  TextSpan buildTextSpan(
-      {required BuildContext context,
-      TextStyle? style,
-      required bool withComposing}) {
-    final List<InlineSpan> children = [];
-    final String content = sanitizeString(text);
-
-    if (content.isEmpty) {
-      return super.buildTextSpan(
-          context: context, style: style, withComposing: withComposing);
-    }
-
-    final List<String> memberNames = _members
-        .map((m) => m['full_name']?.toString() ?? '')
-        .where((name) => name.isNotEmpty)
-        .toList();
-    memberNames.sort((a, b) => b.length.compareTo(a.length));
-
-    final String escapedNames = memberNames.map(RegExp.escape).join('|');
-    final String mentionPattern =
-        memberNames.isEmpty ? r'(?! )' : '@($escapedNames)';
-    final RegExp mentionRegExp = RegExp(mentionPattern, caseSensitive: false);
-
-    final matches = mentionRegExp.allMatches(content);
-    int start = 0;
-
-    for (final match in matches) {
-      if (match.start > start) {
-        children.add(TextSpan(
-            text: content.substring(start, match.start), style: style));
-      }
-
-      children.add(
-        TextSpan(
-          text: content.substring(match.start, match.end),
-          style: style?.copyWith(color: chatColor, fontWeight: FontWeight.bold),
-        ),
-      );
-
-      start = match.end;
-    }
-
-    if (start < content.length) {
-      children.add(TextSpan(text: content.substring(start), style: style));
-    }
-
-    return TextSpan(style: style, children: children);
   }
 }
