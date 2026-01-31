@@ -33,7 +33,8 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
   Future<void> _onFetchMessages(
     FetchMessagesEvent event,
     Emitter<MessagerState> emit,
-  ) async {
+  )
+  async {
     // -------- PAGE 1: LOAD LOCAL --------
     if (event.page == 1) {
       final localRaw = LocalChatStorage.loadMessages(event.convoId);
