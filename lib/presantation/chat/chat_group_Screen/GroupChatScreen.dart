@@ -128,6 +128,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   bool _showEmoji = false;
   bool _showSearchAppBar = false;
   List<String> _searchMatchIds = [];
+  List<String> _searchMatchGroupIds = [];
+  String? _highlightedGroupId;
+
   int _currentSearchMatchIndex = -1;
   bool _permissionChecked = false;
   bool _showScrollToBottomButton = false;
@@ -297,92 +300,243 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     super.dispose();
   }
 
-  void _onSearchChanged(String query) {
-    if (query.isEmpty) {
+  void _onSearchChanged(String query) async {
+    if (query.trim().isEmpty) {
       setState(() {
-        _searchMatchIds = [];
-        _currentSearchMatchIndex = -1;
+        _searchMatchGroupIds.clear(); // stores MESSAGE IDs
+        _currentSearchMatchIndex = 0;
+        _highlightedMessageId = null;
       });
       return;
     }
 
-    final queryLower = query.toLowerCase();
-    final List<Map<String, dynamic>> combined = _getCombinedMessages();
+    final lowerQuery = query.toLowerCase();
+    final combined = _getCombinedMessages();
+
     final List<String> matchIds = [];
-    final Set<String> groupMatchIds = {};
 
     for (final msg in combined) {
-      final content = (msg['content']?.toString() ?? '').toLowerCase();
-      final fileName = (msg['fileName']?.toString() ?? '').toLowerCase();
-      final isDeleted = msg['is_deleted'] == true ||
-          msg['messageStatus'] == 'deleted' ||
-          content.contains('this message was deleted');
-      final isSystem = msg['ContentType'] == 'system' ||
-          msg['contentType'] == 'system' ||
-          content.contains('added') ||
-          content.contains('left') ||
-          content.contains('created by');
+      final content = (msg['content'] ?? '').toString().toLowerCase();
+      final fileName = (msg['fileName'] ?? '').toString().toLowerCase();
 
-      if (!isDeleted &&
-          !isSystem &&
-          (content.contains(queryLower) || fileName.contains(queryLower))) {
-        final messageId = _anyId(msg)?.toString() ?? '';
-        if (messageId.isEmpty) continue;
+      final isDeleted =
+          msg['is_deleted'] == true || msg['messageStatus'] == 'deleted';
 
-        final groupMsgId = msg['group_message_id']?.toString();
-        if (groupMsgId != null && groupMsgId.isNotEmpty) {
-          if (!groupMatchIds.contains(groupMsgId)) {
-            groupMatchIds.add(groupMsgId);
-            matchIds.add(messageId);
-          }
-        } else {
-          matchIds.add(messageId);
+      final isSystem =
+          msg['contentType'] == 'system' || msg['ContentType'] == 'system';
+
+      if (isDeleted || isSystem) continue;
+
+      if (content.contains(lowerQuery) || fileName.contains(lowerQuery)) {
+        final msgId = _anyId(msg)?.toString();
+        if (msgId != null && msgId.isNotEmpty) {
+          matchIds.add(msgId);
         }
       }
     }
 
-    setState(() {
-      _searchMatchIds = matchIds;
-      if (matchIds.isNotEmpty) {
-        _currentSearchMatchIndex = matchIds.length - 1;
-        _scrollToMessageById(matchIds[_currentSearchMatchIndex],
-            fetchIfMissing: false);
-      } else {
-        _currentSearchMatchIndex = -1;
-        Messenger.alert(msg: "No results found");
+    // 🔥 Expand visible window to OLDEST match
+    int oldestIndex = combined.length;
+    for (final id in matchIds) {
+      final idx =
+      combined.indexWhere((m) => (_anyId(m)?.toString() ?? '') == id);
+      if (idx != -1 && idx < oldestIndex) {
+        oldestIndex = idx;
       }
+    }
+
+    if (oldestIndex < combined.length) {
+      final neededVisible = combined.length - oldestIndex;
+      if (_visibleCount < neededVisible) {
+        setState(() {
+          _visibleCount = neededVisible + 5;
+          if (_visibleCount > combined.length) {
+            _visibleCount = combined.length;
+          }
+        });
+        _updateNotifier();
+        await WidgetsBinding.instance.endOfFrame;
+      }
+    }
+
+    setState(() {
+      _searchMatchGroupIds = matchIds.reversed.toList();
+      _currentSearchMatchIndex = 0;
+      _highlightedMessageId =
+      _searchMatchGroupIds.isNotEmpty ? _searchMatchGroupIds.first : null;
     });
+
+    if (_highlightedMessageId != null) {
+      _scrollToMessaageById(_highlightedMessageId!, fetchIfMissing: false);
+    } else {
+      Messenger.alert(msg: "No results found");
+    }
   }
 
+
+
+
   void _onSearchUp() {
-    if (_searchMatchIds.isEmpty) return;
+    if (_searchMatchGroupIds.isEmpty) return;
+
     setState(() {
       _currentSearchMatchIndex =
-          (_currentSearchMatchIndex - 1 + _searchMatchIds.length) %
-              _searchMatchIds.length;
-      _scrollToMessageById(_searchMatchIds[_currentSearchMatchIndex],
-          fetchIfMissing: false);
+          (_currentSearchMatchIndex - 1 + _searchMatchGroupIds.length) %
+              _searchMatchGroupIds.length;
+
+      _highlightedMessageId =
+      _searchMatchGroupIds[_currentSearchMatchIndex];
     });
+
+    _scrollToMessaageById(_highlightedMessageId!, fetchIfMissing: false);
   }
 
   void _onSearchDown() {
-    if (_searchMatchIds.isEmpty) return;
+    if (_searchMatchGroupIds.isEmpty) return;
+
     setState(() {
       _currentSearchMatchIndex =
-          (_currentSearchMatchIndex + 1) % _searchMatchIds.length;
-      _scrollToMessageById(_searchMatchIds[_currentSearchMatchIndex],
-          fetchIfMissing: false);
+          (_currentSearchMatchIndex + 1) % _searchMatchGroupIds.length;
+
+      _highlightedMessageId =
+      _searchMatchGroupIds[_currentSearchMatchIndex];
     });
+
+    _scrollToMessaageById(_highlightedMessageId!, fetchIfMissing: false);
   }
+
+
+  Future<bool> _scrollToMessaageById(
+      String messageId, {
+        bool fetchIfMissing = false,
+      })
+  async {
+    final ctx = _messageContexts[messageId];
+
+    if (ctx != null && ctx.mounted) {
+      _highlightAndScrollToContext(ctx, messageId);
+      return true;
+    }
+
+    final combinedMessages = _messagesNotifier.value;
+    final int msgIndex = combinedMessages.indexWhere((m) {
+      final mid =
+      (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '').toString();
+      return mid == messageId;
+    });
+
+    if (msgIndex != -1) {
+      final int listIndex = combinedMessages.length - 1 - msgIndex;
+
+      final double estimatedOffset =
+      _estimateScrollOffset(listIndex, combinedMessages);
+
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(estimatedOffset.clamp(
+          0.0,
+          _scrollController.position.maxScrollExtent,
+        ));
+      }
+
+      // Increased delay for better stability
+      await Future.delayed(const Duration(milliseconds: 150));
+
+      final targetCtx = _messageContexts[messageId];
+      if (targetCtx != null && targetCtx.mounted) {
+        _highlightAndScrollToContext(targetCtx, messageId);
+        return true;
+      }
+
+      double currentEstimate = estimatedOffset;
+      // Increased retries and delay
+      for (int attempt = 0; attempt < 5; attempt++) {
+        await Future.delayed(const Duration(milliseconds: 100));
+
+        final targetCtx = _messageContexts[messageId];
+        if (targetCtx != null && targetCtx.mounted) {
+          _highlightAndScrollToContext(targetCtx, messageId);
+          return true;
+        }
+
+        int? closestVisibleIndex;
+        double minDiff = double.infinity;
+
+        for (final entry in _messageContexts.entries) {
+          final ctx = entry.value;
+          if (ctx.mounted) {
+            final idx = combinedMessages.indexWhere((m) {
+              final mid = (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '')
+                  .toString();
+              return mid == entry.key;
+            });
+
+            if (idx != -1) {
+              final diff = (idx - msgIndex).abs().toDouble();
+              if (diff < minDiff) {
+                minDiff = diff;
+                closestVisibleIndex = idx;
+              }
+            }
+          }
+        }
+
+        if (closestVisibleIndex != null) {
+          final int indexDiff = msgIndex - closestVisibleIndex;
+
+          double correction = 0;
+          final int start = indexDiff > 0 ? closestVisibleIndex : msgIndex;
+          final int end = indexDiff > 0 ? msgIndex : closestVisibleIndex;
+
+          for (int k = start; k < end; k++) {
+            correction += _estimateMessageHeight(k, combinedMessages);
+          }
+
+          if (indexDiff < 0) correction = -correction;
+
+          currentEstimate += correction;
+          if (_scrollController.hasClients) {
+            _scrollController.jumpTo(currentEstimate.clamp(
+              0.0,
+              _scrollController.position.maxScrollExtent,
+            ));
+          }
+        } else {
+          break;
+        }
+      }
+
+      final finalCtx = _messageContexts[messageId];
+      if (finalCtx != null && finalCtx.mounted) {
+        _highlightAndScrollToContext(finalCtx, messageId);
+        return true;
+      }
+
+      _highlightMessage(messageId);
+      return true;
+    }
+
+    if (fetchIfMissing) {
+    //  _triggerServerFetch();
+      await Future.delayed(const Duration(milliseconds: 300));
+      return _scrollToMessageById(messageId);
+    }
+
+    return false;
+  }
+
+
 
   void _hideSearchAppBar() {
     setState(() {
       _showSearchAppBar = false;
       _searchController.clear();
-      _searchMatchIds = [];
-      _currentSearchMatchIndex = -1;
+
+      _searchMatchGroupIds.clear();
+      _currentSearchMatchIndex = 0;
+      _highlightedGroupId = null;
     });
   }
+
 
   dynamic _anyId(Map<String, dynamic> m) {
     final candidates = [
@@ -3140,135 +3294,46 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   Future<bool> _scrollToMessageById(String messageId,
-      {bool fetchIfMissing = true}) async {
+      {bool fetchIfMissing = true})
+  async {
     if (messageId.isEmpty) return false;
 
+    // 1️⃣ If widget exists → scroll directly (BEST CASE)
     final ctx = _messageContexts[messageId];
     if (ctx != null && ctx.mounted) {
       _highlightAndScrollToContext(ctx, messageId);
       return true;
     }
 
-    List<Map<String, dynamic>> combined = _getCombinedMessages();
+    // 2️⃣ Ensure message is visible
+    final combined = _getCombinedMessages();
+    final msgIndex = combined.indexWhere((m) =>
+    (_anyId(m)?.toString() ?? '') == messageId);
 
-    int msgIndex = combined.indexWhere((m) {
-      final mid =
-          (m['message_id'] ?? m['messageId'] ?? m['id'])?.toString() ?? '';
-      return mid == messageId;
-    });
+    if (msgIndex == -1) return false;
 
-    if (msgIndex == -1 && fetchIfMissing) {
-      final found = await _fetchUntilMessageFound(messageId);
-      if (!found) return false;
-
-      combined = _getCombinedMessages();
-      msgIndex = combined.indexWhere((m) {
-        final mid =
-            (m['message_id'] ?? m['messageId'] ?? m['id'])?.toString() ?? '';
-        return mid == messageId;
+    final neededVisible = combined.length - msgIndex;
+    if (_visibleCount < neededVisible) {
+      setState(() {
+        _visibleCount = neededVisible + 5;
+        if (_visibleCount > combined.length) {
+          _visibleCount = combined.length;
+        }
       });
+      _updateNotifier();
 
-      if (msgIndex == -1) return false;
+      // 🔥 wait for widgets to build
+      await WidgetsBinding.instance.endOfFrame;
     }
 
-    if (msgIndex != -1) {
-      // Ensure message is within visible window
-      final int neededVisible = combined.length - msgIndex;
-      if (_visibleCount < neededVisible) {
-        setState(() {
-          _visibleCount = neededVisible + 5; // Add a small buffer
-          if (_visibleCount > combined.length) _visibleCount = combined.length;
-        });
-        _updateNotifier();
-        await Future.delayed(const Duration(milliseconds: 150));
-      }
-
-      final int listIndex = combined.length - 1 - msgIndex;
-      final double estimatedOffset = _estimateScrollOffset(listIndex, combined);
-
-      if (_scrollController.hasClients) {
-        _scrollController.jumpTo(estimatedOffset.clamp(
-          0.0,
-          _scrollController.position.maxScrollExtent,
-        ));
-      }
-
-      // Increased delay and retry attempts for better stability
-      await Future.delayed(const Duration(milliseconds: 150));
-
-      final targetCtx = _messageContexts[messageId];
-      if (targetCtx != null && targetCtx.mounted) {
-        _highlightAndScrollToContext(targetCtx, messageId);
-        return true;
-      }
-
-      // Try multiple attempts with refined scrolling
-      for (int attempt = 0; attempt < 5; attempt++) {
-        await Future.delayed(const Duration(milliseconds: 100));
-
-        final targetCtx = _messageContexts[messageId];
-        if (targetCtx != null && targetCtx.mounted) {
-          _highlightAndScrollToContext(targetCtx, messageId);
-          return true;
-        }
-
-        // Find closest visible message and refine scroll position
-        int? closestVisibleIndex;
-        double minDiff = double.infinity;
-
-        for (final entry in _messageContexts.entries) {
-          final ctx = entry.value;
-          if (ctx.mounted) {
-            final idx = combined.indexWhere((m) {
-              final mid = (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '')
-                  .toString();
-              return mid == entry.key;
-            });
-
-            if (idx != -1) {
-              final diff = (idx - msgIndex).abs().toDouble();
-              if (diff < minDiff) {
-                minDiff = diff;
-                closestVisibleIndex = idx;
-              }
-            }
-          }
-        }
-
-        if (closestVisibleIndex != null) {
-          final int indexDiff = msgIndex - closestVisibleIndex;
-          double correction = 0;
-          final int start = indexDiff > 0 ? closestVisibleIndex : msgIndex;
-          final int end = indexDiff > 0 ? msgIndex : closestVisibleIndex;
-
-          for (int k = start; k < end; k++) {
-            correction += _estimateMessageHeight(k, combined);
-          }
-
-          if (indexDiff < 0) correction = -correction;
-
-          final currentEstimate = estimatedOffset + correction;
-          if (_scrollController.hasClients) {
-            _scrollController.jumpTo(currentEstimate.clamp(
-              0.0,
-              _scrollController.position.maxScrollExtent,
-            ));
-          }
-        } else {
-          break;
-        }
-      }
-
-      final finalCtx = _messageContexts[messageId];
-      if (finalCtx != null && finalCtx.mounted) {
-        _highlightAndScrollToContext(finalCtx, messageId);
-        return true;
-      }
-
-      _highlightMessage(messageId);
+    // 3️⃣ Try again AFTER build
+    final retryCtx = _messageContexts[messageId];
+    if (retryCtx != null && retryCtx.mounted) {
+      _highlightAndScrollToContext(retryCtx, messageId);
       return true;
     }
 
+    // 4️⃣ Fetch more if needed
     if (fetchIfMissing) {
       _groupBloc.add(
         FetchGroupMessages(
@@ -3283,6 +3348,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     return false;
   }
+
 
   /// Highlight message and scroll to its context
   void _highlightAndScrollToContext(BuildContext ctx, String messageId) {
@@ -3752,15 +3818,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                   : () =>
                                                       _replyToMessage(message),
                                               child: Builder(builder: (ctx) {
-                                                for (var msg
-                                                    in groupMessagesList) {
-                                                  final mId =
-                                                      _anyId(msg)?.toString();
-                                                  if (mId != null &&
-                                                      mId.isNotEmpty) {
-                                                    _messageContexts[mId] = ctx;
-                                                  }
+                                                final String anchorMessageId =
+                                                    _anyId(groupMessagesList.first)?.toString() ?? '';
+                                                if (anchorMessageId.isNotEmpty) {
+                                                  _messageContexts[anchorMessageId] = ctx;
                                                 }
+
 
                                                 return Align(
                                                   alignment: isSentByMe
@@ -5945,10 +6008,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       onSearchChanged: _onSearchChanged,
       onSearchUp: _onSearchUp,
       onSearchDown: _onSearchDown,
-      searchMatchCount: _searchMatchIds.length,
-      searchMatchIndex: _searchMatchIds.isEmpty
+      searchMatchCount: _searchMatchGroupIds.length,
+      searchMatchIndex: _searchMatchGroupIds.isEmpty
           ? 0
-          : (_searchMatchIds.length - 1 - _currentSearchMatchIndex),
+          : (_searchMatchGroupIds.length - _currentSearchMatchIndex),
+
       hasLeftGroup: _hasLeftGroup,
       onExitGroup: () {
         if (widget.groupId != null || widget.datumId.isNotEmpty) {
