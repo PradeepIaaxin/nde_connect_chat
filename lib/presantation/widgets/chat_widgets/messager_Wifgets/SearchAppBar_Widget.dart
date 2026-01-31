@@ -59,7 +59,7 @@ class SearchAppBar extends StatelessWidget implements PreferredSizeWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8.0),
               child: Text(
-                '${currentIndex}/$matchCount',
+                '${currentIndex==0?1:currentIndex}/$matchCount',
                 style: const TextStyle(color: Colors.black54, fontSize: 14),
               ),
             ),
