@@ -41,22 +41,22 @@ void main() async {
     onActionReceivedMethod: notificationActionHandler,
   );
 
-// Handle killed notification open
+  // Handle killed → tap notification
   final action = await AwesomeNotifications().getInitialNotificationAction();
   if (action != null) {
-    if (action.buttonKeyPressed == "") {
-      // user tapped notification
-      AwesomeNotificationService.openChatFromPayload(action.payload);
+    if (action.buttonKeyPressed == null || action.buttonKeyPressed!.isEmpty) {
+      Future.delayed(const Duration(milliseconds: 800), () {
+        AwesomeNotificationService.openChatFromPayload(action.payload);
+      });
     }
-    // DO NOTHING for REPLY
+    // Reply from killed state is handled in onAction()
   }
 
-  // if (action != null && action.buttonKeyPressed.isEmpty) {
-  //   Future.delayed(Duration(seconds: 1), () {
-  //     AwesomeNotificationService.openChatFromPayload(action.payload);
-  //   });
-  // }
-
+  if (action != null && action.buttonKeyPressed.isEmpty) {
+    Future.delayed(Duration(seconds: 1), () {
+      AwesomeNotificationService.openChatFromPayload(action.payload);
+    });
+  }
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
   FirebaseMessaging.onMessage.listen((message) {

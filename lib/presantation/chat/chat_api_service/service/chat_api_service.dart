@@ -46,19 +46,41 @@ class ChatApiService {
   }
 
   // SEND MESSAGE
-  Future<void> sendMessage({
-    required String conversationId,
-    required String senderId,
-    required String receiverId,
-    required String content,
-  }) async {
+  Future<void> sendMessage(
+      {required String conversationId,
+      required String senderId,
+      required String receiverId,
+      required String content,
+      required bool isGrpchat,
+      required String? grpId}) async {
     if (dio == null) {
       log("❌ DIO NULL — init() not called");
       return;
     }
 
+    print('''
+📩 MESSAGE DATA
+────────────────────
+conversationId : $conversationId
+senderId       : $senderId
+receiverId     : $receiverId
+content        : $content
+grpid           : $grpId 
+────────────────────
+''');
+
     final roomId = generateRoomId(senderId, receiverId);
     log("ROOM ID = $roomId");
+
+    // final payload = {
+    //   "senderId": senderId,
+    //   "receiverId": receiverId,
+    //   "content": content,
+    //   "roomId": isGrpchat == true ? grpId : roomId,
+    // };
+
+    // print('📦 PAYLOAD => $payload');
+    log(isGrpchat.toString());
 
     try {
       final res = await dio!.post(
@@ -67,7 +89,7 @@ class ChatApiService {
           "senderId": senderId,
           "receiverId": receiverId,
           "content": content,
-          "roomId": roomId, 
+          "roomId": isGrpchat == true ? grpId : roomId,
         },
       );
 

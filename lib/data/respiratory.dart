@@ -68,7 +68,7 @@ class UserPreferences {
 
       if (Platform.isAndroid) {
         final android = await deviceInfo.androidInfo;
-        deviceId = android.id; // ANDROID_ID
+        deviceId = android.id; 
         log("📱 Android deviceId: $deviceId");
       } else if (Platform.isIOS) {
         final ios = await deviceInfo.iosInfo;

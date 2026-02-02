@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/user_profile_image.dart';
 import 'package:nde_email/presantation/chat/widget/profile_avatar.dart';
+import 'package:nde_email/utils/reusbale/common_import.dart';
 
 class ProfileAction {
   final IconData icon;
@@ -114,7 +115,7 @@ class ProfileDialog extends StatelessWidget {
                             backgroundColor: Colors.white,
                             radius: 28,
                             child: 
-                            Icon(action.icon, color: Colors.blue),
+                            Icon(action.icon, color: chatColor),
                           ),
                         ),
                       );

@@ -54,7 +54,7 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
     emit(state.copyWith(status: LoginStatus.loading));
 
     try {
-      await authRepository.checkUserEmail(event.email); // call your API
+      await authRepository.checkUserEmail(event.email);
       emit(state.copyWith(status: LoginStatus.success));
     } catch (e) {
       emit(state.copyWith(
@@ -63,59 +63,6 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
       ));
     }
   }
-
-  // Future<void> _onLoginSubmitted(
-  //   LoginApi event,
-  //   Emitter<LoginState> emit,
-  // ) async {
-  //   emit(state.copyWith(
-  //     status: LoginStatus.loading,
-  //     message: "",
-  //   ));
-
-  //   try {
-  //     final loginRequest = LoginRequestModel(
-  //       email: event.email,
-  //       password: event.password,
-  //     );
-
-  //     await Future.delayed(const Duration(milliseconds: 40));
-
-  //     final userId = await UserPreferences.getUserId();
-  //     final workspaceId = await UserPreferences.getDefaultWorkspace();
-  //     final token = await UserPreferences.getAccessToken();
-
-  //     if (token != null && userId != null && workspaceId != null) {
-  //       await SocketService().initialize();
-  //     }
-  //     await authRepository.login(loginRequest);
-  //     await SecureStorage.saveToken(newAccessToken!);
-  //     await SecureStorage.saveRefreshToken(newRefreshToken!);
-  //     await SecureStorage.saveUserId(userId!);
-  //     await SecureStorage.saveWorkspace(workspaceId!);
-
-  //     // ✅ Initialize socket ONCE
-  //     await SocketService().initialize();
-
-  //     // ✅ WAIT until socket is REALLY connected
-  //     await SocketService().waitUntilConnected();
-
-  //     _startRefreshTimer();
-
-  //     emit(state.copyWith(
-  //       status: LoginStatus.success,
-  //       message: "Login successful!",
-  //     ));
-  //   } catch (e, stackTrace) {
-  //     log("Login error: $e", stackTrace: stackTrace);
-
-  //     emit(state.copyWith(
-  //       status: LoginStatus.errorScreen,
-  //       message: _getErrorMessage(e),
-  //       hasSubmitted: true,
-  //     ));
-  //   }
-  // }
 
   Future<void> _onLoginSubmitted(
     LoginApi event,
