@@ -2913,7 +2913,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       final found = await _scrollToMessageById(replyId, fetchIfMissing: true);
       if (!found) {
         Messenger.alert(
-          msg: "Original message not loaded. Scroll up to load older messages.",
+          msg: "Original message not found.",
         );
       }
     }
@@ -3254,7 +3254,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
       final combined = _getCombinedMessages();
       final exists = combined.any((m) {
-        final mid = (m['message_id'] ?? m['id'])?.toString() ?? '';
+        final mid =
+            (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '').toString();
         return mid == messageId;
       });
 
@@ -3288,29 +3289,71 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     final combined = _getCombinedMessages();
     return combined.any((m) {
-      final mid = (m['message_id'] ?? m['id'])?.toString() ?? '';
+      final mid =
+          (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '').toString();
       return mid == messageId;
     });
   }
 
-  Future<bool> _scrollToMessageById(String messageId,
-      {bool fetchIfMissing = true})
-  async {
+  Future<bool> _scrollToMessageById(
+    String messageId, {
+    bool fetchIfMissing = true,
+  }) async {
     if (messageId.isEmpty) return false;
 
-    // 1️⃣ If widget exists → scroll directly (BEST CASE)
     final ctx = _messageContexts[messageId];
     if (ctx != null && ctx.mounted) {
       _highlightAndScrollToContext(ctx, messageId);
       return true;
     }
 
-    // 2️⃣ Ensure message is visible
+  
     final combined = _getCombinedMessages();
-    final msgIndex = combined.indexWhere((m) =>
-    (_anyId(m)?.toString() ?? '') == messageId);
+    final msgIndex = combined.indexWhere(
+      (m) => (_anyId(m)?.toString() ?? '') == messageId,
+    );
 
-    if (msgIndex == -1) return false;
+    if (msgIndex == -1) {
+      if (fetchIfMissing) {
+        final found = await _fetchUntilMessageFound(messageId);
+        if (found) {
+          // After fetching, ensure visibility and retry
+          final updatedCombined = _getCombinedMessages();
+          final newMsgIndex = updatedCombined.indexWhere(
+            (m) => (_anyId(m)?.toString() ?? '') == messageId,
+          );
+          if (newMsgIndex != -1) {
+            final neededVisible = updatedCombined.length - newMsgIndex;
+            if (_visibleCount < neededVisible) {
+              setState(() {
+                _visibleCount = neededVisible + 5;
+                if (_visibleCount > updatedCombined.length) {
+                  _visibleCount = updatedCombined.length;
+                }
+              });
+              _updateNotifier();
+              await WidgetsBinding.instance.endOfFrame;
+            }
+            final retryCtx = _messageContexts[messageId];
+            if (retryCtx != null && retryCtx.mounted) {
+              _highlightAndScrollToContext(retryCtx, messageId);
+              return true;
+            }
+          }
+        }
+      }
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Original message not found. It may have been deleted or is unavailable.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+      return false;
+    }
 
     final neededVisible = combined.length - msgIndex;
     if (_visibleCount < neededVisible) {
@@ -3321,34 +3364,33 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         }
       });
       _updateNotifier();
-
-      // 🔥 wait for widgets to build
       await WidgetsBinding.instance.endOfFrame;
     }
 
-    // 3️⃣ Try again AFTER build
+  
+    final targetCtx = _messageContexts[messageId];
+    if (targetCtx != null && targetCtx.mounted) {
+      _highlightAndScrollToContext(targetCtx, messageId);
+      return true;
+    }
+
+    final listIndex = combined.length - 1 - msgIndex;
+    final estimatedOffset = _estimateScrollOffset(listIndex, combined);
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(estimatedOffset.clamp(
+        0.0,
+        _scrollController.position.maxScrollExtent,
+      ));
+    }
+    await Future.delayed(const Duration(milliseconds: 150));
     final retryCtx = _messageContexts[messageId];
     if (retryCtx != null && retryCtx.mounted) {
       _highlightAndScrollToContext(retryCtx, messageId);
       return true;
     }
-
-    // 4️⃣ Fetch more if needed
-    if (fetchIfMissing) {
-      _groupBloc.add(
-        FetchGroupMessages(
-          convoId: widget.conversationId,
-          page: _currentPage,
-          limit: _limit,
-        ),
-      );
-      await Future.delayed(const Duration(milliseconds: 300));
-      return _scrollToMessageById(messageId, fetchIfMissing: false);
-    }
-
-    return false;
+    _highlightMessage(messageId);
+    return true;
   }
-
 
   /// Highlight message and scroll to its context
   void _highlightAndScrollToContext(BuildContext ctx, String messageId) {
@@ -3572,6 +3614,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           final totalPages = (state.response.total / _limit).ceil();
 
           setState(() {
+            _hasNextPage = _currentPage < totalPages;
             // --- ROBUST MERGE STRATEGY ---
             // Overlays incoming messages on top of existing ones by ID
             // This preserves older history when Page 1 is refreshed
