@@ -167,15 +167,21 @@ class CommonAppBarBuilder {
             (grpChat && state is ContactLoaded && state.contacts.isNotEmpty)
                 ? state.contacts.firstWhere(
                     (c) => c.id == grpId,
-                    orElse: () => const ContactModel(id: ''), // Dummy fallback
+                    orElse: () => const ContactModel(id: ''),
                   )
                 : null;
 
         // If dummy (empty ID) or null, don't use it
         final validContact = (contact?.id?.isNotEmpty == true) ? contact : null;
 
+        // final displayName = grpChat
+        //     ? validContact?.groupName ?? "${firstname ?? ''} ${lastname ?? ''}"
+        //     : "${firstname ?? ''} ${lastname ?? ''}";
+
         final displayName = grpChat
-            ? validContact?.groupName ?? "${firstname ?? ''} ${lastname ?? ''}"
+            ? (validContact?.groupName?.isNotEmpty == true
+                ? validContact!.groupName!
+                : "${firstname ?? ''} ${lastname ?? ''}")
             : "${firstname ?? ''} ${lastname ?? ''}";
 
         // STRICT LOGIC:
@@ -187,13 +193,15 @@ class CommonAppBarBuilder {
                 : profileAvatarUrl)
             : profileAvatarUrl;
 
+        final trimmedName = displayName.trim();
+
+        final initials = trimmedName.isNotEmpty
+            ? trimmedName.characters.first.toUpperCase()
+            : 'U';
+
         // final initials = displayName.isNotEmpty
         //     ? displayName.trim().characters.first.toUpperCase()
         //     : 'U';
-        final safeName = displayName.trim();
-
-        final initials =
-            safeName.isNotEmpty ? safeName.characters.first.toUpperCase() : 'U';
 
         return AppBar(
           backgroundColor: Colors.white,
@@ -242,8 +250,7 @@ class CommonAppBarBuilder {
                               : Colors.transparent,
                           child: ProfileAvatar(
                             imageUrl: effectiveAvatarUrl,
-                            name:
-                                initials, // ProfileAvatar handles trimming/sorting
+                            name: initials,
                             size: 40,
                           ),
                         ),

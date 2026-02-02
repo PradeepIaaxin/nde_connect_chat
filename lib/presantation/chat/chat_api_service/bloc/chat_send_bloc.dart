@@ -3,7 +3,6 @@ import 'package:nde_email/presantation/chat/chat_api_service/service/chat_api_se
 import 'chat_send_event.dart';
 import 'chat_send_state.dart';
 
-
 class ChatSendBloc extends Bloc<ChatSendEvent, ChatSendState> {
   final ChatApiService apiService;
 
@@ -16,11 +15,12 @@ class ChatSendBloc extends Bloc<ChatSendEvent, ChatSendState> {
     emit(ChatSendLoading());
     try {
       await apiService.sendMessage(
-        conversationId: event.conversationId,
-        senderId: event.senderId,
-        receiverId: event.receiverId,
-        content: event.content,
-      );
+          conversationId: event.conversationId,
+          senderId: event.senderId,
+          receiverId: event.receiverId,
+          content: event.content,
+          isGrpchat: event.isGrpchat,
+          grpId: event.grpId);
       emit(ChatSendSuccess());
     } catch (e) {
       emit(ChatSendError(e.toString()));

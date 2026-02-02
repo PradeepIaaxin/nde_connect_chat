@@ -1557,7 +1557,7 @@ class SocketService {
       ack: (data) {
         log('🟢 SEND_MESSAGE ACK RECEIVED');
         log('🕒 Time: ${DateTime.now().toIso8601String()}');
-        log('📦 ACK Payload: $data');
+       // log('📦 ACK Payload: $data');
 
         if (data is! Map) {
           log('⚠ ACK is not a Map: ${data.runtimeType}');
