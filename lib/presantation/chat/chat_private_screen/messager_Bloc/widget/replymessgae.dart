@@ -282,7 +282,7 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
                 ],
               ),
             ),
-            if (!isGrouped && (isImage || isVideo) && mediaUrl.isNotEmpty)
+            if (replyContent.isEmpty && !isGrouped && (isImage || isVideo) && mediaUrl.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(left: 12.0, right: 10),
                 child: ClipRRect(
