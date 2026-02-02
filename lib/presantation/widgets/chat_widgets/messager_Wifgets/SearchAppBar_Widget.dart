@@ -17,7 +17,7 @@ class SearchAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.onUpPressed,
     this.onDownPressed,
     this.matchCount = 0,
-    this.currentIndex = 0,
+    this.currentIndex = 1,
   }) : super(key: key);
 
   @override
@@ -55,14 +55,7 @@ class SearchAppBar extends StatelessWidget implements PreferredSizeWidget {
               ),
             ),
           ),
-          if (matchCount > 0)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: Text(
-                '${currentIndex==0?1:currentIndex}/$matchCount',
-                style: const TextStyle(color: Colors.black54, fontSize: 14),
-              ),
-            ),
+
         ],
       ),
       actions: [
