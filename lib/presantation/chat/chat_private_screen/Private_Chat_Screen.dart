@@ -4587,11 +4587,11 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
                       _markMessagesAsDeleted(state.deletedMessageIds);
                     }
                     else if (state is MessagerLoaded) {
-                      // final flat = state.response.data
-                      //     .expand((g) => g.messages)
-                      //     .map((e) => normalizeMessage(e.toJson(),text: "state"))
-                      //     .where((m) => m.isNotEmpty)
-                      //     .toList();
+                      final flat = state.response.data
+                          .expand((g) => g.messages)
+                          .map((e) => normalizeMessage(e.toJson(),text: "state"))
+                          .where((m) => m.isNotEmpty)
+                          .toList();
 
                       // 🔥 MERGE, DO NOT REPLACE
                       final Map<String, Map<String, dynamic>> merged = {
@@ -4599,10 +4599,10 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
                           if (m['message_id'] != null) m['message_id']: m,
                       };
 
-                      // for (final m in flat) {
-                      //   final id = m['message_id'];
-                      //   if (id != null) merged[id] = m;
-                      // }
+                      for (final m in flat) {
+                        final id = m['message_id'];
+                        if (id != null) merged[id] = m;
+                      }
 
                       _allMessages
                         ..clear()
