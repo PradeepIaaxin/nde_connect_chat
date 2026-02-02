@@ -110,7 +110,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   String currentUserId = '';
   bool _showSearchAppBar = false;
   List<String> _searchMatchIds = [];
-  int _currentSearchMatchIndex = -1;
+  int _currentSearchMatchIndex = 0;
   late String _currentConversationId;
   bool _isRecording = false;
 
@@ -256,96 +256,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     super.dispose();
   }
 
-  // void _onSearchChanged(String query) {
-  //   if (query.isEmpty) {
-  //     setState(() {
-  //       _searchMatchIds = [];
-  //       _currentSearchMatchIndex = -1;
-  //     });
-  //     return;
-  //   }
-  //
-  //   final queryLower = query.toLowerCase();
-  //   final List<Map<String, dynamic>> combined = _getCombinedMessages();
-  //   final List<String> matchIds = [];
-  //   final Set<String> groupMatchIds = {};
-  //
-  //   for (final msg in combined) {
-  //     final content = (msg['content']?.toString() ?? '').toLowerCase();
-  //     final fileName = (msg['fileName']?.toString() ?? '').toLowerCase();
-  //     final isDeleted = msg['is_deleted'] == true ||
-  //         msg['messageStatus'] == 'deleted' ||
-  //         content.contains('this message was deleted');
-  //
-  //     final isSystem = msg['ContentType'] == 'system' ||
-  //         msg['contentType'] == 'system' ||
-  //         content.contains('added') ||
-  //         content.contains('left') ||
-  //         content.contains('created by');
-  //
-  //     if (!isDeleted &&
-  //         !isSystem &&
-  //         (content.contains(queryLower) || fileName.contains(queryLower))) {
-  //       final messageId = _anyId(msg)?.toString() ?? '';
-  //       if (messageId.isEmpty) continue;
-  //
-  //       final groupMsgId = msg['group_message_id']?.toString();
-  //       if (groupMsgId != null && groupMsgId.isNotEmpty) {
-  //         if (!groupMatchIds.contains(groupMsgId)) {
-  //           groupMatchIds.add(groupMsgId);
-  //           matchIds.add(messageId);
-  //         }
-  //       } else {
-  //         matchIds.add(messageId);
-  //       }
-  //     }
-  //   }
-  //
-  //   setState(() {
-  //     _searchMatchIds = matchIds;
-  //     if (matchIds.isNotEmpty) {
-  //       _currentSearchMatchIndex = matchIds.length - 1;
-  //       _scrollToMessageById(matchIds[_currentSearchMatchIndex],
-  //           fetchIfMissing: false);
-  //     } else {
-  //       _currentSearchMatchIndex = -1;
-  //       Messenger.alert(msg: "No results found");
-  //     }
-  //   });
-  // }
-  // void _onSearchChanged(String query) {
-  //   if (query.trim().isEmpty) {
-  //     setState(() {
-  //       _searchMatchIds.clear();
-  //       _currentSearchMatchIndex = 0;
-  //       _highlightedMessageId = null;
-  //     });
-  //     return;
-  //   }
-  //
-  //   final lowerQuery = query.toLowerCase();
-  //
-  //   final matches = _allMessages.where((m) {
-  //     final content = (m['content'] ?? '').toString().toLowerCase();
-  //     return content.contains(lowerQuery);
-  //   }).map((m) {
-  //     return (m['message_id'] ??
-  //         m['messageId'] ??
-  //         m['id'])
-  //         ?.toString();
-  //   }).whereType<String>().toList();
-  //
-  //   setState(() {
-  //     _searchMatchIds = matches;
-  //     _currentSearchMatchIndex = 0;
-  //     _highlightedMessageId =
-  //     _searchMatchIds.isNotEmpty ? _searchMatchIds.first : null;
-  //   });
-  //
-  //   if (_highlightedMessageId != null) {
-  //     _scrollToMessageById(_highlightedMessageId!, fetchIfMissing: false);
-  //   }
-  // }
+
   void _onSearchChanged(String query) {
     if (query.trim().isEmpty) {
       setState(() {
@@ -361,7 +272,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     for (final msg in _allMessages) {
       final content = (msg['content'] ?? '').toString().toLowerCase();
-      final fileName = (msg['fileName'] ?? '').toString().toLowerCase();
 
       final isDeleted = msg['is_deleted'] == true ||
           msg['messageStatus'] == 'deleted' ||
@@ -375,11 +285,37 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
       if (isDeleted || isSystem) continue;
 
-      if (content.contains(lowerQuery) || fileName.contains(lowerQuery)) {
-        final id = (msg['message_id'] ??
-            msg['messageId'] ??
-            msg['id'])
-            ?.toString();
+      // 🔥 NEW: Exclude media messages (images, videos, documents, links)
+      final hasImageUrl = (msg['imageUrl']?.toString() ?? '').isNotEmpty ||
+          (msg['originalUrl']?.toString() ?? '').isNotEmpty ||
+          (msg['localImagePath']?.toString() ?? '').isNotEmpty;
+
+      final hasFileUrl = (msg['fileUrl']?.toString() ?? '').isNotEmpty;
+
+      final mimeType =
+      (msg['mimeType'] ?? msg['fileType'] ?? '').toString().toLowerCase();
+      final isVideo =
+          mimeType.startsWith('video/') || mimeType.contains('video');
+
+      final isDocument = hasFileUrl && !hasImageUrl && !isVideo;
+
+      // Check if content contains any URL pattern
+      final contentText = (msg['content'] ?? '').toString().trim();
+      final hasLink = contentText.contains('http://') ||
+          contentText.contains('https://') ||
+          contentText.contains('www.');
+
+      // Skip media messages without meaningful text content
+      if (hasImageUrl && contentText.isEmpty) continue; // Image without caption
+      if (isVideo && contentText.isEmpty) continue; // Video without caption
+      if (isDocument && contentText.isEmpty)
+        continue; // Document without caption
+      if (hasLink) continue; // Any message containing a URL
+
+      // Only search in text content (not file names for media)
+      if (content.contains(lowerQuery)) {
+        final id =
+        (msg['message_id'] ?? msg['messageId'] ?? msg['id'])?.toString();
 
         if (id != null && id.isNotEmpty) {
           matches.add(id);
@@ -407,30 +343,29 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   void _onSearchUp() {
     if (_searchMatchIds.isEmpty) return;
 
-    setState(() {
-      _currentSearchMatchIndex =
-          (_currentSearchMatchIndex - 1 + _searchMatchIds.length) %
-              _searchMatchIds.length;
+    // Up arrow = go to next/newer message (increment index)
+    if (_currentSearchMatchIndex < _searchMatchIds.length - 1) {
+      setState(() {
+        _currentSearchMatchIndex = _currentSearchMatchIndex + 1;
+        _highlightedMessageId = _searchMatchIds[_currentSearchMatchIndex];
+      });
 
-      _highlightedMessageId =
-      _searchMatchIds[_currentSearchMatchIndex];
-    });
-
-    _scrollToMessageById(_highlightedMessageId!, fetchIfMissing: false);
+      _scrollToMessageById(_highlightedMessageId!, fetchIfMissing: false);
+    }
   }
 
   void _onSearchDown() {
     if (_searchMatchIds.isEmpty) return;
 
-    setState(() {
-      _currentSearchMatchIndex =
-          (_currentSearchMatchIndex + 1) % _searchMatchIds.length;
+    // Down arrow = go to previous/older message (decrement index)
+    if (_currentSearchMatchIndex > 0) {
+      setState(() {
+        _currentSearchMatchIndex = _currentSearchMatchIndex - 1;
+        _highlightedMessageId = _searchMatchIds[_currentSearchMatchIndex];
+      });
 
-      _highlightedMessageId =
-      _searchMatchIds[_currentSearchMatchIndex];
-    });
-
-    _scrollToMessageById(_highlightedMessageId!, fetchIfMissing: false);
+      _scrollToMessageById(_highlightedMessageId!, fetchIfMissing: false);
+    }
   }
 
   void _hideSearchAppBar() {
@@ -1270,11 +1205,20 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
       m['isReplyMessage'] = true;
     }
+    final bool isGrouped =
+        rawMsg['is_grouped_message'] == true ||
+            rawMsg['isGroupedMessage'] == true;
+
+    final String? groupId =
+        rawMsg['group_message_id'] ??
+            rawMsg['groupMessageId'] ??
+            rawMsg['isGroupedMessageId'];
+
+    m['is_grouped_message'] = isGrouped;
+    m['group_message_id'] = isGrouped ? groupId : null;
     // ================= DELETED STATUS =================
     m['is_deleted'] = rawMsg['is_deleted'] == true;
     m['isForwarded'] = rawMsg['isForwarded'];
-    m['is_grouped_message'] = rawMsg['is_grouped_message'];
-    m['group_message_id'] = rawMsg['group_message_id'];
     m['originalKey'] = originalKey;
     m['mimeType'] = rawMsg['mimeType'];
     m['duration'] = rawMsg['duration'];
@@ -1739,7 +1683,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   Future<bool> _scrollToMessageById(
     String messageId, {
     bool fetchIfMissing = false,
-  }) async {
+  })
+  async {
     final ctx = _messageContexts[messageId];
 
     if (ctx != null && ctx.mounted) {
@@ -1845,14 +1790,68 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
 
     if (fetchIfMissing) {
-      _triggerServerFetch();
-      await Future.delayed(const Duration(milliseconds: 300));
-      return _scrollToMessageById(messageId);
+      final found = await _fetchUntilMessageFound(messageId);
+      if (found) {
+        return _scrollToMessageById(messageId, fetchIfMissing: false);
+      }
+      return false;
     }
 
     return false;
   }
+  Future<bool> _fetchUntilMessageFound(String messageId) async {
+    if (messageId.isEmpty) return false;
+    int safety = 0;
 
+    while (safety < 10 && mounted) {
+      safety++;
+
+      final combined = _getCombinedMessages();
+      final exists = combined.any((m) {
+        final mid =
+        (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '').toString();
+        return mid == messageId;
+      });
+
+      if (exists) return true;
+      if (!_hasNextPage) return false;
+
+      // Wait for the BLoC to finish loading this page
+      final completer = Completer<void>();
+      late final StreamSubscription sub;
+
+      sub = _messagerBloc.stream.listen((state) {
+        if (state is MessagerLoaded && !completer.isCompleted) {
+          completer.complete();
+        }
+      });
+
+      _currentPage++;
+      log('📡 _fetchUntilMessageFound: Fetching page $_currentPage...');
+      _messagerBloc.add(
+        FetchMessagesEvent(
+          convoId: widget.convoId,
+          page: _currentPage,
+          limit: _initialLimit,
+        ),
+      );
+
+      try {
+        await completer.future.timeout(const Duration(seconds: 5));
+      } catch (_) {
+        // Timeout - continue anyway
+      } finally {
+        await sub.cancel();
+      }
+    }
+
+    final combined = _getCombinedMessages();
+    return combined.any((m) {
+      final mid =
+      (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '').toString();
+      return mid == messageId;
+    });
+  }
   void _highlightAndScrollToContext(BuildContext ctx, String messageId) {
     if (!ctx.mounted) return;
 
@@ -2990,7 +2989,7 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
     if (replyId != null && replyId.isNotEmpty) {
       final found = await _scrollToMessageById(
         replyId,
-        fetchIfMissing: false,
+        fetchIfMissing: true,
       );
       if (!found) {
         Messenger.alert(
@@ -4152,7 +4151,7 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
       searchMatchCount: _searchMatchIds.length,
       searchMatchIndex: _searchMatchIds.isEmpty
           ? 0
-          : (_searchMatchIds.length - 1 - _currentSearchMatchIndex),
+          : _currentSearchMatchIndex + 1,
       hasLeftGroup: false,
       groupMembers: [],
     );
@@ -4343,89 +4342,102 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
   Map<String, dynamic> _resolveReplySource(Map<String, dynamic> message) {
     return message;
   }
+  bool _isVisualMedia(Map m) {
+    final String url = (
+        m['fileUrl'] ??
+            m['originalUrl'] ??
+            m['imageUrl'] ??
+            ''
+    ).toString().toLowerCase();
 
-  String? senderIdOf(Map msg) {
-    return msg['sender']?['_id']?.toString();
+    final String name =
+    (m['fileName'] ?? '').toString().toLowerCase();
+
+    return url.endsWith('.jpg') ||
+        url.endsWith('.jpeg') ||
+        url.endsWith('.png') ||
+        url.endsWith('.webp') ||
+        url.endsWith('.mp4') ||
+        url.endsWith('.mov') ||
+        url.endsWith('.mkv') ||
+        name.endsWith('.jpg') ||
+        name.endsWith('.jpeg') ||
+        name.endsWith('.png') ||
+        name.endsWith('.webp') ||
+        name.endsWith('.mp4') ||
+        name.endsWith('.mov') ||
+        name.endsWith('.mkv');
   }
 
+  String? senderIdOf(Map msg) {
+    return msg['sender']?['_id']?.toString() ??
+        msg['senderId']?.toString() ??
+        msg['from']?.toString();
+  }
+
+  String _forwardBatchKey(Map<String, dynamic> m) {
+    return [
+      senderIdOf(m),
+      m['isForwarded'] == true ? 'FWD' : 'NF',
+      _parseTime(m['time']).millisecondsSinceEpoch ~/ 60000 // 1-min bucket
+    ].join('_');
+  }
   List<Map<String, dynamic>> buildGroupedMessages(List raw) {
+    final List<Map<String, dynamic>> messages =
+    List<Map<String, dynamic>>.from(raw)
+      ..sort((a, b) =>
+          _parseTime(a['time']).compareTo(_parseTime(b['time'])));
+
     final List<Map<String, dynamic>> result = [];
+    final Map<String, Map<String, dynamic>> lastMediaBySender = {};
 
-    for (int i = 0; i < raw.length; i++) {
-      final current = raw[i];
+    for (final current in messages) {
+      final senderId = senderIdOf(current);
 
-      final bool isMedia = current['imageUrl'] != null ||
-          current['originalUrl'] != null ||
-          current['fileUrl'] != null;
-
-      if (!isMedia) {
+      if (senderId == null || !_isVisualMedia(current)) {
         result.add(current);
         continue;
       }
 
-      final String? currentSenderId = senderIdOf(current);
-      if (currentSenderId == null) {
-        result.add(current);
-        continue;
-      }
+      final prev = lastMediaBySender[senderId];
 
-      if (result.isNotEmpty) {
-        final prev = result.last;
-        final String? prevSenderId = senderIdOf(prev);
-
-        // 🚨 ABSOLUTE RULE: sender must match
-        if (prevSenderId != currentSenderId) {
-          result.add(current);
-          continue;
-        }
-
-        final bool prevIsMedia = prev['imageUrl'] != null ||
-            prev['originalUrl'] != null ||
-            prev['fileUrl'] != null;
-
-        if (!prevIsMedia) {
-          result.add(current);
-          continue;
-        }
-
-        final int diffSeconds = _parseTime(current['time'])
+      if (prev != null && _isVisualMedia(prev)) {
+        final diffSeconds = _parseTime(current['time'])
             .difference(_parseTime(prev['time']))
             .inSeconds
             .abs();
-
-        final String prevType = (prev['fileType'] ?? prev['mimeType'] ?? '')
-            .toString()
-            .toLowerCase();
-
-        final String currType =
-            (current['fileType'] ?? current['mimeType'] ?? '')
-                .toString()
-                .toLowerCase();
-
-        final bool sameMediaType = _sameMediaType(prevType, currType);
 
         final bool prevHasCaption =
             (prev['content']?.toString() ?? '').isNotEmpty;
         final bool currHasCaption =
             (current['content']?.toString() ?? '').isNotEmpty;
 
-        // ✅ FINAL GROUP CONDITION
-        if (diffSeconds <= 60 &&
-            sameMediaType &&
+        final bool sameForwardBatch =
+            prev['isForwarded'] == true &&
+                current['isForwarded'] == true &&
+                _forwardBatchKey(prev) == _forwardBatchKey(current);
+
+        final bool shouldGroup =
             !prevHasCaption &&
-            !currHasCaption) {
+                !currHasCaption &&
+                (diffSeconds <= 60 || sameForwardBatch);
+
+        if (shouldGroup) {
+          final groupId =
+              prev['group_message_id'] ??
+                  prev['message_id'] ??
+                  current['message_id'];
+
           prev['is_grouped_message'] = true;
-          prev['group_message_id'] ??= prev['message_id'];
+          prev['group_message_id'] = groupId;
 
           current['is_grouped_message'] = true;
-          current['group_message_id'] = prev['group_message_id'];
-
-          result.add(current);
-          continue;
+          current['group_message_id'] = groupId;
         }
       }
 
       result.add(current);
+      lastMediaBySender[senderId] = current;
     }
 
     return result;
@@ -4438,12 +4450,29 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
   //   return aIsVisual && bIsVisual; // image+video allowed
   // }
 
-  bool _sameMediaType(String a, String b) {
-    final bool aIsVisual = a.startsWith('image') || a.startsWith('video');
-    final bool bIsVisual = b.startsWith('image') || b.startsWith('video');
+  bool _sameMediaType(String a, String b, Map prev, Map curr) {
+    bool isVisual(Map m) {
+      final url = (m['fileUrl'] ??
+          m['originalUrl'] ??
+          m['imageUrl'] ??
+          '')
+          .toString()
+          .toLowerCase();
 
-    return aIsVisual && bIsVisual;
+      return url.contains('.jpg') ||
+          url.contains('.png') ||
+          url.contains('.jpeg') ||
+          url.contains('.webp') ||
+          url.contains('.mp4') ||
+          url.contains('.mov') ||
+          url.contains('.mkv') ||
+          m['ContentType'] == 'image' ||
+          m['ContentType'] == 'video';
+    }
+
+    return isVisual(prev) && isVisual(curr);
   }
+
 
   void _selectGroupedMessages(List<Map<String, dynamic>> grouped) {
     final bool isGroupSelected = grouped.any(
@@ -5001,9 +5030,9 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
                                   final groupMessageId =
                                       message['group_message_id']?.toString();
 
-                                  if (isGroupMessage &&
-                                      groupMessageId != null &&
-                                      groupMessageId.isNotEmpty) {
+                                  if (message['is_grouped_message'] == true &&
+                                      message['group_message_id'] != null &&
+                                      message['group_message_id'].toString().isNotEmpty) {
                                     // Is this the first message in the group?
                                     final isFirstInGroup = realIndex == 0 ||
                                         groupedMessages[realIndex - 1]
