@@ -64,10 +64,13 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
     super.dispose();
   }
 
-  // ================= PICK MORE MEDIA =================
+  // ================= IMAGE EDIT =================
   Future<void> _pickMoreMedia() async {
+    debugPrint("📸 Add tapped → mediaContent = ${widget.mediaContent}");
+
     List<XFile> newFiles = [];
 
+    // ================= YOUR EXISTING LOGIC =================
     if (widget.mediaContent == "Gallery") {
       final images = await ImagePicker().pickMultiImage();
       if (images.isNotEmpty) newFiles.addAll(images);
@@ -92,12 +95,27 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
       }
     }
 
+    // ================= CAMERA FALLBACK (KEY FIX) =================
+    // If mediaContent is NULL or no condition matched → OPEN CAMERA
+    if (newFiles.isEmpty) {
+      debugPrint("📸 Fallback → Opening Camera");
+
+      final cameraFile =
+          await ImagePicker().pickImage(source: ImageSource.camera);
+
+      if (cameraFile != null) {
+        newFiles.add(cameraFile);
+      }
+    }
+
+    // ================= ADD TO LIST =================
     if (newFiles.isNotEmpty) {
-      setState(() => _files.addAll(newFiles));
+      setState(() {
+        _files.addAll(newFiles);
+      });
     }
   }
 
-  // ================= IMAGE EDIT =================
   Future<void> _editCurrentImage() async {
     final file = _files[_currentIndex];
     final mime = lookupMimeType(file.path) ?? '';

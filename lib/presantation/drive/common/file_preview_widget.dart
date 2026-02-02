@@ -136,6 +136,8 @@ class _FilePreviewWidgetState extends State<FilePreviewWidget> {
     return CachedNetworkImage(
       imageUrl: widget.fileUrl!,
       fit: BoxFit.contain,
+      memCacheWidth: 480,
+      memCacheHeight: 600,
       placeholder: (context, url) => _buildLoadingIndicator(),
       errorWidget: (context, url, error) {
         return _buildImageFallback();
@@ -414,7 +416,7 @@ class FilePreviewScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-          surfaceTintColor: Colors.white,
+        surfaceTintColor: Colors.white,
         title: const Text("File Preview"),
         backgroundColor: Colors.white,
         actions: [
