@@ -72,6 +72,7 @@ class MessagerApiService {
           
 
           final Map? messagesMap = decoded["messages"];
+        // log(">>>>>>>>>. $messagesMap");
           if (messagesMap == null) {
             log('⚠️ No messages key in snapshot');
             return [];

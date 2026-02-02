@@ -95,6 +95,8 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
         return CachedNetworkImage(
           imageUrl: mediaUrl,
           fit: BoxFit.cover,
+          memCacheWidth: 480,
+          memCacheHeight: 600,
           placeholder: (_, __) => Container(color: Colors.grey.shade300),
           errorWidget: (_, __, ___) => Container(color: Colors.grey.shade400),
         );
@@ -280,7 +282,7 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
                 ],
               ),
             ),
-            if (!isGrouped && (isImage || isVideo) && mediaUrl.isNotEmpty)
+            if (replyContent.isEmpty && !isGrouped && (isImage || isVideo) && mediaUrl.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(left: 12.0, right: 10),
                 child: ClipRRect(

@@ -317,7 +317,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     for (final msg in combined) {
       final content = (msg['content'] ?? '').toString().toLowerCase();
-      final fileName = (msg['fileName'] ?? '').toString().toLowerCase();
 
       final isDeleted =
           msg['is_deleted'] == true || msg['messageStatus'] == 'deleted';
@@ -327,7 +326,35 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
       if (isDeleted || isSystem) continue;
 
-      if (content.contains(lowerQuery) || fileName.contains(lowerQuery)) {
+      // 🔥 NEW: Exclude media messages (images, videos, documents, links)
+      final hasImageUrl = (msg['imageUrl']?.toString() ?? '').isNotEmpty ||
+          (msg['originalUrl']?.toString() ?? '').isNotEmpty ||
+          (msg['localImagePath']?.toString() ?? '').isNotEmpty;
+
+      final hasFileUrl = (msg['fileUrl']?.toString() ?? '').isNotEmpty;
+
+      final mimeType =
+      (msg['mimeType'] ?? msg['fileType'] ?? '').toString().toLowerCase();
+      final isVideo =
+          mimeType.startsWith('video/') || mimeType.contains('video');
+
+      final isDocument = hasFileUrl && !hasImageUrl && !isVideo;
+
+      // Check if content contains any URL pattern
+      final contentText = (msg['content'] ?? '').toString().trim();
+      final hasLink = contentText.contains('http://') ||
+          contentText.contains('https://') ||
+          contentText.contains('www.');
+
+      // Skip media messages without meaningful text content
+      if (hasImageUrl && contentText.isEmpty) continue; // Image without caption
+      if (isVideo && contentText.isEmpty) continue; // Video without caption
+      if (isDocument && contentText.isEmpty)
+        continue; // Document without caption
+      if (hasLink) continue; // Any message containing a URL
+
+      // Only search in text content (not file names for media)
+      if (content.contains(lowerQuery)) {
         final msgId = _anyId(msg)?.toString();
         if (msgId != null && msgId.isNotEmpty) {
           matchIds.add(msgId);
@@ -339,7 +366,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     int oldestIndex = combined.length;
     for (final id in matchIds) {
       final idx =
-      combined.indexWhere((m) => (_anyId(m)?.toString() ?? '') == id);
+          combined.indexWhere((m) => (_anyId(m)?.toString() ?? '') == id);
       if (idx != -1 && idx < oldestIndex) {
         oldestIndex = idx;
       }
@@ -363,7 +390,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       _searchMatchGroupIds = matchIds.reversed.toList();
       _currentSearchMatchIndex = 0;
       _highlightedMessageId =
-      _searchMatchGroupIds.isNotEmpty ? _searchMatchGroupIds.first : null;
+          _searchMatchGroupIds.isNotEmpty ? _searchMatchGroupIds.first : null;
     });
 
     if (_highlightedMessageId != null) {
@@ -373,44 +400,39 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
   }
 
-
-
-
   void _onSearchUp() {
     if (_searchMatchGroupIds.isEmpty) return;
 
-    setState(() {
-      _currentSearchMatchIndex =
-          (_currentSearchMatchIndex - 1 + _searchMatchGroupIds.length) %
-              _searchMatchGroupIds.length;
+    // Up arrow = go to next/newer message (increment index)
+    if (_currentSearchMatchIndex < _searchMatchGroupIds.length - 1) {
+      setState(() {
+        _currentSearchMatchIndex = _currentSearchMatchIndex + 1;
+        _highlightedMessageId = _searchMatchGroupIds[_currentSearchMatchIndex];
+      });
 
-      _highlightedMessageId =
-      _searchMatchGroupIds[_currentSearchMatchIndex];
-    });
-
-    _scrollToMessaageById(_highlightedMessageId!, fetchIfMissing: false);
+      _scrollToMessaageById(_highlightedMessageId!, fetchIfMissing: false);
+    }
   }
 
   void _onSearchDown() {
     if (_searchMatchGroupIds.isEmpty) return;
 
-    setState(() {
-      _currentSearchMatchIndex =
-          (_currentSearchMatchIndex + 1) % _searchMatchGroupIds.length;
+    // Down arrow = go to previous/older message (decrement index)
+    if (_currentSearchMatchIndex > 0) {
+      setState(() {
+        _currentSearchMatchIndex = _currentSearchMatchIndex - 1;
+        _highlightedMessageId = _searchMatchGroupIds[_currentSearchMatchIndex];
+      });
 
-      _highlightedMessageId =
-      _searchMatchGroupIds[_currentSearchMatchIndex];
-    });
-
-    _scrollToMessaageById(_highlightedMessageId!, fetchIfMissing: false);
+      _scrollToMessaageById(_highlightedMessageId!, fetchIfMissing: false);
+    }
   }
 
 
   Future<bool> _scrollToMessaageById(
-      String messageId, {
-        bool fetchIfMissing = false,
-      })
-  async {
+    String messageId, {
+    bool fetchIfMissing = false,
+  }) async {
     final ctx = _messageContexts[messageId];
 
     if (ctx != null && ctx.mounted) {
@@ -421,7 +443,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final combinedMessages = _messagesNotifier.value;
     final int msgIndex = combinedMessages.indexWhere((m) {
       final mid =
-      (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '').toString();
+          (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '').toString();
       return mid == messageId;
     });
 
@@ -429,7 +451,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       final int listIndex = combinedMessages.length - 1 - msgIndex;
 
       final double estimatedOffset =
-      _estimateScrollOffset(listIndex, combinedMessages);
+          _estimateScrollOffset(listIndex, combinedMessages);
 
       if (_scrollController.hasClients) {
         _scrollController.jumpTo(estimatedOffset.clamp(
@@ -516,15 +538,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
 
     if (fetchIfMissing) {
-    //  _triggerServerFetch();
+      //  _triggerServerFetch();
       await Future.delayed(const Duration(milliseconds: 300));
       return _scrollToMessageById(messageId);
     }
 
     return false;
   }
-
-
 
   void _hideSearchAppBar() {
     setState(() {
@@ -536,7 +556,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       _highlightedGroupId = null;
     });
   }
-
 
   dynamic _anyId(Map<String, dynamic> m) {
     final candidates = [
@@ -3663,18 +3682,20 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       child: ValueListenableBuilder<List<Map<String, dynamic>>>(
         valueListenable: _messagesNotifier,
         builder: (context, combinedMessages, child) {
-          if (combinedMessages.isNotEmpty) {
+          final groupedMessages = buildGroupedMessages(combinedMessages);
+          if (groupedMessages.isNotEmpty) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              _markVisibleMessagesAsRead(combinedMessages);
+              _markVisibleMessagesAsRead(groupedMessages);
             });
           }
+
 
           return BlocBuilder<GroupChatBloc, GroupChatState>(
             bloc: _groupBloc,
             builder: (context, state) {
               final bool showShimmer = messages.isEmpty &&
                   socketMessages.isEmpty &&
-                  combinedMessages
+                  groupedMessages
                       .isEmpty; // Check combinedMessages instead of _allMessages directly for safety
               if (showShimmer) {
                 return ListView.builder(
@@ -3702,18 +3723,18 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                         addRepaintBoundaries: true,
                         cacheExtent: 2000,
                         controller: _scrollController,
-                        itemCount: combinedMessages.length,
+                        itemCount: groupedMessages.length,
                         reverse: true,
                         itemBuilder: (context, index) {
                           final int realIndex =
-                              combinedMessages.length - 1 - index;
+                              groupedMessages.length - 1 - index;
 
                           if (realIndex < 0 ||
-                              realIndex >= combinedMessages.length) {
+                              realIndex >= groupedMessages.length) {
                             return const SizedBox.shrink();
                           }
 
-                          final message = combinedMessages[realIndex];
+                          final message = groupedMessages[realIndex];
                           final senderMap = (message['sender'] is Map)
                               ? Map<String, dynamic>.from(message['sender'])
                               : <String, dynamic>{};
@@ -3729,7 +3750,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                           final currentTime = _parseTime(message['time']);
                           final prevTime = realIndex > 0
                               ? _parseTime(
-                                  combinedMessages[realIndex - 1]['time'])
+                              groupedMessages[realIndex - 1]['time'])
                               : null;
 
                           // Grouping Logic
@@ -3743,7 +3764,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                               groupMessageId.isNotEmpty) {
                             // First in group?
                             final isFirstInGroup = realIndex == 0 ||
-                                combinedMessages[realIndex - 1]
+                                groupedMessages[realIndex - 1]
                                             ['group_message_id']
                                         ?.toString() !=
                                     groupMessageId;
@@ -3755,9 +3776,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                             List<String> groupImages = [];
                             List<Map<String, dynamic>> groupMessagesList = [];
                             for (int i = realIndex;
-                                i < combinedMessages.length;
+                                i < groupedMessages.length;
                                 i++) {
-                              final nextMsg = combinedMessages[i];
+                              final nextMsg = groupedMessages[i];
                               final nextGrpId =
                                   nextMsg['group_message_id']?.toString();
                               if (nextGrpId == groupMessageId) {
@@ -3819,7 +3840,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                       (isGroupMessage &&
                                           groupMessageId != null &&
                                           _highlightedMessageId != null &&
-                                          combinedMessages.any((m) =>
+                                          groupedMessages.any((m) =>
                                               m['group_message_id']
                                                       ?.toString() ==
                                                   groupMessageId &&
@@ -3862,11 +3883,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                       _replyToMessage(message),
                                               child: Builder(builder: (ctx) {
                                                 final String anchorMessageId =
-                                                    _anyId(groupMessagesList.first)?.toString() ?? '';
-                                                if (anchorMessageId.isNotEmpty) {
-                                                  _messageContexts[anchorMessageId] = ctx;
+                                                    _anyId(groupMessagesList
+                                                                .first)
+                                                            ?.toString() ??
+                                                        '';
+                                                if (anchorMessageId
+                                                    .isNotEmpty) {
+                                                  _messageContexts[
+                                                      anchorMessageId] = ctx;
                                                 }
-
 
                                                 return Align(
                                                   alignment: isSentByMe
@@ -4087,7 +4112,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                               messageStatus: message['messageStatus']?.toString() ?? 'sent',
                                                                               onMediaTap: (index) {
                                                                                 final media = buildConversationMedia(
-                                                                                  combinedMessages,
+                                                                                  groupedMessages,
                                                                                   currentUserId: currentUserId,
                                                                                 );
                                                                                 final tappedUrl = groupImages[index];
@@ -4676,7 +4701,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                         child: GestureDetector(
                           onTap: () => _onMessageTap(message),
                           onLongPress: () {
-                            log("messssssssssssssssssssss $message");
+                            // log("messssssssssssssssssssss $message");
                             if (_isSelectionMode) {
                               _toggleMessageSelection(message);
                             } else if (!isDeleted) {
@@ -5531,6 +5556,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                               width: 32,
                                               height: 32,
                                               memCacheWidth: 480,
+                                              memCacheHeight: 600,
                                               fit: BoxFit.cover,
                                               placeholder: (context, url) =>
                                                   _buildAvatarWithInitial(
@@ -6051,11 +6077,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       onSearchChanged: _onSearchChanged,
       onSearchUp: _onSearchUp,
       onSearchDown: _onSearchDown,
-      searchMatchCount: _searchMatchGroupIds.length,
-      searchMatchIndex: _searchMatchGroupIds.isEmpty
-          ? 0
-          : (_searchMatchGroupIds.length - _currentSearchMatchIndex),
-
       hasLeftGroup: _hasLeftGroup,
       onExitGroup: () {
         if (widget.groupId != null || widget.datumId.isNotEmpty) {
@@ -6065,6 +6086,113 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         }
       },
     );
+  }
+
+  bool _sameMediaType(String a, String b) {
+    final bool aIsVisual = a.startsWith('image') || a.startsWith('video');
+    final bool bIsVisual = b.startsWith('image') || b.startsWith('video');
+
+    return aIsVisual && bIsVisual;
+  }
+  bool _isVisualMedia(Map m) {
+    final String url = (
+        m['fileUrl'] ??
+            m['originalUrl'] ??
+            m['imageUrl'] ??
+            ''
+    ).toString().toLowerCase();
+
+    final String name =
+    (m['fileName'] ?? '').toString().toLowerCase();
+
+    return url.endsWith('.jpg') ||
+        url.endsWith('.jpeg') ||
+        url.endsWith('.png') ||
+        url.endsWith('.webp') ||
+        url.endsWith('.mp4') ||
+        url.endsWith('.mov') ||
+        url.endsWith('.mkv') ||
+        name.endsWith('.jpg') ||
+        name.endsWith('.jpeg') ||
+        name.endsWith('.png') ||
+        name.endsWith('.webp') ||
+        name.endsWith('.mp4') ||
+        name.endsWith('.mov') ||
+        name.endsWith('.mkv');
+  }
+
+  String? senderIdOf(Map msg) {
+    return msg['sender']?['_id']?.toString() ??
+        msg['senderId']?.toString() ??
+        msg['from']?.toString();
+  }
+
+  String _forwardBatchKey(Map<String, dynamic> m) {
+    return [
+      senderIdOf(m),
+      m['isForwarded'] == true ? 'FWD' : 'NF',
+      _parseTime(m['time']).millisecondsSinceEpoch ~/ 60000 // 1-min bucket
+    ].join('_');
+  }
+  List<Map<String, dynamic>> buildGroupedMessages(List raw) {
+    final List<Map<String, dynamic>> messages =
+    List<Map<String, dynamic>>.from(raw)
+      ..sort((a, b) =>
+          _parseTime(a['time']).compareTo(_parseTime(b['time'])));
+
+    final List<Map<String, dynamic>> result = [];
+    final Map<String, Map<String, dynamic>> lastMediaBySender = {};
+
+    for (final current in messages) {
+      final senderId = senderIdOf(current);
+
+      if (senderId == null || !_isVisualMedia(current)) {
+        result.add(current);
+        continue;
+      }
+
+      final prev = lastMediaBySender[senderId];
+
+      if (prev != null && _isVisualMedia(prev)) {
+        final diffSeconds = _parseTime(current['time'])
+            .difference(_parseTime(prev['time']))
+            .inSeconds
+            .abs();
+
+        final bool prevHasCaption =
+            (prev['content']?.toString() ?? '').isNotEmpty;
+        final bool currHasCaption =
+            (current['content']?.toString() ?? '').isNotEmpty;
+
+        final bool sameForwardBatch =
+            prev['isForwarded'] == true &&
+                current['isForwarded'] == true &&
+                _forwardBatchKey(prev) == _forwardBatchKey(current);
+
+        final bool shouldGroup =
+            !prevHasCaption &&
+                !currHasCaption &&
+                (diffSeconds <= 60 || sameForwardBatch);
+
+        if (shouldGroup) {
+          final groupId =
+              prev['group_message_id'] ??
+                  prev['message_id'] ??
+                  current['message_id'];
+
+          prev['is_grouped_message'] = true;
+          prev['group_message_id'] = groupId;
+
+          current['is_grouped_message'] = true;
+          current['group_message_id'] = groupId;
+        }
+      }
+
+      result.add(current);
+      lastMediaBySender[senderId] = current;
+    }
+
+    return result;
   }
 
   @override

@@ -47,7 +47,7 @@ class CommonAppBarBuilder {
     VoidCallback? onSearchDown,
     int searchMatchCount = 0,
     int searchMatchIndex = 0,
-    bool isSendByMe=false,
+    bool isSendByMe = false,
     VoidCallback? onExitGroup,
   }) {
     if (showSearchAppBar) {
@@ -187,9 +187,13 @@ class CommonAppBarBuilder {
                 : profileAvatarUrl)
             : profileAvatarUrl;
 
-        final initials = displayName.isNotEmpty
-            ? displayName.trim().characters.first.toUpperCase()
-            : 'U';
+        // final initials = displayName.isNotEmpty
+        //     ? displayName.trim().characters.first.toUpperCase()
+        //     : 'U';
+        final safeName = displayName.trim();
+
+        final initials =
+            safeName.isNotEmpty ? safeName.characters.first.toUpperCase() : 'U';
 
         return AppBar(
           backgroundColor: Colors.white,
@@ -271,7 +275,7 @@ class CommonAppBarBuilder {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "${firstname ?? ''} ${lastname ?? ''}",
+                  displayName.trim().isNotEmpty ? displayName : "UnKnown",
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,

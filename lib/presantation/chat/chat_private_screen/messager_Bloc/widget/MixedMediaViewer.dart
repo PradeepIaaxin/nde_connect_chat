@@ -245,7 +245,9 @@ class _MixedMediaViewerState extends State<MixedMediaViewer> {
                       screen: ForwardMessageScreen(
                         isForward: isSentByMe,
                         messages: [currentMessage],
-                        currentUserId:  currentMessage['sender']?["_id"]??currentMessage['senderId'] ?? '',
+                        currentUserId: currentMessage['sender']?["_id"] ??
+                            currentMessage['senderId'] ??
+                            '',
                         conversionalid: "",
                         username: currentMessage['senderName'] ?? '',
                       ),
@@ -290,12 +292,7 @@ class _MixedMediaViewerState extends State<MixedMediaViewer> {
                                 .isNotEmpty ??
                             false) {
                           textToShare = currentMessage['imageUrl'];
-                        } 
-                        
-                        
-                        
-                        
-                        else if (currentMessage['fileUrl']
+                        } else if (currentMessage['fileUrl']
                                 ?.toString()
                                 .trim()
                                 .isNotEmpty ??
@@ -583,6 +580,8 @@ class _MixedMediaViewerState extends State<MixedMediaViewer> {
               imageUrl: item.mediaUrl,
               width: size,
               height: size,
+              memCacheWidth: 480,
+              memCacheHeight: 600,
               fit: BoxFit.cover,
               placeholder: (_, __) => Container(color: Colors.grey.shade300),
               errorWidget: (_, __, ___) =>
