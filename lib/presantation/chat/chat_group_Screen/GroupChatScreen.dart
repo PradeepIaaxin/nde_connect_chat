@@ -29,6 +29,7 @@ import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/Aud
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/show_Bottom_Sheet.dart';
 import 'package:nde_email/utils/reusbale/colour_utlis.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
+import 'package:nde_email/utils/reusbale/mime.type.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/whatsapp_swipe_to_reply.dart';
 import '../../../data/respiratory.dart';
 import '../../../utils/simmer_effect.dart/chat_simmerefect.dart';
@@ -336,7 +337,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       final hasFileUrl = (msg['fileUrl']?.toString() ?? '').isNotEmpty;
 
       final mimeType =
-      (msg['mimeType'] ?? msg['fileType'] ?? '').toString().toLowerCase();
+          (msg['mimeType'] ?? msg['fileType'] ?? '').toString().toLowerCase();
       final isVideo =
           mimeType.startsWith('video/') || mimeType.contains('video');
 
@@ -1866,38 +1867,6 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
     }
   }
 
-  IconData _getFileIcon(String? fileType) {
-    if (fileType == null) return Icons.insert_drive_file;
-
-    switch (fileType.toLowerCase()) {
-      case 'pdf':
-        return Icons.picture_as_pdf;
-      case 'doc':
-      case 'docx':
-        return Icons.description;
-      case 'xls':
-      case 'xlsx':
-        return Icons.grid_on;
-      case 'ppt':
-      case 'pptx':
-        return Icons.slideshow;
-      case 'mp3':
-      case 'wav':
-        return Icons.audiotrack;
-      case 'mp4':
-      case 'mov':
-      case 'avi':
-        return Icons.movie;
-      case 'jpg':
-      case 'jpeg':
-      case 'png':
-      case 'gif':
-        return Icons.image;
-      default:
-        return Icons.insert_drive_file;
-    }
-  }
-
   Future<void> _initMessages() async {
     // Clear current messages first
     setState(() {
@@ -3328,7 +3297,7 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
       return true;
     }
 
-  
+
     final combined = _getCombinedMessages();
     final msgIndex = combined.indexWhere(
       (m) => (_anyId(m)?.toString() ?? '') == messageId,
@@ -3363,7 +3332,7 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
           }
         }
       }
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -3388,7 +3357,7 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
       await WidgetsBinding.instance.endOfFrame;
     }
 
-  
+
     final targetCtx = _messageContexts[messageId];
     if (targetCtx != null && targetCtx.mounted) {
       _highlightAndScrollToContext(targetCtx, messageId);
@@ -3599,9 +3568,7 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
             _updateMessageStatus(state.messageId!, 'sent');
           }
         } else if (state is GroupChatError) {
-          setState(() {
-            _isLoadingMore = false;
-          });
+          setState(() => _isLoadingMore = false);
         } else if (state is GroupChatLoaded) {
           // 🔍 Track every GroupChatLoaded emission
 
@@ -3752,7 +3719,7 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
                           final currentTime = _parseTime(message['time']);
                           final prevTime = realIndex > 0
                               ? _parseTime(
-                              groupedMessages[realIndex - 1]['time'])
+                                  groupedMessages[realIndex - 1]['time'])
                               : null;
 
                           // Grouping Logic
@@ -4316,7 +4283,7 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
                                   message['messageId'] ??
                                   message['id'])
                               ?.toString();
-                          final isHighlighted =
+                          final bool isHighlighted =
                               _highlightedMessageId == messageId;
 
                           return _hasLeftGroup
@@ -5138,7 +5105,7 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
                                                                                 Row(
                                                                               mainAxisSize: MainAxisSize.min,
                                                                               children: [
-                                                                                Icon(_getFileIcon(fileType), color: chatColor, size: 30),
+                                                                                buildIcon(type: '', mimeType: (fileType != null && fileType.isNotEmpty) ? fileType : fileName, size: 30),
                                                                                 const SizedBox(width: 8),
                                                                                 Expanded(
                                                                                   child: RichText(
@@ -6080,6 +6047,10 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
       onSearchChanged: _onSearchChanged,
       onSearchUp: _onSearchUp,
       onSearchDown: _onSearchDown,
+      searchMatchCount: _searchMatchGroupIds.length,
+      searchMatchIndex: _searchMatchGroupIds.isEmpty
+          ? 0
+          : (_searchMatchGroupIds.length - _currentSearchMatchIndex),
       hasLeftGroup: _hasLeftGroup,
       onExitGroup: () {
         if (widget.groupId != null || widget.datumId.isNotEmpty) {
@@ -6097,15 +6068,16 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
 
     return aIsVisual && bIsVisual;
   }
+
   bool _isVisualMedia(Map m) {
     final String url = (
-        m['fileUrl'] ??
-            m['originalUrl'] ??
-            m['imageUrl'] ??
-            ''
-    ).toString().toLowerCase();
+      m['fileUrl'] ?? 
+      m['originalUrl'] ?? 
+      m['imageUrl'] ??
+       ''
+       ).toString().toLowerCase();
 
-    final String name =
+    final String name = 
     (m['fileName'] ?? '').toString().toLowerCase();
 
     return url.endsWith('.jpg') ||
@@ -6137,11 +6109,11 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
       _parseTime(m['time']).millisecondsSinceEpoch ~/ 60000 // 1-min bucket
     ].join('_');
   }
+
   List<Map<String, dynamic>> buildGroupedMessages(List raw) {
-    final List<Map<String, dynamic>> messages =
-    List<Map<String, dynamic>>.from(raw)
-      ..sort((a, b) =>
-          _parseTime(a['time']).compareTo(_parseTime(b['time'])));
+    final List<Map<String, dynamic>> messages = List<Map<String, dynamic>>.from(
+        raw)
+      ..sort((a, b) => _parseTime(a['time']).compareTo(_parseTime(b['time'])));
 
     final List<Map<String, dynamic>> result = [];
     final Map<String, Map<String, dynamic>> lastMediaBySender = {};
@@ -6168,10 +6140,9 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
         final bool prevHasCaption = normCaption(prev).isNotEmpty;
         final bool currHasCaption = normCaption(current).isNotEmpty;
 
-        final bool sameForwardBatch =
-            prev['isForwarded'] == true &&
-                current['isForwarded'] == true &&
-                _forwardBatchKey(prev) == _forwardBatchKey(current);
+        final bool sameForwardBatch = prev['isForwarded'] == true &&
+            current['isForwarded'] == true &&
+            _forwardBatchKey(prev) == _forwardBatchKey(current);
 
         final bool sameCaption =
             normCaption(prev) == normCaption(current);
@@ -6196,10 +6167,9 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
             );
 
         if (shouldGroup) {
-          final groupId =
-              prev['group_message_id'] ??
-                  prev['message_id'] ??
-                  current['message_id'];
+          final groupId = prev['group_message_id'] ??
+              prev['message_id'] ??
+              current['message_id'];
 
           prev['is_grouped_message'] = true;
           prev['group_message_id'] = groupId;
