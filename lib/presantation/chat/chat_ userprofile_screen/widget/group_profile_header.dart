@@ -17,6 +17,7 @@ class GroupProfileHeader extends StatelessWidget {
   final bool grpChat;
   final List<ChatUserlist> groupMembers;
   final VoidCallback onAddMember;
+  final String?conversionalId;
 
   const GroupProfileHeader({
     super.key,
@@ -27,31 +28,50 @@ class GroupProfileHeader extends StatelessWidget {
     required this.fullName,
     required this.grpChat,
     required this.groupMembers,
-    required this.onAddMember,
+    required this.onAddMember, this.conversionalId,
   });
 
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<MediaBloc, MediaState>(
       builder: (context, state) {
-        final group = _getGroupFromState(state);
-        final memberCount = _getMemberCount(group);
 
-        // Use live group name from BLoC, fallback to props if not loaded yet
-        final String currentGroupName = group?.groupName?.isNotEmpty == true
+        ContactModel? group;
+
+        if (state is ContactLoaded) {
+          try {
+            group = state.contacts.firstWhere(
+                  (c) => c.id == groupId,
+            );
+          } catch (_) {
+            group = null;
+          }
+        }
+
+        final String currentGroupName =
+        group?.groupName?.trim().isNotEmpty == true
             ? group!.groupName!
-            : (userName.isNotEmpty ? userName : fullName);
+            : mailName;
 
-        final String displayLetter = currentGroupName.isNotEmpty
-            ? currentGroupName.trim().characters.first.toUpperCase()
-            : 'G';
+        final String avatarUrl =
+        group?.groupAvatar?.trim().isNotEmpty == true
+            ? group!.groupAvatar!
+            : profileAvatarUrl;
+
+        final int memberCount =
+            group?.totalMembers ?? group?.groupMembers.length ?? 0;
 
         return Container(
           color: Colors.transparent,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              _buildProfileAvatar(context, displayLetter, currentGroupName),
+              _buildProfileAvatar(
+                context,
+                avatarUrl,
+                currentGroupName,
+                  avatarUrl
+              ),
               const SizedBox(height: 16),
               _buildProfileTextInfo(currentGroupName),
               const SizedBox(height: 8),
@@ -80,7 +100,7 @@ class GroupProfileHeader extends StatelessWidget {
   }
 
   Widget _buildProfileAvatar(
-      BuildContext context, String displayLetter, String fullName) {
+      BuildContext context, String displayLetter, String fullName, String avatarUrl,) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -88,11 +108,12 @@ class GroupProfileHeader extends StatelessWidget {
           PageRouteBuilder(
             transitionDuration: const Duration(milliseconds: 250),
             pageBuilder: (_, __, ___) => ViewImage(
-              imageurl: profileAvatarUrl,
+              imageurl: avatarUrl,
               username: fullName,
               heroTag: "group_$groupId",
               isGroup: grpChat,
               grpId: groupId,
+              conversionalId: conversionalId,
             ),
             transitionsBuilder: (_, animation, __, child) {
               return FadeTransition(opacity: animation, child: child);
@@ -105,7 +126,7 @@ class GroupProfileHeader extends StatelessWidget {
       child: Hero(
         tag: "group_$groupId",
         child: ProfileAvatar(
-          imageUrl: profileAvatarUrl,
+          imageUrl: avatarUrl,
           name: fullName,
           size: 120,
         ),
@@ -251,6 +272,7 @@ class GroupProfileHeader extends StatelessWidget {
                     keyToEdit: "description",
                     groupId: groupId,
                     groupImage: group.groupAvatar,
+                    convoId: conversionalId,
                   ),
                 );
               },

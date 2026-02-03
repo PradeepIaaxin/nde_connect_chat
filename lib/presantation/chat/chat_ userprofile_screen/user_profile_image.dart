@@ -12,6 +12,7 @@ class ViewImage extends StatefulWidget {
   final String heroTag;
   final bool isGroup;
   final String? grpId;
+  final String? conversionalId;
 
   const ViewImage({
     super.key,
@@ -20,7 +21,7 @@ class ViewImage extends StatefulWidget {
     this.grpname,
     required this.heroTag,
     this.isGroup = false,
-    this.grpId,
+    this.grpId, this.conversionalId,
   });
 
   @override
@@ -189,6 +190,7 @@ class _ViewImageState extends State<ViewImage>
                                 keyToEdit: "group_name",
                                 groupId: widget.grpId ?? "",
                                 groupImage: widget.imageurl,
+                                  convoId: widget.conversionalId
                               ),
                             );
                           },

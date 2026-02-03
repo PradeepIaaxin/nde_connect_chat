@@ -130,8 +130,8 @@ class ChatListTile extends StatelessWidget {
 
   Widget _buildTitle() {
     return Text(
-      TextUtils.capitalizeWords(displayName),
-      //   displayName.(),
+      //TextUtils.capitalizeWords(displayName),
+         displayName,
       overflow: TextOverflow.ellipsis,
       style: const TextStyle(
         fontSize: 15,

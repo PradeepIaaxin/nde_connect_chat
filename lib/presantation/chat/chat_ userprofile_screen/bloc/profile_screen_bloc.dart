@@ -22,6 +22,7 @@ ContactModel? currentGroup;
     on<ToggleFavourite>(_onToggleFavourite);
     on<UpdateGroupNameLocally>(_onUpdateGroupNameLocally);
     on<UpdateGroupLocally>(_onUpdateGroupLocally);
+    on<ClearCurrentGroup>(_onClearCurrentGroup);
   }
 
   // === Existing handlers (unchanged) ===
@@ -34,10 +35,17 @@ ContactModel? currentGroup;
       emit(MediaError(e.toString()));
     }
   }
+  void _onClearCurrentGroup(
+      ClearCurrentGroup event,
+      Emitter<MediaState> emit,
+      ) {
+    currentGroup = null;
+  //  emit(MediaLoading()); // optional but recommended
+  }
 
   Future<void> _onFetchContact(
       FetchContact event, Emitter<MediaState> emit) async {
-    emit(MediaLoading());
+   // emit(MediaLoading());
     try {
       final contact = await repository.fetchContact(event.grpId);
           currentGroup = contact;
@@ -155,7 +163,8 @@ ContactModel? currentGroup;
   Future<void> _onUpdateGroupLocally(
   UpdateGroupLocally event,
   Emitter<MediaState> emit,
-) async {
+)
+  async {
   if (currentGroup == null) return;
 
   currentGroup = currentGroup!.copyWith(
