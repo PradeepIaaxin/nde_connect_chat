@@ -9,6 +9,7 @@ import 'package:nde_email/presantation/widgets/chat_widgets/Common/message_capti
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/AudioMessageWidget.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/ForwardMessageScreen_widget.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
+import 'package:nde_email/utils/reusbale/mime.type.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:linkify/linkify.dart';
 import 'VideoCacheService.dart';
@@ -1299,7 +1300,12 @@ class _MessageBubbleState extends State<MessageBubble> {
             ),
             child: Row(
               children: [
-                Icon(_getFileIcon(fileType), color: widget.chatColor, size: 28),
+                buildIcon(
+                    type: '',
+                    mimeType: (fileType != null && fileType.isNotEmpty)
+                        ? fileType
+                        : fileName,
+                    size: 28),
                 const SizedBox(width: 10),
                 Expanded(
                   child: RichText(
@@ -1850,41 +1856,6 @@ class _MessageBubbleState extends State<MessageBubble> {
         ),
       ),
     );
-  }
-
-  IconData _getFileIcon(String? fileType) {
-    final ft = (fileType ?? '').toLowerCase();
-
-    if (ft.startsWith('image/')) return Icons.image;
-    if (ft.startsWith('video/')) return Icons.video_file;
-    if (ft.startsWith('audio/')) return Icons.audio_file;
-
-    // PDFs
-    if (ft.contains('pdf')) return Icons.picture_as_pdf;
-
-    // Word / Docs
-    if (ft.contains('word') || ft.contains('doc')) return Icons.description;
-
-    // Excel / Sheets
-    if (ft.contains('sheet') ||
-        ft.contains('excel') ||
-        ft.contains('spreadsheet')) {
-      return Icons.table_chart;
-    }
-
-    // PPT
-    if (ft.contains('powerpoint') ||
-        ft.contains('presentation') ||
-        ft.contains('ppt')) {
-      return Icons.slideshow;
-    }
-
-    // Archives
-    if (ft.contains('zip') || ft.contains('rar') || ft.contains('7z')) {
-      return Icons.archive;
-    }
-
-    return Icons.insert_drive_file;
   }
 }
 
