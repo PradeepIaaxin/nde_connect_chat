@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart' as foundation;
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
@@ -27,6 +29,7 @@ import 'package:nde_email/presantation/widgets/chat_widgets/Common/grouped_media
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/message_caption.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/AudioMessageWidget.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/show_Bottom_Sheet.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/reaction_bar.dart';
 import 'package:nde_email/utils/reusbale/colour_utlis.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
 import 'package:nde_email/utils/reusbale/mime.type.dart';
@@ -39,7 +42,7 @@ import '../Socket/socket_service.dart';
 
 import '../chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
 import '../chat_private_screen/messager_Bloc/widget/double_tick_ui.dart';
-import 'package:nde_email/presantation/chat/widget/image_viewer.dart';
+// import 'package:nde_email/presantation/chat/widget/image_viewer.dart';
 import '../chat_list/chat_session_storage/chat_session.dart';
 import '../chat_list/chat_bloc.dart';
 import '../chat_list/chat_event.dart';
@@ -81,6 +84,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   List<Map<String, dynamic>> dbMessages = [];
 
   final ValueNotifier<bool> isLongPressed = ValueNotifier<bool>(false);
+  List<String> recentEmojis = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
   late List<String> groupMembers;
   final recorderHelper = AudioRecorderHelper();
   List<Map<String, dynamic>> messages = [];
@@ -4142,16 +4146,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                           if (message['reactions'] != null &&
                                                                               message['reactions'].isNotEmpty)
                                                                             Positioned(
-                                                                              bottom: -16,
-                                                                              right: isSentByMe ? 5 : null,
-                                                                              left: isSentByMe ? null : 2,
-                                                                              child: GestureDetector(
-                                                                                behavior: HitTestBehavior.translucent,
-                                                                                onTap: () {
-                                                                                  final reactions = _extractReactions(message['reactions']);
-                                                                                  final firstEmoji = reactions.isNotEmpty ? (reactions.first['emoji']?.toString() ?? '') : '';
-                                                                                  _showReactionsBottomSheet(message, firstEmoji);
-                                                                                },
+                                                                              bottom: _hasReply(message) ? -40 : -28,
+                                                                              right: isSentByMe ? 12 : null,
+                                                                              left: isSentByMe ? null : 12,
+                                                                              child: Padding(
+                                                                                padding: const EdgeInsets.only(bottom: 12),
                                                                                 child: _buildReactionsBar(message, isSentByMe),
                                                                               ),
                                                                             ),
@@ -5541,30 +5540,16 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                               if (message['reactions'] != null &&
                                   message['reactions'].isNotEmpty)
                                 Positioned(
-                                  bottom: -12,
-                                  left:
-                                      isSentByMe ? (hasReply ? null : 312) : 40,
-                                  right: isSentByMe && hasReply ? 10 : null,
+                                  bottom: hasReply ? -20 : -18,
+                                  left: isSentByMe ? null : 40,
+                                  right: isSentByMe ? 14 : null,
                                   child: Padding(
                                     padding: EdgeInsets.only(
-                                      bottom: 10,
-                                      left: isSentByMe ? 12 : 0,
+                                      bottom: 12,
+                                      left: isSentByMe ? 5 : 0,
                                     ),
-                                    child: GestureDetector(
-                                      onTap: () {
-                                        final reactions = _extractReactions(
-                                            message['reactions']);
-                                        final firstEmoji = reactions.isNotEmpty
-                                            ? (reactions.first['emoji']
-                                                    ?.toString() ??
-                                                '')
-                                            : '';
-                                        _showReactionsBottomSheet(
-                                            message, firstEmoji);
-                                      },
-                                      child: _buildReactionsBar(
-                                          message, isSentByMe),
-                                    ),
+                                    child:
+                                        _buildReactionsBar(message, isSentByMe),
                                   ),
                                 ),
                             ],
@@ -5955,13 +5940,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   void _showReactionPicker(BuildContext context, Map<String, dynamic> message) {
+    if (currentUserId.isEmpty) return;
+
     final bool isDeleted = message['is_deleted'] == true ||
         message['isDeleted'] == true ||
         message['messageStatus'] == 'deleted' ||
         message['content'] == '🚫 This message was deleted';
 
     if (isDeleted) return;
-    final List<String> emojis = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -5975,15 +5962,63 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: emojis
-                .map((emoji) => GestureDetector(
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        _handleReactionTap(message, emoji);
-                      },
-                      child: Text(emoji, style: const TextStyle(fontSize: 26)),
-                    ))
-                .toList(),
+            children: [
+              ...recentEmojis.map((emoji) => GestureDetector(
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _handleGroupReactionTap(message, emoji);
+                    },
+                    child: Text(emoji, style: const TextStyle(fontSize: 26)),
+                  )),
+              GestureDetector(
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _openFullEmojiPicker(context, message);
+                },
+                child: const Icon(Icons.add_circle_outline, size: 26),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _openFullEmojiPicker(
+      BuildContext context, Map<String, dynamic> message) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) {
+        return SizedBox(
+          height: 350,
+          child: EmojiPicker(
+            onEmojiSelected: (category, emoji) {
+              final list = List<String>.from(recentEmojis);
+
+              if (!list.contains(emoji.emoji)) {
+                if (list.length >= 6) list.removeAt(0);
+                list.add(emoji.emoji);
+              }
+
+              setState(() {
+                recentEmojis = list;
+              });
+
+              _handleGroupReactionTap(message, emoji.emoji);
+
+              Navigator.pop(context);
+            },
+            config: Config(
+              height: 256,
+              checkPlatformCompatibility: true,
+              emojiViewConfig: EmojiViewConfig(
+                emojiSizeMax: 28 *
+                    (foundation.defaultTargetPlatform == TargetPlatform.iOS
+                        ? 1.2
+                        : 1.0),
+              ),
+            ),
           ),
         );
       },
@@ -6286,52 +6321,123 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     );
   }
 
-  Widget _buildReactionsBar(Map<String, dynamic> message, bool isSentByMe) {
-    final reactionsRaw = message['reactions'] ?? [];
+  bool _hasReply(Map<String, dynamic> message) {
+    return (message['reply'] != null &&
+            message['reply'] is Map &&
+            (message['reply'] as Map).isNotEmpty) ||
+        (message['repliedMessage'] != null &&
+            message['repliedMessage'] is Map &&
+            (message['repliedMessage'] as Map).isNotEmpty);
+  }
 
-    final reactions = (reactionsRaw as List?)
-            ?.where((r) => r is Map)
-            .map((r) => Map<String, dynamic>.from(r as Map))
-            .toList() ??
-        [];
+  Future<void> _handleGroupReactionTap(
+    Map<String, dynamic> message,
+    String emoji,
+  ) async {
+    try {
+      final rawId = (message['message_id'] ??
+              message['messageId'] ??
+              message['id'] ??
+              message['_id'] ??
+              '')
+          .toString();
 
-    if (reactions.isEmpty) return const SizedBox.shrink();
-
-    // Count occurrences of each emoji
-    final Map<String, int> reactionCounts = {};
-    for (final reaction in reactions) {
-      final emoji = reaction['emoji']?.toString();
-      if (emoji != null && emoji.isNotEmpty) {
-        reactionCounts[emoji] = (reactionCounts[emoji] ?? 0) + 1;
+      if (rawId.isEmpty) {
+        return;
       }
-    }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 2,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: reactionCounts.entries.map((entry) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 2),
-            child: Text(
-              entry.value > 1 ? '${entry.key} ${entry.value}' : entry.key,
-              style: const TextStyle(fontSize: 14),
-            ),
-          );
-        }).toList(),
-      ),
+      final apiMessageId = _normalizeMessageIdForApi(rawId);
+
+      // 🔥 Extract reactions safely
+      final List<Map<String, dynamic>> reactions =
+          _extractReactions(message['reactions']);
+
+      int myIndex = -1;
+      String? oldEmoji;
+
+      for (var i = 0; i < reactions.length; i++) {
+        final r = reactions[i];
+        final uid = (r['user']?['_id'] ?? r['userId'])?.toString();
+        if (uid == currentUserId) {
+          myIndex = i;
+          oldEmoji = r['emoji']?.toString();
+          break;
+        }
+      }
+
+      final bool hasMyReaction = myIndex != -1;
+
+      // CASE 1: remove
+      if (hasMyReaction && oldEmoji == emoji) {
+        _updateLocalReactions(rawId, null);
+
+        _groupBloc.add(GroupRemoveReaction(
+          messageId: apiMessageId,
+          conversationId: widget.conversationId,
+          emoji: emoji,
+          userId: currentUserId,
+          receiverId: widget.datumId,
+        ));
+        return;
+      }
+
+      // CASE 2: change emoji
+      if (hasMyReaction && oldEmoji != emoji) {
+        _updateLocalReactions(rawId, emoji);
+
+        _groupBloc.add(GroupRemoveReaction(
+          messageId: apiMessageId,
+          conversationId: widget.conversationId,
+          emoji: oldEmoji ?? '',
+          userId: currentUserId,
+          receiverId: widget.datumId,
+        ));
+
+        _groupBloc.add(GroupAddReaction(
+          messageId: apiMessageId,
+          conversationId: widget.conversationId,
+          emoji: emoji,
+          userId: currentUserId,
+          receiverId: widget.datumId,
+        ));
+        return;
+      }
+
+      // CASE 3: new reaction
+      _updateLocalReactions(rawId, emoji);
+
+      _groupBloc.add(GroupAddReaction(
+        messageId: apiMessageId,
+        conversationId: widget.conversationId,
+        emoji: emoji,
+        userId: currentUserId,
+        receiverId: widget.datumId,
+      ));
+
+      // Clear selection after reaction
+      setState(() {
+        _isSelectionMode = false;
+        _selectedMessages.clear();
+        _selectedMessageIds.clear();
+        _selectedMessageKeys.clear();
+      });
+    } catch (e) {
+      // log('❌ Error handling reaction tap: $e');
+    }
+  }
+
+  Widget _buildReactionsBar(Map<String, dynamic> message, bool isSentByMe) {
+    return ReactionBar(
+      message: message,
+      currentUserId: currentUserId,
+      recentEmojis: recentEmojis,
+      onEmojiUpdated: (list) {
+        setState(() {
+          recentEmojis = list;
+        });
+      },
+      onReactionTap: (msg, emoji) => _handleGroupReactionTap(msg, emoji),
+      onOpenReactors: (msg, emoji) => _showReactionsBottomSheet(msg, emoji),
     );
   }
 
