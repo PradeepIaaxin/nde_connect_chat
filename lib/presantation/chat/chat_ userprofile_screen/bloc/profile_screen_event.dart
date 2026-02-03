@@ -107,3 +107,6 @@ class UpdateGroupNameLocally extends MediaEvent {
   @override
   List<Object?> get props => [groupId, newName];
 }
+
+// profile_screen_event.dart
+class ClearCurrentGroup extends MediaEvent {}

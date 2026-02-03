@@ -877,7 +877,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                         }
                                         logChatDetails(chat);
                                         log(chat.toJson().toString());
-
+log("...............> ${    chat.name}");
                                         MyRouter.push(
                                           screen: chat.isGroupChat == true
                                               ? GroupChatScreen(

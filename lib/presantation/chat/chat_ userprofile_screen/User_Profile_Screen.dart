@@ -19,6 +19,8 @@ import 'package:nde_email/presantation/chat/contact_new_group/new_group.dart';
 import 'package:nde_email/utils/reusbale/colour_utlis.dart';
 import 'package:nde_email/utils/router/router.dart';
 
+import 'model/contact_model.dart';
+
 class UserProfileScreen extends StatefulWidget {
   final String profileAvatarUrl;
   final String userName;
@@ -95,14 +97,16 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   void _initializeData() {
-    if (!widget.isGrp) {
-      _mediaBloc.add(FetchgrpOrNot(recvId: widget.reciverId));
-      log(widget.reciverId);
+    if (widget.isGrp && widget.grpId != null) {
+      // 🔥 GROUP CHAT
+      _mediaBloc.add(ClearCurrentGroup());   // reset old group
+      _mediaBloc.add(FetchContact(grpId: widget.grpId!));
+      log("Group chat → ${widget.grpId}");
     } else {
-      if (widget.grpId != null) {
-        _mediaBloc.add(FetchContact(grpId: widget.grpId!));
-        log(widget.reciverId);
-      }
+      // 🔹 PRIVATE CHAT
+      _mediaBloc.add(ClearCurrentGroup());   // ensure no group leaks
+      _mediaBloc.add(FetchgrpOrNot(recvId: widget.reciverId));
+      log("Private chat → ${widget.reciverId}");
     }
   }
 
@@ -155,43 +159,74 @@ hasLeftGroup     : $hasLeftGroup
         surfaceTintColor: Colors.white,
         title: const Text('Profile'),
         centerTitle: true,
-        actions: widget.isGrp == true
+        actions: widget.isGrp
             ? [
-                PopupMenuButton<String>(
-                  onSelected: (value) {
-                    if (value == 'rename') {
-                      MyRouter.push(
-                        screen: GroupNameEditScreen(
-                          initialValue: widget.userName,
-                          keyToEdit: "group_name",
-                          groupId: widget.grpId ?? "",
-                          groupImage: widget.profileAvatarUrl,
-                        ),
-                      );
-                    }
-                  },
-                  itemBuilder: (context) => const [
-                    PopupMenuItem(
-                      value: 'rename',
-                      child: ListTile(
-                        title: Text('Change Group name'),
+          BlocBuilder<MediaBloc, MediaState>(
+            builder: (context, state) {
+              ContactModel? group;
+
+              if (state is ContactLoaded) {
+                try {
+                  group = state.contacts.firstWhere(
+                        (c) => c.id == widget.grpId,
+                  );
+                } catch (_) {
+                  group = null;
+                }
+              }
+
+              final currentGroupName =
+              group?.groupName?.isNotEmpty == true
+                  ? group!.groupName!
+                  : widget.userName;
+
+              final currentGroupAvatar =
+              group?.groupAvatar?.isNotEmpty == true
+                  ? group!.groupAvatar!
+                  : widget.profileAvatarUrl;
+
+              return PopupMenuButton<String>(
+                onSelected: (value) {
+                  if (value == 'rename') {
+                    MyRouter.push(
+                      screen: GroupNameEditScreen(
+                        initialValue: currentGroupName, // ✅ LIVE VALUE
+                        keyToEdit: "group_name",
+                        groupId: widget.grpId ?? "",
+                        groupImage: currentGroupAvatar,
+                        convoId: widget.conversionalId,
                       ),
+                    );
+                  }
+                },
+                itemBuilder: (context) => const [
+                  PopupMenuItem(
+                    value: 'rename',
+                    child: ListTile(
+                      title: Text('Change Group name'),
                     ),
-                  ],
-                ),
-              ]
+                  ),
+                ],
+              );
+            },
+          ),
+        ]
             : [],
+
       ),
       body: _buildProfileContent(),
     );
   }
 
   Widget _buildProfileContent() {
-    return BlocBuilder<MediaBloc, MediaState>(
-      builder: (context, state) {
-        final contact = state is ContactLoaded && state.contacts.isNotEmpty
-            ? state.contacts.first
-            : null;
+    return Builder(
+      builder: (context) {
+        final ContactModel? contact =
+        context.select<MediaBloc, ContactModel?>(
+              (bloc) => widget.isGrp && bloc.currentGroup?.id == widget.grpId
+              ? bloc.currentGroup
+              : null,
+        );
 
         if (contact != null && !_favInitialized) {
           _isFavourite = contact.isFavourite;
@@ -212,15 +247,15 @@ hasLeftGroup     : $hasLeftGroup
                 fullName: displayName,
                 grpChat: widget.isGrp,
                 groupMembers: contact?.groupMembers.map((m) {
-                      return ChatUserlist(
-                        userId: m.memberId ?? "",
-                        firstName: m.firstName ?? "",
-                        lastName: m.lastName ?? "",
-                        email: m.memberEmail ?? '',
-                        conversationId: widget.conversionalId,
-                        profilePic: m.profilePic ?? '',
-                      );
-                    }).toList() ??
+                  return ChatUserlist(
+                    userId: m.memberId ?? "",
+                    firstName: m.firstName ?? "",
+                    lastName: m.lastName ?? "",
+                    email: m.memberEmail ?? '',
+                    conversationId: widget.conversionalId,
+                    profilePic: m.profilePic ?? '',
+                  );
+                }).toList() ??
                     [],
                 onAddMember: () async {
                   final bool? added = await MyRouter.push(
@@ -228,15 +263,15 @@ hasLeftGroup     : $hasLeftGroup
                       groupId: widget.grpId!,
                       isAdmin: true,
                       groupMembers: contact?.groupMembers.map((m) {
-                            return ChatUserlist(
-                              userId: m.memberId ?? "",
-                              firstName: m.firstName ?? "",
-                              lastName: m.lastName ?? "",
-                              email: m.memberEmail ?? '',
-                              conversationId: widget.conversionalId,
-                              profilePic: m.profilePic ?? '',
-                            );
-                          }).toList() ??
+                        return ChatUserlist(
+                          userId: m.memberId ?? "",
+                          firstName: m.firstName ?? "",
+                          lastName: m.lastName ?? "",
+                          email: m.memberEmail ?? '',
+                          conversationId: widget.conversionalId,
+                          profilePic: m.profilePic ?? '',
+                        );
+                      }).toList() ??
                           [],
                     ),
                   );
@@ -245,9 +280,13 @@ hasLeftGroup     : $hasLeftGroup
                     _mediaBloc.add(FetchContact(grpId: widget.grpId!));
                   }
                 },
+                conversionalId: widget.conversionalId,
               ),
+
               _buildUserInfoSection(),
+
               if (!widget.isGrp) _buildCommonGroupsSection(),
+
               if (widget.isGrp && widget.grpId != null)
                 GroupContactList(
                   groupId: widget.grpId!,
@@ -264,9 +303,7 @@ hasLeftGroup     : $hasLeftGroup
   Widget _buildCommonGroupsSection() {
     return BlocBuilder<MediaBloc, MediaState>(
       builder: (context, state) {
-        if (state is MediaLoading) {
-          return const Center(child: CircularProgressIndicator());
-        } else if (state is CommonDataLoaded) {
+        if (state is CommonDataLoaded) {
           return _buildCommonGroupsList(state.commongrp);
         } else if (state is MediaError) {
           return Padding(
