@@ -45,7 +45,7 @@ Widget buildIcon({
       mimeLower.contains('slides') ||
       mimeLower.contains('.ppt') ||
       mimeLower.contains('.pptx')) {
-    return Image.asset('assets/images/sheets.png', height: size, width: size);
+    return Image.asset('assets/images/slides.png', height: size, width: size);
   }
 
   // PDF
@@ -92,7 +92,7 @@ Widget buildIcon({
       mimeLower.contains('file') ||
       mimeLower.contains('7z') ||
       mimeLower.contains('compressed')) {
-    return Image.asset('assets/images/pdf.png',
+    return Image.asset('assets/images/zip.png',
         height: size + 6, width: size + 6);
   }
 

@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:nde_email/data/base_url.dart';
 import 'package:nde_email/data/respiratory.dart';
 import 'package:http/http.dart' as http;
+import 'package:nde_email/utils/reusbale/mime.type.dart';
 
 class AttachmentWidget extends StatefulWidget {
   final dynamic attachment;
@@ -26,80 +27,6 @@ class AttachmentWidget extends StatefulWidget {
 }
 
 class _AttachmentWidgetState extends State<AttachmentWidget> {
-  IconData _getFileIcon(String ext) {
-    switch (ext) {
-      case "pdf":
-        return Icons.picture_as_pdf;
-      case "doc":
-      case "docx":
-        return Icons.description;
-      case "xls":
-      case "xlsx":
-        return Icons.table_chart;
-      case "txt":
-        return Icons.article;
-      case "ppt":
-      case "pptx":
-        return Icons.slideshow;
-      case "mp3":
-      case "wav":
-        return Icons.audiotrack;
-      case "mp4":
-      case "avi":
-      case "mov":
-        return Icons.movie;
-      case "zip":
-      case "rar":
-        return Icons.archive;
-      case "jpg":
-      case "jpeg":
-      case "png":
-      case "gif":
-      case "bmp":
-      case "webp":
-        return Icons.image;
-      default:
-        return Icons.insert_drive_file;
-    }
-  }
-
-  Color _getFileIconColor(String ext) {
-    switch (ext) {
-      case "pdf":
-        return Colors.red;
-      case "doc":
-      case "docx":
-        return Colors.blue;
-      case "xls":
-      case "xlsx":
-        return Colors.green;
-      case "txt":
-        return Colors.grey;
-      case "ppt":
-      case "pptx":
-        return Colors.deepOrange;
-      case "mp3":
-      case "wav":
-        return Colors.purple;
-      case "mp4":
-      case "avi":
-      case "mov":
-        return Colors.deepPurple;
-      case "zip":
-      case "rar":
-        return Colors.brown;
-      case "jpg":
-      case "jpeg":
-      case "png":
-      case "gif":
-      case "bmp":
-      case "webp":
-        return Colors.teal;
-      default:
-        return Colors.blueGrey;
-    }
-  }
-
   Future<void> _downloadFileFromBuffer(String fileName,
       {bool forceRedownload = false}) async {
     try {
@@ -239,8 +166,6 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
     final fileName = widget.attachment.filename ?? "attachment";
     final fileExtension =
         fileName.contains('.') ? fileName.split('.').last.toLowerCase() : '';
-    final icon = _getFileIcon(fileExtension);
-    final iconColor = _getFileIconColor(fileExtension);
 
     return Container(
       width: 180,
@@ -253,15 +178,7 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
       ),
       child: Row(
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Icon(icon, size: 24, color: iconColor),
-          ),
+          buildIcon(type: '', mimeType: fileExtension, size: 40),
           const SizedBox(width: 10),
           Expanded(
             child: GestureDetector(
