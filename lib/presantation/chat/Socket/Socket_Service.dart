@@ -609,6 +609,7 @@ class SocketService {
         // 🔥 apply CRDT update
         final jsonString = await importChatUpdate(updateBytes: bytes);
         final decoded = jsonDecode(jsonString);
+        log("chastLitttttttttt $decoded");
         final List list = decoded['chatDataList'] ?? [];
 
         if (list.isEmpty) return;
@@ -960,7 +961,7 @@ class SocketService {
 
         final jsonString = await importChatUpdate(updateBytes: bytes);
         final decoded = jsonDecode(jsonString);
-        // log("chatlistUpdate response: ${decoded.toString()}");
+         log("chatlistUpdate response: ${decoded.toString()}");
         final List list = decoded["chatDataList"] ?? [];
 
         if (list.isEmpty) return;
@@ -1430,6 +1431,7 @@ class SocketService {
       'targetId': targetId,
       'isFavourite': !isCurrentlyFavorite
     }, ack: (response) {
+      log("ack response ${response}");
       try {
         if (response is Map && response['success'] == true) {
           Messenger.alertWithSvgImage(
@@ -1450,16 +1452,26 @@ class SocketService {
     required String groupId,
     String? groupName,
     String? description,
+    String? convoId,
     required String updateKey,
-  }) async {
+  })
+  async {
+    log("groupId ${groupId}");
+    log("groupName ${groupName}");
+    log("updateKey ${updateKey}");
+    log("groupId ${groupId}");
+    log("convoId ${convoId}");
     if (!isConnected) return;
     socket!.emitWithAck('update_group', {
       'groupId': groupId,
-      updateKey: groupName ?? description
+      updateKey: groupName ?? description,
+      'convoId':convoId
     }, ack: (response) {
+      log("responseeeeeee ${response}");
+      log("responseeeeeee ${response['success']}");
       try {
         if (response is Map && response['success'] == true) {
-          Messenger.alertWithSvgImage(msg: "Group Updated Successfully");
+          Messenger.alertSuccess("Group updated successfully");
         } else {
           Messenger.alertWithSvgImage(
               msg: response['message'] ?? "Failed to update group");

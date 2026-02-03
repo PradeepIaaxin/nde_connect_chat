@@ -156,6 +156,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   final Map<String, String> _pendingStatusUpdates =
       {}; // Buffer for race conditions
 
+
+
   String sanitizeString(String? s) {
     if (s == null || s.isEmpty) return '';
     final List<int> result = [];
@@ -602,7 +604,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   @override
   void initState() {
     super.initState();
-
+log("nameeeeeeeeeeeee ${widget.groupName}");
     SocketService().setActiveConversation(widget.conversationId);
     currentUserId = widget.currentUserId;
     SocketService().joinChatRoom(
@@ -4111,6 +4113,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                               time: message['time'] ?? '',
                                                                               messageStatus: message['messageStatus']?.toString() ?? 'sent',
                                                                               onMediaTap: (index) {
+                                                                                log("messagessss $message");
                                                                                 final media = buildConversationMedia(
                                                                                   groupedMessages,
                                                                                   currentUserId: currentUserId,
@@ -4130,7 +4133,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                                       ),
                                                                                     ),
                                                                                   );
-                                                                                }
+                                                                               }
                                                                               },
                                                                             ),
                                                                           ),
@@ -6143,6 +6146,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final List<Map<String, dynamic>> result = [];
     final Map<String, Map<String, dynamic>> lastMediaBySender = {};
 
+    String normCaption(Map m) =>
+        (m['content'] ?? '').toString().trim();
+
     for (final current in messages) {
       final senderId = senderIdOf(current);
 
@@ -6159,20 +6165,35 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             .inSeconds
             .abs();
 
-        final bool prevHasCaption =
-            (prev['content']?.toString() ?? '').isNotEmpty;
-        final bool currHasCaption =
-            (current['content']?.toString() ?? '').isNotEmpty;
+        final bool prevHasCaption = normCaption(prev).isNotEmpty;
+        final bool currHasCaption = normCaption(current).isNotEmpty;
 
         final bool sameForwardBatch =
             prev['isForwarded'] == true &&
                 current['isForwarded'] == true &&
                 _forwardBatchKey(prev) == _forwardBatchKey(current);
 
+        final bool sameCaption =
+            normCaption(prev) == normCaption(current);
+
         final bool shouldGroup =
-            !prevHasCaption &&
-                !currHasCaption &&
-                (diffSeconds <= 60 || sameForwardBatch);
+        // 🔹 Normal send (no captions)
+        (!prevHasCaption &&
+            !currHasCaption &&
+            diffSeconds <= 60)
+
+            ||
+
+            // 🔥 Forwarded batch (ALLOW captions if SAME)
+            (
+                prev['isForwarded'] == true &&
+                    current['isForwarded'] == true &&
+                    sameForwardBatch &&
+                    (
+                        (!prevHasCaption && !currHasCaption) ||
+                            sameCaption
+                    )
+            );
 
         if (shouldGroup) {
           final groupId =

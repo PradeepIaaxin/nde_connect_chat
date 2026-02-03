@@ -1007,7 +1007,13 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       _updateMessageWithReaction(reaction);
     });
   }
-
+  bool _hasValidReply(dynamic rawReply, dynamic rawReplyId, dynamic rawReplyContent) {
+    if (rawReply is Map && rawReply.isNotEmpty) return true;
+    if (rawReplyId != null && rawReplyId.toString().trim().isNotEmpty) return true;
+    if (rawReplyContent != null &&
+        rawReplyContent.toString().trim().isNotEmpty) return true;
+    return false;
+  }
   // Update the normalizeMessage function to handle LORRO data structure
   Map<String, dynamic> normalizeMessage(dynamic rawMsg,{String? text}) {
     if (rawMsg == null) return {};
@@ -1302,6 +1308,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     final rawReplyId = rawMsg['reply_message_id'] ?? rawMsg['replyMessageId'];
     final rawReplyContent = rawMsg['replyContent'];
     final rawIsReplyMessage = rawMsg['isReplyMessage'];
+    final bool hasReply =
+    _hasValidReply(rawReply, rawReplyId, rawReplyContent);
 
     // Set isReplyMessage flag
     if (rawIsReplyMessage == true ||
@@ -1321,7 +1329,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
 
     // Set reply object if present
-    if (rawReply is Map) {
+    if (hasReply &&rawReply is Map) {
       m['reply'] = {
         'reply_message_id':
             rawReply['reply_message_id'] ?? rawReply['message_id'],
@@ -1337,6 +1345,12 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         'imageUrl': rawReply['imageUrl'],
         'fileUrl': rawReply['fileUrl'],
       };
+    }else {
+      // 🔥 CLEAN GHOST REPLY DATA
+      m.remove('reply');
+      m.remove('reply_message_id');
+      m.remove('replyMessageId');
+      m.remove('replyContent');
     }
 
     // Set reply_message_id if present
@@ -3474,7 +3488,8 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
   Future<void> _handleReactionTap(
     Map<String, dynamic> message,
     String emoji,
-  ) async {
+  )
+  async {
     try {
       final rawId = (message['message_id'] ??
               message['messageId'] ??
@@ -3569,7 +3584,8 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
   }
 
   List<Map<String, dynamic>> _extractReactionsFromMessage(
-      Map<String, dynamic> message) {
+      Map<String, dynamic> message)
+  {
     final List<Map<String, dynamic>> list = [];
 
     if (message['reactions'] is List) {
@@ -3842,7 +3858,8 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
   }
 
   void _markMessagesAsDeleted(List<String> messageIds,
-      {String deleteFor = 'everyone'}) {
+      {String deleteFor = 'everyone'})
+  {
     if (messageIds.isEmpty) return;
 
     bool changed = false;
@@ -3954,7 +3971,8 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
     List<Map<String, dynamic>> messages,
     bool isSendMe,
     String currentUserId,
-  ) {
+  )
+  {
     int imageCount = 0;
     int videoCount = 0;
 
@@ -4006,7 +4024,8 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
   void _replyToMessage(
     Map<String, dynamic> message, {
     bool isSendMe = false,
-  }) {
+  })
+  {
     if (message.isEmpty) return;
 
     log("Reply source (swiped) => $message");
@@ -4293,7 +4312,8 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
   List<Map<String, dynamic>> _getGroupedMessages(
     List<Map<String, dynamic>> combinedMessages,
     int index,
-  ) {
+  )
+  {
     final message = combinedMessages[index];
     final String? groupId = message['group_message_id']?.toString();
 
@@ -4343,30 +4363,39 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
     return message;
   }
   bool _isVisualMedia(Map m) {
-    final String url = (
-        m['fileUrl'] ??
-            m['originalUrl'] ??
-            m['imageUrl'] ??
-            ''
-    ).toString().toLowerCase();
+    // 1️⃣ Metadata (fast & clean)
+    final type = (m['ContentType'] ??
+        m['fileType'] ??
+        m['mimeType'] ??
+        '')
+        .toString()
+        .toLowerCase();
+
+    if (type.contains('image') || type.contains('video')) {
+      return true;
+    }
+
+    // 2️⃣ URL / filename fallback (critical for forwarded media)
+    final String url = (m['fileUrl'] ??
+        m['originalUrl'] ??
+        m['imageUrl'] ??
+        '')
+        .toString()
+        .toLowerCase();
 
     final String name =
     (m['fileName'] ?? '').toString().toLowerCase();
 
-    return url.endsWith('.jpg') ||
-        url.endsWith('.jpeg') ||
-        url.endsWith('.png') ||
-        url.endsWith('.webp') ||
-        url.endsWith('.mp4') ||
-        url.endsWith('.mov') ||
-        url.endsWith('.mkv') ||
-        name.endsWith('.jpg') ||
-        name.endsWith('.jpeg') ||
-        name.endsWith('.png') ||
-        name.endsWith('.webp') ||
-        name.endsWith('.mp4') ||
-        name.endsWith('.mov') ||
-        name.endsWith('.mkv');
+    bool hasExt(String s) =>
+        s.contains('.jpg') ||
+            s.contains('.jpeg') ||
+            s.contains('.png') ||
+            s.contains('.webp') ||
+            s.contains('.mp4') ||
+            s.contains('.mov') ||
+            s.contains('.mkv');
+
+    return hasExt(url) || hasExt(name);
   }
 
   String? senderIdOf(Map msg) {
@@ -4391,6 +4420,9 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
     final List<Map<String, dynamic>> result = [];
     final Map<String, Map<String, dynamic>> lastMediaBySender = {};
 
+    String normCaption(Map m) =>
+        (m['content'] ?? '').toString().trim();
+
     for (final current in messages) {
       final senderId = senderIdOf(current);
 
@@ -4407,20 +4439,35 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
             .inSeconds
             .abs();
 
-        final bool prevHasCaption =
-            (prev['content']?.toString() ?? '').isNotEmpty;
-        final bool currHasCaption =
-            (current['content']?.toString() ?? '').isNotEmpty;
+        final bool prevHasCaption = normCaption(prev).isNotEmpty;
+        final bool currHasCaption = normCaption(current).isNotEmpty;
 
         final bool sameForwardBatch =
             prev['isForwarded'] == true &&
                 current['isForwarded'] == true &&
                 _forwardBatchKey(prev) == _forwardBatchKey(current);
 
+        final bool sameCaption =
+            normCaption(prev) == normCaption(current);
+
         final bool shouldGroup =
-            !prevHasCaption &&
-                !currHasCaption &&
-                (diffSeconds <= 60 || sameForwardBatch);
+        // 🔹 Normal send (no captions)
+        (!prevHasCaption &&
+            !currHasCaption &&
+            diffSeconds <= 60)
+
+            ||
+
+            // 🔥 Forwarded batch (ALLOW captions if SAME)
+            (
+                prev['isForwarded'] == true &&
+                    current['isForwarded'] == true &&
+                    sameForwardBatch &&
+                    (
+                        (!prevHasCaption && !currHasCaption) ||
+                            sameCaption
+                    )
+            );
 
         if (shouldGroup) {
           final groupId =
@@ -4443,35 +4490,6 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
     return result;
   }
 
-  // bool _canGroupTogether(String a, String b) {
-  //   final bool aIsVisual = a.startsWith('image') || a.startsWith('video');
-  //   final bool bIsVisual = b.startsWith('image') || b.startsWith('video');
-  //
-  //   return aIsVisual && bIsVisual; // image+video allowed
-  // }
-
-  bool _sameMediaType(String a, String b, Map prev, Map curr) {
-    bool isVisual(Map m) {
-      final url = (m['fileUrl'] ??
-          m['originalUrl'] ??
-          m['imageUrl'] ??
-          '')
-          .toString()
-          .toLowerCase();
-
-      return url.contains('.jpg') ||
-          url.contains('.png') ||
-          url.contains('.jpeg') ||
-          url.contains('.webp') ||
-          url.contains('.mp4') ||
-          url.contains('.mov') ||
-          url.contains('.mkv') ||
-          m['ContentType'] == 'image' ||
-          m['ContentType'] == 'video';
-    }
-
-    return isVisual(prev) && isVisual(curr);
-  }
 
 
   void _selectGroupedMessages(List<Map<String, dynamic>> grouped) {

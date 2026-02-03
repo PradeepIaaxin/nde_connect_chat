@@ -10,13 +10,14 @@ class GroupNameEditScreen extends StatefulWidget {
   final String keyToEdit;
   final String initialValue;
   final String? groupImage;
+  final String? convoId;
 
   const GroupNameEditScreen({
     super.key,
     required this.groupId,
     required this.keyToEdit,
     required this.initialValue,
-    this.groupImage,
+    this.groupImage, this.convoId,
   });
 
   @override
@@ -90,6 +91,7 @@ class _GroupNameEditScreenState extends State<GroupNameEditScreen> {
     );
 
     if (response.statusCode == 200 || response.statusCode == 201) {
+      log("responseeeeeeee ${response.data}");
       final avatarUrl = response.data["group_avatar_url"];
 
       context.read<MediaBloc>().add(
@@ -131,13 +133,18 @@ class _GroupNameEditScreenState extends State<GroupNameEditScreen> {
         widget.keyToEdit: updatedValue,
       };
 
+      log(".....>payload $payload");
+
       final response = await Dio().put(
         "https://api.nowdigitaleasy.com/wschat/v1/group",
         data: payload,
         options: Options(headers: headers),
       );
 
+      SocketService().updateGroupInfo(groupId:  widget.groupId, updateKey: widget.keyToEdit,groupName:updatedValue,convoId:widget.convoId);
+
       if (response.statusCode == 200 || response.statusCode == 201) {
+        log("responseeeeeeee ${response.data}");
         context.read<MediaBloc>().add(
               UpdateGroupLocally(
                 groupId: widget.groupId,
@@ -147,7 +154,7 @@ class _GroupNameEditScreenState extends State<GroupNameEditScreen> {
               ),
             );
 
-        Messenger.alertSuccess("Group updated successfully");
+   //     Messenger.alertSuccess("Group updated successfully");
 
         if (mounted) {
           Navigator.pop(context, updatedValue);
