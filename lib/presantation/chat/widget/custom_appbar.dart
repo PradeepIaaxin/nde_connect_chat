@@ -163,13 +163,17 @@ class CommonAppBarBuilder {
       child: BlocBuilder<MediaBloc, MediaState>(builder: (context, state) {
         // 🔑 STRICT FILTER: Only use contact if it matches current GROUP chat
         // ContactModel appears to be Group-specific based on its fields.
-        final contact =
-            (grpChat && state is ContactLoaded && state.contacts.isNotEmpty)
-                ? state.contacts.firstWhere(
-                    (c) => c.id == grpId,
-                    orElse: () => const ContactModel(id: ''),
-                  )
-                : null;
+
+        ContactModel? contact;
+
+        if (grpChat && state is ContactLoaded) {
+          try {
+            contact = state.contacts.firstWhere((c) => c.id == grpId);
+          } catch (_) {
+            contact = null;
+          }
+        }
+
 
         // If dummy (empty ID) or null, don't use it
         final validContact = (contact?.id?.isNotEmpty == true) ? contact : null;
@@ -179,19 +183,17 @@ class CommonAppBarBuilder {
         //     : "${firstname ?? ''} ${lastname ?? ''}";
 
         final displayName = grpChat
-            ? (validContact?.groupName?.isNotEmpty == true
-                ? validContact!.groupName!
-                : "${firstname ?? ''} ${lastname ?? ''}")
+            ? (contact?.groupName?.isNotEmpty == true
+            ? contact!.groupName!
+            : userName ?? '')
             : "${firstname ?? ''} ${lastname ?? ''}";
 
-        // STRICT LOGIC:
-        // 1. If Group: use API groupAvatar safely, fallback to param.
-        // 2. If Private: strictly use param profileAvatarUrl.
-        final String effectiveAvatarUrl = grpChat
-            ? (validContact?.groupAvatar?.isNotEmpty == true
-                ? validContact!.groupAvatar!
-                : profileAvatarUrl)
+        final effectiveAvatarUrl = grpChat
+            ? (contact?.groupAvatar?.isNotEmpty == true
+            ? contact!.groupAvatar!
+            : profileAvatarUrl)
             : profileAvatarUrl;
+
 
         final trimmedName = displayName.trim();
 
