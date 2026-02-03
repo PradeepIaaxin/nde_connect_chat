@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'AudioMessageWidget.dart';
 import 'ImageMessageWidget.dart';
 import 'VideoMessageWidget.dart';
+import 'package:nde_email/utils/reusbale/mime.type.dart';
 
 Widget buildMessageContent(
     dynamic message, BuildContext context, String currentUserId) {
@@ -162,7 +163,6 @@ Widget _buildFileMessage(
     return _buildErrorWidget("Invalid file URL");
   }
 
-  final icon = _getFileIcon(type, fileName);
   final displayName =
       fileName.isNotEmpty ? fileName : '${type.capitalize()} file';
 
@@ -177,7 +177,7 @@ Widget _buildFileMessage(
       ),
       child: Row(
         children: [
-          Icon(icon, size: 40, color: Colors.blue),
+          buildIcon(type: type, mimeType: fileName, size: 40),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -207,22 +207,6 @@ Widget _buildFileMessage(
       ),
     ),
   );
-}
-
-IconData _getFileIcon(String type, String fileName) {
-  switch (type) {
-    case 'pdf':
-      return Icons.picture_as_pdf;
-    case 'document':
-      final ext = fileName.split('.').last.toLowerCase();
-      if (ext == 'pdf') return Icons.picture_as_pdf;
-      if (['doc', 'docx'].contains(ext)) return Icons.description;
-      if (['xls', 'xlsx'].contains(ext)) return Icons.table_chart;
-      if (['ppt', 'pptx'].contains(ext)) return Icons.slideshow;
-      return Icons.insert_drive_file;
-    default:
-      return Icons.insert_drive_file;
-  }
 }
 
 Widget _buildErrorWidget(String message) {
