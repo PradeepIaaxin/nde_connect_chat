@@ -6077,6 +6077,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       onSearchChanged: _onSearchChanged,
       onSearchUp: _onSearchUp,
       onSearchDown: _onSearchDown,
+      searchMatchCount: _searchMatchGroupIds.length,
+      searchMatchIndex: _searchMatchGroupIds.isEmpty
+          ? 0
+          : (_searchMatchGroupIds.length - _currentSearchMatchIndex),
       hasLeftGroup: _hasLeftGroup,
       onExitGroup: () {
         if (widget.groupId != null || widget.datumId.isNotEmpty) {
@@ -6094,6 +6098,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     return aIsVisual && bIsVisual;
   }
+
   bool _isVisualMedia(Map m) {
     final String url = (
         m['fileUrl'] ??
@@ -6134,6 +6139,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       _parseTime(m['time']).millisecondsSinceEpoch ~/ 60000 // 1-min bucket
     ].join('_');
   }
+
   List<Map<String, dynamic>> buildGroupedMessages(List raw) {
     final List<Map<String, dynamic>> messages =
     List<Map<String, dynamic>>.from(raw)
