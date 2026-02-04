@@ -6464,7 +6464,8 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
   }
 
   Future<void> _showReactionsBottomSheet(
-      Map<String, dynamic> message, String initialEmoji) async {
+      Map<String, dynamic> message, String initialEmoji)
+  async {
     // helper to build normalized reactions list for a message object
     List<Map<String, dynamic>> _normalizeFromMap(Map<String, dynamic> msg) {
       final List<Map<String, dynamic>> out = [];

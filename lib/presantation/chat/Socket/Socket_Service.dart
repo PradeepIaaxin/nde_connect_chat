@@ -1468,7 +1468,6 @@ class SocketService {
       'convoId':convoId
     }, ack: (response) {
       log("responseeeeeee ${response}");
-      log("responseeeeeee ${response['success']}");
       try {
         if (response is Map && response['success'] == true) {
           Messenger.alertSuccess("Group updated successfully");
