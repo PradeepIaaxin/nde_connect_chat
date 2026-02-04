@@ -151,6 +151,7 @@ class ChatListTile extends StatelessWidget {
         imageUrl: profileAvatarUrl,
         fallbackText: profileAvatar,
         userName: chat.firstName ?? "",
+        lastName: chat.lastName ?? "" ,
         groupName: chat.name ?? "",
         isGroup: chat.isGroupChat ?? false,
         grpId: chat.groupId,
@@ -161,7 +162,7 @@ class ChatListTile extends StatelessWidget {
             label: 'Chat',
             onTap: () {
               Navigator.pop(context); // close dialog
-
+log(".......... ${chat.reciverId}");
               Navigator.push(
                 context,
                 MaterialPageRoute(

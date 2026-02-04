@@ -141,7 +141,7 @@ class _GroupNameEditScreenState extends State<GroupNameEditScreen> {
         options: Options(headers: headers),
       );
 
-      SocketService().updateGroupInfo(groupId:  widget.groupId, updateKey: widget.keyToEdit,groupName:updatedValue);
+      SocketService().updateGroupInfo(groupId:  widget.groupId, updateKey: widget.keyToEdit,groupName:updatedValue,convoId: widget.convoId);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         log("responseeeeeeee ${response.data}");

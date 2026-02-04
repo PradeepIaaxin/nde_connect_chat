@@ -2773,7 +2773,8 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
   // ------------------ UI builders ------------------
   Widget _buildMessageBubble(
       Map<String, dynamic> message, bool isSentByMe, bool isReply,
-      {int? length}) {
+      {int? length})
+  {
     final String? bubbleSenderId = _getMessageSenderId(message);
     final bool correctIsSentByMe = bubbleSenderId == currentUserId;
 
@@ -2910,26 +2911,56 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
 
   Widget _buildReactionsBar(Map<String, dynamic> message, bool sentByMe) {
     final messageId =
-        (message['message_id'] ?? message['messageId'] ?? message['id'] ?? '')
-            .toString();
+    (message['message_id'] ??
+        message['messageId'] ??
+        message['id'] ??
+        '')
+        .toString();
+
     final mergedReactions = messageId.isNotEmpty
         ? _collectMergedReactionsForMessage(messageId)
         : <Map<String, dynamic>>[];
 
+    // ✅ CREATE UPDATED MESSAGE
     final msgCopy = Map<String, dynamic>.from(message);
     msgCopy['reactions'] = mergedReactions;
 
     return ReactionBar(
-      message: message,
+      message: message, // ✅ THIS IS THE FIX
       currentUserId: currentUserId,
-      onReactionTap: (msg, emoji) => _handleReactionTap(message, emoji),
-      onOpenReactors: (msg, emoji) => _showReactionsBottomSheet(message, emoji),
+      onReactionTap: (_, emoji) =>
+          _handleReactionTap(message, emoji),
+      onOpenReactors: (_, emoji) =>
+          _showReactionsBottomSheet(message, emoji),
       recentEmojis: recentEmojis,
       onEmojiUpdated: (list) {
         setState(() => recentEmojis = list);
       },
     );
   }
+
+  // Widget _buildReactionsBar(Map<String, dynamic> message, bool sentByMe) {
+  //   final messageId =
+  //       (message['message_id'] ?? message['messageId'] ?? message['id'] ?? '')
+  //           .toString();
+  //   final mergedReactions = messageId.isNotEmpty
+  //       ? _collectMergedReactionsForMessage(messageId)
+  //       : <Map<String, dynamic>>[];
+  //
+  //   final msgCopy = Map<String, dynamic>.from(message);
+  //   msgCopy['reactions'] = mergedReactions;
+  //
+  //   return ReactionBar(
+  //     message: message,
+  //     currentUserId: currentUserId,
+  //     onReactionTap: (msg, emoji) => _handleReactionTap(message, emoji),
+  //     onOpenReactors: (msg, emoji) => _showReactionsBottomSheet(message, emoji),
+  //     recentEmojis: recentEmojis,
+  //     onEmojiUpdated: (list) {
+  //       setState(() => recentEmojis = list);
+  //     },
+  //   );
+  // }
 
   void _onMessageTap(Map<String, dynamic> message) async {
     if (_isSelectionMode) {
@@ -3075,9 +3106,58 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
 
     return byUser.values.toList();
   }
+  Map<String, String?> normalizeReactionUser(
+      Map<String, dynamic> reaction,
+      String currentUserId,
+      String currentUserFirstName,
+      String currentUserLastName,
+      )
+  {
+    final user = reaction['user'];
 
+    String userId = '';
+    String displayName = '';
+    String? avatar;
+
+    if (user is Map) {
+      userId = (user['_id'] ?? user['id'] ?? user['userId'] ?? '').toString();
+
+      displayName = (user['first_name'] ??
+          user['firstName'] ??
+          user['name'] ??
+          user['email'] ??
+          '')
+          .toString();
+
+      avatar = user['avatar']?.toString();
+    } else {
+      userId = (reaction['userId'] ??
+          reaction['senderId'] ??
+          reaction['id'] ??
+          '')
+          .toString();
+    }
+
+    // 🔥 CURRENT USER OVERRIDE (MOST IMPORTANT)
+    if (userId == currentUserId) {
+      displayName =
+          '${currentUserFirstName} ${currentUserLastName}'.trim();
+    }
+
+    final initial = displayName.isNotEmpty
+        ? displayName.trim().characters.first.toUpperCase()
+        : '?';
+
+    return {
+      'id': userId,
+      'name': displayName,
+      'initial': initial,
+      'avatar': avatar,
+    };
+  }
   Future<void> _showReactionsBottomSheet(
-      Map<String, dynamic> message, String initialEmoji) async {
+      Map<String, dynamic> message, String initialEmoji)
+  async {
     // helper to build normalized reactions list for a message object
     List<Map<String, dynamic>> _normalizeFromMap(Map<String, dynamic> msg) {
       final List<Map<String, dynamic>> out = [];
@@ -3389,51 +3469,61 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
                       itemBuilder: (c, i) {
                         final r = reactors[i];
                         final user = r['user'];
-                        String userId;
-                        String displayName = '';
+                        String userId = '';
+                        String firstName = '';
+                        String lastName = '';
                         String? avatarUrl;
 
                         if (user is Map) {
                           userId = (user['_id'] ??
-                                  user['id'] ??
-                                  user['userId'] ??
-                                  '')
+                              user['id'] ??
+                              user['userId'] ??
+                              '')
                               .toString();
-                          displayName = (user['first_name'] ??
-                                  user['name'] ??
-                                  user['firstName'] ??
-                                  user['email'] ??
-                                  '')
+
+                          firstName = (user['first_name'] ??
+                              user['firstName'] ??
+                              '')
                               .toString();
+
+                          lastName = (user['last_name'] ??
+                              user['lastName'] ??
+                              '')
+                              .toString();
+
                           avatarUrl = user['avatar']?.toString();
                         } else {
                           userId = (r['userId'] ?? '').toString();
-                          displayName = userId;
                         }
 
-                        final isMe = userId == currentUserId;
+                        final displayName =
+                        firstName.isNotEmpty ? firstName : userId;
+                        final normalized = normalizeReactionUser(
+                          r,
+                          currentUserId,
+                          widget.firstname ?? '',
+                          widget.lastname ?? '',
+                        );
+
+                        final isMe = normalized['id'] == currentUserId;
 
                         return ListTile(
                           leading: CircleAvatar(
-                            backgroundImage:
-                                avatarUrl != null && avatarUrl.isNotEmpty
-                                    ? NetworkImage(avatarUrl) as ImageProvider
-                                    : null,
-                            child: (avatarUrl == null || avatarUrl.isEmpty)
-                                ? Text(displayName.isNotEmpty
-                                    ? displayName
-                                        .trim()
-                                        .characters
-                                        .first
-                                        .toUpperCase()
-                                    : '?')
+                            backgroundImage: normalized['avatar'] != null &&
+                                normalized['avatar']!.isNotEmpty
+                                ? NetworkImage(normalized['avatar']!)
+                                : null,
+                            child: avatarUrl == null || avatarUrl.isEmpty
+                                ? Text(
+                              firstName.isNotEmpty
+                                  ? firstName.trim().characters.first.toUpperCase()
+                                  : '?',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            )
                                 : null,
                           ),
-                          title: Text(isMe
-                              ? 'You'
-                              : (displayName.isNotEmpty
-                                  ? displayName
-                                  : userId)),
+
+                          title: Text(isMe ? 'You' : normalized['name']!),
                           subtitle: isMe
                               ? const Text('Tap to remove',
                                   style: TextStyle(fontSize: 12))
@@ -3514,7 +3604,12 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
 
       for (var i = 0; i < reactions.length; i++) {
         final r = reactions[i];
-        final uid = (r['user']?['_id'] ?? r['userId'])?.toString();
+        final uid = (r['userId'] ??
+            r['user']?['_id'] ??
+            r['user']?['id'] ??
+            r['senderId'])
+            ?.toString();
+
         if (uid == currentUserId) {
           myIndex = i;
           oldEmoji = r['emoji']?.toString();
@@ -3532,7 +3627,8 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
           messageId: apiMessageId,
           conversationId: widget.convoId,
           emoji: emoji,
-          userId: currentUser!,
+          userId: currentUserId!,
+
           receiverId: widget.receiverId ?? "",
           firstName: widget.firstname ?? "",
           lastName: widget.lastname ?? "",
@@ -3548,7 +3644,7 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
           messageId: apiMessageId,
           conversationId: widget.convoId,
           emoji: oldEmoji ?? '',
-          userId: currentUser!,
+          userId: currentUserId!,
           receiverId: widget.receiverId ?? "",
           firstName: widget.firstname ?? "",
           lastName: widget.lastname ?? "",
@@ -3558,7 +3654,7 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
           messageId: apiMessageId,
           conversationId: widget.convoId,
           emoji: emoji,
-          userId: currentUser!,
+          userId: currentUserId!,
           receiverId: widget.receiverId ?? "",
           firstName: widget.firstname ?? "",
           lastName: widget.lastname ?? "",
@@ -3573,7 +3669,7 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
         messageId: apiMessageId,
         conversationId: widget.convoId,
         emoji: emoji,
-        userId: currentUser!,
+        userId: currentUserId!,
         receiverId: widget.receiverId ?? "",
         firstName: widget.firstname ?? "",
         lastName: widget.lastname ?? "",
@@ -3584,31 +3680,60 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
   }
 
   List<Map<String, dynamic>> _extractReactionsFromMessage(
-      Map<String, dynamic> message)
-  {
+      Map<String, dynamic> message) {
+
     final List<Map<String, dynamic>> list = [];
 
+    // 1️⃣ Normal reactions array
     if (message['reactions'] is List) {
       for (final r in message['reactions']) {
-        if (r is Map) list.add(Map<String, dynamic>.from(r));
+        if (r is! Map) continue;
+
+        final map = Map<String, dynamic>.from(r);
+
+        // Normalize userId
+        String? userId =
+            map['userId']?.toString() ??
+                map['user']?['_id']?.toString() ??
+                map['user']?['id']?.toString();
+
+        if (userId == null || userId.isEmpty) continue;
+
+        list.add({
+          'emoji': map['emoji'],
+          'reacted_at': map['reacted_at'] ?? map['createdAt'],
+          'userId': userId,
+          'user': map['user'] is Map
+              ? Map<String, dynamic>.from(map['user'])
+              : {'_id': userId},
+        });
       }
     }
 
+    // 2️⃣ Legacy / properties-based reactions
     if (message['properties'] is List) {
       for (final p in message['properties']) {
-        if (p is Map && p['reaction'] != null) {
-          final r = p['reaction'];
-          list.add({
-            'emoji': r['emoji'],
-            'reacted_at': r['reacted_at'],
-            'user': {'_id': p['member_id']}
-          });
-        }
+        if (p is! Map || p['reaction'] == null) continue;
+
+        final r = p['reaction'];
+        final userId = p['member_id']?.toString();
+
+        if (userId == null || userId.isEmpty) continue;
+
+        list.add({
+          'emoji': r['emoji'],
+          'reacted_at': r['reacted_at'],
+          'userId': userId,
+          'user': {
+            '_id': userId,
+          },
+        });
       }
     }
 
     return list;
   }
+
 
   bool isValidUrl(String url) =>
       url.startsWith('http://') || url.startsWith('https://');
@@ -3783,28 +3908,25 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
   void _updateLocalReactions(String targetMessageId, String? newEmoji) {
     if (targetMessageId.trim().isEmpty) return;
 
-    String normalizeId(dynamic id) => id?.toString().trim() ?? '';
-
     bool changed = false;
-
+log("newEmoji..> $newEmoji");
     void updateList(List<Map<String, dynamic>> list) {
-      for (var msg in list) {
-        final msgId = normalizeId(
-          msg['message_id'] ?? msg['messageId'] ?? msg['id'] ?? msg['_id'],
-        );
+      for (final msg in list) {
+        final msgId = (msg['message_id'] ??
+            msg['messageId'] ??
+            msg['id'] ??
+            msg['_id'])
+            ?.toString();
 
         if (msgId != targetMessageId) continue;
 
-        // Normalize existing reactions
-        final reactions = _extractReactions(msg['reactions']);
+        final reactions = _extractReactionsFromMessage(msg);
 
-        // remove my old reaction (if any)
-        reactions.removeWhere((r) {
-          final uid = (r['userId'] ?? r['user']?['_id'])?.toString();
-          return uid == currentUserId;
-        });
+        // 🔥 remove my old reaction
+        reactions.removeWhere((r) =>
+        r['userId']?.toString() == currentUserId);
 
-        // add new reaction if not null/empty
+        // 🔥 add new reaction
         if (newEmoji != null && newEmoji.isNotEmpty) {
           reactions.add({
             'emoji': newEmoji,
@@ -3824,17 +3946,12 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
     }
 
     setState(() {
-      updateList(dbMessages);
-      updateList(messages);
-      updateList(socketMessages);
-
-      if (changed && widget.convoId.isNotEmpty) {
-        final combined = [...dbMessages, ...messages, ...socketMessages];
-        LocalChatStorage.saveMessages(widget.convoId, combined);
-      }
+      // ✅ ONLY update the list used by UI
+      updateList(_allMessages);
 
       if (changed) {
-        _updateNotifier(); // rebuild visible list
+        _updateNotifierFromAll(); // 🔥 rebuild notifier from _allMessages
+        LocalChatStorage.saveMessages(widget.convoId, _allMessages);
       }
     });
   }
