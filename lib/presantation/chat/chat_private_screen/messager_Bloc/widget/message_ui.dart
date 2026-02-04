@@ -354,73 +354,6 @@ class _MessageBubbleState extends State<MessageBubble> {
                                     ),
                                   ],
                                 ),
-
-                              //     // Audio Message
-                              //     if (isAudio && hasFile)
-                              //       AudioMessageWidget(
-                              //         audioUrl: fileUrl,
-                              //         profileAvatarUrl: widget.message['sender']
-                              //                 ?['profile_pic_path'] ??
-                              //             widget.message['sender']?['profilePic'] ??
-                              //             widget.message['profile_pic_path'] ??
-                              //             '',
-                              //         isSender: widget.isSentByMe,
-                              //         duration: widget.message['duration']?.toString(),
-                              //         timestamp: TimeUtils.formatUtcToIst(
-                              //             widget.message['time']),
-                              //         status:
-                              //             widget.message['messageStatus']?.toString() ??
-                              //                 'sent',
-                              //         showContainer: false,
-                              //         mimeType:  widget.message['mimeType']?.toString() ??widget.message['fileType']?.toString(),
-                              //       )
-
-                              //     // 2. Video Preview
-                              //     else if (isVideo && hasFile)
-                              //       _buildVideoPreviewTile(
-                              //           context,
-                              //           fileUrl,
-                              //           fileName ?? "",
-                              //           widget.isSentByMe,
-                              //           content.isEmpty)
-
-                              //     // 3. Image preview
-                              //     else if (isImage && (hasImageContent || hasFile))
-                              //       _buildImage(context, content,
-                              //           displayImageUrl ?? fileUrl ?? "", fileName,
-                              //           isSentByMe: widget.isSentByMe,
-                              //           showTime: content.isEmpty)
-
-                              //     // 4. General File preview (Document)
-                              //     else if (hasFile)
-                              //       _buildFile(
-                              //           context, fileUrl, fileName, fileType, content,
-                              //           isSentByMe: widget.isSentByMe),
-
-                              //     // Text content
-                              //     if (content.isNotEmpty)
-                              //       // Use MessageCaption for image/video/document captions to position time/status in the right corner
-                              //       if ((isImage && (hasImageContent || hasFile)) ||
-                              //           (isVideo && hasFile) ||
-                              //           (hasFile &&
-                              //               !isImage &&
-                              //               !isVideo &&
-                              //               !isAudio)) // Document
-                              //         MessageCaption(
-                              //           content: content,
-                              //           time: TimeUtils.formatUtcToIst(
-                              //               widget.message['time']),
-                              //           isSentByMe: widget.isSentByMe,
-                              //           messageStatus: messageStatus,
-                              //           buildStatusIcon: widget.buildStatusIcon,
-                              //           searchText: widget.searchText,
-                              //         )
-                              //       else
-                              //         _buildTextMessage(content, messageStatus),
-                              //   ],
-                              // ),
-
-                              // Audio Message
                               if (isAudio && hasFile)
                                 AudioMessageWidget(
                                   audioUrl: fileUrl,
@@ -614,7 +547,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                 (widget.message['reactions'] as List).isNotEmpty &&
                 widget.buildReactionsBar != null)
               Positioned(
-                bottom: (isReplyMessage ?? false) ? -40 : -28,
+                bottom: (isReplyMessage ?? false) ? -35 : -28,
                 right: widget.isSentByMe ? 12 : null,
                 left: widget.isSentByMe ? null : 12,
                 child: Padding(
