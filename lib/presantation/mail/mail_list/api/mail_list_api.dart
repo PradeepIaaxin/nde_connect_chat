@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:developer';
 import 'package:http/http.dart' as http;
 import 'package:nde_email/data/respiratory.dart';
+import 'package:nde_email/utils/reusbale/common_import.dart';
 import '../model/mail_list_model.dart';
 import 'package:nde_email/data/mailboxid.dart';
 import 'package:nde_email/data/token.dart';
@@ -144,7 +145,8 @@ class FetchMailListapi {
       );
 
       if (response.statusCode == 200) {
-        log(" Messages deleted successfully!");
+        Messenger.alertSuccess('Messages deleted successfully!');
+
         return true;
       } else if (response.statusCode == 401) {
         _handleUnauthorized();
