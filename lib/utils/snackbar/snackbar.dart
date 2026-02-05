@@ -7,10 +7,10 @@ import 'package:nde_email/utils/spacer/spacer.dart';
 class Messenger {
   static final rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
-  static alertError(String msg) => alert(msg: msg, color: Colors.black);
-  static alertSuccess(String msg) => alert(msg: msg, color: Colors.green);
+  static dynamic alertError(String msg) => alert(msg: msg, color: Colors.red);
+  static dynamic alertSuccess(String msg) => alert(msg: msg, color: Colors.green);
 
-  static alert({required String msg, Color? color}) {
+  static void alert({required String msg, Color? color}) {
     if (msg.trim().isEmpty) return;
     log(msg);
 
@@ -34,7 +34,7 @@ class Messenger {
     );
   }
 
-  static pop(BuildContext context) {
+  static void pop(BuildContext context) {
     showModalBottomSheet<void>(
       constraints: const BoxConstraints.expand(),
       context: context,
@@ -52,7 +52,7 @@ class Messenger {
     );
   }
 
-  static alertWithSvgImage({
+  static void alertWithSvgImage({
     required String msg,
     double width = 250,
   }) {

@@ -1,9 +1,13 @@
+import 'dart:developer';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:nde_email/data/mailboxid.dart';
 import 'package:nde_email/data/respiratory.dart';
 import 'package:nde_email/presantation/calender/schedule/calendar_screen.dart';
 import 'package:nde_email/presantation/drive/view/landing_home.dart';
+import 'package:nde_email/presantation/mail/common/dialogs/move_to_dialog.dart';
+import 'package:nde_email/presantation/mail/common/mail_more_menu.dart';
+import 'package:nde_email/presantation/mail/common/menuaction/mail_menu_action.dart';
 import 'package:nde_email/presantation/mail/mail_list/bloc/mail_list_event.dart';
 import 'package:nde_email/presantation/meet/socket/test_socket.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar.dart';
@@ -300,6 +304,10 @@ class _HomeScreenState extends State<HomeScreen> {
       BuildContext context, MailListState state) {
     final bool hasUnreadSelected = _hasUnreadSelected(state);
 
+    /// ✅ ADD THIS
+    final bool isArchiveMailbox =
+        widget.mailboxName?.toLowerCase() == "archive";
+
     return AppBar(
       backgroundColor: Colors.white,
       surfaceTintColor: Colors.white,
@@ -312,14 +320,27 @@ class _HomeScreenState extends State<HomeScreen> {
       title: Text("${state.selectedMailIds.length} selected"),
       actions: [
         IconButton(
-          icon: const Icon(Icons.archive),
+          icon: Icon(
+            isArchiveMailbox ? Icons.unarchive : Icons.archive,
+          ),
           onPressed: () {
-            print("🔥 SELECTED IDS = ${state.selectedMailIds}");
-            print("🔥 CURRENT MAILBOX = $selectedMailboxId");
-            context.read<MailListBloc>().add(
-                  MoveToArchiveEvent(
-                      state.selectedMailIds.toList(), selectedMailboxId),
-                );
+            if (isArchiveMailbox) {
+              /// 🔁 UNARCHIVE → Move back to Inbox
+              context.read<MailListBloc>().add(
+                    RevertArchiveEvent(
+                      mailIds: state.selectedMailIds.toList(),
+                      mailboxId: selectedMailboxId,
+                    ),
+                  );
+            } else {
+              /// 📦 NORMAL ARCHIVE
+              context.read<MailListBloc>().add(
+                    MoveToArchiveEvent(
+                      state.selectedMailIds.toList(),
+                      selectedMailboxId,
+                    ),
+                  );
+            }
 
             context.read<MailListBloc>().add(ClearSelectionEvent());
           },
@@ -361,9 +382,82 @@ class _HomeScreenState extends State<HomeScreen> {
             context.read<MailListBloc>().add(ClearSelectionEvent());
           },
         ),
-        SizedBox(
-          width: 10,
-        )
+
+        MailMoreMenu(
+          onSelected: (action) {
+            switch (action) {
+              case MailMenuAction.moveTo:
+                final appBarState = context.read<AppBarBloc>().state;
+
+                if (appBarState is AppBarMailboxesLoaded) {
+                  final folders = [
+                    ...appBarState.inbox,
+                    ...appBarState.archive,
+                    ...appBarState.drafts,
+                    ...appBarState.junk,
+                    ...appBarState.sent,
+                    ...appBarState.trash,
+                    ...appBarState.other,
+                  ];
+
+                  showMoveToMailboxDialog(
+                    context: context,
+                    mailboxes: folders,
+                    onSelected: (mailbox) {
+                      log("📁 Move mail to: ${mailbox.name}");
+                      log("📁 Target Mailbox ID: ${mailbox.id}");
+
+                      context.read<MailListBloc>().add(
+                            MoveMailEvent(
+                              mailIds: state.selectedMailIds.toList(),
+                              fromMailboxId: selectedMailboxId,
+                              toMailboxId: mailbox.id,
+                            ),
+                          );
+
+                      context.read<MailListBloc>().add(ClearSelectionEvent());
+                    },
+                  );
+                }
+                break;
+
+              case MailMenuAction.snooze:
+                debugPrint('Snooze');
+                break;
+
+              case MailMenuAction.changeLabels:
+                debugPrint('Change labels');
+                break;
+
+              case MailMenuAction.unsubscribe:
+                debugPrint('Unsubscribe');
+                break;
+
+              case MailMenuAction.mute:
+                debugPrint('Mute');
+                break;
+
+              case MailMenuAction.printMail:
+                debugPrint('Print');
+                break;
+
+              case MailMenuAction.reportSpam:
+                debugPrint('Report spam');
+                break;
+
+              case MailMenuAction.addToTasks:
+                debugPrint('Add to Tasks');
+                break;
+
+              case MailMenuAction.help:
+                debugPrint('Help & Feedback');
+                break;
+            }
+          },
+        ),
+        // SizedBox(
+        //   width: 10,
+        // )
       ],
     );
   }

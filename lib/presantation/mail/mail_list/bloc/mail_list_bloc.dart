@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer';
 import 'package:bloc/bloc.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nde_email/utils/snackbar/snackbar.dart';
 import '../model/mail_list_model.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -29,6 +30,8 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
     on<RefreshMailListEvent>(_onRefreshMailListSilent);
     on<FetchFilteredMailEvent>(_onFetchFilteredMail);
     on<ToggleFlagEvent>(_onToggleFlagEvent);
+    on<RevertArchiveEvent>(_onRevertArchive);
+
     on<ResetMailListEvent>((event, emit) {
       // 🔥 Reset ONLY active mailbox, not everything
       cachedMailLists.remove(event.mailboxId);
@@ -165,6 +168,83 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
         status: MailListStatus.error,
         errorMessage: "Failed to load mails",
         isPaginating: false,
+      ));
+    }
+  }
+
+  Future<void> _onRevertArchive(
+    RevertArchiveEvent event,
+    Emitter<MailListState> emit,
+  ) async {
+    if (event.mailIds.isEmpty) {
+      emit(state.copyWith(
+        status: MailListStatus.error,
+        errorMessage: "No emails selected.",
+      ));
+      return;
+    }
+
+    emit(state.copyWith(status: MailListStatus.loading));
+
+    try {
+      final success = await apiService.revertFromArchive(
+        mailIds: event.mailIds,
+        archiveMailboxId: event.mailboxId,
+      );
+
+      if (success) {
+        // 1️⃣ Remove reverted mails from ARCHIVE list
+        final updatedMails = state.mails
+            .where((mail) => !event.mailIds.contains(mail.id))
+            .toList();
+
+        // 2️⃣ Recalculate unread count
+        final unreadCount =
+            updatedMails.where((mail) => mail.seen == false).length;
+
+        final updatedUnreadMap =
+            Map<String, int>.from(state.unreadCountByMailbox);
+
+        updatedUnreadMap[event.mailboxId] = unreadCount;
+
+        // 3️⃣ Emit updated state
+        emit(updatedMails.isEmpty
+            ? state.copyWith(
+                status: MailListStatus.empty,
+                mails: [],
+                unreadCountByMailbox: updatedUnreadMap,
+                totalUnreadCount: updatedUnreadMap.values.fold<int>(
+                  0,
+                  (a, b) => a + (b ?? 0),
+                ),
+              )
+            : state.copyWith(
+                status: MailListStatus.loaded,
+                mails: updatedMails,
+                unreadCountByMailbox: updatedUnreadMap,
+                totalUnreadCount: updatedUnreadMap.values.fold<int>(
+                  0,
+                  (a, b) => a + (b ?? 0),
+                ),
+              ));
+
+        // 4️⃣ Update cache
+        cachedMailLists[event.mailboxId] = updatedMails;
+
+        log("✅ Reverted mails removed from archive UI");
+        Messenger.alertSuccess("Mail unarchived successfully");
+      } else {
+        emit(state.copyWith(
+          status: MailListStatus.error,
+          errorMessage: "Failed to revert emails.",
+        ));
+      }
+    } catch (e) {
+      log("❌ Revert error: $e");
+
+      emit(state.copyWith(
+        status: MailListStatus.error,
+        errorMessage: "Error reverting emails.",
       ));
     }
   }
@@ -440,13 +520,8 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
 
       final bool success = await apiService.moveToArchive(
         event.mailIds,
-        sourceMailboxId, // ✅ REAL mailbox
+        sourceMailboxId,
       );
-
-      // final bool success = await apiService.moveToArchive(
-      //   event.mailIds,
-      //   event.mailboxId,
-      // );
 
       if (success) {
         // 1️⃣ Remove archived mails from current mailbox
@@ -536,10 +611,11 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
 
     // 6️⃣ Call backend API
     final sourceMailboxId = _getSourceMailboxId(
-  event.mailIds.map(int.parse).toSet(),
-);
+      event.mailIds.map(int.parse).toSet(),
+    );
 
- final bool success = await _markMessage(sourceMailboxId, event.mailIds, true);
+    final bool success =
+        await _markMessage(sourceMailboxId, event.mailIds, true);
 
     // final bool success =
     //     await _markMessage(event.mailboxId, event.mailIds, true);

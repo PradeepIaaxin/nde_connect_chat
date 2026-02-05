@@ -329,9 +329,7 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
                             const SizedBox(height: 10),
                             _buildDetailRow(
                               "Date    :",
-                              "${DateFormat('d MMM yyyy')
-                                      .format(mailDetail.date.toLocal())} , ${DateFormat('hh:mm a')
-                                      .format(mailDetail.date.toLocal())}",
+                              "${DateFormat('d MMM yyyy').format(mailDetail.date.toLocal())} , ${DateFormat('hh:mm a').format(mailDetail.date.toLocal())}",
                               "",
                             ),
                             const SizedBox(height: 10),

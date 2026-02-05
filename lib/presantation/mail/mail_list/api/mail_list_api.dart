@@ -206,10 +206,45 @@ class FetchMailListapi {
     log("📥 Response Body: ${response.body}");
 
     if (response.statusCode == 200) {
-      log("✅ Emails moved to Archive successfully");
+      Messenger.alertSuccess('mail archived successfully');
       return true;
     } else {
       log("❌ Failed to move emails");
+      return false;
+    }
+  }
+
+  Future<bool> revertFromArchive({
+    required List<int> mailIds,
+    required String archiveMailboxId,
+  }) async {
+    String? accessToken = await UserPreferences.getAccessToken();
+    String? defaultWorkspace = await UserPreferences.getDefaultWorkspace();
+
+    final url = "${ApiService.baseUrl}/user/archive/revert/$archiveMailboxId";
+
+    try {
+      final response = await http.put(
+        Uri.parse(url),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $accessToken",
+          "X-WorkSpace": defaultWorkspace ?? "",
+        },
+        body: jsonEncode({
+          "messageIds": mailIds,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        log("✅ Archive revert success: ${response.body}");
+        return true;
+      } else {
+        log("❌ Archive revert failed: ${response.body}");
+        return false;
+      }
+    } catch (e) {
+      log("❌ Archive revert error: $e");
       return false;
     }
   }

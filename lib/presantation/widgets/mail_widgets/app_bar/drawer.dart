@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nde_email/data/mailboxid.dart';
 import 'package:nde_email/presantation/mail/mail_list/bloc/mail_list_bloc.dart';
-import 'package:nde_email/presantation/mail/mail_list/bloc/mail_list_event.dart';
 import 'package:nde_email/presantation/mail/mail_list/bloc/mail_list_state.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/router/router.dart';
@@ -32,6 +31,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
   static const String viewUnread = 'view_unread';
   static const String viewAll = 'view_all';
   static const String viewStarred = 'view_flagged';
+  static const String viewsetting = 'view_setting';
 
   final Map<String, String> mailboxIcons = {
     'inbox': 'assets/images/inbox.svg',
@@ -112,17 +112,24 @@ class _CustomDrawerState extends State<CustomDrawer> {
                       child: ListView(
                         children: [
                           /// -------- FOLDERS --------
-                          ExpansionTile(
-                            title: _sectionTitle("Folders"),
-                            initiallyExpanded: true,
-                            children: folders
-                                .map((m) => _buildMailboxTile(context, m))
-                                .toList(),
+                          // ExpansionTile(
+                          //   title: _sectionTitle("Folders"),
+                          //   initiallyExpanded: true,
+                          //   children: folders
+                          //       .map((m) => _buildMailboxTile(context, m))
+                          //       .toList(),
+                          // ),
+                          Padding(
+                            padding: const EdgeInsets.only(
+                                left: 16, top: 12, bottom: 4),
+                            // child: _sectionTitle("Folders"),
                           ),
+
+                          ...folders.map((m) => _buildMailboxTile(context, m)),
 
                           /// -------- LABELS --------
                           ExpansionTile(
-                            title: _sectionTitle("Labels"),
+                            title: _sectionTitle("Folders"),
                             initiallyExpanded: true,
                             children: labels
                                 .map((m) => _buildLabelTile(context, m))
@@ -130,9 +137,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                           ),
 
                           /// -------- VIEWS --------
-                          ExpansionTile(
-                            title: _sectionTitle("Views"),
-                            initiallyExpanded: true,
+                          Column(
                             children: [
                               _buildViewTile(
                                 context: context,
@@ -152,8 +157,44 @@ class _CustomDrawerState extends State<CustomDrawer> {
                                 viewId: viewStarred,
                                 filter: 'flagged',
                               ),
+                              // _buildViewTile(
+                              //   context: context,
+                              //   title: "Setting",
+                              //   viewId: viewsetting,
+                              //   filter: 'Setting',
+                              // ),
                             ],
-                          ),
+                          )
+                          // ExpansionTile(
+                          //   title: _sectionTitle("Views"),
+                          //   initiallyExpanded: true,
+                          //   children: [
+                          // _buildViewTile(
+                          //   context: context,
+                          //   title: "Unread",
+                          //   viewId: viewUnread,
+                          //   filter: 'unread',
+                          // ),
+                          // _buildViewTile(
+                          //   context: context,
+                          //   title: "All",
+                          //   viewId: viewAll,
+                          //   filter: 'all',
+                          // ),
+                          // _buildViewTile(
+                          //   context: context,
+                          //   title: "Starred",
+                          //   viewId: viewStarred,
+                          //   filter: 'flagged',
+                          // ),
+                          // _buildViewTile(
+                          //   context: context,
+                          //   title: "Setting",
+                          //   viewId: viewsetting,
+                          //   filter: 'Setting',
+                          // ),
+                          //   ],
+                          // ),
                         ],
                       ),
                     );
@@ -286,7 +327,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
             MyRouter.pushReplace(
               screen: HomeScreen(
                 mailboxId: mailbox.id,
-                mailboxName: mailbox.name, // ⭐ IMPORTANT ADD
+                mailboxName: mailbox.name,
               ),
             );
           },

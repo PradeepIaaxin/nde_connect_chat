@@ -14,6 +14,17 @@ class ResetAllMailState extends MailListEvent {}
 
 class SelectAllMailsEvent extends MailListEvent {}
 
+class RevertArchiveEvent extends MailListEvent {
+  final List<int> mailIds;
+  final String mailboxId; // Archive mailbox
+
+  RevertArchiveEvent({
+    required this.mailIds,
+    required this.mailboxId,
+  });
+}
+
+
 
 class FetchMailListEvent extends MailListEvent {
   final String mailboxId;

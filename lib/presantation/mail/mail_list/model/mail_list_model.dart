@@ -13,6 +13,8 @@ class GMMailModels {
   final String? mailboxId;
   final bool? flagged;
   final bool attachments;
+  final bool draft;
+
 
   GMMailModels({
     required this.id,
@@ -27,6 +29,7 @@ class GMMailModels {
     required this.to,
     required this.seen,
     required this.mailboxId,
+    required this.draft,
     this.flagged,
     required this.attachments,
   });
@@ -45,6 +48,7 @@ class GMMailModels {
     bool? seen,
     bool? flagged,
     bool? attachments,
+    bool? draft
   }) {
     return GMMailModels(
       id: id ?? this.id,
@@ -61,6 +65,7 @@ class GMMailModels {
       mailboxId: mailboxId ?? this.mailboxId,
       flagged: flagged ?? this.flagged,
       attachments: attachments ?? this.attachments,
+      draft: draft ?? this.draft
     );
   }
 
@@ -81,6 +86,8 @@ class GMMailModels {
       to: toList.map((item) => Recipient.fromJson(item)).toList(),
       seen: json['seen'] ?? false,
       mailboxId: json['mailbox'],
+      draft: json["draft"] ?? false,
+
       flagged: json['flagged'] ?? false,
       attachments: json['attachments'] ?? false,
     );

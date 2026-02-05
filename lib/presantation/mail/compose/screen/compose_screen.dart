@@ -708,7 +708,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
             showSuggestions = false;
           });
         } else {
-          Messenger.alert(msg: "Invalid email: $email");
+          Messenger.alertError("Invalid email: $email");
         }
       }
     }
