@@ -82,6 +82,7 @@ class _MailListWidgetState extends State<MailListWidget> {
     return BlocBuilder<MailListBloc, MailListState>(
       builder: (context, state) {
         final bool isFlaggedScreen = widget.mailboxId == "flagged";
+
         return Padding(
           padding: const EdgeInsets.only(top: 10),
           child: ListView.builder(
@@ -99,31 +100,19 @@ class _MailListWidgetState extends State<MailListWidget> {
               final mail = widget.mails[index];
               final isSelected = state.selectedMailIds.contains(mail.id);
 
+              /// 📏 Avatar size same as GradientAvatar
+              const double avatarRadius = 28;
+              final double avatarSize = avatarRadius * 2.2;
+
               return KeyedSubtree(
                 key: ValueKey(mail.id),
                 child: GestureDetector(
                   onLongPress: () {
-                    debugPrint("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-                    debugPrint("🟢 LONG PRESS MAIL SELECTED");
-                    debugPrint("📩 Mail ID      = ${mail.id}");
-                    debugPrint("📦 Mailbox ID   = ${mail.mailboxId}");
-                    debugPrint("✉️ Subject      = ${mail.subject}");
-                    debugPrint("👤 From         = ${mail.fromAddress}");
-                    debugPrint("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-
                     context
                         .read<MailListBloc>()
                         .add(ToggleMailSelectionEvent(mail.id));
                   },
                   onTap: () {
-                    debugPrint("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-                    debugPrint("🟢 ontap PRESS MAIL SELECTED");
-                    debugPrint("📩 Mail ID      = ${mail.id}");
-                    debugPrint("📦 Mailbox ID   = ${mail.mailboxId}");
-                    debugPrint("✉️ Subject      = ${mail.subject}");
-                    debugPrint("✉️ Subject      = ${mail.mailboxId}");
-                    debugPrint("👤 From         = ${mail.fromAddress}");
-                    debugPrint("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
                     if (state.selectedMailIds.isNotEmpty) {
                       context
                           .read<MailListBloc>()
@@ -165,194 +154,245 @@ class _MailListWidgetState extends State<MailListWidget> {
                       }
                     }
                   },
+
+                  /// ================= ROW =================
                   child: Container(
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      color: isSelected ? AppColors.sectiontool : AppColors.bg,
-                      child: Dismissible(
-                        key: ValueKey(mail.id),
-                        background: Container(
-                          color: AppColors.iconActive,
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: const Align(
-                            alignment: Alignment.center,
-                            child: Icon(Icons.archive, color: AppColors.bg),
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    color: isSelected ? AppColors.sectiontool : AppColors.bg,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 3),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          /// ✅ GMAIL STYLE SELECTION ANIMATION
+                          /// 📏 Avatar size
+
+                          SizedBox(
+                            width: avatarSize,
+                            height: avatarSize,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                /// 🔵 Expanding selection circle (slower)
+                                AnimatedContainer(
+                                  duration: const Duration(milliseconds: 350),
+                                  curve: Curves.easeOutCubic,
+                                  width: isSelected ? avatarSize : 0,
+                                  height: isSelected ? avatarSize : 0,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.iconActive,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppColors.iconActive
+                                            .withOpacity(0.35),
+                                        blurRadius: 12,
+                                        spreadRadius: 2,
+                                      )
+                                    ],
+                                  ),
+                                ),
+
+                                /// 👤 Avatar fade + shrink (delayed feel)
+                                AnimatedOpacity(
+                                  duration: const Duration(milliseconds: 200),
+                                  opacity: isSelected ? 0 : 1,
+                                  child: AnimatedScale(
+                                    duration: const Duration(milliseconds: 300),
+                                    curve: Curves.easeInOut,
+                                    scale: isSelected ? 0.6 : 1.0,
+                                    child: GradientAvatar(
+                                      name: mail.fromName,
+                                      radius: avatarRadius,
+                                    ),
+                                  ),
+                                ),
+
+                                /// ✅ Tick bounce IN (very visible)
+                                AnimatedScale(
+                                  duration: const Duration(milliseconds: 400),
+                                  curve: Curves.elasticOut, // bounce
+                                  scale: isSelected ? 1.0 : 0.0,
+                                  child: AnimatedOpacity(
+                                    duration: const Duration(milliseconds: 250),
+                                    opacity: isSelected ? 1 : 0,
+                                    child: Container(
+                                      width: avatarSize,
+                                      height: avatarSize,
+                                      alignment: Alignment.center,
+                                      child: const Icon(
+                                        Icons.check,
+                                        color: Colors.white,
+                                        size: 30,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        secondaryBackground: Container(
-                          color: AppColors.red,
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: const Align(
-                            alignment: Alignment.center,
-                            child: Icon(Icons.delete, color: Colors.white),
-                          ),
-                        ),
-                        confirmDismiss: (direction) async {
-                          if (direction == DismissDirection.startToEnd) {
-                            context.read<MailListBloc>().add(MoveToArchiveEvent(
-                                [mail.id], widget.mailboxId));
-                          } else if (direction == DismissDirection.endToStart) {
-                            context.read<MailListBloc>().add(
-                                DeleteMailEvent(widget.mailboxId, [mail.id]));
-                          }
-                          return false;
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 3),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              GradientAvatar(
-                                name: mail.fromName,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+
+                          const SizedBox(width: 10),
+
+                          /// ================= MAIL TEXT =================
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
                                   children: [
-                                    Row(
-                                      children: [
-                                        if (!mail.seen)
-                                          Container(
-                                            margin:
-                                                const EdgeInsets.only(right: 6),
-                                            width: 12,
-                                            height: 12,
-                                            decoration: const BoxDecoration(
-                                              color: AppColors.profile,
-                                              shape: BoxShape.circle,
-                                            ),
-                                          ),
-                                        Expanded(
-                                          child: Text(
-                                            mail.fromName.isNotEmpty
-                                                ? mail.fromName
-                                                : 'Unknown',
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyles.fromName.copyWith(
-                                              color: mail.seen
-                                                  ? const Color.fromARGB(
-                                                      255, 35, 35, 35)
-                                                  : Colors.black,
-                                            ),
+                                    /// 🔴 Draft label (priority)
+                                    if (mail.draft == true)
+                                      Container(
+                                        margin: const EdgeInsets.only(right: 6),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.red.withOpacity(0.1),
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                        ),
+                                        child: const Text(
+                                          "Draft",
+                                          style: TextStyle(
+                                            color: Colors.red,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
                                           ),
                                         ),
-                                        if (mail.attachments)
-                                          Icon(
-                                            Icons.attach_file,
-                                            color: const Color.fromARGB(
-                                                255, 94, 95, 96),
-                                            size: 20,
-                                          ),
-                                      ],
+                                      )
+
+                                    /// 🔵 Unread dot (only if NOT draft)
+                                    else if (!mail.seen)
+                                      Container(
+                                        margin: const EdgeInsets.only(right: 6),
+                                        width: 12,
+                                        height: 12,
+                                        decoration: const BoxDecoration(
+                                          color: AppColors.profile,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+
+                                    //   /👤 Name OR Draft receiver
+                                    Expanded(
+                                      child: Text(
+                                        mail.draft == true
+                                            ? (mail.to.isNotEmpty
+                                                ? "To: ${mail.to[0].address}"
+                                                : "Draft")
+                                            : (mail.fromName.isNotEmpty
+                                                ? mail.fromName
+                                                : 'Unknown'),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyles.fromName.copyWith(
+                                          color: mail.draft == true
+                                              ? Colors.red
+                                              : (mail.seen
+                                                  ? const Color.fromARGB(
+                                                      255, 35, 35, 35)
+                                                  : Colors.black),
+                                        ),
+                                      ),
                                     ),
-                                    Text(
-                                        mail.subject.isNotEmpty
-                                            ? mail.subject
-                                            : '(No Subject)',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyles.subject),
-                                    Text(mail.intro,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyles.intro),
                                   ],
                                 ),
+
+                                // Row(
+                                //   children: [
+                                //     if (!mail.seen)
+                                //       Container(
+                                //         margin: const EdgeInsets.only(right: 6),
+                                //         width: 12,
+                                //         height: 12,
+                                //         decoration: const BoxDecoration(
+                                //           color: AppColors.profile,
+                                //           shape: BoxShape.circle,
+                                //         ),
+                                //       ),
+
+                                //     Expanded(
+                                //       child: Text(
+                                //         mail.fromName.isNotEmpty
+                                //             ? mail.fromName
+                                //             : 'Unknown',
+                                //         maxLines: 1,
+                                //         overflow: TextOverflow.ellipsis,
+                                //         style: TextStyles.fromName.copyWith(
+                                //           color: mail.seen
+                                //               ? const Color.fromARGB(
+                                //                   255, 35, 35, 35)
+                                //               : Colors.black,
+                                //         ),
+                                //       ),
+                                //     ),
+                                //   ],
+                                // ),
+                                Text(
+                                  mail.subject.isNotEmpty
+                                      ? mail.subject
+                                      : '(No Subject)',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyles.subject,
+                                ),
+                                Text(
+                                  mail.intro,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyles.intro,
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(width: 8),
+
+                          /// ================= RIGHT SIDE =================
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                _formatDate(mail.date),
+                                style: TextStyles.intro,
                               ),
-                              const SizedBox(width: 8),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    _formatDate(mail.date),
-                                    style: TextStyles.intro,
-                                  ),
-                                  const SizedBox(height: 6),
-                                  IconButton(
-                                    icon: Icon(
-                                      mail.flagged == true
-                                          ? Icons.star
-                                          : Icons.star_border,
-                                      color: mail.flagged == true
-                                          ? Colors.amber
-                                          : AppColors.secondaryText,
-                                      size: 15,
-                                    ),
-                                    onPressed: () {
-                                      context.read<MailListBloc>().add(
-                                            ToggleFlagEvent(
-                                              mailboxId: mail.mailboxId ??
-                                                  widget.mailboxId,
-                                              ids: [mail.id],
-                                              isFromFlaggedScreen:
-                                                  isFlaggedScreen, // ✅ ONLY TRUE in flagged screen
-                                              isFlagged:
-                                                  !(mail.flagged ?? false),
-                                            ),
-                                          );
-                                    },
-                                  ),
-                                ],
+                              const SizedBox(height: 6),
+                              IconButton(
+                                icon: Icon(
+                                  mail.flagged == true
+                                      ? Icons.star
+                                      : Icons.star_border,
+                                  color: mail.flagged == true
+                                      ? Colors.amber
+                                      : AppColors.secondaryText,
+                                  size: 15,
+                                ),
+                                onPressed: () {
+                                  context.read<MailListBloc>().add(
+                                        ToggleFlagEvent(
+                                          mailboxId: mail.mailboxId ??
+                                              widget.mailboxId,
+                                          ids: [mail.id],
+                                          isFromFlaggedScreen: isFlaggedScreen,
+                                          isFlagged: !(mail.flagged ?? false),
+                                        ),
+                                      );
+                                },
                               ),
                             ],
                           ),
-                        ),
-                      )),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               );
             },
           ),
         );
       },
-    );
-  }
-
-  Widget _buildSelectionAppBar(BuildContext context, Set<int> selectedMailIds) {
-    return AppBar(
-      backgroundColor: Colors.white,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back),
-        onPressed: () {
-          context.read<MailListBloc>().add(ClearSelectionEvent());
-        },
-      ),
-      title: Text("${selectedMailIds.length} selected"),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.archive),
-          onPressed: () {
-            context.read<MailListBloc>().add(
-                MoveToArchiveEvent(selectedMailIds.toList(), widget.mailboxId));
-            context.read<MailListBloc>().add(ClearSelectionEvent());
-          },
-        ),
-        IconButton(
-          icon: const Icon(Icons.delete),
-          onPressed: () {
-            context.read<MailListBloc>().add(
-                DeleteMailEvent(widget.mailboxId, selectedMailIds.toList()));
-            context.read<MailListBloc>().add(ClearSelectionEvent());
-          },
-        ),
-        IconButton(
-          icon: const Icon(Icons.mark_email_read),
-          onPressed: () {
-            context.read<MailListBloc>().add(MarkAsReadEvent(widget.mailboxId,
-                selectedMailIds.map((id) => id.toString()).toList()));
-            context.read<MailListBloc>().add(ClearSelectionEvent());
-          },
-        ),
-        IconButton(
-          icon: const Icon(Icons.mark_email_unread),
-          onPressed: () {
-            context.read<MailListBloc>().add(MarkAsUnreadEvent(widget.mailboxId,
-                selectedMailIds.map((id) => id.toString()).toList()));
-            context.read<MailListBloc>().add(ClearSelectionEvent());
-          },
-        ),
-      ],
     );
   }
 }
