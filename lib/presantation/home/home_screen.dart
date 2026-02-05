@@ -34,8 +34,10 @@ import '../update_screen/view/update_ui.dart';
 class HomeScreen extends StatefulWidget {
   final String mailboxId;
   final String? filter;
+  final String? mailboxName;
 
-  const HomeScreen({super.key, this.mailboxId = "", this.filter});
+  const HomeScreen(
+      {super.key, this.mailboxId = "", this.filter, this.mailboxName});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -73,10 +75,13 @@ class _HomeScreenState extends State<HomeScreen> {
     selectedMailboxId = widget.mailboxId;
     _loadUserData();
 
+    // Only handle FAB visibility — no mail fetching here!
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final selectedIndex =
           context.read<BottomNavigationBloc>().state.selectedIndex;
-      context.read<FabBloc>().add(selectedIndex == 0 ? ShowFab() : HideFab());
+      context.read<FabBloc>().add(
+            selectedIndex == 0 ? ShowFab() : HideFab(),
+          );
     });
   }
 
@@ -162,16 +167,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       gmail: gmail ?? "",
                       profileUrl: profilePicUrl,
                     ),
-                    // appBar: (navState.selectedIndex == 0 && !isSelectionActive)
-                    //     ? CustomAppBar()
-                    //     : null,
                     appBar: navState.selectedIndex == 0
                         ? (isSelectionActive
                             ? _buildSelectionAppBar(context, mailState)
                             : CustomAppBar())
                         : null,
-
-                    body: _buildScreen(navState.selectedIndex),
+                    body: _buildScreen(
+                      navState.selectedIndex,
+                    ),
                     bottomNavigationBar: BottomNavBar(),
                     floatingActionButton: BlocBuilder<FabBloc, FabState>(
                       builder: (context, fabState) {
@@ -200,9 +203,15 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildScreen(int selectedIndex) {
     if (selectedIndex == 0) {
       if (widget.filter != null) {
-        return MailListScreen(mailboxId: widget.filter!);
+        return MailListScreen(
+          mailboxId: widget.filter!,
+          mailboxName: widget.filter,
+        );
       } else if (selectedMailboxId.isNotEmpty) {
-        return MailListScreen(mailboxId: selectedMailboxId);
+        return MailListScreen(
+          mailboxId: selectedMailboxId,
+          mailboxName: widget.mailboxName,
+        );
       } else {
         return FutureBuilder<String?>(
           future: MailboxStorage.getInboxMailboxId(),
@@ -211,7 +220,10 @@ class _HomeScreenState extends State<HomeScreen> {
               return const Center(child: CircularProgressIndicator());
             } else if (snapshot.hasData && snapshot.data!.isNotEmpty) {
               selectedMailboxId = snapshot.data!;
-              return MailListScreen(mailboxId: selectedMailboxId);
+              return MailListScreen(
+                mailboxId: selectedMailboxId,
+                mailboxName: widget.mailboxName,
+              );
             } else {
               return Center(
                 child: Column(
@@ -273,10 +285,24 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  bool _hasUnreadSelected(MailListState state) {
+    for (final id in state.selectedMailIds) {
+      for (final mail in state.mails) {
+        if (mail.id == id && mail.seen == false) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   PreferredSizeWidget _buildSelectionAppBar(
       BuildContext context, MailListState state) {
+    final bool hasUnreadSelected = _hasUnreadSelected(state);
+
     return AppBar(
       backgroundColor: Colors.white,
+      surfaceTintColor: Colors.white,
       leading: IconButton(
         icon: const Icon(Icons.arrow_back),
         onPressed: () {
@@ -295,8 +321,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       state.selectedMailIds.toList(), selectedMailboxId),
                 );
 
-                context.read<MailListBloc>().add(ClearSelectionEvent());
-
+            context.read<MailListBloc>().add(ClearSelectionEvent());
           },
         ),
         IconButton(
@@ -307,36 +332,38 @@ class _HomeScreenState extends State<HomeScreen> {
                       selectedMailboxId, state.selectedMailIds.toList()),
                 );
 
-                context.read<MailListBloc>().add(ClearSelectionEvent());
-
+            context.read<MailListBloc>().add(ClearSelectionEvent());
           },
         ),
         IconButton(
-          icon: const Icon(Icons.mark_email_read),
+          icon: Icon(
+            hasUnreadSelected ? Icons.mark_email_read : Icons.mark_email_unread,
+          ),
           onPressed: () {
-            context.read<MailListBloc>().add(
-                  MarkAsReadEvent(
-                    selectedMailboxId,
-                    state.selectedMailIds.map((e) => e.toString()).toList(),
-                  ),
-                );
-                context.read<MailListBloc>().add(ClearSelectionEvent());
+            if (hasUnreadSelected) {
+              //READ
+              context.read<MailListBloc>().add(
+                    MarkAsReadEvent(
+                      selectedMailboxId,
+                      state.selectedMailIds.map((e) => e.toString()).toList(),
+                    ),
+                  );
+            } else {
+              //UNREAD
+              context.read<MailListBloc>().add(
+                    MarkAsUnreadEvent(
+                      selectedMailboxId,
+                      state.selectedMailIds.map((e) => e.toString()).toList(),
+                    ),
+                  );
+            }
 
+            context.read<MailListBloc>().add(ClearSelectionEvent());
           },
         ),
-        IconButton(
-          icon: const Icon(Icons.mark_email_unread),
-          onPressed: () {
-            context.read<MailListBloc>().add(
-                  MarkAsUnreadEvent(
-                    selectedMailboxId,
-                    state.selectedMailIds.map((e) => e.toString()).toList(),
-                  ),
-                );
-                context.read<MailListBloc>().add(ClearSelectionEvent());
-
-          },
-        ),
+        SizedBox(
+          width: 10,
+        )
       ],
     );
   }

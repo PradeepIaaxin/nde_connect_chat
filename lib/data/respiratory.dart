@@ -8,6 +8,9 @@ import 'package:nde_email/presantation/chat/chat_private_screen/localstorage/loc
 import 'package:nde_email/presantation/drive/Bloc/file_bloc/drive_local_storage.dart';
 import 'package:nde_email/presantation/drive/Bloc/sharred_bloc/sharred_local.dart';
 import 'package:nde_email/presantation/drive/Bloc/starred_bloc/stared_local.dart';
+import 'package:nde_email/presantation/mail/mail_list/bloc/mail_list_bloc.dart';
+import 'package:nde_email/presantation/mail/mail_list/bloc/mail_list_event.dart';
+import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar_bloc.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
 import 'package:nde_email/presantation/login/login_screen.dart';
 import 'package:nde_email/presantation/login/login_screen_bloc.dart';
@@ -68,7 +71,7 @@ class UserPreferences {
 
       if (Platform.isAndroid) {
         final android = await deviceInfo.androidInfo;
-        deviceId = android.id; 
+        deviceId = android.id;
         log("📱 Android deviceId: $deviceId");
       } else if (Platform.isIOS) {
         final ios = await deviceInfo.iosInfo;
@@ -213,11 +216,14 @@ class UserPreferences {
     // 3️⃣ Clear local storage
     await clearUser();
 
-    // 4️⃣ Bloc logout
+    // 4️⃣ 🔥 RESET ALL APP BLOCS (IMPORTANT)
+    context.read<MailListBloc>().add(ResetAllMailState());
     context.read<LoginBloc>().add(LoginLoggedOut());
 
-    // 5️⃣ Navigate to login
-    await Future.delayed(const Duration(milliseconds: 100));
+    // 5️⃣ Small delay to let blocs emit
+    await Future.delayed(const Duration(milliseconds: 50));
+
+    // 6️⃣ NAVIGATE LAST
     MyRouter.pushRemoveUntil(screen: const LoginScreen());
 
     log("✅ Logout completed safely");

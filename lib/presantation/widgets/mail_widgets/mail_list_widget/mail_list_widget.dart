@@ -46,6 +46,16 @@ class _MailListWidgetState extends State<MailListWidget> {
     _loadDraftsMailboxId();
   }
 
+  @override
+  void didUpdateWidget(covariant MailListWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.mailboxId != widget.mailboxId) {
+      draftsMailboxId = null;
+      _loadDraftsMailboxId();
+    }
+  }
+
   Future<void> _loadDraftsMailboxId() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -111,7 +121,7 @@ class _MailListWidgetState extends State<MailListWidget> {
                     debugPrint("📩 Mail ID      = ${mail.id}");
                     debugPrint("📦 Mailbox ID   = ${mail.mailboxId}");
                     debugPrint("✉️ Subject      = ${mail.subject}");
-                     debugPrint("✉️ Subject      = ${mail.mailboxId}");
+                    debugPrint("✉️ Subject      = ${mail.mailboxId}");
                     debugPrint("👤 From         = ${mail.fromAddress}");
                     debugPrint("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
                     if (state.selectedMailIds.isNotEmpty) {

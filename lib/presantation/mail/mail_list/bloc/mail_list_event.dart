@@ -9,6 +9,12 @@ abstract class MailListEvent extends Equatable {
   List<Object?> get props => [];
 }
 
+// mail_list_event.dart
+class ResetAllMailState extends MailListEvent {}
+
+class SelectAllMailsEvent extends MailListEvent {}
+
+
 class FetchMailListEvent extends MailListEvent {
   final String mailboxId;
   final String? filter;
@@ -33,7 +39,10 @@ class FetchMailListEvent extends MailListEvent {
 // mail_list_event.dart
 class ClearMailCacheEvent extends MailListEvent {}
 
-class ResetMailListEvent extends MailListEvent {}
+class ResetMailListEvent extends MailListEvent {
+  final String mailboxId;
+  const ResetMailListEvent(this.mailboxId);
+}
 
 class FetchFilteredMailEvent extends MailListEvent {
   final String filterType;

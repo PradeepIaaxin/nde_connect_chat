@@ -180,12 +180,16 @@ class _CustomDrawerState extends State<CustomDrawer> {
   }
 
   Widget _sectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        color: AppColors.profile,
-        fontWeight: FontWeight.bold,
-        fontSize: 16,
+    return Padding(
+      padding: const EdgeInsets.only(left: 16, top: 12, bottom: 4),
+      child: Text(
+        title.toUpperCase(),
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.8,
+          color: AppColors.secondaryText,
+        ),
       ),
     );
   }
@@ -227,13 +231,16 @@ class _CustomDrawerState extends State<CustomDrawer> {
                   userName ?? '',
                   style: const TextStyle(
                     color: AppColors.bg,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 Text(
                   userEmail ?? '',
-                  style: const TextStyle(color: Colors.white70),
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 13,
+                  ),
                 ),
               ],
             ),
@@ -255,11 +262,12 @@ class _CustomDrawerState extends State<CustomDrawer> {
           key: ValueKey(mailbox.id),
           isSelected: isSelected,
           title: mailbox.name,
-          trailing: unread > 0 ? (unread > 99 ? "99+" : unread.toString()) : null,
+          trailing:
+              unread > 0 ? (unread > 99 ? "99+" : unread.toString()) : null,
           leading: SvgPicture.asset(
             mailboxIcons[mailbox.name.toLowerCase()] ??
                 'assets/images/Sent.svg',
-            height: 20,
+            height: 18,
             colorFilter: ColorFilter.mode(
               isSelected ? AppColors.iconActive : AppColors.secondaryText,
               BlendMode.srcIn,
@@ -269,12 +277,29 @@ class _CustomDrawerState extends State<CustomDrawer> {
             if (selectedMailboxId == mailbox.id) return;
 
             Navigator.pop(context);
+
             await MailboxStorage.saveMailboxId(mailbox.id);
+
             setState(() => selectedMailboxId = mailbox.id);
 
-            context.read<MailListBloc>().add(ResetMailListEvent());
-            context.read<MailListBloc>().add(FetchMailListEvent(mailbox.id));
+            // ✅ Navigate with mailbox name also
+            MyRouter.pushReplace(
+              screen: HomeScreen(
+                mailboxId: mailbox.id,
+                mailboxName: mailbox.name, // ⭐ IMPORTANT ADD
+              ),
+            );
           },
+
+          // onTap: () async {
+          //   if (selectedMailboxId == mailbox.id) return;
+
+          //   Navigator.pop(context);
+          //   await MailboxStorage.saveMailboxId(mailbox.id);
+          //   setState(() => selectedMailboxId = mailbox.id);
+          //   context.read<MailListBloc>().add(ResetMailListEvent(mailbox.id));
+          //   context.read<MailListBloc>().add(FetchMailListEvent(mailbox.id));
+          // },
         );
       },
     );
@@ -286,8 +311,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
 
     try {
       if (mailbox.color.startsWith('#')) {
-        labelColor =
-            Color(int.parse(mailbox.color.replaceAll('#', '0xff')));
+        labelColor = Color(int.parse(mailbox.color.replaceAll('#', '0xff')));
       }
     } catch (_) {}
 
@@ -299,9 +323,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
       title: mailbox.name,
       leading: CircleAvatar(radius: 6, backgroundColor: labelColor),
       trailing: mailbox.unseen > 0
-          ? (mailbox.unseen > 99
-              ? "99+"
-              : mailbox.unseen.toString())
+          ? (mailbox.unseen > 99 ? "99+" : mailbox.unseen.toString())
           : null,
       onTap: () async {
         if (selectedMailboxId == mailbox.id) return;
@@ -311,8 +333,15 @@ class _CustomDrawerState extends State<CustomDrawer> {
         setState(() => selectedMailboxId = mailbox.id);
 
         MyRouter.pushReplace(
-          screen: HomeScreen(mailboxId: mailbox.id, filter: null),
+          screen: HomeScreen(
+            mailboxId: mailbox.id,
+            mailboxName: mailbox.name,
+          ),
         );
+
+        // MyRouter.pushReplace(
+        //   screen: HomeScreen(mailboxId: mailbox.id, filter: null),
+        // );
       },
     );
   }
@@ -337,7 +366,14 @@ class _CustomDrawerState extends State<CustomDrawer> {
         await MailboxStorage.saveMailboxId(viewId);
         setState(() => selectedMailboxId = viewId);
 
-        MyRouter.pushReplace(screen: HomeScreen(filter: filter));
+        // MyRouter.pushReplace(screen: HomeScreen(filter: filter));
+        MyRouter.pushReplace(
+          screen: HomeScreen(
+            mailboxId: viewId,
+            mailboxName: title,
+            filter: filter,
+          ),
+        );
       },
     );
   }
@@ -354,38 +390,50 @@ class _CustomDrawerState extends State<CustomDrawer> {
     return Container(
       key: key,
       decoration: BoxDecoration(
-        color: isSelected ? AppColors.sectiontool : Colors.transparent,
+        // color: isSelected ? AppColors.sectiontool : Colors.transparent,
+        color: isSelected
+            ? AppColors.iconActive.withOpacity(0.08)
+            : Colors.transparent,
         border: isSelected
             ? const Border(
                 left: BorderSide(
                   color: AppColors.iconActive,
-                  width: 4,
+                  width: 3,
                 ),
               )
             : null,
       ),
       child: ListTile(
         dense: true,
-        visualDensity: const VisualDensity(vertical: -3),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+        visualDensity: const VisualDensity(vertical: -1),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
         leading: leading,
         title: Text(
           title,
           style: TextStyle(
-            fontSize: 16,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            color: isSelected ? AppColors.iconActive : Colors.black,
+            fontSize: 15,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            color: isSelected ? AppColors.iconActive : AppColors.secondaryText,
           ),
         ),
         trailing: trailing != null
-            ? Text(
-                trailing,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
+            ? Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
                   color: isSelected
-                      ? AppColors.iconActive
-                      : AppColors.secondaryText,
+                      ? AppColors.iconActive.withOpacity(0.15)
+                      : AppColors.secondaryText.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  trailing ?? "",
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isSelected
+                        ? AppColors.iconActive
+                        : AppColors.secondaryText,
+                  ),
                 ),
               )
             : null,
