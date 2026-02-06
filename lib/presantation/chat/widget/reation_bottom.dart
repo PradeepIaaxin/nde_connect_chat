@@ -4,7 +4,8 @@ import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/Me
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/MessagerEvent.dart'
     show RemoveReaction, AddReaction;
 
-class ReactionDialog {
+class ReactionDialog
+{
   static void show({
     required BuildContext context,
     required String messageId,
