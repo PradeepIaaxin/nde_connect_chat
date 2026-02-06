@@ -15,9 +15,13 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
   final SocketService grpSocket;
   final GrpMessagerApiService api;
 
-  late final StreamSubscription<MessageReaction> _reactionSubscription;
+  StreamSubscription<MessageReaction>? _reactionSubscription;
   late final StreamSubscription<Map<String, dynamic>> _crdtSubscription;
   String? _activeConvoId;
+
+  Timer? _crdtDebounceTimer;
+  String? _pendingCrdtConvoId;
+  final Map<String, dynamic> _pendingCrdtMessages = {};
 
   GroupChatBloc(this.grpSocket, this.api) : super(GroupChatInitial()) {
     on<FetchGroupMessages>(_onFetchGroupMessages);
@@ -35,9 +39,10 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
 
   @override
   Future<void> close() {
-    _reactionSubscription.cancel();
+    _reactionSubscription?.cancel();
     grpSocket.clearActiveConversation();
     _crdtSubscription.cancel();
+    _crdtDebounceTimer?.cancel();
     return super.close();
   }
 
@@ -48,6 +53,36 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
       if (convoId == null) return;
 
       if (convoId != _activeConvoId) return;
+
+      final Map<String, dynamic> messagesMap =
+          Map<String, dynamic>.from(payload['messages'] ?? {});
+      if (messagesMap.isEmpty) return;
+
+      _pendingCrdtConvoId = convoId;
+      _pendingCrdtMessages.addAll(messagesMap);
+
+      _crdtDebounceTimer?.cancel();
+      _crdtDebounceTimer = Timer(const Duration(milliseconds: 180), () {
+        if (_pendingCrdtConvoId == null || _pendingCrdtMessages.isEmpty) return;
+        final pendingConvoId = _pendingCrdtConvoId!;
+        final pendingMessages = Map<String, dynamic>.from(_pendingCrdtMessages);
+        _pendingCrdtMessages.clear();
+        _pendingCrdtConvoId = null;
+        unawaited(_flushCrdtBatch(pendingConvoId, pendingMessages));
+      });
+    } catch (e, st) {
+      log("❌ GROUP CRDT merge error: $e");
+      log(st.toString());
+    }
+  }
+
+  Future<void> _flushCrdtBatch(
+    String convoId,
+    Map<String, dynamic> messagesMap,
+  ) async {
+    try {
+      if (convoId != _activeConvoId) return;
+      if (messagesMap.isEmpty) return;
 
       final List<GroupMessageModel> existing = [];
       int page = 1;
@@ -68,11 +103,6 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
         hasNext = current.response.hasNextPage;
       }
 
-      /// 2️⃣ Decode CRDT messages
-      final Map<String, dynamic> messagesMap =
-          Map<String, dynamic>.from(payload['messages'] ?? {});
-      if (messagesMap.isEmpty) return;
-
       final incoming = messagesMap.values
           .map(
             (e) => GroupMessageModel.fromJson(
@@ -81,10 +111,8 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
           )
           .toList();
 
-      /// 3️⃣ MERGE (ID is source of truth)
       final Map<String, GroupMessageModel> merged = {};
 
-      // Existing messages first
       for (final m in existing) {
         final id = m.messageId.isNotEmpty ? m.messageId : m.id;
         if (id.isNotEmpty) {
@@ -92,7 +120,6 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
         }
       }
 
-      // CRDT overrides
       for (final m in incoming) {
         final id = m.messageId.isNotEmpty ? m.messageId : m.id;
         if (id.isNotEmpty) {
@@ -100,17 +127,14 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
         }
       }
 
-      /// 4️⃣ SORT by time (Old → New)
       final mergedFlat = merged.values.toList()
         ..sort((a, b) => a.time.compareTo(b.time));
 
-      /// 5️⃣ Persist merged result
       await GrpLocalChatStorage.saveMessages(
         convoId,
         mergedFlat.map((e) => e.toJson()).toList(),
       );
 
-      /// 6️⃣ EMIT UI STATE (THIS TRIGGERS REBUILD)
       emit(
         GroupChatLoaded(
           GroupMessageResponse(
@@ -126,7 +150,7 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
 
       log('✅ CRDT merged & emitted → ${mergedFlat.length} messages');
     } catch (e, st) {
-      log("❌ GROUP CRDT merge error: $e");
+      log("❌ GROUP CRDT batch flush error: $e");
       log(st.toString());
     }
   }
@@ -279,7 +303,7 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
       }
       final convoidId = event.convoId;
       grpSocket.sendMessage(
-        isGroupMessage:(event.replyTo?['is_grouped_message'] == true ||
+        isGroupMessage: (event.replyTo?['is_grouped_message'] == true ||
             event.replyTo?['isGroupedMessage'] == true),
         messageId: messageId,
         conversationId: convoidId.isEmpty ? '' : convoidId,
