@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nde_email/data/mailboxid.dart';
 import 'package:nde_email/presantation/mail/mail_list/bloc/mail_list_bloc.dart';
-import 'package:nde_email/presantation/mail/mail_list/bloc/mail_list_event.dart';
+import 'package:nde_email/presantation/mail/mail_list/bloc/mail_list_state.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/router/router.dart';
 import 'mailbox_model.dart';
@@ -18,7 +18,6 @@ class CustomDrawer extends StatefulWidget {
   const CustomDrawer({super.key});
 
   @override
-  // ignore: library_private_types_in_public_api
   _CustomDrawerState createState() => _CustomDrawerState();
 }
 
@@ -27,6 +26,12 @@ class _CustomDrawerState extends State<CustomDrawer> {
   String? userEmail;
   String? profilePicUrl;
   String? selectedMailboxId;
+
+  // ✅ View IDs
+  static const String viewUnread = 'view_unread';
+  static const String viewAll = 'view_all';
+  static const String viewStarred = 'view_flagged';
+  static const String viewsetting = 'view_setting';
 
   final Map<String, String> mailboxIcons = {
     'inbox': 'assets/images/inbox.svg',
@@ -46,9 +51,9 @@ class _CustomDrawerState extends State<CustomDrawer> {
 
   Future<void> _loadSelectedMailbox() async {
     final id = await MailboxStorage.getMailboxId();
-    setState(() {
-      selectedMailboxId = id;
-    });
+    if (mounted) {
+      setState(() => selectedMailboxId = id);
+    }
   }
 
   Future<void> _loadUserData() async {
@@ -56,20 +61,21 @@ class _CustomDrawerState extends State<CustomDrawer> {
     final email = await UserPreferences.getEmail();
     final picUrl = await UserPreferences.getProfilePicKey();
 
-    setState(() {
-      userName = name ?? "Unknown User";
-      userEmail = email ?? "No Email";
-      profilePicUrl = picUrl;
-    });
+    if (mounted) {
+      setState(() {
+        userName = name ?? "Unknown User";
+        userEmail = email ?? "No Email";
+        profilePicUrl = picUrl;
+      });
+    }
   }
 
   String _getInitial(String? name) {
     if (name == null || name.isEmpty) return "U";
-    List<String> words = name.trim().split(' ');
-    if (words.length > 1) {
-      return words[0][0].toUpperCase() + words[1][0].toUpperCase();
-    }
-    return words[0][0].toUpperCase();
+    final parts = name.trim().split(' ');
+    return parts.length > 1
+        ? "${parts[0][0]}${parts[1][0]}".toUpperCase()
+        : parts[0][0].toUpperCase();
   }
 
   @override
@@ -82,144 +88,129 @@ class _CustomDrawerState extends State<CustomDrawer> {
             _buildProfileHeader(),
             Expanded(
               child: BlocBuilder<AppBarBloc, AppBarState>(
+                buildWhen: (prev, curr) => curr is! AppBarLoading,
                 builder: (context, state) {
                   if (state is AppBarLoading) {
                     return const Center(child: CircularProgressIndicator());
-                  } else if (state is AppBarMailboxesLoaded) {
-                    final List<Mailbox> folders = [
-                      ...(state.inbox),
-                      ...(state.archive),
-                      ...(state.drafts),
-                      ...(state.junk),
-                      ...(state.sent),
-                      ...(state.trash),
+                  }
+
+                  if (state is AppBarMailboxesLoaded) {
+                    final folders = [
+                      ...state.inbox,
+                      ...state.archive,
+                      ...state.drafts,
+                      ...state.junk,
+                      ...state.sent,
+                      ...state.trash,
                     ];
 
-                    final List<Mailbox> labels = [...(state.other)];
+                    final labels = [...state.other];
 
                     return Theme(
-                      data: Theme.of(context).copyWith(
-                        dividerColor: Colors.transparent,
-                      ),
+                      data: Theme.of(context)
+                          .copyWith(dividerColor: Colors.transparent),
                       child: ListView(
                         children: [
-                          ExpansionTile(
-                            title: const Text(
-                              "Folders",
-                              style: TextStyle(
-                                color: AppColors.profile,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            initiallyExpanded: true,
-                            children: folders
-                                .map((mailbox) =>
-                                    _buildMailboxTile(context, mailbox))
-                                .toList(),
+                          /// -------- FOLDERS --------
+                          // ExpansionTile(
+                          //   title: _sectionTitle("Folders"),
+                          //   initiallyExpanded: true,
+                          //   children: folders
+                          //       .map((m) => _buildMailboxTile(context, m))
+                          //       .toList(),
+                          // ),
+                          Padding(
+                            padding: const EdgeInsets.only(
+                                left: 16, top: 12, bottom: 4),
+                            // child: _sectionTitle("Folders"),
                           ),
+
+                          ...folders.map((m) => _buildMailboxTile(context, m)),
+
+                          /// -------- LABELS --------
                           ExpansionTile(
-                            title: const Text(
-                              "Labels",
-                              style: TextStyle(
-                                color: AppColors.profile,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
+                            title: _sectionTitle("Folders"),
                             initiallyExpanded: true,
                             children: labels
-                                .map((mailbox) =>
-                                    _buildLabelTile(context, mailbox))
+                                .map((m) => _buildLabelTile(context, m))
                                 .toList(),
                           ),
-                          ExpansionTile(
-                            title: const Text(
-                              "Views",
-                              style: TextStyle(
-                                color: AppColors.profile,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            initiallyExpanded: true,
+
+                          /// -------- VIEWS --------
+                          Column(
                             children: [
-                              ListTile(
-                                dense: true,
-                                visualDensity:
-                                    const VisualDensity(vertical: -3),
-                                contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 16.0, vertical: 0),
-                                title: const Text(
-                                  "Unread",
-                                  style: TextStyle(fontSize: 16, height: 1.0),
-                                ),
-                                onTap: () {
-                                  MyRouter.push(
-                                      screen: HomeScreen(filter: 'unread'));
-                                },
+                              _buildViewTile(
+                                context: context,
+                                title: "Unread",
+                                viewId: viewUnread,
+                                filter: 'unread',
                               ),
-                              ListTile(
-                                dense: true,
-                                visualDensity:
-                                    const VisualDensity(vertical: -3),
-                                contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 16.0, vertical: 0),
-                                title: const Text(
-                                  "All",
-                                  style: TextStyle(fontSize: 16, height: 1.0),
-                                ),
-                                onTap: () {
-                                  MyRouter.push(
-                                      screen: HomeScreen(filter: 'all'));
-                                },
+                              _buildViewTile(
+                                context: context,
+                                title: "All",
+                                viewId: viewAll,
+                                filter: 'all',
                               ),
-                              ListTile(
-                                dense: true,
-                                visualDensity:
-                                    const VisualDensity(vertical: -3),
-                                contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 16.0, vertical: 0),
-                                title: const Text(
-                                  "Flagged",
-                                  style: TextStyle(fontSize: 16, height: 1.0),
-                                ),
-                                onTap: () {
-                                  MyRouter.push(
-                                      screen: HomeScreen(filter: 'flagged'));
-                                },
+                              _buildViewTile(
+                                context: context,
+                                title: "Starred",
+                                viewId: viewStarred,
+                                filter: 'flagged',
                               ),
+                              // _buildViewTile(
+                              //   context: context,
+                              //   title: "Setting",
+                              //   viewId: viewsetting,
+                              //   filter: 'Setting',
+                              // ),
                             ],
-                          ),
+                          )
+                          // ExpansionTile(
+                          //   title: _sectionTitle("Views"),
+                          //   initiallyExpanded: true,
+                          //   children: [
+                          // _buildViewTile(
+                          //   context: context,
+                          //   title: "Unread",
+                          //   viewId: viewUnread,
+                          //   filter: 'unread',
+                          // ),
+                          // _buildViewTile(
+                          //   context: context,
+                          //   title: "All",
+                          //   viewId: viewAll,
+                          //   filter: 'all',
+                          // ),
+                          // _buildViewTile(
+                          //   context: context,
+                          //   title: "Starred",
+                          //   viewId: viewStarred,
+                          //   filter: 'flagged',
+                          // ),
+                          // _buildViewTile(
+                          //   context: context,
+                          //   title: "Setting",
+                          //   viewId: viewsetting,
+                          //   filter: 'Setting',
+                          // ),
+                          //   ],
+                          // ),
                         ],
                       ),
-                    );
-                  } else if (state is AppBarError) {
-                    return Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          ErrorDisplay(
-                            message: state.message,
-                            type: ErrorType.Somethingwrong,
-                          ),
-                          SizedBox(height: 6),
-                          Text(
-                            'Please try again later.',
-                            style: TextStyle(
-                              color: AppColors.secondaryText,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  } else {
-                    return const ErrorDisplay(
-                      message: "No mailboxes available",
-                      type: ErrorType.emptymailbox,
                     );
                   }
+
+                  if (state is AppBarError) {
+                    return ErrorDisplay(
+                      message: state.message,
+                      type: ErrorType.Somethingwrong,
+                    );
+                  }
+
+                  return const ErrorDisplay(
+                    message: "No mailboxes available",
+                    type: ErrorType.emptymailbox,
+                  );
                 },
               ),
             ),
@@ -229,9 +220,25 @@ class _CustomDrawerState extends State<CustomDrawer> {
     );
   }
 
+  Widget _sectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 16, top: 12, bottom: 4),
+      child: Text(
+        title.toUpperCase(),
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.8,
+          color: AppColors.secondaryText,
+        ),
+      ),
+    );
+  }
+
+  /// ---------------- PROFILE HEADER ----------------
   Widget _buildProfileHeader() {
     return Container(
-      padding: const EdgeInsets.only(top: 36, left: 18, right: 18, bottom: 18),
+      padding: const EdgeInsets.all(18),
       color: AppColors.profile,
       child: Row(
         children: [
@@ -240,32 +247,19 @@ class _CustomDrawerState extends State<CustomDrawer> {
             backgroundColor: AppColors.bg,
             child: profilePicUrl != null && profilePicUrl!.isNotEmpty
                 ? ClipOval(
-                    // Using CachedNetworkImage for better performance and error handling
                     child: CachedNetworkImage(
                       imageUrl: profilePicUrl!,
                       width: 50,
                       height: 50,
                       fit: BoxFit.cover,
-                      placeholder: (context, url) =>
-                          const CircularProgressIndicator(
-                        color: AppColors.profile,
-                      ), // Show a loader
-                      errorWidget: (context, url, error) => Text(
-                        _getInitial(userName),
-                        style: const TextStyle(
-                          color: AppColors.profile,
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ), // Fallback text on error
                     ),
                   )
                 : Text(
                     _getInitial(userName),
                     style: const TextStyle(
                       fontSize: 22,
-                      color: AppColors.profile,
                       fontWeight: FontWeight.bold,
+                      color: AppColors.profile,
                     ),
                   ),
           ),
@@ -275,18 +269,19 @@ class _CustomDrawerState extends State<CustomDrawer> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  userName ?? "Unknown User",
+                  userName ?? '',
                   style: const TextStyle(
-                    fontSize: 18,
                     color: AppColors.bg,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
                   ),
-                  overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  userEmail ?? "No Email",
-                  style: const TextStyle(fontSize: 14, color: Colors.white70),
-                  overflow: TextOverflow.ellipsis,
+                  userEmail ?? '',
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 13,
+                  ),
                 ),
               ],
             ),
@@ -296,150 +291,62 @@ class _CustomDrawerState extends State<CustomDrawer> {
     );
   }
 
+  /// ---------------- FOLDER TILE (OPTIMIZED) ----------------
   Widget _buildMailboxTile(BuildContext context, Mailbox mailbox) {
-    Color mailboxColor = AppColors.secondaryText;
+    final isSelected = mailbox.id == selectedMailboxId;
 
-    try {
-      if (mailbox.color.startsWith('#')) {
-        mailboxColor = Color(int.parse(mailbox.color.replaceAll('#', '0xff')));
-      }
-    } catch (_) {}
-
-    final mailListState = context.watch<MailListBloc>().state;
-    final int liveUnread =
-        mailListState.unreadCountByMailbox[mailbox.id] ?? mailbox.unseen;
-
-    final String unseenText = liveUnread > 99 ? "99+" : liveUnread.toString();
-
-    // ✅ CHECK SELECTED MAILBOX
-    final bool isSelected = mailbox.id == selectedMailboxId;
-
-    return Container(
-      // ✅ Gmail Style Indicator Bar
-      decoration: BoxDecoration(
-        color: isSelected ? AppColors.sectiontool : Colors.transparent,
-        border: isSelected
-            ? Border(
-                left: BorderSide(
-                  color: AppColors.iconActive, // Blue bar
-                  width: 4,
-                ),
-              )
-            : null,
-      ),
-
-      child: ListTile(
-        dense: true,
-        visualDensity: const VisualDensity(vertical: -3),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16.0, vertical: 0),
-        leading: SvgPicture.asset(
-          mailboxIcons[mailbox.name.toLowerCase()] ?? 'assets/images/Sent.svg',
-          height: 20,
-          width: 20,
-          colorFilter: ColorFilter.mode(
-            isSelected ? AppColors.iconActive : mailboxColor,
-            BlendMode.srcIn,
+    return BlocSelector<MailListBloc, MailListState, int>(
+      selector: (state) =>
+          state.unreadCountByMailbox[mailbox.id] ?? mailbox.unseen,
+      builder: (context, unread) {
+        return _buildSelectableTile(
+          key: ValueKey(mailbox.id),
+          isSelected: isSelected,
+          title: mailbox.name,
+          trailing:
+              unread > 0 ? (unread > 99 ? "99+" : unread.toString()) : null,
+          leading: SvgPicture.asset(
+            mailboxIcons[mailbox.name.toLowerCase()] ??
+                'assets/images/Sent.svg',
+            height: 18,
+            colorFilter: ColorFilter.mode(
+              isSelected ? AppColors.iconActive : AppColors.secondaryText,
+              BlendMode.srcIn,
+            ),
           ),
-        ),
-        title: Text(
-          mailbox.name,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            color: isSelected ? AppColors.iconActive : Colors.black,
-          ),
-        ),
-        trailing: liveUnread > 0
-            ? Text(
-                unseenText,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: isSelected
-                      ? AppColors.iconActive
-                      : AppColors.secondaryText,
-                ),
-              )
-            : null,
-        onTap: () async {
-          Navigator.pop(context);
+          onTap: () async {
+            if (selectedMailboxId == mailbox.id) return;
 
-          // ✅ SAVE SELECTED MAILBOX
-          await MailboxStorage.saveMailboxId(mailbox.id);
+            Navigator.pop(context);
 
-          setState(() {
-            selectedMailboxId = mailbox.id;
-          });
+            await MailboxStorage.saveMailboxId(mailbox.id);
 
-          final mailBloc = context.read<MailListBloc>();
-          mailBloc.add(ResetMailListEvent());
-          mailBloc.add(FetchMailListEvent(mailbox.id));
-        },
-      ),
+            setState(() => selectedMailboxId = mailbox.id);
+
+            // ✅ Navigate with mailbox name also
+            MyRouter.pushReplace(
+              screen: HomeScreen(
+                mailboxId: mailbox.id,
+                mailboxName: mailbox.name,
+              ),
+            );
+          },
+
+          // onTap: () async {
+          //   if (selectedMailboxId == mailbox.id) return;
+
+          //   Navigator.pop(context);
+          //   await MailboxStorage.saveMailboxId(mailbox.id);
+          //   setState(() => selectedMailboxId = mailbox.id);
+          //   context.read<MailListBloc>().add(ResetMailListEvent(mailbox.id));
+          //   context.read<MailListBloc>().add(FetchMailListEvent(mailbox.id));
+          // },
+        );
+      },
     );
   }
 
-  // Widget _buildMailboxTile(BuildContext context, Mailbox mailbox) {
-  //   Color mailboxColor = AppColors.secondaryText;
-
-  //   try {
-  //     if (mailbox.color.startsWith('#')) {
-  //       mailboxColor = Color(int.parse(mailbox.color.replaceAll('#', '0xff')));
-  //     }
-  //   } catch (e) {
-  //     mailboxColor = AppColors.secondaryText;
-  //   }
-
-  //   final mailListState = context.watch<MailListBloc>().state;
-
-  //  // Get unread count from MailListBloc if available
-  //   final int liveUnread =
-  //       mailListState.unreadCountByMailbox[mailbox.id] ?? mailbox.unseen;
-
-  //   final String unseenText = liveUnread > 99 ? "99+" : liveUnread.toString();
-
-  //   return ListTile(
-  //     dense: true,
-  //     visualDensity: const VisualDensity(vertical: -3),
-  //     contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 0),
-  //     leading: SvgPicture.asset(
-  //       mailboxIcons[mailbox.name.toLowerCase()] ?? 'assets/images/Sent.svg',
-  //       height: 20,
-  //       width: 20,
-  //       colorFilter: ColorFilter.mode(mailboxColor, BlendMode.srcIn),
-  //     ),
-  //     title: Text(
-  //       mailbox.name,
-  //       style: const TextStyle(fontSize: 16, height: 1.0),
-  //     ),
-  //     trailing: liveUnread > 0
-  //         ? Container(
-  //             width: 24,
-  //             height: 24,
-  //             alignment: Alignment.center,
-  //             child: Text(
-  //               unseenText,
-  //               style: const TextStyle(
-  //                 color: AppColors.secondaryText,
-  //                 fontSize: 12,
-  //               ),
-  //             ),
-  //           )
-  //         : null,
-  //     onTap: () {
-  //       Navigator.pop(context);
-
-  //       final mailBloc = context.read<MailListBloc>();
-
-  //       mailBloc.add(ResetMailListEvent());
-  //       mailBloc.add(
-  //         FetchMailListEvent(mailbox.id),
-  //       );
-  //     },
-  //   );
-  // }
-
+  /// ---------------- LABEL TILE (API COLOR, NO BLOC RESET) ----------------
   Widget _buildLabelTile(BuildContext context, Mailbox mailbox) {
     Color labelColor = AppColors.secondaryText;
 
@@ -447,40 +354,132 @@ class _CustomDrawerState extends State<CustomDrawer> {
       if (mailbox.color.startsWith('#')) {
         labelColor = Color(int.parse(mailbox.color.replaceAll('#', '0xff')));
       }
-    } catch (e) {
-      labelColor = AppColors.secondaryText;
-    }
+    } catch (_) {}
 
-    return ListTile(
-      dense: true,
-      visualDensity: const VisualDensity(vertical: -3),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-      leading: CircleAvatar(
-        radius: 6,
-        backgroundColor: labelColor,
-      ),
-      title: Text(
-        mailbox.name,
-        style: const TextStyle(fontSize: 16, height: 1.0),
-      ),
+    final isSelected = mailbox.id == selectedMailboxId;
+
+    return _buildSelectableTile(
+      key: ValueKey(mailbox.id),
+      isSelected: isSelected,
+      title: mailbox.name,
+      leading: CircleAvatar(radius: 6, backgroundColor: labelColor),
       trailing: mailbox.unseen > 0
-          ? Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              child: Text(
-                mailbox.unseen.toString(),
-                style: const TextStyle(
-                  color: AppColors.secondaryText,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            )
+          ? (mailbox.unseen > 99 ? "99+" : mailbox.unseen.toString())
           : null,
-      onTap: () {
+      onTap: () async {
+        if (selectedMailboxId == mailbox.id) return;
+
+        Navigator.pop(context);
+        await MailboxStorage.saveMailboxId(mailbox.id);
+        setState(() => selectedMailboxId = mailbox.id);
+
         MyRouter.pushReplace(
-          screen: HomeScreen(mailboxId: mailbox.id, filter: null),
+          screen: HomeScreen(
+            mailboxId: mailbox.id,
+            mailboxName: mailbox.name,
+          ),
+        );
+
+        // MyRouter.pushReplace(
+        //   screen: HomeScreen(mailboxId: mailbox.id, filter: null),
+        // );
+      },
+    );
+  }
+
+  /// ---------------- VIEW TILE ----------------
+  Widget _buildViewTile({
+    required BuildContext context,
+    required String title,
+    required String viewId,
+    required String filter,
+  }) {
+    final isSelected = viewId == selectedMailboxId;
+
+    return _buildSelectableTile(
+      key: ValueKey(viewId),
+      isSelected: isSelected,
+      title: title,
+      onTap: () async {
+        if (selectedMailboxId == viewId) return;
+
+        Navigator.pop(context);
+        await MailboxStorage.saveMailboxId(viewId);
+        setState(() => selectedMailboxId = viewId);
+
+        // MyRouter.pushReplace(screen: HomeScreen(filter: filter));
+        MyRouter.pushReplace(
+          screen: HomeScreen(
+            mailboxId: viewId,
+            mailboxName: title,
+            filter: filter,
+          ),
         );
       },
+    );
+  }
+
+  /// ---------------- SHARED TILE UI ----------------
+  Widget _buildSelectableTile({
+    required Key key,
+    required bool isSelected,
+    required String title,
+    Widget? leading,
+    String? trailing,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      key: key,
+      decoration: BoxDecoration(
+        // color: isSelected ? AppColors.sectiontool : Colors.transparent,
+        color: isSelected
+            ? AppColors.iconActive.withOpacity(0.08)
+            : Colors.transparent,
+        border: isSelected
+            ? const Border(
+                left: BorderSide(
+                  color: AppColors.iconActive,
+                  width: 3,
+                ),
+              )
+            : null,
+      ),
+      child: ListTile(
+        dense: true,
+        visualDensity: const VisualDensity(vertical: -1),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+        leading: leading,
+        title: Text(
+          title,
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            color: isSelected ? AppColors.iconActive : AppColors.secondaryText,
+          ),
+        ),
+        trailing: trailing != null
+            ? Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? AppColors.iconActive.withOpacity(0.15)
+                      : AppColors.secondaryText.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  trailing ?? "",
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isSelected
+                        ? AppColors.iconActive
+                        : AppColors.secondaryText,
+                  ),
+                ),
+              )
+            : null,
+        onTap: onTap,
+      ),
     );
   }
 }

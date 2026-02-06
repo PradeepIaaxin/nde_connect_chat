@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer';
 import 'package:bloc/bloc.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nde_email/utils/snackbar/snackbar.dart';
 import '../model/mail_list_model.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -14,6 +15,7 @@ import 'package:nde_email/data/base_url.dart';
 class MailListBloc extends Bloc<MailListEvent, MailListState> {
   final FetchMailListapi apiService;
   final Map<String, List<GMMailModels>> cachedMailLists = {};
+  String? activeMailboxId;
 
   MailListBloc({required this.apiService}) : super(MailListState.initial()) {
     on<FetchMailListEvent>(_onFetchMailList);
@@ -25,11 +27,15 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
     on<MoveMailEvent>(_onMoveMail);
     on<MarkAsReadEvent>(_onMarkAsRead);
     on<MarkAsUnreadEvent>(_onMarkAsUnread);
-    on<RefreshMailListEvent>(_onRefreshMailList);
+    on<RefreshMailListEvent>(_onRefreshMailListSilent);
     on<FetchFilteredMailEvent>(_onFetchFilteredMail);
     on<ToggleFlagEvent>(_onToggleFlagEvent);
+    on<RevertArchiveEvent>(_onRevertArchive);
+
     on<ResetMailListEvent>((event, emit) {
-      cachedMailLists.clear();
+      // 🔥 Reset ONLY active mailbox, not everything
+      cachedMailLists.remove(event.mailboxId);
+      activeMailboxId = null;
       emit(state.copyWith(
         mails: [],
         nextCursor: null,
@@ -37,12 +43,42 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
         status: MailListStatus.loading,
       ));
     });
+
+    on<ResetAllMailState>((event, emit) {
+      log("🔥 RESET ALL MAIL STATE HIT");
+      cachedMailLists.clear();
+      activeMailboxId = null;
+
+      emit(MailListState.initial());
+    });
+
+    on<SelectAllMailsEvent>((event, emit) {
+      final allIds = state.mails.map((m) => m.id).toSet();
+
+      emit(state.copyWith(
+        selectedMailIds: allIds,
+      ));
+    });
+  }
+
+  String _getSourceMailboxId(Set<int> selectedIds) {
+    final mail = state.mails.firstWhere(
+      (m) => selectedIds.contains(m.id),
+    );
+    return mail.mailboxId!;
   }
 
   Future<void> _onFetchMailList(
     FetchMailListEvent event,
     Emitter<MailListState> emit,
   ) async {
+    // ✅ Prevent duplicate fetch for same mailbox
+    if (!event.isLoadMore &&
+        activeMailboxId == event.mailboxId &&
+        cachedMailLists.containsKey(event.mailboxId)) {
+      return;
+    }
+
     // 1️⃣ Serve cache (only for first load, not pagination)
     if (!event.isLoadMore && cachedMailLists.containsKey(event.mailboxId)) {
       final cachedMails = cachedMailLists[event.mailboxId]!;
@@ -51,7 +87,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
         status:
             cachedMails.isEmpty ? MailListStatus.empty : MailListStatus.loaded,
         mails: cachedMails,
-        nextCursor: null,
+        nextCursor: state.nextCursor,
         isPaginating: false,
       ));
       return;
@@ -124,6 +160,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
         nextCursor: nextCursor,
         isPaginating: false,
       ));
+      activeMailboxId = event.mailboxId;
     } catch (e, stack) {
       log("Mail list fetch error", error: e, stackTrace: stack);
 
@@ -131,6 +168,83 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
         status: MailListStatus.error,
         errorMessage: "Failed to load mails",
         isPaginating: false,
+      ));
+    }
+  }
+
+  Future<void> _onRevertArchive(
+    RevertArchiveEvent event,
+    Emitter<MailListState> emit,
+  ) async {
+    if (event.mailIds.isEmpty) {
+      emit(state.copyWith(
+        status: MailListStatus.error,
+        errorMessage: "No emails selected.",
+      ));
+      return;
+    }
+
+    emit(state.copyWith(status: MailListStatus.loading));
+
+    try {
+      final success = await apiService.revertFromArchive(
+        mailIds: event.mailIds,
+        archiveMailboxId: event.mailboxId,
+      );
+
+      if (success) {
+        // 1️⃣ Remove reverted mails from ARCHIVE list
+        final updatedMails = state.mails
+            .where((mail) => !event.mailIds.contains(mail.id))
+            .toList();
+
+        // 2️⃣ Recalculate unread count
+        final unreadCount =
+            updatedMails.where((mail) => mail.seen == false).length;
+
+        final updatedUnreadMap =
+            Map<String, int>.from(state.unreadCountByMailbox);
+
+        updatedUnreadMap[event.mailboxId] = unreadCount;
+
+        // 3️⃣ Emit updated state
+        emit(updatedMails.isEmpty
+            ? state.copyWith(
+                status: MailListStatus.empty,
+                mails: [],
+                unreadCountByMailbox: updatedUnreadMap,
+                totalUnreadCount: updatedUnreadMap.values.fold<int>(
+                  0,
+                  (a, b) => a + (b ?? 0),
+                ),
+              )
+            : state.copyWith(
+                status: MailListStatus.loaded,
+                mails: updatedMails,
+                unreadCountByMailbox: updatedUnreadMap,
+                totalUnreadCount: updatedUnreadMap.values.fold<int>(
+                  0,
+                  (a, b) => a + (b ?? 0),
+                ),
+              ));
+
+        // 4️⃣ Update cache
+        cachedMailLists[event.mailboxId] = updatedMails;
+
+        log("✅ Reverted mails removed from archive UI");
+        Messenger.alertSuccess("Mail unarchived successfully");
+      } else {
+        emit(state.copyWith(
+          status: MailListStatus.error,
+          errorMessage: "Failed to revert emails.",
+        ));
+      }
+    } catch (e) {
+      log("❌ Revert error: $e");
+
+      emit(state.copyWith(
+        status: MailListStatus.error,
+        errorMessage: "Error reverting emails.",
       ));
     }
   }
@@ -209,34 +323,62 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
     }
   }
 
-  Future<void> _onRefreshMailList(
-      RefreshMailListEvent event, Emitter<MailListState> emit) async {
-    log(" RefreshMailListEvent received for: ${event.mailboxId}");
-
-    emit(state.copyWith(status: MailListStatus.refreshing));
+  /// Silent background refresh – no UI loading state
+  Future<void> _onRefreshMailListSilent(
+    RefreshMailListEvent event,
+    Emitter<MailListState> emit,
+  ) async {
+    log("Silent background refresh started for: ${event.mailboxId}");
 
     try {
-      final mailListResponse = await apiService.fetchMailList(event.mailboxId);
-      final List<GMMailModels> mails = mailListResponse.mails;
+      final response = await apiService.fetchMailList(event.mailboxId);
+      final List<GMMailModels> freshMails = response.mails;
 
-      if (mails.isEmpty) {
-        log("No mails found for refresh: ${event.mailboxId}");
-        emit(state.copyWith(status: MailListStatus.empty));
-      } else {
-        log(" Mails refreshed from API for: ${event.mailboxId}, Count: ${mails.length}");
+      if (freshMails.isNotEmpty) {
+        // Update cache
+        cachedMailLists[event.mailboxId] = freshMails;
 
-        cachedMailLists[event.mailboxId] = mails;
+        // Recalculate unread count
+        final unreadCount = freshMails.where((mail) => !mail.seen).length;
+        final updatedUnreadMap =
+            Map<String, int>.from(state.unreadCountByMailbox);
+        updatedUnreadMap[event.mailboxId] = unreadCount;
+        final totalUnread =
+            updatedUnreadMap.values.fold<int>(0, (a, b) => a + (b ?? 0));
 
-        emit(state.copyWith(
-          status: MailListStatus.loaded,
-          mails: mails,
-        ));
+        // Quietly update UI only if data actually changed
+        if (!_listsAreEqual(state.mails, freshMails)) {
+          emit(state.copyWith(
+            mails: freshMails,
+            unreadCountByMailbox: updatedUnreadMap,
+            totalUnreadCount: totalUnread,
+            nextCursor:
+                response.nextCursor is String ? response.nextCursor : null,
+            status: freshMails.isEmpty
+                ? MailListStatus.empty
+                : MailListStatus.loaded,
+          ));
+          log("Silent refresh updated UI with ${freshMails.length} mails");
+        } else {
+          log("Silent refresh – no changes detected");
+        }
       }
     } catch (e) {
-      log("Error refreshing mails: $e");
-      emit(state.copyWith(
-          status: MailListStatus.error, errorMessage: e.toString()));
+      // Silent fail – no UI change, no error shown
+      log("Silent refresh failed quietly: $e");
     }
+  }
+
+  bool _listsAreEqual(List<GMMailModels> a, List<GMMailModels> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i].id != b[i].id ||
+          a[i].seen != b[i].seen ||
+          a[i].flagged != b[i].flagged) {
+        return false;
+      }
+    }
+    return true;
   }
 
   void _onMarkMailAsSeen(
@@ -301,9 +443,15 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
 
     try {
       emit(state.copyWith(status: MailListStatus.loading));
+      final sourceMailboxId = _getSourceMailboxId(event.mailIds.toSet());
 
-      final bool success =
-          await apiService.deleteMessage(event.mailboxId, event.mailIds);
+      final bool success = await apiService.deleteMessage(
+        sourceMailboxId,
+        event.mailIds,
+      );
+
+      // final bool success =
+      //     await apiService.deleteMessage(event.mailboxId, event.mailIds);
 
       if (success) {
         final updatedMails = state.mails
@@ -368,9 +516,11 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
     emit(state.copyWith(status: MailListStatus.archiving));
 
     try {
+      final sourceMailboxId = _getSourceMailboxId(event.mailIds.toSet());
+
       final bool success = await apiService.moveToArchive(
         event.mailIds,
-        event.mailboxId,
+        sourceMailboxId,
       );
 
       if (success) {
@@ -460,8 +610,15 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
     cachedMailLists[event.mailboxId] = updatedMails;
 
     // 6️⃣ Call backend API
+    final sourceMailboxId = _getSourceMailboxId(
+      event.mailIds.map(int.parse).toSet(),
+    );
+
     final bool success =
-        await _markMessage(event.mailboxId, event.mailIds, true);
+        await _markMessage(sourceMailboxId, event.mailIds, true);
+
+    // final bool success =
+    //     await _markMessage(event.mailboxId, event.mailIds, true);
 
     // 7️⃣ Rollback if API fails
     if (!success) {
@@ -592,7 +749,8 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
     FetchFilteredMailEvent event,
     Emitter<MailListState> emit,
   ) async {
-    cachedMailLists.clear();
+    // cachedMailLists.clear();
+    activeMailboxId = null;
     emit(state.copyWith(status: MailListStatus.loading));
     try {
       final mails = await apiService.fetchFilteredMails(event.filterType);
@@ -619,6 +777,37 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
     final accessToken = await UserPreferences.getAccessToken();
     final defaultWorkspace = await UserPreferences.getDefaultWorkspace();
 
+    // 1️⃣ Save original mails for rollback
+    final originalMails = List<GMMailModels>.from(state.mails);
+
+    // 2️⃣ Optimistic update
+    List<GMMailModels> optimisticMails;
+
+    if (!event.isFlagged && event.isFromFlaggedScreen) {
+      // Unflagging in flagged screen → REMOVE optimistically
+      optimisticMails =
+          state.mails.where((mail) => !event.ids.contains(mail.id)).toList();
+    } else {
+      // Normal toggle → update flagged field
+      optimisticMails = state.mails.map((mail) {
+        if (event.ids.contains(mail.id)) {
+          return mail.copyWith(flagged: event.isFlagged);
+        }
+        return mail;
+      }).toList();
+    }
+
+    // 3️⃣ Emit optimistic state (NO loading — keep current status)
+    emit(state.copyWith(
+      mails: optimisticMails,
+      status: optimisticMails.isEmpty ? MailListStatus.empty : state.status,
+    ));
+
+    // 4️⃣ Update cache optimistically (only if not flagged screen)
+    if (!event.isFromFlaggedScreen) {
+      cachedMailLists[event.mailboxId] = optimisticMails;
+    }
+
     try {
       final response = await http.post(
         Uri.parse("${ApiService.baseUrl}/user/message/search/update"),
@@ -635,42 +824,35 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
       );
 
       if (response.statusCode == 200) {
-        List<GMMailModels> updatedMails;
-
-        // ✅ FLAGGED SCREEN REMOVE
-        if (!event.isFlagged && event.isFromFlaggedScreen) {
-          updatedMails = state.mails
-              .where((mail) => !event.ids.contains(mail.id))
-              .toList();
-
-          emit(state.copyWith(
-            mails: updatedMails,
-            status: updatedMails.isEmpty ? MailListStatus.empty : state.status,
-          ));
-          return;
-        }
-
-        // ✅ Normal screens toggle
-        updatedMails = state.mails.map((mail) {
-          if (event.ids.contains(mail.id)) {
-            return mail.copyWith(flagged: event.isFlagged);
-          }
-          return mail;
-        }).toList();
-
-        emit(state.copyWith(mails: updatedMails));
-
-        // ✅ Update cache only for real mailbox
-        if (!event.isFromFlaggedScreen) {
-          cachedMailLists[event.mailboxId] = updatedMails;
-        }
-
+        // Success → no need to do anything, optimistic is now real
         log("⭐ Flag updated ${event.ids} => ${event.isFlagged}");
       } else {
-        log("❌ Flag API failed");
+        // Fail → rollback
+        _rollbackFlag(
+            emit, originalMails, event.mailboxId, event.isFromFlaggedScreen);
+        log("❌ Flag API failed: ${response.statusCode}");
       }
     } catch (e) {
+      // Error → rollback
+      _rollbackFlag(
+          emit, originalMails, event.mailboxId, event.isFromFlaggedScreen);
       log("❌ Flag toggle error: $e");
+    }
+  }
+
+  void _rollbackFlag(
+    Emitter<MailListState> emit,
+    List<GMMailModels> originalMails,
+    String mailboxId,
+    bool isFromFlaggedScreen,
+  ) {
+    emit(state.copyWith(
+      mails: originalMails,
+      status: originalMails.isEmpty ? MailListStatus.empty : state.status,
+    ));
+
+    if (!isFromFlaggedScreen) {
+      cachedMailLists[mailboxId] = originalMails;
     }
   }
 }

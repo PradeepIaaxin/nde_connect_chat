@@ -3,11 +3,9 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path/path.dart' as p;
-
 import 'dart:math' as math;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/message_handler.dart';
-import 'dart:convert';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/MediaPreviewScreen.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/audio_reuable.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/commonfuntion.dart';
@@ -183,7 +181,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           convoId != _currentConversationId) {
         return;
       }
-      //log("kkkkkkkkkkkkkkkkkkkkkkkk ${data['messages']}");
+      log("kkkkkkkkkkkkkkkkkkkkkkkk ${data['messages']}");
       _applyCrdtMessages(
         convoId,
         Map<String, dynamic>.from(data['messages'] ?? {}),
@@ -578,7 +576,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   void sendReaction({
     required String emoji,
     required String messageId,
-  }) {
+  })
+  {
     final convoId =
         widget.convoId.isNotEmpty ? widget.convoId : _currentConversationId;
     print('Sending reaction: $emoji to messageId: $messageId');
@@ -888,7 +887,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
   /// Collect reactions for a message id from all local lists and merge them
   List<Map<String, dynamic>> _collectMergedReactionsForMessage(
-      String messageId) {
+      String messageId)
+  {
     final Map<String, Map<String, dynamic>> byUser = {};
 
     List<List<Map<String, dynamic>>> sources = [
@@ -1602,7 +1602,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     required String tempId,
     required String realId,
     required String status,
-  }) {
+  })
+  {
     bool changed = false;
 
     void updateList(List<Map<String, dynamic>> list) {
@@ -1880,7 +1881,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   double _estimateScrollOffset(
-      int listIndex, List<Map<String, dynamic>> messages) {
+      int listIndex, List<Map<String, dynamic>> messages)
+
+  {
+
     double offset = 0.0;
     for (int i = 0; i < listIndex; i++) {
       final realIndex = messages.length - 1 - i;
@@ -1892,7 +1896,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   double _estimateMessageHeight(
-      int index, List<Map<String, dynamic>> messages) {
+      int index, List<Map<String, dynamic>> messages)
+  {
     if (index < 0 || index >= messages.length) return 0.0;
     final message = messages[index];
 
@@ -2291,7 +2296,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   void _updateMessageStatus(String messageId, String status,
-      {bool localMark = false}) {
+      {bool localMark = false})
+  {
     //log("🔄 _updateMessageStatus called for $messageId → $status (localMark=$localMark)");
 
     bool updated = false;
@@ -2421,70 +2427,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         convoId: widget.convoId, page: _currentPage, limit: _initialLimit));
   }
 
-  // void _scrollListener() {
-  //   if (!_scrollController.hasClients) return;
-  //   final offset = _scrollController.offset;
-  //   final viewport = _scrollController.position.viewportDimension;
-  //
-  //   // 🔥 WhatsApp-style logic
-  //   final shouldShowArrow = offset > viewport * 0.5;
-  //
-  //   if (shouldShowArrow != _showScrollToBottomButton) {
-  //     setState(() {
-  //       _showScrollToBottomButton = shouldShowArrow;
-  //     });
-  //   }
-  //
-  //   if (_scrollController.position.pixels >=
-  //       _scrollController.position.maxScrollExtent - 100) {
-  //     final total = _allMessages.length;
-  //
-  //     log('🔍 Scroll at top - total: $total, visible: $_visibleCount, hasNextPage: $_hasNextPage, isLoading: $_isLoadingMore');
-  //
-  //     // 1. Client-side pagination: Show more from local cache
-  //     if (_visibleCount < total && !_isLoadingMore) {
-  //       setState(() {
-  //         _isLoadingMore = true;
-  //         _showScrollToBottomButton =true;
-  //       });
-  //
-  //       // Increase visible window locally first for snappier UI
-  //       Future.delayed(const Duration(milliseconds: 300), () {
-  //         if (!mounted) return;
-  //
-  //         final newVisibleCount = (_visibleCount + _pageStep).clamp(0, total);
-  //
-  //         setState(() {
-  //           _visibleCount = newVisibleCount;
-  //           _isLoadingMore = false;
-  //         });
-  //
-  //         _updateNotifierFromAll();
-  //         log('📜 Client Pagination: Loaded more messages. Now showing $_visibleCount of $total (local cache)');
-  //
-  //         // ✅ AUTO-FETCH: If we just showed ALL local messages AND there's more on server
-  //         if (_visibleCount >= total && _hasNextPage) {
-  //           log('🔄 Auto-triggering server fetch after client pagination');
-  //           Future.delayed(const Duration(milliseconds: 200), () {
-  //             if (!mounted || _isLoadingMore) return;
-  //             _triggerServerFetch();
-  //           });
-  //         }
-  //       });
-  //     }
-  //     // 2. Server-side pagination: User scrolled with all local messages already shown
-  //     else if (_visibleCount >= total && _hasNextPage && !_isLoadingMore) {
-  //       _triggerServerFetch();
-  //     }
-  //   }
-  // }
-
-  void _normalizeVisibleCount() {
-    final total = _allMessages.length;
-    if (_visibleCount > total) {
-      _visibleCount = total;
-    }
-  }
 
   void _scrollListener() {
     if (!_scrollController.hasClients) return;
@@ -2555,162 +2497,14 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     );
   }
 
-  List<Map<String, dynamic>> _inferGrouping(
-      List<Map<String, dynamic>> messages) {
-    if (messages.isEmpty) return messages;
 
-    messages
-        .sort((a, b) => _parseTime(a['time']).compareTo(_parseTime(b['time'])));
 
-    for (int i = 0; i < messages.length; i++) {
-      final currentMsg = messages[i];
 
-      // already grouped? skip
-      if (currentMsg['is_grouped_message'] == true &&
-          currentMsg['group_message_id'] != null) {
-        continue;
-      }
-
-      // 🔹 detect image
-      final hasImage = (currentMsg['imageUrl'] != null &&
-              currentMsg['imageUrl'].toString().isNotEmpty) ||
-          (currentMsg['localImagePath'] != null &&
-              currentMsg['localImagePath'].toString().isNotEmpty);
-
-      // 🔹 detect video
-      final String fileType =
-          (currentMsg['fileType'] ?? currentMsg['mimeType'] ?? '')
-              .toString()
-              .toLowerCase();
-      final String fileUrl =
-          (currentMsg['fileUrl'] ?? currentMsg['originalUrl'] ?? '').toString();
-
-      final bool hasVideo = fileType.startsWith('video/') ||
-          ['.mp4', '.mov', '.mkv', '.avi', '.webm']
-              .any((ext) => fileUrl.toLowerCase().endsWith(ext));
-
-      final bool isMedia = hasImage || hasVideo;
-      if (!isMedia) continue;
-
-      // same as before – find consecutive messages from same sender within 1 min
-      List<int> groupIndices = [i];
-      final currentSender = currentMsg['sender'] is Map
-          ? currentMsg['sender']['_id']
-          : currentMsg['sender'];
-      final currentTime = _parseTime(currentMsg['time']);
-
-      for (int j = i + 1; j < messages.length; j++) {
-        final nextMsg = messages[j];
-        final nextSender = nextMsg['sender'] is Map
-            ? nextMsg['sender']['_id']
-            : nextMsg['sender'];
-        final nextTime = _parseTime(nextMsg['time']);
-
-        // detect media for next
-        final nextHasImage = (nextMsg['imageUrl'] != null &&
-                nextMsg['imageUrl'].toString().isNotEmpty) ||
-            (nextMsg['localImagePath'] != null &&
-                nextMsg['localImagePath'].toString().isNotEmpty);
-
-        final String nextFileType =
-            (nextMsg['fileType'] ?? nextMsg['mimeType'] ?? '')
-                .toString()
-                .toLowerCase();
-        final String nextFileUrl =
-            (nextMsg['fileUrl'] ?? nextMsg['originalUrl'] ?? '').toString();
-        final bool nextHasVideo = nextFileType.startsWith('video/') ||
-            ['.mp4', '.mov', '.mkv', '.avi', '.webm']
-                .any((ext) => nextFileUrl.toLowerCase().endsWith(ext));
-
-        final bool nextIsMedia = nextHasImage || nextHasVideo;
-
-        if (nextSender != currentSender ||
-            !nextIsMedia ||
-            nextTime.difference(currentTime).inMinutes.abs() > 1) {
-          break;
-        }
-
-        // already grouped by server? treat that as a boundary
-        if (nextMsg['is_grouped_message'] == true &&
-            nextMsg['group_message_id'] != null) {
-          break;
-        }
-
-        groupIndices.add(j);
-      }
-
-      if (groupIndices.length > 1) {
-        final String generatedGroupId = '${messages[i]["group_message_id"]}';
-
-        for (final index in groupIndices) {
-          messages[index]['is_grouped_message'] = true;
-          messages[index]['group_message_id'] = generatedGroupId;
-        }
-
-        i = groupIndices.last;
-      }
-    }
-
-    return messages;
-  }
-
-  // Map<String, dynamic>? resolveReplyOriginal(
-  //   Map<String, dynamic> message,
-  //   List<Map<String, dynamic>> allMessages,
-  // )
-  // {
-  //   final replyId = message['reply']?['message_id'] ??
-  //       message['reply']?['id'] ??
-  //       message['reply_message_id'] ??
-  //       message['replyMessageId'] ??
-  //       message['replyToMessageId'];
-  //
-  //   if (replyId == null) {
-  //     //   print("❌ replyId is null for message ${message['message_id']}");
-  //     return null;
-  //   }
-  //
-  //   // 1️⃣ Try direct message match
-  //   for (final m in allMessages) {
-  //     final id = (m['message_id'] ?? m['id'] ?? m['_id'] ?? m['messageId'])
-  //         ?.toString();
-  //
-  //     if (id == replyId.toString()) {
-  //       // print("✅ FOUND ORIGINAL MESSAGE => $m");
-  //       return _mapReply(m);
-  //     }
-  //   }
-  //
-  //   // 2️⃣ Fallback: try group_message_id match
-  //   for (final m in allMessages) {
-  //     final groupId = m['group_message_id']?.toString();
-  //     if (groupId == replyId.toString()) {
-  //       print("✅ FOUND GROUP ORIGINAL MESSAGE => $m");
-  //       return _mapReply(m);
-  //     }
-  //   }
-  //
-  //   print("❌ ORIGINAL MESSAGE NOT FOUND FOR => $replyId");
-  //   return null;
-  // }
-  //
-  // Map<String, dynamic> _mapReply(Map<String, dynamic> m) {
-  //   return {
-  //     'content':m['replyContent']?? m['content'],
-  //     'imageUrl': m['imageUrl'],
-  //     'fileUrl': m['fileUrl'],
-  //     'originalUrl': m['originalUrl'],
-  //     'fileName': m['fileName'],
-  //     'fileType': m['fileType'],
-  //     'mimeType': m['mimeType'],
-  //     'group_message_id': m['group_message_id'],
-  //     'is_grouped_message': m['is_grouped_message'] ?? false,
-  //   };
-  // }
   Map<String, dynamic>? resolveReplyOriginal(
     Map<String, dynamic> message,
     List<Map<String, dynamic>> allMessages,
-  ) {
+  )
+  {
     final reply = message['reply'];
 
     final replyId =
@@ -2733,7 +2527,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   Map<String, dynamic> _mapReplyWithReplyPayload(
     Map<String, dynamic> original,
     Map<String, dynamic>? replyPayload,
-  ) {
+  )
+  {
     String replyText = (replyPayload?['replyContent'] ??
             replyPayload?['content'] ??
             original['replyContent'] ??
@@ -2773,7 +2568,8 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
   // ------------------ UI builders ------------------
   Widget _buildMessageBubble(
       Map<String, dynamic> message, bool isSentByMe, bool isReply,
-      {int? length}) {
+      {int? length})
+  {
     final String? bubbleSenderId = _getMessageSenderId(message);
     final bool correctIsSentByMe = bubbleSenderId == currentUserId;
 
@@ -2910,26 +2706,56 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
 
   Widget _buildReactionsBar(Map<String, dynamic> message, bool sentByMe) {
     final messageId =
-        (message['message_id'] ?? message['messageId'] ?? message['id'] ?? '')
-            .toString();
+    (message['message_id'] ??
+        message['messageId'] ??
+        message['id'] ??
+        '')
+        .toString();
+
     final mergedReactions = messageId.isNotEmpty
         ? _collectMergedReactionsForMessage(messageId)
         : <Map<String, dynamic>>[];
 
+    // ✅ CREATE UPDATED MESSAGE
     final msgCopy = Map<String, dynamic>.from(message);
     msgCopy['reactions'] = mergedReactions;
 
     return ReactionBar(
-      message: message,
+      message: message, // ✅ THIS IS THE FIX
       currentUserId: currentUserId,
-      onReactionTap: (msg, emoji) => _handleReactionTap(message, emoji),
-      onOpenReactors: (msg, emoji) => _showReactionsBottomSheet(message, emoji),
-      recentEmojis: recentEmojis,
-      onEmojiUpdated: (list) {
+      // onReactionTap: (_, emoji) =>
+      //     _handleReactionTap(message, emoji),
+      onOpenReactors: (_, emoji) =>
+            _showReactionsBottomSheet(message, emoji),
+        recentEmojis: recentEmojis,
+        onEmojiUpdated: (list) {
         setState(() => recentEmojis = list);
       },
     );
   }
+
+  // Widget _buildReactionsBar(Map<String, dynamic> message, bool sentByMe) {
+  //   final messageId =
+  //       (message['message_id'] ?? message['messageId'] ?? message['id'] ?? '')
+  //           .toString();
+  //   final mergedReactions = messageId.isNotEmpty
+  //       ? _collectMergedReactionsForMessage(messageId)
+  //       : <Map<String, dynamic>>[];
+  //
+  //   final msgCopy = Map<String, dynamic>.from(message);
+  //   msgCopy['reactions'] = mergedReactions;
+  //
+  //   return ReactionBar(
+  //     message: message,
+  //     currentUserId: currentUserId,
+  //     onReactionTap: (msg, emoji) => _handleReactionTap(message, emoji),
+  //     onOpenReactors: (msg, emoji) => _showReactionsBottomSheet(message, emoji),
+  //     recentEmojis: recentEmojis,
+  //     onEmojiUpdated: (list) {
+  //       setState(() => recentEmojis = list);
+  //     },
+  //   );
+  // }
 
   void _onMessageTap(Map<String, dynamic> message) async {
     if (_isSelectionMode) {
@@ -3075,9 +2901,58 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
 
     return byUser.values.toList();
   }
+  Map<String, String?> normalizeReactionUser(
+      Map<String, dynamic> reaction,
+      String currentUserId,
+      String currentUserFirstName,
+      String currentUserLastName,
+      )
+  {
+    final user = reaction['user'];
 
+    String userId = '';
+    String displayName = '';
+    String? avatar;
+
+    if (user is Map) {
+      userId = (user['_id'] ?? user['id'] ?? user['userId'] ?? '').toString();
+
+      displayName = (user['first_name'] ??
+          user['firstName'] ??
+          user['name'] ??
+          user['email'] ??
+          '')
+          .toString();
+
+      avatar = user['avatar']?.toString();
+    } else {
+      userId = (reaction['userId'] ??
+          reaction['senderId'] ??
+          reaction['id'] ??
+          '')
+          .toString();
+    }
+
+    // 🔥 CURRENT USER OVERRIDE (MOST IMPORTANT)
+    if (userId == currentUserId) {
+      displayName =
+          '${currentUserFirstName} ${currentUserLastName}'.trim();
+    }
+
+    final initial = displayName.isNotEmpty
+        ? displayName.trim().characters.first.toUpperCase()
+        : '?';
+
+    return {
+      'id': userId,
+      'name': displayName,
+      'initial': initial,
+      'avatar': avatar,
+    };
+  }
   Future<void> _showReactionsBottomSheet(
-      Map<String, dynamic> message, String initialEmoji) async {
+      Map<String, dynamic> message, String initialEmoji)
+  async {
     // helper to build normalized reactions list for a message object
     List<Map<String, dynamic>> _normalizeFromMap(Map<String, dynamic> msg) {
       final List<Map<String, dynamic>> out = [];
@@ -3389,51 +3264,61 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
                       itemBuilder: (c, i) {
                         final r = reactors[i];
                         final user = r['user'];
-                        String userId;
-                        String displayName = '';
+                        String userId = '';
+                        String firstName = '';
+                        String lastName = '';
                         String? avatarUrl;
 
                         if (user is Map) {
                           userId = (user['_id'] ??
-                                  user['id'] ??
-                                  user['userId'] ??
-                                  '')
+                              user['id'] ??
+                              user['userId'] ??
+                              '')
                               .toString();
-                          displayName = (user['first_name'] ??
-                                  user['name'] ??
-                                  user['firstName'] ??
-                                  user['email'] ??
-                                  '')
+
+                          firstName = (user['first_name'] ??
+                              user['firstName'] ??
+                              '')
                               .toString();
+
+                          lastName = (user['last_name'] ??
+                              user['lastName'] ??
+                              '')
+                              .toString();
+
                           avatarUrl = user['avatar']?.toString();
                         } else {
                           userId = (r['userId'] ?? '').toString();
-                          displayName = userId;
                         }
 
-                        final isMe = userId == currentUserId;
+                        final displayName =
+                        firstName.isNotEmpty ? firstName : userId;
+                        final normalized = normalizeReactionUser(
+                          r,
+                          currentUserId,
+                          widget.firstname ?? '',
+                          widget.lastname ?? '',
+                        );
+
+                        final isMe = normalized['id'] == currentUserId;
 
                         return ListTile(
                           leading: CircleAvatar(
-                            backgroundImage:
-                                avatarUrl != null && avatarUrl.isNotEmpty
-                                    ? NetworkImage(avatarUrl) as ImageProvider
-                                    : null,
-                            child: (avatarUrl == null || avatarUrl.isEmpty)
-                                ? Text(displayName.isNotEmpty
-                                    ? displayName
-                                        .trim()
-                                        .characters
-                                        .first
-                                        .toUpperCase()
-                                    : '?')
+                            backgroundImage: normalized['avatar'] != null &&
+                                normalized['avatar']!.isNotEmpty
+                                ? NetworkImage(normalized['avatar']!)
+                                : null,
+                            child: avatarUrl == null || avatarUrl.isEmpty
+                                ? Text(
+                              firstName.isNotEmpty
+                                  ? firstName.trim().characters.first.toUpperCase()
+                                  : '?',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            )
                                 : null,
                           ),
-                          title: Text(isMe
-                              ? 'You'
-                              : (displayName.isNotEmpty
-                                  ? displayName
-                                  : userId)),
+
+                          title: Text(isMe ? 'You' : normalized['name']!),
                           subtitle: isMe
                               ? const Text('Tap to remove',
                                   style: TextStyle(fontSize: 12))
@@ -3514,7 +3399,12 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
 
       for (var i = 0; i < reactions.length; i++) {
         final r = reactions[i];
-        final uid = (r['user']?['_id'] ?? r['userId'])?.toString();
+        final uid = (r['userId'] ??
+            r['user']?['_id'] ??
+            r['user']?['id'] ??
+            r['senderId'])
+            ?.toString();
+
         if (uid == currentUserId) {
           myIndex = i;
           oldEmoji = r['emoji']?.toString();
@@ -3532,7 +3422,8 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
           messageId: apiMessageId,
           conversationId: widget.convoId,
           emoji: emoji,
-          userId: currentUser!,
+          userId: currentUserId!,
+
           receiverId: widget.receiverId ?? "",
           firstName: widget.firstname ?? "",
           lastName: widget.lastname ?? "",
@@ -3542,13 +3433,13 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
 
       // CASE 2: change emoji
       if (hasMyReaction && oldEmoji != emoji) {
-        _updateLocalReactions(rawId, emoji);
+        _updateLocalReactions(rawId, null);
 
         _messagerBloc.add(RemoveReaction(
           messageId: apiMessageId,
           conversationId: widget.convoId,
           emoji: oldEmoji ?? '',
-          userId: currentUser!,
+          userId: currentUserId!,
           receiverId: widget.receiverId ?? "",
           firstName: widget.firstname ?? "",
           lastName: widget.lastname ?? "",
@@ -3558,11 +3449,12 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
           messageId: apiMessageId,
           conversationId: widget.convoId,
           emoji: emoji,
-          userId: currentUser!,
+          userId: currentUserId!,
           receiverId: widget.receiverId ?? "",
           firstName: widget.firstname ?? "",
           lastName: widget.lastname ?? "",
         ));
+        _updateLocalReactions(rawId, emoji);
         return;
       }
 
@@ -3573,7 +3465,7 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
         messageId: apiMessageId,
         conversationId: widget.convoId,
         emoji: emoji,
-        userId: currentUser!,
+        userId: currentUserId!,
         receiverId: widget.receiverId ?? "",
         firstName: widget.firstname ?? "",
         lastName: widget.lastname ?? "",
@@ -3584,31 +3476,60 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
   }
 
   List<Map<String, dynamic>> _extractReactionsFromMessage(
-      Map<String, dynamic> message)
-  {
+      Map<String, dynamic> message) {
+
     final List<Map<String, dynamic>> list = [];
 
+    // 1️⃣ Normal reactions array
     if (message['reactions'] is List) {
       for (final r in message['reactions']) {
-        if (r is Map) list.add(Map<String, dynamic>.from(r));
+        if (r is! Map) continue;
+
+        final map = Map<String, dynamic>.from(r);
+
+        // Normalize userId
+        String? userId =
+            map['userId']?.toString() ??
+                map['user']?['_id']?.toString() ??
+                map['user']?['id']?.toString();
+
+        if (userId == null || userId.isEmpty) continue;
+
+        list.add({
+          'emoji': map['emoji'],
+          'reacted_at': map['reacted_at'] ?? map['createdAt'],
+          'userId': userId,
+          'user': map['user'] is Map
+              ? Map<String, dynamic>.from(map['user'])
+              : {'_id': userId},
+        });
       }
     }
 
+    // 2️⃣ Legacy / properties-based reactions
     if (message['properties'] is List) {
       for (final p in message['properties']) {
-        if (p is Map && p['reaction'] != null) {
-          final r = p['reaction'];
-          list.add({
-            'emoji': r['emoji'],
-            'reacted_at': r['reacted_at'],
-            'user': {'_id': p['member_id']}
-          });
-        }
+        if (p is! Map || p['reaction'] == null) continue;
+
+        final r = p['reaction'];
+        final userId = p['member_id']?.toString();
+
+        if (userId == null || userId.isEmpty) continue;
+
+        list.add({
+          'emoji': r['emoji'],
+          'reacted_at': r['reacted_at'],
+          'userId': userId,
+          'user': {
+            '_id': userId,
+          },
+        });
       }
     }
 
     return list;
   }
+
 
   bool isValidUrl(String url) =>
       url.startsWith('http://') || url.startsWith('https://');
@@ -3783,28 +3704,25 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
   void _updateLocalReactions(String targetMessageId, String? newEmoji) {
     if (targetMessageId.trim().isEmpty) return;
 
-    String normalizeId(dynamic id) => id?.toString().trim() ?? '';
-
     bool changed = false;
-
+log("newEmoji..> $newEmoji");
     void updateList(List<Map<String, dynamic>> list) {
-      for (var msg in list) {
-        final msgId = normalizeId(
-          msg['message_id'] ?? msg['messageId'] ?? msg['id'] ?? msg['_id'],
-        );
+      for (final msg in list) {
+        final msgId = (msg['message_id'] ??
+            msg['messageId'] ??
+            msg['id'] ??
+            msg['_id'])
+            ?.toString();
 
         if (msgId != targetMessageId) continue;
 
-        // Normalize existing reactions
-        final reactions = _extractReactions(msg['reactions']);
+        final reactions = _extractReactionsFromMessage(msg);
 
-        // remove my old reaction (if any)
-        reactions.removeWhere((r) {
-          final uid = (r['userId'] ?? r['user']?['_id'])?.toString();
-          return uid == currentUserId;
-        });
+        // 🔥 remove my old reaction
+        reactions.removeWhere((r) =>
+        r['userId']?.toString() == currentUserId);
 
-        // add new reaction if not null/empty
+        // 🔥 add new reaction
         if (newEmoji != null && newEmoji.isNotEmpty) {
           reactions.add({
             'emoji': newEmoji,
@@ -3824,17 +3742,12 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
     }
 
     setState(() {
-      updateList(dbMessages);
-      updateList(messages);
-      updateList(socketMessages);
-
-      if (changed && widget.convoId.isNotEmpty) {
-        final combined = [...dbMessages, ...messages, ...socketMessages];
-        LocalChatStorage.saveMessages(widget.convoId, combined);
-      }
+      // ✅ ONLY update the list used by UI
+      updateList(_allMessages);
 
       if (changed) {
-        _updateNotifier(); // rebuild visible list
+        _updateNotifierFromAll(); // 🔥 rebuild notifier from _allMessages
+        LocalChatStorage.saveMessages(widget.convoId, _allMessages);
       }
     });
   }

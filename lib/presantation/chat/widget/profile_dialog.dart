@@ -19,6 +19,7 @@ class ProfileDialog extends StatelessWidget {
   final String imageUrl;
   final String fallbackText;
   final String userName;
+  final String? lastName;
   final List<ProfileAction> actions;
   final String? groupName;
   final bool isGroup;
@@ -33,7 +34,7 @@ class ProfileDialog extends StatelessWidget {
     required this.actions,
     this.groupName,
     this.isGroup = false,
-    this.grpId,
+    this.grpId, this.lastName,
   });
 
   @override
@@ -136,7 +137,7 @@ class ProfileDialog extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  userName.isEmpty ? groupName ?? "" : userName,
+                userName.isEmpty ? groupName ?? "" : userName+" "+ lastName!,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,

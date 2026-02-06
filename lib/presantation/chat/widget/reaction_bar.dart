@@ -14,7 +14,8 @@ void showReactionsDialog({
   String lastName = "",
   required ReactionEventCallback onRemoveReaction,
   required ReactionEventCallback onAddReaction,
-}) {
+})
+{
   final Map<String, List<Map>> grouped = {};
   for (var r in reactions) {
     final emoji = r['emoji'] ?? '';
