@@ -6,6 +6,8 @@ import '../bloc/mail_list_event.dart';
 import '../bloc/mail_list_state.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/error_display.dart';
 
+
+
 class MailListScreen extends StatefulWidget {
   final String mailboxId;
   final String? mailboxName;

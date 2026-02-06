@@ -7,7 +7,7 @@ import 'mail_detail_api.dart';
 
 
 class MailDetailBloc extends Bloc<MailDetailEvent, MailDetailState> {
-  final fatchdetailmailapi apiService;
+  final Fatchdetailmailapi apiService;
 
   MailDetailBloc({required this.apiService}) : super(MailDetailInitial()) {
     on<FetchMailDetailEvent>((event, emit) async {

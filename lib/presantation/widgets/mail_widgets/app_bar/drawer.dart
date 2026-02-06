@@ -31,7 +31,6 @@ class _CustomDrawerState extends State<CustomDrawer> {
   static const String viewUnread = 'view_unread';
   static const String viewAll = 'view_all';
   static const String viewStarred = 'view_flagged';
-  static const String viewsetting = 'view_setting';
 
   final Map<String, String> mailboxIcons = {
     'inbox': 'assets/images/inbox.svg',
@@ -277,7 +276,8 @@ class _CustomDrawerState extends State<CustomDrawer> {
                   ),
                 ),
                 Text(
-                  userEmail ?? '',
+                  "NDE Mail",
+                  // userEmail ?? '',
                   style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 13,

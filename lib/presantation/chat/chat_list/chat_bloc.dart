@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hive/hive.dart';
 import 'package:nde_email/bridge_generated.dart/api.dart';
@@ -151,7 +150,7 @@ class ChatListBloc extends Bloc<ChatListEvent, ChatListState> {
         );
 
         final decoded = jsonDecode(jsonString);
-        log("chataNameLIst ${decoded}");
+       //log("chataNameLIst ${decoded}");
         final List list = decoded['chatDataList'] ?? [];
 
         final chats = list.map<Datu>((e) => Datu.fromJson(e)).toList();

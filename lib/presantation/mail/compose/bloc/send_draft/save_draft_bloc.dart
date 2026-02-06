@@ -5,20 +5,18 @@ import 'save_dratf_event.dart';
 
 
 
-
-
 class DraftBloc extends Bloc<DraftEvent, DraftState> {
   final ApiService apiService;
-  int? lastDraftId; 
+  int? lastDraftId;
 
   DraftBloc({required this.apiService}) : super(DraftInitial()) {
     on<SaveDraftEvent>(_saveDraft);
   }
 
-  Future<void> _saveDraft(SaveDraftEvent event, Emitter<DraftState> emit) async {
+  Future<void> _saveDraft(
+      SaveDraftEvent event, Emitter<DraftState> emit) async {
     emit(DraftSaving());
     try {
-      
       if (lastDraftId != null) {
         event.draftData["replacePrevious"] = {
           "mailbox": event.mailboxId,
@@ -26,10 +24,13 @@ class DraftBloc extends Bloc<DraftEvent, DraftState> {
         };
       }
 
-      int? draftId = await apiService.saveDraft(event.mailboxId, event.draftData);
+      int? draftId =
+          await apiService.saveDraft(event.mailboxId, event.draftData);
+
+          
 
       if (draftId != null) {
-        lastDraftId = draftId; 
+        lastDraftId = draftId;
         emit(DraftSaved());
       } else {
         emit(DraftError("Failed to save draft"));

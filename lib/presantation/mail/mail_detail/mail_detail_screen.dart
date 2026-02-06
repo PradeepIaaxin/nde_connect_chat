@@ -151,7 +151,7 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
         ],
       ),
       body: BlocProvider(
-        create: (context) => MailDetailBloc(apiService: fatchdetailmailapi())
+        create: (context) => MailDetailBloc(apiService: Fatchdetailmailapi())
           ..add(FetchMailDetailEvent(widget.mailboxId, widget.messageId)),
         child: BlocBuilder<MailDetailBloc, MailDetailState>(
           builder: (context, state) {

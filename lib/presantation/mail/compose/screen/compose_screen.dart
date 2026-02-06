@@ -26,6 +26,7 @@ import 'package:nde_email/presantation/widgets/mail_widgets/attachment.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
+import 'dart:async';
 import 'package:nde_email/presantation/mail/compose/api/upload_files_api.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 
@@ -54,6 +55,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
   final TextEditingController bccCont = TextEditingController();
   final TextEditingController subjectCont = TextEditingController();
   final TextEditingController composeMailCont = TextEditingController();
+  Timer? _draftTimer;
 
   List<String> toEmails = [];
   List<String> ccEmails = [];
@@ -74,6 +76,15 @@ class _ComposeScreenState extends State<ComposeScreen> {
         showSuggestions = false;
       });
     }
+  }
+
+  bool _hasUnsavedChanges() {
+    return toEmails.isNotEmpty ||
+        ccEmails.isNotEmpty ||
+        bccEmails.isNotEmpty ||
+        subjectCont.text.isNotEmpty ||
+        composeMailCont.text.isNotEmpty ||
+        attachments.isNotEmpty;
   }
 
   @override
@@ -129,6 +140,12 @@ class _ComposeScreenState extends State<ComposeScreen> {
     });
   }
 
+  @override
+  void dispose() {
+    _draftTimer?.cancel();
+    super.dispose();
+  }
+
   void _loadDraftData() {
     if (widget.draftData != null) {
       toCont.text = widget.draftData?['to'] ?? '';
@@ -139,7 +156,19 @@ class _ComposeScreenState extends State<ComposeScreen> {
     }
   }
 
-  void _onTextChanged() => setState(() {});
+  void _onTextChanged() {
+    _draftTimer?.cancel();
+
+    _draftTimer = Timer(
+      const Duration(seconds: 5),
+      () {
+        if (_hasUnsavedChanges()) {
+          log("⏳ Auto-saving draft...");
+          _saveDraft();
+        }
+      },
+    );
+  }
 
   void _showPopupMenu() {
     showMenu<String>(
@@ -239,6 +268,11 @@ class _ComposeScreenState extends State<ComposeScreen> {
   }
 
   void _saveDraft() async {
+    /// 🔥 IMPORTANT — flush chips
+    _flushPendingEmail(toCont, toEmails);
+    _flushPendingEmail(ccCont, ccEmails);
+    _flushPendingEmail(bccCont, bccEmails);
+
     String? mailboxId = await MailboxStorage.getDraftsMailboxId();
 
     if (mailboxId != null && fromEmail != null) {
@@ -254,248 +288,350 @@ class _ComposeScreenState extends State<ComposeScreen> {
                 "date": DateTime.now().toIso8601String(),
                 "draft": true,
                 "files": attachmentIds,
-                "bcc": bccCont.text.isNotEmpty
-                    ? [
-                        {"address": bccCont.text}
-                      ]
-                    : [],
+                "to": toEmails
+                    .map((e) => {
+                          "name": "",
+                          "address": e,
+                        })
+                    .toList(),
+                "cc": ccEmails
+                    .map((e) => {
+                          "name": "",
+                          "address": e,
+                        })
+                    .toList(),
+                "bcc": bccEmails
+                    .map((e) => {
+                          "name": "",
+                          "address": e,
+                        })
+                    .toList(),
                 "from": {"name": "Your Name", "address": fromEmail},
                 "headers": [
                   {"key": "message-id", "value": ""}
                 ],
-                "to": toCont.text.isNotEmpty
-                    ? [
-                        {"address": toCont.text}
-                      ]
-                    : [],
-                "cc": ccCont.text.isNotEmpty
-                    ? [
-                        {"address": ccCont.text}
-                      ]
-                    : [],
                 "subject": subjectCont.text,
                 "text": composeMailCont.text,
                 "html": "<p>${composeMailCont.text}</p>",
               },
+
+              // draftData: {
+              //   "date": DateTime.now().toIso8601String(),
+              //   "draft": true,
+              //   "files": attachmentIds,
+
+              //   /// ✅ FIXED
+              //   "to": toEmails.map((e) => {"address": e}).toList(),
+
+              //   "cc": ccEmails.map((e) => {"address": e}).toList(),
+
+              //   "bcc": bccEmails.map((e) => {"address": e}).toList(),
+
+              //   "from": {"name": "Your Name", "address": fromEmail},
+
+              //   "headers": [
+              //     {"key": "message-id", "value": ""}
+              //   ],
+
+              //   "subject": subjectCont.text,
+              //   "text": composeMailCont.text,
+              //   "html": "<p>${composeMailCont.text}</p>",
+              // },
             ),
           );
 
-      log(" Attachment data in draft: $attachmentIds");
+      log("📎 Attachment data in draft: $attachmentIds");
+      log("📤 TO: $toEmails");
+      log("📤 CC: $ccEmails");
+      log("📤 BCC: $bccEmails");
     } else {
-      Messenger.alert(msg: "Draft mailbox ID or sender email is missing");
+      Messenger.alert(
+        msg: "Draft mailbox ID or sender email is missing",
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-        appBar: AppBar(
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.attach_file),
-              onPressed: _showPopupMenu,
-            ),
-            IconButton(
-              icon: const Icon(Icons.send),
-              onPressed: () async {
-                /// ✅ FORCE last typed email → chip
-                _flushPendingEmail(toCont, toEmails);
-                _flushPendingEmail(ccCont, ccEmails);
-                _flushPendingEmail(bccCont, bccEmails);
+    return WillPopScope(
+      onWillPop: () async {
+        if (_hasUnsavedChanges()) {
+          _saveDraft();
+          return false;
+        }
+        return true;
+      },
+      child: Scaffold(
+          appBar: AppBar(
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.attach_file),
+                onPressed: _showPopupMenu,
+              ),
+              IconButton(
+                icon: const Icon(Icons.send),
+                onPressed: () async {
+                  /// ✅ FORCE last typed email → chip
+                  _flushPendingEmail(toCont, toEmails);
+                  _flushPendingEmail(ccCont, ccEmails);
+                  _flushPendingEmail(bccCont, bccEmails);
 
-                log("📤 FINAL TO EMAILS: $toEmails");
-                log("📤 FINAL CC EMAILS: $ccEmails");
-                log("📤 FINAL BCC EMAILS: $bccEmails");
+                  log("📤 FINAL TO EMAILS: $toEmails");
+                  log("📤 FINAL CC EMAILS: $ccEmails");
+                  log("📤 FINAL BCC EMAILS: $bccEmails");
 
-                if (fromEmail == null) {
-                  Messenger.alert(msg: "Sender email not loaded. Please wait");
-                  return;
-                }
-                final attachmentIds =
-                    attachments.map((e) => e.id).whereType<String>().toList();
-
-                context.read<SendMailBloc>().add(
-                      SendMailRequest(
-                        fromEmail: fromEmail!,
-                        to: toEmails.join(','),
-                        subject: subjectCont.text,
-                        body: composeMailCont.text,
-                        attachmentIds: attachmentIds,
-                        cc: ccEmails.isNotEmpty ? ccEmails.join(',') : null,
-                        bcc: bccEmails.isNotEmpty ? bccEmails.join(',') : null,
-                      ),
-                    );
-
-                MyRouter.pop();
-              },
-            ),
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert),
-              onSelected: (String result) {
-                if (result == "save draft") {
-                  _saveDraft();
-                } else if (result == "discard") {
-                  MyRouter.pop();
-                }
-              },
-              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                const PopupMenuItem<String>(
-                    value: "save draft", child: Text("Save Draft")),
-                const PopupMenuItem<String>(
-                    value: "discard", child: Text("Discard")),
-              ],
-            ),
-          ],
-        ),
-        body: MultiBlocListener(
-          listeners: [
-            BlocListener<FatchnameBloc, FatchnameState>(
-              listener: (context, state) {
-                if (state is FatchnameEmailLoaded) {
-                  setState(() => fromEmail = state.email);
-                }
-              },
-            ),
-            BlocListener<DraftBloc, DraftState>(
-              listener: (context, state) {
-                if (state is DraftSaving) {
-                  showDialog(
-                    context: context,
-                    barrierDismissible: false,
-                    builder: (context) => const AlertDialog(
-                      content: Row(
-                        children: [
-                          CircularProgressIndicator(),
-                          SizedBox(width: 20),
-                          Text("Saving draft..."),
-                        ],
-                      ),
-                    ),
-                  );
-                } else if (state is DraftSaved) {
-                  if (Navigator.canPop(context)) {
-                    Navigator.pop(context);
+                  if (fromEmail == null) {
+                    Messenger.alert(
+                        msg: "Sender email not loaded. Please wait");
+                    return;
                   }
+                  final attachmentIds =
+                      attachments.map((e) => e.id).whereType<String>().toList();
 
-                  Messenger.alertSuccess("Draft saved successfully");
-                } else if (state is DraftError) {
-                  Navigator.pop(context);
+                  context.read<SendMailBloc>().add(
+                        SendMailRequest(
+                          fromEmail: fromEmail!,
+                          to: toEmails.join(','),
+                          subject: subjectCont.text,
+                          body: composeMailCont.text,
+                          attachmentIds: attachmentIds,
+                          cc: ccEmails.isNotEmpty ? ccEmails.join(',') : null,
+                          bcc:
+                              bccEmails.isNotEmpty ? bccEmails.join(',') : null,
+                        ),
+                      );
 
-                  Messenger.alert(msg: "state.message");
-                }
-              },
-            ),
-          ],
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                _buildSenderField(),
-                _buildEmailField("To", toCont, toEmails),
-                if (isExpanded) _buildCCBCCFields(),
-                const Divider(),
-                _buildSubjectField(),
-                const Divider(),
-                _buildBodyField(),
-                if (widget.mailDetail != null &&
-                    widget.mailDetail!.html.isNotEmpty)
-                  HtmlWidget(
-                    widget.mailDetail!.html,
-                    onTapUrl: (url) => launchUrl(Uri.parse(url)),
+                  MyRouter.pop();
+                },
+              ),
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert),
+                onSelected: (String result) {
+                  switch (result) {
+                    case "save_draft":
+                      _saveDraft();
+                      break;
+
+                    case "discard":
+                      // MyRouter.pop();
+                      break;
+
+                    case "show_suggestions":
+                      _showSuggestions();
+                      break;
+
+                    case "schedule_send":
+                      _scheduleSend();
+                      break;
+
+                    case "add_from_contacts":
+                      _addFromContacts();
+                      break;
+
+                    case "confidential_mode":
+                      _openConfidentialMode();
+                      break;
+
+                    case "settings":
+                      _openSettings();
+                      break;
+
+                    case "help_feedback":
+                      _openHelpFeedback();
+                      break;
+                  }
+                },
+                itemBuilder: (BuildContext context) => [
+                  const PopupMenuItem(
+                    value: "save_draft",
+                    child: Text("Save draft"),
                   ),
-                if (widget.mailDetail != null &&
-                    widget.mailDetail!.html.isNotEmpty)
-                  if (widget.mailDetail != null &&
-                      widget.mailDetail!.attachments.isNotEmpty &&
-                      widget.action == ComposeAction.forward)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 16),
-                        const Text(
-                          'Attachments from original message:',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 10,
-                          runSpacing: 10,
-                          children:
-                              widget.mailDetail!.attachments.map((attachment) {
-                            return AttachmentWidget(
-                              attachment: attachment,
-                              mailboxId: widget.mailboxId ?? '',
-                              messageId: widget.mailDetail?.id.toString() ?? '',
-                            );
-                          }).toList(),
-                        ),
-                      ],
-                    ),
-                if (attachments.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: attachments.map((inline) {
-                      final isImage = ['jpg', 'jpeg', 'png', 'gif'].contains(
-                        inline.fileName.split('.').last.toLowerCase(),
-                      );
-
-                      return Chip(
-                        avatar: isImage
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(4),
-                                child: inline.isInline
-                                    ? Image.file(
-                                        File(inline.filePath),
-                                        width: 24,
-                                        height: 24,
-                                        fit: BoxFit.cover,
-                                      )
-                                    : Image.file(
-                                        File(inline.filePath),
-                                        width: 24,
-                                        height: 24,
-                                        fit: BoxFit.cover,
-                                      ),
-                              )
-                            : Icon(
-                                getFileIcon(inline.fileName),
-                                size: 20,
-                              ),
-                        label: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Flexible(
-                              child: Text(
-                                inline.fileName,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            if (inline.isInline)
-                              const Padding(
-                                padding: EdgeInsets.only(left: 4),
-                                child: Icon(Icons.image,
-                                    size: 16, color: Colors.orange),
-                              ),
-                          ],
-                        ),
-                        deleteIcon: const Icon(Icons.close),
-                        onDeleted: () {
-                          setState(() {
-                            attachments.remove(inline);
-                          });
-                        },
-                      );
-                    }).toList(),
+                  const PopupMenuItem(
+                    value: "discard",
+                    child: Text("Discard"),
+                  ),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem(
+                    value: "show_suggestions",
+                    child: Text("Show suggestions"),
+                  ),
+                  const PopupMenuItem(
+                    value: "schedule_send",
+                    child: Text("Schedule send"),
+                  ),
+                  const PopupMenuItem(
+                    value: "add_from_contacts",
+                    child: Text("Add from contacts"),
+                  ),
+                  const PopupMenuItem(
+                    value: "confidential_mode",
+                    child: Text("Confidential mode"),
+                  ),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem(
+                    value: "settings",
+                    child: Text("Settings"),
+                  ),
+                  const PopupMenuItem(
+                    value: "help_feedback",
+                    child: Text("Help & feedback"),
                   ),
                 ],
-              ],
-            ),
+              )
+            ],
           ),
-        ));
+          body: MultiBlocListener(
+            listeners: [
+              BlocListener<FatchnameBloc, FatchnameState>(
+                listener: (context, state) {
+                  if (state is FatchnameEmailLoaded) {
+                    setState(() => fromEmail = state.email);
+                  }
+                },
+              ),
+              BlocListener<DraftBloc, DraftState>(
+                listener: (context, state) {
+                  if (state is DraftSaving) {
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (context) => const AlertDialog(
+                        content: Row(
+                          children: [
+                            CircularProgressIndicator(),
+                            SizedBox(width: 20),
+                            Text("Saving draft..."),
+                          ],
+                        ),
+                      ),
+                    );
+                  } else if (state is DraftSaved) {
+                    if (Navigator.canPop(context)) {
+                      Navigator.pop(context);
+                    }
+
+                    Messenger.alertSuccess("Draft saved successfully");
+                    MyRouter.pop();
+                  } else if (state is DraftError) {
+                    Navigator.pop(context);
+
+                    Messenger.alert(msg: "state.message");
+                  }
+                },
+              ),
+            ],
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  _buildSenderField(),
+                  _buildEmailField("To", toCont, toEmails),
+                  if (isExpanded) _buildCCBCCFields(),
+                  const Divider(),
+                  _buildSubjectField(),
+                  const Divider(),
+                  _buildBodyField(),
+                  if (widget.mailDetail != null &&
+                      widget.mailDetail!.html.isNotEmpty)
+                    HtmlWidget(
+                      widget.mailDetail!.html,
+                      onTapUrl: (url) => launchUrl(Uri.parse(url)),
+                    ),
+                  if (widget.mailDetail != null &&
+                      widget.mailDetail!.html.isNotEmpty)
+                    if (widget.mailDetail != null &&
+                        widget.mailDetail!.attachments.isNotEmpty &&
+                        widget.action == ComposeAction.forward)
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Attachments from original message:',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: widget.mailDetail!.attachments
+                                .map((attachment) {
+                              return AttachmentWidget(
+                                attachment: attachment,
+                                mailboxId: widget.mailboxId ?? '',
+                                messageId:
+                                    widget.mailDetail?.id.toString() ?? '',
+                              );
+                            }).toList(),
+                          ),
+                        ],
+                      ),
+                  if (attachments.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: attachments.map((inline) {
+                        final isImage = ['jpg', 'jpeg', 'png', 'gif'].contains(
+                          inline.fileName.split('.').last.toLowerCase(),
+                        );
+
+                        return Chip(
+                          avatar: isImage
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: inline.isInline
+                                      ? Image.file(
+                                          File(inline.filePath),
+                                          width: 24,
+                                          height: 24,
+                                          fit: BoxFit.cover,
+                                        )
+                                      : Image.file(
+                                          File(inline.filePath),
+                                          width: 24,
+                                          height: 24,
+                                          fit: BoxFit.cover,
+                                        ),
+                                )
+                              : Icon(
+                                  getFileIcon(inline.fileName),
+                                  size: 20,
+                                ),
+                          label: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  inline.fileName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (inline.isInline)
+                                const Padding(
+                                  padding: EdgeInsets.only(left: 4),
+                                  child: Icon(Icons.image,
+                                      size: 16, color: Colors.orange),
+                                ),
+                            ],
+                          ),
+                          deleteIcon: const Icon(Icons.close),
+                          onDeleted: () {
+                            setState(() {
+                              attachments.remove(inline);
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          )),
+    );
   }
 
   void _flushPendingEmail(
@@ -525,6 +661,30 @@ class _ComposeScreenState extends State<ComposeScreen> {
         const Divider(),
       ],
     );
+  }
+
+  void _showSuggestions() {
+    debugPrint("Show suggestions clicked");
+  }
+
+  void _scheduleSend() {
+    debugPrint("Schedule send clicked");
+  }
+
+  void _addFromContacts() {
+    debugPrint("Add from contacts clicked");
+  }
+
+  void _openConfidentialMode() {
+    debugPrint("Confidential mode clicked");
+  }
+
+  void _openSettings() {
+    debugPrint("Settings clicked");
+  }
+
+  void _openHelpFeedback() {
+    debugPrint("Help & feedback clicked");
   }
 
   Widget _buildEmailField(
@@ -872,7 +1032,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
           hintText: 'Subject',
           border: InputBorder.none,
           fillColor: AppColors.headingText),
-      onChanged: (value) => _onTextChanged(),
+      onChanged: (_) => _onTextChanged(),
     );
   }
 
@@ -886,7 +1046,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
           hintText: 'Compose email',
           border: InputBorder.none,
           fillColor: AppColors.headingText),
-      onChanged: (value) => _onTextChanged(),
+      onChanged: (_) => _onTextChanged(),
     );
   }
 }

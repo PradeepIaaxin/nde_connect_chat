@@ -198,7 +198,7 @@ class MyRootApp extends StatelessWidget {
             create: (context) => MailListBloc(apiService: FetchMailListapi())),
         BlocProvider(
             create: (context) =>
-                MailDetailBloc(apiService: fatchdetailmailapi())),
+                MailDetailBloc(apiService: Fatchdetailmailapi())),
         BlocProvider(create: (context) => FabBloc()),
         BlocProvider(
             create: (context) => FatchnameBloc(apiService: ApiService())),

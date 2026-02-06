@@ -1576,7 +1576,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             convoId: _currentConversationId,
             message: text,
             senderId: currentUserId,
-            receiverId: widget.receiverId!,
+            receiverId: widget.receiverId??"",
             replyTo: reply,
             replyMessageId: replyMessageId,
             // replyGroupMessageId: replyGroupMessageId,
