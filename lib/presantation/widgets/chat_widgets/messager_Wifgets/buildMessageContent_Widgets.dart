@@ -11,7 +11,8 @@ import 'VideoMessageWidget.dart';
 import 'package:nde_email/utils/reusbale/mime.type.dart';
 
 Widget buildMessageContent(
-    dynamic message, BuildContext context, String currentUserId) {
+    dynamic message, BuildContext context, String currentUserId)
+{
   try {
     // Use both ContentType and contentType for backward compatibility
     final contentType = (message?.ContentType ?? message?.contentType ?? 'text')
@@ -65,7 +66,8 @@ Widget buildMessageContent(
 }
 
 String _determineContentType(
-    String contentType, String mimeType, String fileName) {
+    String contentType, String mimeType, String fileName)
+{
   // First check the explicit content type
   if (contentType.contains('image')) return 'image';
   if (contentType.contains('video')) return 'video';
@@ -103,7 +105,8 @@ Widget _buildTextMessage(String content) {
 }
 
 Widget _buildImageMessage(
-    String fileUrl, DateTime? messageTime, String thumbnailUrl) {
+    String fileUrl, DateTime? messageTime, String thumbnailUrl)
+{
   if (fileUrl.isEmpty || !_isValidUrl(fileUrl)) {
     return _buildErrorWidget("Invalid image URL");
   }
@@ -115,7 +118,8 @@ Widget _buildImageMessage(
 }
 
 Widget _buildVideoMessage(
-    String fileUrl, DateTime? messageTime, String thumbnailUrl) {
+    String fileUrl, DateTime? messageTime, String thumbnailUrl)
+{
   if (fileUrl.isEmpty || !_isValidUrl(fileUrl)) {
     return _buildErrorWidget("Invalid video URL");
   }
@@ -133,7 +137,8 @@ Widget _buildAudioMessage(
   String? duration,
   DateTime? messageTime, // Changed to DateTime?
   String? status,
-) {
+)
+{
   if (fileUrl.isEmpty || !_isValidUrl(fileUrl)) {
     return _buildErrorWidget("Invalid audio URL");
   }
@@ -153,12 +158,14 @@ Widget _buildAudioMessage(
 }
 
 Widget _buildDocumentMessage(
-    String fileUrl, String fileName, BuildContext context) {
+    String fileUrl, String fileName, BuildContext context)
+{
   return _buildFileMessage(fileUrl, fileName, 'document', context);
 }
 
 Widget _buildFileMessage(
-    String fileUrl, String fileName, String type, BuildContext context) {
+    String fileUrl, String fileName, String type, BuildContext context)
+{
   if (fileUrl.isEmpty || !_isValidUrl(fileUrl)) {
     return _buildErrorWidget("Invalid file URL");
   }

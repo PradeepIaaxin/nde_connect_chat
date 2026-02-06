@@ -197,6 +197,7 @@ class ReactionBar extends StatelessWidget {
     }).toList());
 
     return Container(
+      margin: EdgeInsets.only(bottom: 7),
       decoration: BoxDecoration(color:  Colors.blue[50],
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
