@@ -553,7 +553,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     return false;
   }
 
-  void _hideSearchAppBar() {
+  void _hideSearchAppBar()
+  {
     setState(() {
       _showSearchAppBar = false;
       _searchController.clear();
@@ -620,16 +621,16 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
 
     _checkingPersmmion();
     _initMessages();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final painter = TextPainter(
-        text: const TextSpan(
-          text: '😀😁😂🤣😍🥰👍🙏🔥❤️',
-          style: TextStyle(fontSize: 16),
-        ),
-        textDirection: TextDirection.ltr,
-      );
-      painter.layout();
-    });
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   final painter = TextPainter(
+    //     text: const TextSpan(
+    //       text: '😀😁😂🤣😍🥰👍🙏🔥❤️',
+    //       style: TextStyle(fontSize: 16),
+    //     ),
+    //     textDirection: TextDirection.ltr,
+    //   );
+    //   painter.layout();
+    // });
 
     // Check connectivity
     Connectivity().checkConnectivity().then((results) {
@@ -720,6 +721,7 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
   }
 
   String currentUserName = "";
+
   Future<void> _loadCurrentUserName() async {
     final name = await UserPreferences.getUsername();
     if (name != null) {
@@ -728,7 +730,6 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
       });
     }
   }
-
   Future<void> _openCamera() async {
     try {
       final XFile? file =
@@ -773,20 +774,17 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
       Messenger.alert(msg: "Could not open camera.");
     }
   }
-
   bool isSameDay(DateTime? date1, DateTime? date2) {
     if (date1 == null || date2 == null) return false;
     return date1.year == date2.year &&
         date1.month == date2.month &&
         date1.day == date2.day;
   }
-
   void toggleSearchAppBar() {
     setState(() {
       _showSearchAppBar = !_showSearchAppBar;
     });
   }
-
   void onMessageReceived(Map<String, dynamic> rawData) {
     /// 1️⃣ Extract message safely
     Map<String, dynamic> msg;
@@ -935,7 +933,6 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
       _updateNotifier();
     });
   }
-
   void _handleReactionUpdate(dynamic reactionData) {
     try {
       MessageReaction? reaction;
@@ -1014,50 +1011,59 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
   void _updateMessageStatus(String messageId, String status) {
     if (messageId.isEmpty || status.isEmpty) return;
 
-    bool updated = false;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
 
-    void updateInList(List<Map<String, dynamic>> list, String listName) {
-      for (int i = 0; i < list.length; i++) {
-        final msg = list[i];
-        final msgId = (msg['message_id'] ?? msg['messageId'] ?? msg['id'] ?? '')
-            .toString();
-        if (msgId == messageId) {
-          final oldStatus = (msg['messageStatus'] ?? '').toString();
+      bool updated = false;
 
-          // Don't downgrade status (read > delivered > sent)
-          if (oldStatus != 'read' || status == 'read') {
-            // Create new map instance to force UI rebuild
-            final newMsg = Map<String, dynamic>.from(msg);
-            newMsg['messageStatus'] = status;
-            list[i] = newMsg;
-            updated = true;
+      void updateInList(List<Map<String, dynamic>> list) {
+        for (int i = 0; i < list.length; i++) {
+          final msg = list[i];
+          final msgId =
+          (msg['message_id'] ?? msg['messageId'] ?? msg['id'] ?? '').toString();
+
+          if (msgId == messageId) {
+            final oldStatus = (msg['messageStatus'] ?? '').toString();
+
+            if (oldStatus != 'read' || status == 'read') {
+              list[i] = {
+                ...msg,
+                'messageStatus': status,
+              };
+              updated = true;
+            }
+            break;
           }
-          break;
         }
       }
-    }
 
-    setState(() {
-      updateInList(dbMessages, 'dbMessages');
-      updateInList(messages, 'messages');
-      updateInList(socketMessages, 'socketMessages');
+      bool shouldSave = false;
 
-      if (updated) {
+      setState(() {
+        updateInList(dbMessages);
+        updateInList(messages);
+        updateInList(socketMessages);
+
+        if (updated) {
+          shouldSave = true;
+        } else {
+          _pendingStatusUpdates[messageId] = status;
+        }
+      });
+
+      if (shouldSave) {
         final combined = _getCombinedMessages();
         GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
-      } else {
-        // ⚠️ Race condition handling: Message might be temporary (pending replacement)
-        // Store status to apply later when real ID arrives
-        _pendingStatusUpdates[messageId] = status;
       }
+
       _updateNotifier();
       _refreshMessages();
     });
   }
-
   /// 🔥 NEW: Extract and normalize reply data from incoming message
   Map<String, dynamic>? _extractReplyDataFromIncoming(
-      Map<String, dynamic> replyRaw) {
+      Map<String, dynamic> replyRaw)
+  {
     try {
       final String mediaUrl = replyRaw["originalUrl"]?.toString() ??
           replyRaw["imageUrl"]?.toString() ??
@@ -1137,7 +1143,6 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
       return null;
     }
   }
-
   /// Ensure reply payloads are a stable, sanitized Map for UI & sending.
   Map<String, dynamic> _mergeReplyData(dynamic replyData) {
     if (replyData == null) return <String, dynamic>{};
@@ -1258,7 +1263,6 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
 
     return merged;
   }
-
   /// Actually apply reaction change to in-memory lists and save
   void _updateMessageWithReaction(MessageReaction reaction) {
     if (!mounted) return;
@@ -3655,12 +3659,17 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
       child: ValueListenableBuilder<List<Map<String, dynamic>>>(
         valueListenable: _messagesNotifier,
         builder: (context, combinedMessages, child) {
+
           final groupedMessages = buildGroupedMessages(combinedMessages);
-          if (groupedMessages.isNotEmpty) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              _markVisibleMessagesAsRead(groupedMessages);
-            });
-          }
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (!mounted) return;
+            _markVisibleMessagesAsRead(groupedMessages);
+          });
+          // if (groupedMessages.isNotEmpty) {
+          //   WidgetsBinding.instance.addPostFrameCallback((_) {
+          //     _markVisibleMessagesAsRead(groupedMessages);
+          //   });
+          // }
 
 
           return BlocBuilder<GroupChatBloc, GroupChatState>(
@@ -3743,8 +3752,9 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
                                     groupMessageId;
 
                             if (!isFirstInGroup) {
-                              return const SizedBox.shrink();
+                              return const Offstage(offstage: true);
                             }
+
 
                             List<String> groupImages = [];
                             List<Map<String, dynamic>> groupMessagesList = [];

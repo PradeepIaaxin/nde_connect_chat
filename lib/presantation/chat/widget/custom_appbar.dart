@@ -161,11 +161,7 @@ class CommonAppBarBuilder {
     return PreferredSize(
       preferredSize: const Size.fromHeight(kToolbarHeight),
       child: BlocBuilder<MediaBloc, MediaState>(builder: (context, state) {
-        // 🔑 STRICT FILTER: Only use contact if it matches current GROUP chat
-        // ContactModel appears to be Group-specific based on its fields.
-
         ContactModel? contact;
-
         if (grpChat && state is ContactLoaded) {
           try {
             contact = state.contacts.firstWhere((c) => c.id == grpId);
@@ -173,15 +169,6 @@ class CommonAppBarBuilder {
             contact = null;
           }
         }
-
-
-        // If dummy (empty ID) or null, don't use it
-        final validContact = (contact?.id?.isNotEmpty == true) ? contact : null;
-
-        // final displayName = grpChat
-        //     ? validContact?.groupName ?? "${firstname ?? ''} ${lastname ?? ''}"
-        //     : "${firstname ?? ''} ${lastname ?? ''}";
-
         final displayName = grpChat
             ? (contact?.groupName?.isNotEmpty == true
             ? contact!.groupName!
