@@ -961,7 +961,7 @@ class SocketService {
 
         final jsonString = await importChatUpdate(updateBytes: bytes);
         final decoded = jsonDecode(jsonString);
-         log("chatlistUpdate response: ${decoded.toString()}");
+        //log("chatlistUpdate response: ${decoded.toString()}");
         final List list = decoded["chatDataList"] ?? [];
 
         if (list.isEmpty) return;
@@ -1454,8 +1454,7 @@ class SocketService {
     String? description,
     String? convoId,
     required String updateKey,
-  })
-  async {
+  }) async {
     log("groupId ${groupId}");
     log("groupName ${groupName}");
     log("updateKey ${updateKey}");
@@ -1465,7 +1464,7 @@ class SocketService {
     socket!.emitWithAck('update_group', {
       'groupId': groupId,
       updateKey: groupName ?? description,
-      'convoId':convoId
+      'convoId': convoId
     }, ack: (response) {
       log("responseeeeeee ${response}");
       log("responseeeeeee ${response['success']}");
@@ -1487,7 +1486,7 @@ class SocketService {
     String? conversationId,
     required String senderId,
     required String receiverId,
-     String? message,
+    String? message,
     required String roomId,
     required String workspaceId,
     required bool isGroupChat,
@@ -1509,8 +1508,7 @@ class SocketService {
     String? groupMessageId,
     String? audioDuration,
     String? replyGroupImageCount,
-  })
-  {
+  }) {
     if (!isConnected) {
       _slog('sendMessage aborted: not connected');
       return;
@@ -1569,7 +1567,7 @@ class SocketService {
       ack: (data) {
         log('🟢 SEND_MESSAGE ACK RECEIVED');
         log('🕒 Time: ${DateTime.now().toIso8601String()}');
-       // log('📦 ACK Payload: $data');
+        // log('📦 ACK Payload: $data');
 
         if (data is! Map) {
           log('⚠ ACK is not a Map: ${data.runtimeType}');

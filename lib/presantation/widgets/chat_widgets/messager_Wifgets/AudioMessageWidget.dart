@@ -33,7 +33,7 @@ class AudioMessageWidget extends StatefulWidget {
 }
 
 class _AudioMessageWidgetState extends State<AudioMessageWidget> {
-  late AudioPlayer _audioPlayer;
+  AudioPlayer? _audioPlayer; // Make nullable for lazy init
   bool _isPlaying = false;
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
@@ -42,43 +42,64 @@ class _AudioMessageWidgetState extends State<AudioMessageWidget> {
   @override
   void initState() {
     super.initState();
-    _audioPlayer = AudioPlayer();
-    _initPlayer();
+    // Lazy init: Do NOT initialize _audioPlayer here.
+    // Just parse the duration from the widget to show it immediately.
+    _parseDuration();
+  }
+
+  void _parseDuration() {
+    if (widget.duration != null) {
+      final secs = int.tryParse(widget.duration!) ?? 0;
+      if (secs > 0) {
+        _duration = Duration(seconds: secs);
+      }
+    }
+  }
+
+  Future<void> _playAudio() async {
+    // Initialize player if it hasn't been already
+    if (_audioPlayer == null) {
+      _audioPlayer = AudioPlayer();
+      await _initPlayer();
+    }
+    _audioPlayer!.play();
   }
 
   Future<void> _initPlayer() async {
+    if (_audioPlayer == null) return;
+
     try {
       if (widget.audioUrl.startsWith('http')) {
-        await _audioPlayer.setUrl(widget.audioUrl);
+        await _audioPlayer!.setUrl(widget.audioUrl);
       } else {
-        await _audioPlayer.setFilePath(widget.audioUrl);
+        await _audioPlayer!.setFilePath(widget.audioUrl);
       }
 
-      _duration = _audioPlayer.duration ?? Duration.zero;
-
-      // If duration was passed in widget, use it as fallback or initial
-      if (_duration.inSeconds == 0 && widget.duration != null) {
-        final secs = int.tryParse(widget.duration!) ?? 0;
-        if (secs > 0) {
-          _duration = Duration(seconds: secs);
+      // Update duration from player if we didn't have it or if it differs
+      final d = _audioPlayer!.duration;
+      if (d != null && d != _duration) {
+        if (mounted) {
+          setState(() {
+            _duration = d;
+          });
         }
       }
 
-      _audioPlayer.playerStateStream.listen((state) {
+      _audioPlayer!.playerStateStream.listen((state) {
         if (mounted) {
           setState(() {
             _isPlaying = state.playing;
             if (state.processingState == ProcessingState.completed) {
               _isPlaying = false;
               _position = Duration.zero;
-              _audioPlayer.stop();
-              _audioPlayer.seek(Duration.zero);
+              _audioPlayer?.stop();
+              _audioPlayer?.seek(Duration.zero);
             }
           });
         }
       });
 
-      _audioPlayer.positionStream.listen((position) {
+      _audioPlayer!.positionStream.listen((position) {
         if (mounted) {
           setState(() {
             _position = position;
@@ -86,7 +107,8 @@ class _AudioMessageWidgetState extends State<AudioMessageWidget> {
         }
       });
 
-      _audioPlayer.durationStream.listen((duration) {
+      // Also listen to duration changes in case they come in later
+      _audioPlayer!.durationStream.listen((duration) {
         if (duration != null && mounted) {
           setState(() {
             _duration = duration;
@@ -107,23 +129,23 @@ class _AudioMessageWidgetState extends State<AudioMessageWidget> {
   @override
   void didUpdateWidget(AudioMessageWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.audioUrl != widget.audioUrl ||
-        oldWidget.duration != widget.duration) {
-      // Reset state and re-initialize for the new audio
+    if (oldWidget.audioUrl != widget.audioUrl) {
+      // Reset everything
+      _audioPlayer?.dispose();
+      _audioPlayer = null;
       setState(() {
         _isPlayerInitialized = false;
         _isPlaying = false;
         _position = Duration.zero;
         _duration = Duration.zero;
       });
-      _audioPlayer.stop();
-      _initPlayer();
+      _parseDuration();
     }
   }
 
   @override
   void dispose() {
-    _audioPlayer.dispose();
+    _audioPlayer?.dispose();
     super.dispose();
   }
 
@@ -191,9 +213,9 @@ class _AudioMessageWidgetState extends State<AudioMessageWidget> {
               child: GestureDetector(
                 onTap: () {
                   if (_isPlaying) {
-                    _audioPlayer.pause();
+                    _audioPlayer?.pause();
                   } else {
-                    _audioPlayer.play();
+                    _playAudio();
                   }
                 },
                 child: CircleAvatar(
@@ -216,9 +238,9 @@ class _AudioMessageWidgetState extends State<AudioMessageWidget> {
               child: GestureDetector(
                 onTap: () {
                   if (_isPlaying) {
-                    _audioPlayer.pause();
+                    _audioPlayer?.pause();
                   } else {
-                    _audioPlayer.play();
+                    _playAudio();
                   }
                 },
                 child: Icon(
@@ -252,7 +274,7 @@ class _AudioMessageWidgetState extends State<AudioMessageWidget> {
                       ? displayDuration.inSeconds.toDouble()
                       : 1.0,
                   onChanged: (value) {
-                    _audioPlayer.seek(Duration(seconds: value.toInt()));
+                    _audioPlayer?.seek(Duration(seconds: value.toInt()));
                   },
                 ),
               ),
