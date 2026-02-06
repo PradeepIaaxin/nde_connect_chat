@@ -70,7 +70,6 @@ class GroupedMediaWidget extends StatelessWidget {
 
     final screenWidth = MediaQuery.of(context).size.width;
 
-    // ✅ WhatsApp-like bubble width
     final double bubbleWidth =
         screenWidth < 600 ? screenWidth * 0.72 : screenWidth * 0.5;
 
@@ -224,7 +223,7 @@ class GroupedMediaWidget extends StatelessWidget {
                 Positioned(
                   height: _statusBarHeight,
                   bottom: 18,
-                  right: isSentByMe ? 10 : 70,
+                  right: isSentByMe ? 10 :MediaQuery.of(context).size.width>600?60: 90,
                   child: Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
@@ -272,7 +271,6 @@ class GroupedMediaWidget extends StatelessWidget {
     );
   }
 
-  // ----------------- Aspect Ratios -----------------
   void _showReactionPicker(BuildContext context) {
     if (onReact == null) return;
 
@@ -364,8 +362,6 @@ class GroupedMediaWidget extends StatelessWidget {
         return 1;
     }
   }
-
-  // ----------------- Layout -----------------
 
   Widget _buildMediaLayout(BuildContext context, int count) {
     if (count == 1) {

@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:nde_email/data/respiratory.dart';
 import 'package:nde_email/data/mailboxid.dart';
 import 'package:nde_email/data/token.dart';
+import 'package:nde_email/utils/reusbale/common_import.dart';
 
 class ApiService {
   static const String baseUrl = 'https://api.nowdigitaleasy.com/mail/v1';
@@ -144,7 +145,6 @@ class ApiService {
       log("📤 Sending Email Payload: ${jsonEncode(payload)}");
       log("📎 Attachment IDs: $attachmentIds");
 
-
       final String apiUrl =
           '$baseUrl/user/mail/submit/draft/$mailboxId?deleteFiles=true';
       log("🌍 API URL: $apiUrl");
@@ -164,7 +164,7 @@ class ApiService {
 
         if (responseBody['success'] == true &&
             responseBody['message'] == 'mail sent') {
-          log("📩  Email sent successfully!");
+          Messenger.alertSuccess("Email sent successfully!");
           return true;
         } else {
           return Future.error('Unexpected API response: $responseBody');

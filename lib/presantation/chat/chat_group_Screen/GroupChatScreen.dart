@@ -510,7 +510,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     return false;
   }
 
-  void _hideSearchAppBar() {
+  void _hideSearchAppBar()
+  {
     setState(() {
       _showSearchAppBar = false;
       _searchController.clear();
@@ -560,16 +561,16 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     _checkingPersmmion();
     _initMessages();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final painter = TextPainter(
-        text: const TextSpan(
-          text: '😀😁😂🤣😍🥰👍🙏🔥❤️',
-          style: TextStyle(fontSize: 16),
-        ),
-        textDirection: TextDirection.ltr,
-      );
-      painter.layout();
-    });
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   final painter = TextPainter(
+    //     text: const TextSpan(
+    //       text: '😀😁😂🤣😍🥰👍🙏🔥❤️',
+    //       style: TextStyle(fontSize: 16),
+    //     ),
+    //     textDirection: TextDirection.ltr,
+    //   );
+    //   painter.layout();
+    // });
 
     // Check connectivity
     Connectivity().checkConnectivity().then((results) {
@@ -648,6 +649,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   String currentUserName = "";
+
   Future<void> _loadCurrentUserName() async {
     final name = await UserPreferences.getUsername();
     if (name != null) {
@@ -656,7 +658,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       });
     }
   }
-
   Future<void> _openCamera() async {
     try {
       final XFile? file =
@@ -702,12 +703,17 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
   }
 
+  bool isSameDay(DateTime? date1, DateTime? date2) {
+    if (date1 == null || date2 == null) return false;
+    return date1.year == date2.year &&
+        date1.month == date2.month &&
+        date1.day == date2.day;
+  }
   void toggleSearchAppBar() {
     setState(() {
       _showSearchAppBar = !_showSearchAppBar;
     });
   }
-
   void onMessageReceived(Map<String, dynamic> rawData) {
     /// 1️⃣ Extract message safely
     Map<String, dynamic> msg;
@@ -861,7 +867,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       _scheduleSaveMessages(combinedToSave!);
     }
   }
-
   void _handleReactionUpdate(dynamic reactionData) {
     try {
       MessageReaction? reaction;
@@ -940,28 +945,31 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   void _updateMessageStatus(String messageId, String status) {
     if (messageId.isEmpty || status.isEmpty) return;
 
-    bool updated = false;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
 
-    void updateInList(List<Map<String, dynamic>> list, String listName) {
-      for (int i = 0; i < list.length; i++) {
-        final msg = list[i];
-        final msgId = (msg['message_id'] ?? msg['messageId'] ?? msg['id'] ?? '')
-            .toString();
-        if (msgId == messageId) {
-          final oldStatus = (msg['messageStatus'] ?? '').toString();
+      bool updated = false;
 
-          // Don't downgrade status (read > delivered > sent)
-          if (oldStatus != 'read' || status == 'read') {
-            // Create new map instance to force UI rebuild
-            final newMsg = Map<String, dynamic>.from(msg);
-            newMsg['messageStatus'] = status;
-            list[i] = newMsg;
-            updated = true;
+      void updateInList(List<Map<String, dynamic>> list) {
+        for (int i = 0; i < list.length; i++) {
+          final msg = list[i];
+          final msgId =
+          (msg['message_id'] ?? msg['messageId'] ?? msg['id'] ?? '').toString();
+
+          if (msgId == messageId) {
+            final oldStatus = (msg['messageStatus'] ?? '').toString();
+
+            if (oldStatus != 'read' || status == 'read') {
+              list[i] = {
+                ...msg,
+                'messageStatus': status,
+              };
+              updated = true;
+            }
+            break;
           }
-          break;
         }
       }
-    }
 
     List<Map<String, dynamic>>? combinedToSave;
     setState(() {
@@ -969,7 +977,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       updateInList(messages, 'messages');
       updateInList(socketMessages, 'socketMessages');
 
-      if (updated) {
+      if (shouldSave) {
         final combined = _getCombinedMessages();
         combinedToSave = combined;
       } else {
@@ -977,6 +985,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         // Store status to apply later when real ID arrives
         _pendingStatusUpdates[messageId] = status;
       }
+
       _updateNotifier();
       _refreshMessages();
     });
@@ -985,18 +994,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       _scheduleSaveMessages(combinedToSave!);
     }
   }
-
   /// 🔥 NEW: Extract and normalize reply data from incoming message
   Map<String, dynamic>? _extractReplyDataFromIncoming(
       Map<String, dynamic> replyRaw) {
     return GroupReplyData.extractReplyDataFromIncoming(replyRaw);
   }
-
   /// Ensure reply payloads are a stable, sanitized Map for UI & sending.
   Map<String, dynamic> _mergeReplyData(dynamic replyData) {
     return GroupReplyData.mergeReplyData(replyData, _allMessages);
   }
-
   /// Actually apply reaction change to in-memory lists and save
   void _updateMessageWithReaction(MessageReaction reaction) {
     if (!mounted) return;
@@ -3049,8 +3055,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                     groupMessageId;
 
                             if (!isFirstInGroup) {
-                              return const SizedBox.shrink();
+                              return const Offstage(offstage: true);
                             }
+
 
                             List<String> groupImages = [];
                             List<Map<String, dynamic>> groupMessagesList = [];
@@ -5431,7 +5438,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   Future<void> _showReactionsBottomSheet(
-      Map<String, dynamic> message, String initialEmoji) async {
+      Map<String, dynamic> message, String initialEmoji)
+  async {
     // helper to build normalized reactions list for a message object
     List<Map<String, dynamic>> _normalizeFromMap(Map<String, dynamic> msg) {
       final List<Map<String, dynamic>> out = [];
