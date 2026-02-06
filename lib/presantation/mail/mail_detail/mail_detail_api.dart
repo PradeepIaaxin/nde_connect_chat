@@ -1,14 +1,12 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:nde_email/data/respiratory.dart';
-// import 'mail_list.req.dart';
-// import 'package:nde_email/domain/user_model/mailbox_model_req.dart';
-// import 'package:nde_email/data/mailboxid.dart';
+
 import 'package:nde_email/data/token.dart';
 import 'package:nde_email/data/base_url.dart';
 import 'mail_detail_model.dart';
 
-class fatchdetailmailapi {
+class Fatchdetailmailapi {
   Future<MailDetailModel> fetchMailDetail(
       String messageId, String mailboxId) async {
     String? accessToken = await UserPreferences.getAccessToken();

@@ -24,6 +24,10 @@ class MailListState extends Equatable {
   final Map<String, int> unreadCountByMailbox;
   final int totalUnreadCount;
 
+  /// Mailbox metadata
+  final String? specialUse;
+  final String? currentMailboxId;
+
   const MailListState({
     required this.status,
     this.mails = const [],
@@ -35,6 +39,8 @@ class MailListState extends Equatable {
     this.hasReachedEnd = false,
     this.unreadCountByMailbox = const {},
     this.totalUnreadCount = 0,
+    this.specialUse,
+    this.currentMailboxId,
   });
 
   factory MailListState.initial() {
@@ -47,6 +53,8 @@ class MailListState extends Equatable {
       unreadCountByMailbox: {},
       totalUnreadCount: 0,
       hasReachedEnd: false,
+      specialUse: null,
+      currentMailboxId: null,
     );
   }
 
@@ -61,6 +69,10 @@ class MailListState extends Equatable {
     bool? hasReachedEnd,
     Map<String, int>? unreadCountByMailbox,
     int? totalUnreadCount,
+
+    /// 🔥 Use nullable wrapper to detect pass / no-pass
+    Object? specialUse = _noChange,
+    String? currentMailboxId,
   }) {
     return MailListState(
       status: status ?? this.status,
@@ -73,6 +85,12 @@ class MailListState extends Equatable {
       hasReachedEnd: hasReachedEnd ?? this.hasReachedEnd,
       unreadCountByMailbox: unreadCountByMailbox ?? this.unreadCountByMailbox,
       totalUnreadCount: totalUnreadCount ?? this.totalUnreadCount,
+
+      /// ✅ Correct metadata handling
+      specialUse:
+          specialUse == _noChange ? this.specialUse : specialUse as String?,
+
+      currentMailboxId: currentMailboxId ?? this.currentMailboxId,
     );
   }
 
@@ -86,5 +104,11 @@ class MailListState extends Equatable {
         isPaginating,
         snackbarMessage,
         hasReachedEnd,
+        unreadCountByMailbox,
+        totalUnreadCount,
+        specialUse,
+        currentMailboxId,
       ];
 }
+
+const Object _noChange = Object();

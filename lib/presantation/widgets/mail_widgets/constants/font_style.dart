@@ -10,6 +10,7 @@ class TextStyles {
         color: AppColors.headingText,
       );
 
+
   
   static TextStyle get subject => GoogleFonts.roboto(
         fontSize: 13,

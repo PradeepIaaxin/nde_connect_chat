@@ -304,9 +304,18 @@ class _HomeScreenState extends State<HomeScreen> {
       BuildContext context, MailListState state) {
     final bool hasUnreadSelected = _hasUnreadSelected(state);
 
-    /// ✅ ADD THIS
     final bool isArchiveMailbox =
         widget.mailboxName?.toLowerCase() == "archive";
+    final bool isjunkMailbox = widget.mailboxName?.toLowerCase() == "junk";
+    final bool isdeleteMailbox = widget.mailboxName?.toLowerCase() == "trash";
+    final bool isSentMailbox =
+        widget.mailboxName?.trim().toLowerCase() == "sent mail";
+
+    final bool isTrashMailbox =
+        widget.mailboxName?.trim().toLowerCase() == "trash";
+
+    print(widget.mailboxName);
+    log("name --- ${widget.mailboxName}");
 
     return AppBar(
       backgroundColor: Colors.white,
@@ -319,32 +328,37 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       title: Text("${state.selectedMailIds.length} selected"),
       actions: [
-        IconButton(
-          icon: Icon(
-            isArchiveMailbox ? Icons.unarchive : Icons.archive,
-          ),
-          onPressed: () {
-            if (isArchiveMailbox) {
-              /// 🔁 UNARCHIVE → Move back to Inbox
-              context.read<MailListBloc>().add(
-                    RevertArchiveEvent(
-                      mailIds: state.selectedMailIds.toList(),
-                      mailboxId: selectedMailboxId,
-                    ),
-                  );
-            } else {
-              /// 📦 NORMAL ARCHIVE
-              context.read<MailListBloc>().add(
-                    MoveToArchiveEvent(
-                      state.selectedMailIds.toList(),
-                      selectedMailboxId,
-                    ),
-                  );
-            }
+        isjunkMailbox || isdeleteMailbox || isSentMailbox || isTrashMailbox
+            ? SizedBox()
+            : IconButton(
+                icon: Icon(
+                  isArchiveMailbox ? Icons.unarchive : Icons.archive,
+                ),
+                onPressed: () {
+                  if (isArchiveMailbox) {
+                    /// 🔁 UNARCHIVE → Move back to Inbox
+                    context.read<MailListBloc>().add(
+                          RevertArchiveEvent(
+                            mailIds: state.selectedMailIds.toList(),
+                            mailboxId: selectedMailboxId,
+                          ),
+                        );
+                  } else {
+                    /// 📦 NORMAL ARCHIVE
+                    context.read<MailListBloc>().add(
+                          MoveToArchiveEvent(
+                            state.selectedMailIds.toList(),
+                            selectedMailboxId,
+                          ),
+                        );
+                  }
 
-            context.read<MailListBloc>().add(ClearSelectionEvent());
-          },
-        ),
+                  context.read<MailListBloc>().add(ClearSelectionEvent());
+                },
+              ),
+        // isjunkMailbox || isdeleteMailbox
+        //     ? SizedBox()
+        //     :
         IconButton(
           icon: const Icon(Icons.delete),
           onPressed: () {
@@ -356,6 +370,9 @@ class _HomeScreenState extends State<HomeScreen> {
             context.read<MailListBloc>().add(ClearSelectionEvent());
           },
         ),
+        // isjunkMailbox || isdeleteMailbox
+        //     ? SizedBox()
+        //     :
         IconButton(
           icon: Icon(
             hasUnreadSelected ? Icons.mark_email_read : Icons.mark_email_unread,
@@ -383,6 +400,9 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         ),
 
+        // isjunkMailbox || isdeleteMailbox
+        //     ? SizedBox()
+        //     :
         MailMoreMenu(
           onSelected: (action) {
             switch (action) {
