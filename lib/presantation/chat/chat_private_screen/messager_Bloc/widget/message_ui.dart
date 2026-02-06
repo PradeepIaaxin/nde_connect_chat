@@ -13,7 +13,6 @@ import 'package:nde_email/utils/reusbale/mime.type.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:linkify/linkify.dart';
 import 'VideoCacheService.dart';
-import 'VideoPlayerScreen.dart';
 
 class MessageBubble extends StatefulWidget {
   final Map<String, dynamic> message;
@@ -196,7 +195,9 @@ class _MessageBubbleState extends State<MessageBubble> {
 
     return Padding(
       padding:
-          EdgeInsets.symmetric(vertical: widget.emojpicker != null ? 6.0 : 0),
+          EdgeInsets.symmetric(vertical: widget.message['reactions'] != null &&
+              (widget.message['reactions'] as List).isNotEmpty &&
+              widget.buildReactionsBar != null ? 14.0 : 5),
       child: Align(
         alignment:
             widget.isSentByMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -547,7 +548,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                 (widget.message['reactions'] as List).isNotEmpty &&
                 widget.buildReactionsBar != null)
               Positioned(
-                bottom: (isReplyMessage ?? false) ? -35 : -28,
+                bottom: (isReplyMessage ?? false) ? -35 : -35,
                 right: widget.isSentByMe ? 12 : null,
                 left: widget.isSentByMe ? null : 12,
                 child: Padding(
