@@ -1,16 +1,24 @@
-import 'package:flutter/foundation.dart' as foundation;
+﻿import 'package:flutter/foundation.dart' as foundation;
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'package:dio/dio.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:path/path.dart' as p;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/gestures.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/local_strorage.dart';
-import 'package:nde_email/presantation/chat/chat_group_Screen/GroupRepliedMessagePreview.dart';
+import 'package:nde_email/presantation/chat/chat_group_Screen/GroupMessageBubbleWidget.dart';
+import 'package:nde_email/presantation/chat/chat_group_Screen/file_opener_utils.dart';
+import 'package:nde_email/presantation/chat/chat_group_Screen/group_offline_message_handling.dart';
+
 import 'package:nde_email/presantation/chat/chat_group_Screen/api_servicer.dart';
+import 'package:nde_email/presantation/chat/chat_group_Screen/group_chat_media_grouping_utils.dart';
+import 'package:nde_email/presantation/chat/chat_group_Screen/group_chat_message_utils.dart';
+import 'package:nde_email/presantation/chat/chat_group_Screen/group_chat_normalize_utils.dart';
+import 'package:nde_email/presantation/chat/chat_group_Screen/group_chat_reaction_utils.dart';
+import 'package:nde_email/presantation/chat/chat_group_Screen/group_chat_separators.dart';
+import 'package:nde_email/presantation/chat/chat_group_Screen/group_reply_data.dart';
+import 'package:nde_email/presantation/chat/chat_group_Screen/group_chat_text_utils.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_event.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_model.dart';
@@ -26,13 +34,12 @@ import 'package:nde_email/presantation/chat/widget/scaffold.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/grouped_media_viewer.dart'
     as viewer;
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/grouped_media_widget.dart';
-import 'package:nde_email/presantation/widgets/chat_widgets/Common/message_caption.dart';
-import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/AudioMessageWidget.dart';
+
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/show_Bottom_Sheet.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/reaction_bar.dart';
 import 'package:nde_email/utils/reusbale/colour_utlis.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
-import 'package:nde_email/utils/reusbale/mime.type.dart';
+
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/whatsapp_swipe_to_reply.dart';
 import '../../../data/respiratory.dart';
 import '../../../utils/simmer_effect.dart/chat_simmerefect.dart';
@@ -41,7 +48,6 @@ import '../../widgets/chat_widgets/messager_Wifgets/buildMessageInputField_widge
 import '../Socket/socket_service.dart';
 
 import '../chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
-import '../chat_private_screen/messager_Bloc/widget/double_tick_ui.dart';
 // import 'package:nde_email/presantation/chat/widget/image_viewer.dart';
 import '../chat_list/chat_session_storage/chat_session.dart';
 import '../chat_list/chat_bloc.dart';
@@ -100,6 +106,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   final FocusNode _focusNode = FocusNode();
   late final GroupChatBloc _groupBloc;
   late final ChatListBloc _chatListBloc;
+  late final GroupOfflineMessageHandler _offlineHandler;
   bool _hasNextPage = false;
 
   File? _imageFile;
@@ -161,130 +168,24 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   final Map<String, String> _pendingStatusUpdates =
       {}; // Buffer for race conditions
 
+  Timer? _saveMessagesDebounce;
+  List<Map<String, dynamic>>? _pendingSaveMessages;
 
+  Timer? _readMarkDebounce;
+  List<Map<String, dynamic>> _latestGroupedMessages = const [];
 
-  String sanitizeString(String? s) {
-    if (s == null || s.isEmpty) return '';
-    final List<int> result = [];
-    for (int i = 0; i < s.length; i++) {
-      int unit = s.codeUnitAt(i);
-      if (unit >= 0xD800 && unit <= 0xDBFF) {
-        if (i + 1 < s.length) {
-          int next = s.codeUnitAt(i + 1);
-          if (next >= 0xDC00 && next <= 0xDFFF) {
-            result.add(unit);
-            result.add(next);
-            i++;
-            continue;
-          }
-        }
-        continue;
-      } else if (unit >= 0xDC00 && unit <= 0xDFFF) {
-        continue;
-      } else {
-        result.add(unit);
-      }
-    }
-    return String.fromCharCodes(result);
-  }
-
-  List<InlineSpan> _buildHighlightSpans(String text, TextStyle baseStyle) {
-    final safeText = sanitizeString(text);
-
-    if (_searchController.text.isEmpty ||
-        !safeText
-            .toLowerCase()
-            .contains(_searchController.text.toLowerCase())) {
-      return [TextSpan(text: safeText, style: baseStyle)];
-    }
-
-    final List<InlineSpan> spans = [];
-    final String query = _searchController.text.toLowerCase();
-    int start = 0;
-    int indexOfMatch;
-
-    while (
-        (indexOfMatch = safeText.toLowerCase().indexOf(query, start)) != -1) {
-      if (indexOfMatch > start) {
-        spans.add(TextSpan(
-          text: safeText.substring(start, indexOfMatch),
-          style: baseStyle,
-        ));
-      }
-
-      spans.add(TextSpan(
-        text: safeText.substring(indexOfMatch, indexOfMatch + query.length),
-        style: baseStyle.copyWith(
-          backgroundColor: Colors.yellow,
-          color: Colors.black,
-          fontWeight: FontWeight.bold,
-        ),
-      ));
-
-      start = indexOfMatch + query.length;
-    }
-
-    if (start < safeText.length) {
-      spans.add(TextSpan(
-        text: safeText.substring(start),
-        style: baseStyle,
-      ));
-    }
-
-    return spans;
-  }
-
-  // List<InlineSpan> _buildHighlightSpans(String text, TextStyle baseStyle) {
-  //   if (_searchController.text.isEmpty ||
-  //       !text.toLowerCase().contains(_searchController.text.toLowerCase())) {
-  //     return [TextSpan(text: text, style: baseStyle)];
-  //   }
-
-  //   final List<InlineSpan> spans = [];
-  //   final String query = _searchController.text.toLowerCase();
-  //   int start = 0;
-  //   int indexOfMatch;
-  //   while ((indexOfMatch = text.toLowerCase().indexOf(query, start)) != -1) {
-  //     if (indexOfMatch > start) {
-  //       spans.add(TextSpan(
-  //         text: text.substring(start, indexOfMatch),
-  //         style: baseStyle,
-  //       ));
-  //     }
-
-  //     spans.add(TextSpan(
-  //       text: text.substring(indexOfMatch, indexOfMatch + query.length),
-  //       style: baseStyle.copyWith(
-  //         backgroundColor: Colors.yellow,
-  //         color: Colors.black,
-  //         fontWeight: FontWeight.bold,
-  //       ),
-  //     ));
-
-  //     start = indexOfMatch + query.length;
-  //   }
-
-  //   if (start < text.length) {
-  //     spans.add(TextSpan(
-  //       text: text.substring(start),
-  //       style: baseStyle,
-  //     ));
-  //   }
-
-  //   return spans;
-  // }
+  Future<void>? _pendingExitCleanup;
 
   @override
   void dispose() {
     _draftDebounce?.cancel();
+    _saveMessagesDebounce?.cancel();
+    _readMarkDebounce?.cancel();
     SocketService().clearActiveConversation();
     _messageDeletedSubscription?.cancel();
     final unsentText = _messageController.text.trim();
-    if (unsentText.isNotEmpty) {
-      _saveDraft(unsentText);
-    } else {
-      _clearDraft();
-    }
+
+    _pendingExitCleanup = _scheduleExitCleanup(unsentText);
 
     _messageController.dispose();
     _focusNode.dispose();
@@ -303,8 +204,65 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     _connSub?.cancel();
     _searchController.dispose();
 
-    _clearSessionImagePath();
+    unawaited(_scheduleClearSessionImagePath());
     super.dispose();
+  }
+
+  Future<void> _scheduleExitCleanup(String unsentText) {
+    return Future<void>(() async {
+      try {
+        if (widget.conversationId.isEmpty) return;
+
+        if (unsentText.isNotEmpty) {
+          await GrpLocalChatStorage.saveDraftMessage(
+              widget.conversationId, unsentText);
+          ChatSessionStorage.updateDraftMessage(
+            convoId: widget.conversationId,
+            draftMessage: unsentText,
+          );
+        } else {
+          await GrpLocalChatStorage.clearDraftMessage(widget.conversationId);
+          ChatSessionStorage.updateDraftMessage(
+            convoId: widget.conversationId,
+            draftMessage: null,
+          );
+        }
+
+        await Future<void>.delayed(Duration.zero);
+        _chatListBloc.add(UpdateLocalChatList());
+      } catch (_) {}
+    });
+  }
+
+  Future<void> _scheduleClearSessionImagePath() {
+    return Future<void>(() async {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('chat_image_path');
+        await prefs.remove('chat_file_path');
+      } catch (_) {}
+    });
+  }
+
+  void _scheduleSaveMessages(List<Map<String, dynamic>> combined) {
+    _pendingSaveMessages = combined;
+    _saveMessagesDebounce?.cancel();
+    _saveMessagesDebounce = Timer(const Duration(milliseconds: 600), () {
+      final pending = _pendingSaveMessages;
+      if (pending == null) return;
+      _pendingSaveMessages = null;
+      unawaited(
+          GrpLocalChatStorage.saveMessages(widget.conversationId, pending));
+    });
+  }
+
+  void _scheduleMarkReadAfterScrollStops() {
+    _readMarkDebounce?.cancel();
+    _readMarkDebounce = Timer(const Duration(milliseconds: 220), () {
+      if (!mounted) return;
+      if (_latestGroupedMessages.isEmpty) return;
+      _markVisibleMessagesAsRead(_latestGroupedMessages);
+    });
   }
 
   void _onSearchChanged(String query) async {
@@ -362,8 +320,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
       // Only search in text content (not file names for media)
       if (content.contains(lowerQuery)) {
-        final msgId = _anyId(msg)?.toString();
-        if (msgId != null && msgId.isNotEmpty) {
+        final msgId = GroupChatMessageUtils.anyId(msg);
+        if (msgId.isNotEmpty) {
           matchIds.add(msgId);
         }
       }
@@ -373,7 +331,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     int oldestIndex = combined.length;
     for (final id in matchIds) {
       final idx =
-          combined.indexWhere((m) => (_anyId(m)?.toString() ?? '') == id);
+          combined.indexWhere((m) => GroupChatMessageUtils.anyId(m) == id);
       if (idx != -1 && idx < oldestIndex) {
         oldestIndex = idx;
       }
@@ -434,7 +392,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       _scrollToMessaageById(_highlightedMessageId!, fetchIfMissing: false);
     }
   }
-
 
   Future<bool> _scrollToMessaageById(
     String messageId, {
@@ -565,54 +522,37 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     });
   }
 
-  dynamic _anyId(Map<String, dynamic> m) {
-    final candidates = [
-      m['message_id'],
-      m['messageId'],
-      m['id'],
-      m['_id'],
-      m['reply_message_id'],
-      m['replyMessageId'],
-      if (m['reply'] is Map) m['reply']['reply_message_id'],
-      if (m['reply'] is Map) m['reply']['message_id'],
-      if (m['reply'] is Map) m['reply']['id'],
-      if (m['repliedMessage'] is Map) m['repliedMessage']['reply_message_id'],
-      if (m['repliedMessage'] is Map) m['repliedMessage']['message_id'],
-      if (m['repliedMessage'] is Map) m['repliedMessage']['id'],
-    ];
-
-    for (final c in candidates) {
-      if (c != null && c.toString().isNotEmpty) {
-        return c.toString();
-      }
-    }
-    return '';
-  }
-
-  List<String> extractGroupMembers(List<dynamic> messages) {
-    final Set<String> memberIds = {};
-
-    for (var msg in messages) {
-      if (msg['properties'] != null) {
-        for (var prop in msg['properties']) {
-          if (prop['user'] != null && prop['user']['_id'] != null) {
-            memberIds.add(prop['user']['_id']);
-          }
-        }
-      }
-    }
-
-    return memberIds.toList();
-  }
-
   Timer? _draftDebounce;
 
   @override
   void initState() {
     super.initState();
-log("nameeeeeeeeeeeee ${widget.groupName}");
+    log("nameeeeeeeeeeeee ${widget.groupName}");
     SocketService().setActiveConversation(widget.conversationId);
     currentUserId = widget.currentUserId;
+    _groupBloc = GroupChatBloc(socketService, GrpMessagerApiService());
+    _chatListBloc = context.read<ChatListBloc>();
+    _offlineHandler = GroupOfflineMessageHandler(
+      getContext: () => context,
+      getSocketMessages: () => socketMessages,
+      getMessages: () => messages,
+      getDbMessages: () => dbMessages,
+      getSeenMessageIds: () => _seenMessageIds,
+      getPendingStatusUpdates: () => _pendingStatusUpdates,
+      getOfflineQueue: () => _offlineQueue,
+      isOnline: () => _isOnline,
+      getSocketService: () => socketService,
+      getGroupBloc: () => _groupBloc,
+      getConversationId: () => widget.conversationId,
+      getCurrentUserId: () => currentUserId,
+      getDatumId: () => widget.datumId,
+      setState: (fn) {
+        if (mounted) setState(fn);
+      },
+      refreshMessages: _refreshMessages,
+      getCombinedMessages: _getCombinedMessages,
+      updateMessageStatus: _updateMessageStatus,
+    );
     SocketService().joinChatRoom(
       senderId: currentUserId,
       receiverId: widget.datumId,
@@ -646,13 +586,11 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
       if (hasNet != _isOnline) {
         if (mounted) setState(() => _isOnline = hasNet);
         if (hasNet) {
-          _flushOfflinePendingMessages();
+          _offlineHandler.flushOfflinePendingMessages();
         }
       }
     });
 
-    _groupBloc = GroupChatBloc(socketService, GrpMessagerApiService());
-    _chatListBloc = context.read<ChatListBloc>();
     _initializeSocket();
 
     _loadCurrentUserId();
@@ -680,16 +618,6 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
       });
     });
 
-    // Add text change listener for draft saving
-    // _messageController.addListener(() {
-    //   final text = _messageController.text.trim();
-    //   if (text.isEmpty) {
-    //     _clearDraft();
-    //   } else {
-    //     _saveDraft(text);
-    //   }
-    // });
-
     // Load draft after initialization
     _loadDraft();
     groupMembers = widget.groupMembers ?? [];
@@ -709,7 +637,7 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
           _updateMessageStatus(serverMessageId, serverStatus);
         }
       } else if (state is GrpMessageAckReceived) {
-        _replaceTempMessageWithReal(
+        _offlineHandler.replaceTempMessageWithReal(
           tempId: state.tempId,
           realId: state.realId,
           status: state.status,
@@ -774,6 +702,7 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
       Messenger.alert(msg: "Could not open camera.");
     }
   }
+
   bool isSameDay(DateTime? date1, DateTime? date2) {
     if (date1 == null || date2 == null) return false;
     return date1.year == date2.year &&
@@ -886,6 +815,7 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
 
     if (!mounted) return;
 
+    List<Map<String, dynamic>>? combinedToSave;
     setState(() {
       // Check if message already exists in socketMessages (optimistic update)
       int existingIndex = socketMessages.indexWhere((m) {
@@ -928,10 +858,14 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
       }
 
       final combined = _getCombinedMessages();
-      GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
+      combinedToSave = combined;
 
       _updateNotifier();
     });
+
+    if (combinedToSave != null) {
+      _scheduleSaveMessages(combinedToSave!);
+    }
   }
   void _handleReactionUpdate(dynamic reactionData) {
     try {
@@ -1037,231 +971,37 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
         }
       }
 
-      bool shouldSave = false;
-
-      setState(() {
-        updateInList(dbMessages);
-        updateInList(messages);
-        updateInList(socketMessages);
-
-        if (updated) {
-          shouldSave = true;
-        } else {
-          _pendingStatusUpdates[messageId] = status;
-        }
-      });
+    List<Map<String, dynamic>>? combinedToSave;
+    setState(() {
+      updateInList(dbMessages, 'dbMessages');
+      updateInList(messages, 'messages');
+      updateInList(socketMessages, 'socketMessages');
 
       if (shouldSave) {
         final combined = _getCombinedMessages();
-        GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
+        combinedToSave = combined;
+      } else {
+        // ⚠️ Race condition handling: Message might be temporary (pending replacement)
+        // Store status to apply later when real ID arrives
+        _pendingStatusUpdates[messageId] = status;
       }
 
       _updateNotifier();
       _refreshMessages();
     });
+
+    if (combinedToSave != null) {
+      _scheduleSaveMessages(combinedToSave!);
+    }
   }
   /// 🔥 NEW: Extract and normalize reply data from incoming message
   Map<String, dynamic>? _extractReplyDataFromIncoming(
-      Map<String, dynamic> replyRaw)
-  {
-    try {
-      final String mediaUrl = replyRaw["originalUrl"]?.toString() ??
-          replyRaw["imageUrl"]?.toString() ??
-          replyRaw["fileUrl"]?.toString() ??
-          "";
-      final String fileName = replyRaw["fileName"]?.toString() ?? "";
-
-      // Get extension
-      String ext = "";
-      if (mediaUrl.isNotEmpty) {
-        final uri = Uri.tryParse(mediaUrl);
-        ext = uri?.path.split('.').last.toLowerCase() ?? "";
-      } else if (fileName.isNotEmpty) {
-        ext = fileName.split('.').last.toLowerCase();
-      }
-
-      // Guess type by extension if not provided
-      String mimeType = replyRaw["mimeType"]?.toString() ??
-          replyRaw["fileType"]?.toString() ??
-          "";
-      String contentType = replyRaw["ContentType"]?.toString() ??
-          replyRaw["contentType"]?.toString() ??
-          "";
-
-      if (mimeType.isEmpty || contentType.isEmpty) {
-        if (["jpg", "jpeg", "png", "gif", "webp"].contains(ext)) {
-          mimeType = "image/$ext";
-          contentType = "image";
-        } else if (["mp4", "mov", "mkv", "avi", "webm"].contains(ext)) {
-          mimeType = "video/$ext";
-          contentType = "video";
-        } else if (["mp3", "wav", "aac", "m4a", "flac", "ogg", "opus"]
-            .contains(ext)) {
-          mimeType = "audio/$ext";
-          contentType = "audio";
-        } else if (["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt"]
-            .contains(ext)) {
-          mimeType = "application/$ext";
-          contentType = "document";
-        } else if (mediaUrl.isNotEmpty) {
-          mimeType = "application/octet-stream";
-          contentType = "file";
-        }
-      }
-
-      return {
-        "userId": replyRaw["userId"] ?? replyRaw["senderId"],
-        "id": replyRaw["id"] ?? replyRaw["message_id"] ?? replyRaw["messageId"],
-        "mimeType": mimeType,
-        "fileType": mimeType,
-        "ContentType": contentType,
-        "contentType": contentType,
-        "replyContent": replyRaw["content"] ?? replyRaw["replyContent"] ?? "",
-        "replyToUser": replyRaw["senderName"] ??
-            replyRaw["userName"] ??
-            replyRaw["replyToUser"] ??
-            replyRaw["replyToUSer"] ??
-            "",
-        "fileName": replyRaw["fileName"] ?? "",
-        "first_name": replyRaw["first_name"] ?? "",
-        "last_name": replyRaw["last_name"] ?? "",
-        "imageUrl": replyRaw["imageUrl"] ?? replyRaw["thumbnailUrl"] ?? "",
-        "fileUrl": replyRaw["fileUrl"] ?? "",
-        "originalUrl": replyRaw["originalUrl"] ?? "",
-        "duration": replyRaw["duration"] ?? replyRaw["videoDuration"],
-        "videoDuration": replyRaw["videoDuration"] ?? replyRaw["duration"],
-        'profile_pic_path':
-            replyRaw['profile_pic_path'] ?? replyRaw['profilePic'] ?? '',
-        // 🔥 NEW: Persist grouped reply metadata
-        'imageCount': replyRaw['imageCount'] ?? 0,
-        'videoCount': replyRaw['videoCount'] ?? 0,
-        'group_message_id': replyRaw['group_message_id'],
-        'isGroupedReply': replyRaw['isGroupedReply'] ?? false,
-        'groupMessageIds': replyRaw['groupMessageIds'] ?? [],
-      };
-    } catch (e) {
-      return null;
-    }
+      Map<String, dynamic> replyRaw) {
+    return GroupReplyData.extractReplyDataFromIncoming(replyRaw);
   }
   /// Ensure reply payloads are a stable, sanitized Map for UI & sending.
   Map<String, dynamic> _mergeReplyData(dynamic replyData) {
-    if (replyData == null) return <String, dynamic>{};
-
-    final Map<String, dynamic> merged = {};
-
-    // Accept Map or JSON string
-    if (replyData is String) {
-      try {
-        final decoded = jsonDecode(replyData);
-        if (decoded is Map) {
-          merged.addAll(Map<String, dynamic>.from(decoded));
-        } else {
-          merged['replyContent'] = replyData;
-        }
-      } catch (_) {
-        merged['replyContent'] = replyData;
-      }
-    } else if (replyData is Map) {
-      merged.addAll(Map<String, dynamic>.from(replyData));
-    } else {
-      return <String, dynamic>{};
-    }
-
-    // ID normalization
-    merged['id'] = merged['id'] ??
-        merged['message_id'] ??
-        merged['messageId'] ??
-        merged['_id'] ??
-        '';
-
-    // Content / reply text
-    merged['replyContent'] =
-        merged['replyContent'] ?? merged['content'] ?? merged['message'] ?? '';
-
-    // Ensure fileType/mimeType parity
-    if ((merged['fileType'] == null || merged['fileType'].toString().isEmpty) &&
-        merged['mimeType'] != null) {
-      merged['fileType'] = merged['mimeType'];
-    }
-    if ((merged['mimeType'] == null || merged['mimeType'].toString().isEmpty) &&
-        merged['fileType'] != null) {
-      merged['mimeType'] = merged['fileType'];
-    }
-
-    // Grouped metadata compatibility
-    merged['group_message_id'] = merged['group_message_id'] ??
-        merged['groupMessageId'] ??
-        merged['groupId'];
-    merged['groupMessageIds'] = merged['groupMessageIds'] ??
-        (merged['groupMessageId'] != null ? [merged['groupMessageId']] : []);
-    merged['is_grouped_message'] = merged['is_grouped_message'] ??
-        merged['isGroupedMessage'] ??
-        merged['isGroupedReply'] ??
-        ((merged['imageCount'] ?? 0) as num) > 0 ||
-            ((merged['videoCount'] ?? 0) as num) > 0;
-
-    // Coerce counts to int
-    merged['imageCount'] =
-        int.tryParse(merged['imageCount']?.toString() ?? '') ??
-            (merged['imageCount'] is int ? merged['imageCount'] : 0);
-    merged['videoCount'] =
-        int.tryParse(merged['videoCount']?.toString() ?? '') ??
-            (merged['videoCount'] is int ? merged['videoCount'] : 0);
-
-    // Ensure canonical URLs/filenames
-    merged['originalUrl'] =
-        merged['originalUrl'] ?? merged['fileUrl'] ?? merged['imageUrl'] ?? '';
-
-    // 🔥 FALLBACK LOOKUP: If URL is still empty, try to find the original message in _allMessages
-    if ((merged['originalUrl'] as String).isEmpty) {
-      final replyId = merged['id'];
-      if (replyId != null && replyId.toString().isNotEmpty) {
-        final originalMsg = _allMessages.firstWhere(
-          (m) =>
-              (m['message_id'] ?? m['messageId'] ?? m['id'] ?? m['_id'])
-                  ?.toString() ==
-              replyId.toString(),
-          orElse: () => <String, dynamic>{},
-        );
-        if (originalMsg.isNotEmpty) {
-          merged['originalUrl'] = originalMsg['originalUrl'] ??
-              originalMsg['fileUrl'] ??
-              originalMsg['imageUrl'] ??
-              '';
-
-          // Also populate other missing fields
-          if (merged['fileName'] == null ||
-              merged['fileName'].toString().isEmpty) {
-            merged['fileName'] = originalMsg['fileName'];
-          }
-          if (merged['mimeType'] == null ||
-              merged['mimeType'].toString().isEmpty) {
-            merged['mimeType'] =
-                originalMsg['mimeType'] ?? originalMsg['fileType'];
-          }
-          if (merged['ContentType'] == null ||
-              merged['ContentType'].toString().isEmpty) {
-            merged['ContentType'] =
-                originalMsg['ContentType'] ?? originalMsg['contentType'];
-          }
-        }
-      }
-    }
-
-    merged['imageUrl'] = merged['imageUrl'] ??
-        merged['thumbnailUrl'] ??
-        merged['originalUrl'] ??
-        '';
-    merged['fileUrl'] = merged['fileUrl'] ?? merged['originalUrl'] ?? '';
-
-    // sanitize string fields to avoid UTF-16 errors in TextSpan/TextPainter
-    final keys = merged.keys.toList();
-    for (final k in keys) {
-      final v = merged[k];
-      if (v is String) merged[k] = sanitizeString(v);
-    }
-
-    return merged;
+    return GroupReplyData.mergeReplyData(replyData, _allMessages);
   }
   /// Actually apply reaction change to in-memory lists and save
   void _updateMessageWithReaction(MessageReaction reaction) {
@@ -1312,63 +1052,11 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
         _updateNotifier();
       });
       final combined = _getCombinedMessages();
-      GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
+      _scheduleSaveMessages(combined);
     } else {}
   }
 
   // ------------------ Reaction Helpers ------------------
-
-  List<Map<String, dynamic>> _extractReactions(dynamic raw) {
-    final List<Map<String, dynamic>> out = [];
-
-    if (raw is! List) return out;
-
-    for (final e in raw) {
-      if (e is! Map) continue;
-      final m = Map<String, dynamic>.from(e);
-
-      final emoji = m['emoji']?.toString();
-      if (emoji == null || emoji.trim().isEmpty) continue;
-
-      String? userId = m['userId']?.toString();
-      final user = m['user'];
-
-      // user is full object
-      if ((userId == null || userId.isEmpty) && user is Map) {
-        userId = (user['_id'] ?? user['id'] ?? user['userId'])?.toString();
-      }
-
-      // user is just string id
-      if ((userId == null || userId.isEmpty) && user is String) {
-        userId = user;
-      }
-
-      if (userId == null || userId.isEmpty) {
-        userId = "unknown";
-      }
-
-      out.add({
-        'emoji': emoji,
-        'userId': userId,
-        'user': user is Map ? Map<String, dynamic>.from(user) : null,
-        'reacted_at': (m['reacted_at'] ?? m['createdAt'] ?? '').toString(),
-      });
-    }
-
-    return out;
-  }
-
-  String _normalizeMessageIdForApi(String messageId) {
-    if (messageId.isEmpty) return messageId;
-
-    if (messageId.startsWith('forward_')) {
-      final parts = messageId.split('_');
-      if (parts.length >= 3) {
-        return parts[1];
-      }
-    }
-    return messageId;
-  }
 
   void _sendAudioMessage(String path, int duration) {
     if (path.isEmpty) return;
@@ -1401,7 +1089,7 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
     // 3. Update UI and save
     _refreshMessages();
     final combined = _getCombinedMessages();
-    GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
+    _scheduleSaveMessages(combined);
 
     _scrollToBottom();
 
@@ -1428,7 +1116,8 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
     if (targetMessageId.trim().isEmpty) return;
 
     String normalizeId(dynamic id) => id?.toString().trim() ?? '';
-    final apiTargetId = _normalizeMessageIdForApi(targetMessageId);
+    final apiTargetId =
+        GroupChatMessageUtils.normalizeMessageIdForApi(targetMessageId);
 
     bool changed = false;
 
@@ -1438,7 +1127,8 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
         final rawMsgId = normalizeId(
           msg['message_id'] ?? msg['messageId'] ?? msg['id'] ?? msg['_id'],
         );
-        final normalizedMsgId = _normalizeMessageIdForApi(rawMsgId);
+        final normalizedMsgId =
+            GroupChatMessageUtils.normalizeMessageIdForApi(rawMsgId);
 
         // Check both exact match and normalized match
         if (rawMsgId != targetMessageId && normalizedMsgId != apiTargetId) {
@@ -1446,7 +1136,8 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
         }
 
         // Normalize existing reactions
-        final reactions = _extractReactions(msg['reactions']);
+        final reactions =
+            GroupChatReactionUtils.extractReactions(msg['reactions']);
 
         // remove my old reaction (if any)
         reactions.removeWhere((r) {
@@ -1491,7 +1182,7 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
         // We need to ensure _getCombinedMessages will pick up the changes.
         // Since we modified the source lists in place (with new maps), it should work.
         final combined = _getCombinedMessages();
-        GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
+        _scheduleSaveMessages(combined);
       } else {}
       _updateNotifier();
     });
@@ -1515,11 +1206,12 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
         return;
       }
 
-      final apiMessageId = _normalizeMessageIdForApi(rawId);
+      final apiMessageId =
+          GroupChatMessageUtils.normalizeMessageIdForApi(rawId);
 
       // normalize reactions for this message
       final List<Map<String, dynamic>> reactions =
-          _extractReactions(message['reactions']);
+          GroupChatReactionUtils.extractReactions(message['reactions']);
 
       int myIndex = -1;
       String? oldEmoji;
@@ -1593,208 +1285,6 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
         });
       }
     } catch (e, st) {}
-  }
-
-  Map<String, dynamic> normalizeMessage(dynamic rawMsg) {
-    if (rawMsg == null) return {};
-    if (rawMsg is String) return {};
-    if (rawMsg is! Map && rawMsg is! GroupMessageModel) return {};
-
-    Map<String, dynamic> message = {};
-
-    if (rawMsg is GroupMessageModel) {
-      message = rawMsg.toJson();
-    } else if (rawMsg is Map) {
-      try {
-        message = Map<String, dynamic>.from(rawMsg);
-      } catch (e) {
-        return {};
-      }
-    }
-
-    final content = message['content']?.toString().trim() ?? '';
-    final userName = message['userName'] ?? '';
-    final isForwarded = message['isForwarded'] ?? false;
-    final imageUrl = message['originalUrl'] ?? message['imageUrl'];
-    final fileUrl = message['originalUrl'] ?? message['fileUrl'];
-    final fileName = message['fileName'];
-    final fileType = message['mimeType'] ?? message['fileType'];
-    final messageId = message['message_id'] ?? message['id'];
-    final contentType = message['ContentType'] ?? message['contentType'];
-
-    final isReplyMessage = message['isReplyMessage'] ?? false;
-    final reply = message['reply'] ?? message['repliedMessage'];
-
-    final senderData = message['sender'] is Map ? message['sender'] : {};
-    final String profilePic = senderData['profile_pic_path'] ??
-        senderData['profilePic'] ??
-        senderData['avatar'] ??
-        '';
-
-    final normalizedReply = (reply != null && reply is Map<String, dynamic>)
-        ? (() {
-            // Extract URLs and fileName for extension check
-            final String mediaUrl = reply["originalUrl"]?.toString() ??
-                reply["imageUrl"]?.toString() ??
-                reply["fileUrl"]?.toString() ??
-                "";
-            final String fileName = reply["fileName"]?.toString() ?? "";
-
-            // Get extension
-            String ext = "";
-            if (mediaUrl.isNotEmpty) {
-              final uri = Uri.tryParse(mediaUrl);
-              ext = uri?.path.split('.').last.toLowerCase() ?? "";
-            } else if (fileName.isNotEmpty) {
-              ext = fileName.split('.').last.toLowerCase();
-            }
-
-            // Guess type by extension if not provided
-            String mimeType = reply["mimeType"]?.toString() ??
-                reply["fileType"]?.toString() ??
-                "";
-            String contentType = reply["ContentType"]?.toString() ??
-                reply["contentType"]?.toString() ??
-                "";
-
-            if (mimeType.isEmpty || contentType.isEmpty) {
-              if (["jpg", "jpeg", "png", "gif", "webp"].contains(ext)) {
-                mimeType = "image/$ext";
-                contentType = "image";
-              } else if (["mp4", "mov", "mkv", "avi", "webm"].contains(ext)) {
-                mimeType = "video/$ext";
-                contentType = "video";
-              } else if (["mp3", "wav", "aac", "m4a", "flac", "ogg", "opus"]
-                  .contains(ext)) {
-                mimeType = "audio/$ext";
-                contentType = "audio";
-              } else if ([
-                "pdf",
-                "doc",
-                "docx",
-                "xls",
-                "xlsx",
-                "ppt",
-                "pptx",
-                "txt"
-              ].contains(ext)) {
-                mimeType = "application/$ext";
-                contentType = "document";
-              } else if (mediaUrl.isNotEmpty) {
-                mimeType = "application/octet-stream";
-                contentType = "file";
-              }
-            }
-
-            return {
-              "userId": reply["userId"] ?? reply["senderId"],
-              "id": reply["id"] ?? reply["message_id"] ?? reply["messageId"],
-              "mimeType": mimeType,
-              "fileType": mimeType,
-              "ContentType": contentType,
-              "contentType": contentType,
-              "replyContent": reply["content"] ?? reply["replyContent"] ?? "",
-              "replyToUser": reply["senderName"] ??
-                  reply["userName"] ??
-                  reply["replyToUser"] ??
-                  reply["replyToUSer"] ??
-                  "",
-              "fileName": reply["fileName"] ?? "",
-              "first_name": reply["first_name"] ?? "",
-              "last_name": reply["last_name"] ?? "",
-              "imageUrl": reply["imageUrl"] ?? reply["thumbnailUrl"] ?? "",
-              "fileUrl": reply["fileUrl"] ?? "",
-              "originalUrl": reply["originalUrl"] ?? "",
-              "duration": reply["duration"] ?? reply["videoDuration"],
-              "videoDuration": reply["videoDuration"] ?? reply["duration"],
-              'profile_pic_path': message['sender']?['profile_pic_path'] ??
-                  message['sender']?['profilePic'] ??
-                  message['profile_pic_path'] ??
-                  '',
-              "imageCount": reply["imageCount"] ?? 0,
-              "videoCount": reply["videoCount"] ?? 0,
-            };
-          })()
-        : null;
-
-    // 🔥 NEW: Deep normalization of reactions to prevent "Unknown User"
-    final rawReactions = message['reactions'] as List? ?? [];
-    final List<Map<String, dynamic>> normalizedReactions = [];
-
-    for (var r in rawReactions) {
-      if (r is! Map) continue;
-      final reactionMap = Map<String, dynamic>.from(r);
-
-      // Fix User Data Structure
-      var userObj = reactionMap['user'];
-      String? userId = reactionMap['userId']?.toString();
-
-      // Case: user is just an ID string
-      if (userObj is String) {
-        if (userId == null || userId.isEmpty) userId = userObj;
-        userObj = {'_id': userId}; // Create stub user object
-      }
-      // Case: user is Map
-      else if (userObj is Map) {
-        if (userId == null || userId.isEmpty) {
-          userId = userObj['_id']?.toString() ??
-              userObj['id']?.toString() ??
-              userObj['userId']?.toString();
-        }
-      }
-
-      // Ensure we have a valid userId at the top level for _extractReactions
-      reactionMap['userId'] = userId;
-      reactionMap['user'] = userObj;
-
-      normalizedReactions.add(reactionMap);
-    }
-
-    final messageStatus = (message['messageStatus'] ??
-            message['status'] ??
-            message['deliveryStatus'] ??
-            'sent')
-        .toString();
-
-    final bool isDeleted =
-        message['is_deleted'] == true || message['isDeleted'] == true;
-
-    final conversationId = message['conversationId'] ??
-        message['convoId'] ??
-        message['conversation_id'];
-
-    return {
-      'conversationId': conversationId,
-      'message_id': messageId,
-      'messageId': messageId,
-      'content': isDeleted ? '🚫 This message was deleted' : content,
-      'userName': userName,
-      'sender': message['sender'],
-      'receiver': message['receiver'],
-      'messageStatus': isDeleted
-          ? 'deleted'
-          : (messageStatus.isEmpty ? 'sent' : messageStatus),
-      'time': message['time'],
-      'imageUrl': isDeleted ? null : imageUrl,
-      'fileName': isDeleted ? null : fileName,
-      'ContentType': contentType,
-      'contentType': contentType,
-      'fileUrl': isDeleted ? null : fileUrl,
-      'fileType': isDeleted ? null : fileType,
-      'isForwarded': isForwarded,
-      'isReplyMessage': isReplyMessage,
-      'repliedMessage': normalizedReply,
-      'reactions': normalizedReactions,
-      'profile_pic_path': profilePic,
-      'isDeleted': isDeleted,
-      'is_deleted': isDeleted,
-      'duration': message['duration']?.toString() ??
-          message['videoDuration']?.toString(),
-      'is_grouped_message':
-          message['is_grouped_message'] ?? message['isGroupedMessage'],
-      'group_message_id':
-          message['group_message_id'] ?? message['groupMessageId'],
-    };
   }
 
   bool isValidUrl(String url) {
@@ -1876,32 +1366,40 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
   }
 
   Future<void> _initMessages() async {
+    // 🟢 OPTIMIZATION: Yield to event loop to allow navigation animation to finish smoothly
+    await Future.delayed(Duration.zero);
+
     // Clear current messages first
-    setState(() {
-      dbMessages.clear();
-      messages.clear();
-      socketMessages.clear();
-      _seenMessageIds.clear();
-    });
+    if (mounted) {
+      setState(() {
+        dbMessages.clear();
+        messages.clear();
+        socketMessages.clear();
+        _seenMessageIds.clear();
+      });
+    }
 
     // Load from local storage
     final savedMessages =
         await GrpLocalChatStorage.loadMessages(widget.conversationId);
 
     if (savedMessages.isNotEmpty) {
-      setState(() {
-        dbMessages = savedMessages
-            .map<Map<String, dynamic>>((msg) => normalizeMessage(msg))
-            .where((m) => m.isNotEmpty)
-            .toList();
+      if (mounted) {
+        setState(() {
+          dbMessages = savedMessages
+              .map<Map<String, dynamic>>(
+                  (msg) => GroupChatNormalizeUtils.normalizeMessage(msg))
+              .where((m) => m.isNotEmpty)
+              .toList();
 
-        for (var m in dbMessages) {
-          final id = (m['message_id'] ?? m['id'])?.toString();
-          if (id != null && id.isNotEmpty) _seenMessageIds.add(id);
-        }
-      });
+          for (var m in dbMessages) {
+            final id = (m['message_id'] ?? m['id'])?.toString();
+            if (id != null && id.isNotEmpty) _seenMessageIds.add(id);
+          }
+        });
 
-      _updateNotifier();
+        _updateNotifier();
+      }
 
       // Also fetch fresh messages from server
       _groupBloc.add(
@@ -2202,7 +1700,7 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
       if (_visibleCount > 0) _visibleCount++;
 
       final combined = [...dbMessages, ...messages, ...socketMessages];
-      GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
+      _scheduleSaveMessages(combined);
       _updateNotifier();
     });
 
@@ -2261,7 +1759,7 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
       await subscription.cancel();
 
       // Swap temp ID with real server ID
-      _replaceTempMessageWithReal(
+      _offlineHandler.replaceTempMessageWithReal(
         tempId: tempId,
         realId: sentMsg.messageId,
         status: 'sent',
@@ -2421,11 +1919,7 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
     // 2. Combined regex for URLs and Mentions
     final String urlPattern = r'((https?:\/\/)|(www\.))[^\s]+';
 
-    if (hasSearchMatch) {
-      // Advanced: We'll split the content into searchable parts vs non-searchable?
-      // Actually, the most robust way is a nested loop or a single regex pass.
-      // Let's stick to the single regex pass for links/mentions and then sub-process for search.
-    }
+    if (hasSearchMatch) {}
 
     final RegExp combinedRegExp =
         RegExp('$urlPattern|$mentionPattern', caseSensitive: false);
@@ -2434,7 +1928,11 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
     int lastAppliedOffset = 0;
 
     void addTextWithSearchHighlight(String text, TextStyle baseStyle) {
-      spans.addAll(_buildHighlightSpans(text, baseStyle));
+      spans.addAll(buildHighlightSpans(
+        text: text,
+        baseStyle: baseStyle,
+        query: _searchController.text,
+      ));
     }
 
     for (final match in matches) {
@@ -2555,22 +2053,13 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
     } else if (_visibleCount >= total && _hasNextPage && !_isLoadingMore) {
       // _triggerServerFetch();
     }
-  }
 
-  String _formatDateTime(DateTime? dateTime) {
-    if (dateTime == null) return '';
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final yesterday = today.subtract(const Duration(days: 1));
-    final messageDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
-
-    if (messageDate == today) return 'Today';
-    if (messageDate == yesterday) return 'Yesterday';
-    return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
+    _scheduleMarkReadAfterScrollStops();
   }
 
   void _markMessagesAsDeleted(List<String> messageIds,
       {String deleteFor = 'everyone'}) {
+    List<Map<String, dynamic>>? combinedToSave;
     setState(() {
       List<Map<String, dynamic>> updateMessages(
           List<Map<String, dynamic>> list) {
@@ -2612,9 +2101,13 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
       socketMessages = updateMessages(socketMessages);
 
       final combined = [...dbMessages, ...messages, ...socketMessages];
-      GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
+      combinedToSave = combined;
       _updateNotifier();
     });
+
+    if (combinedToSave != null) {
+      _scheduleSaveMessages(combinedToSave!);
+    }
   }
 
   void _deleteSelectedMessages(String deleteFor) {
@@ -2643,14 +2136,15 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
   }
 
   void _toggleMessageSelection(Map<String, dynamic> msg) {
-    final key = _generateMessageKey(msg);
+    final key = GroupChatMessageUtils.generateMessageKey(msg);
     final String? messageId = msg['message_id']?.toString();
 
     setState(() {
       if (_selectedMessageIds.contains(messageId)) {
         _selectedMessageIds.remove(messageId);
         _selectedMessageKeys.remove(key);
-        _selectedMessages.removeWhere((m) => _generateMessageKey(m) == key);
+        _selectedMessages.removeWhere(
+            (m) => GroupChatMessageUtils.generateMessageKey(m) == key);
       } else if (messageId != null) {
         _selectedMessageIds.add(messageId);
         _selectedMessageKeys.add(key);
@@ -2745,112 +2239,16 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
   }) {
     if (message.isEmpty) return;
 
-    // ✅ ALWAYS reply to the swiped message itself
-    final Map<String, dynamic> replySource = Map<String, dynamic>.from(message);
-
-    final String? originalUrl = replySource['originalUrl'] ??
-        replySource['imageUrl'] ??
-        replySource['fileUrl'];
-
-    final String fileType =
-        replySource['mimeType'] ?? replySource['fileType'] ?? '';
-
-    final bool isVideo = fileType.toLowerCase().startsWith('video/');
+    final replyPreview = GroupReplyData.buildReplyPreview(
+      message: message,
+      allMessages: _allMessages,
+      currentUserId: currentUserId,
+      isSendMe: isSendMe,
+    );
 
     setState(() {
-      _replyMessage = replySource;
-
-      // Calculate counts if it's a grouped message
-      int imageCount = 0;
-      int videoCount = 0;
-      final String? groupId = (replySource['group_message_id'] != null &&
-              !replySource['group_message_id']
-                  .toString()
-                  .startsWith('generated_group_'))
-          ? replySource['group_message_id'].toString()
-          : null;
-
-      if (groupId != null && groupId.isNotEmpty) {
-        // Find all messages in this group
-        final groupMessages = _allMessages
-            .where((m) =>
-                m['group_message_id']?.toString() == groupId &&
-                m['is_deleted'] != true)
-            .toList();
-
-        for (var m in groupMessages) {
-          final String fType = (m['mimeType'] ??
-                  m['fileType'] ??
-                  m['mimetype'] ??
-                  m['ContentType'] ??
-                  '')
-              .toString()
-              .toLowerCase();
-          final String mUrl =
-              (m['originalUrl'] ?? m['imageUrl'] ?? m['fileUrl'] ?? '')
-                  .toString()
-                  .toLowerCase();
-
-          if (fType.startsWith('video/') ||
-              mUrl.endsWith('.mp4') ||
-              mUrl.endsWith('.mov') ||
-              mUrl.endsWith('.mkv')) {
-            videoCount++;
-          } else if (fType.startsWith('image/') ||
-              mUrl.endsWith('.jpg') ||
-              mUrl.endsWith('.png') ||
-              mUrl.endsWith('.jpeg') ||
-              mUrl.endsWith('.webp')) {
-            imageCount++;
-          }
-        }
-      }
-
-      // Build content preview text based on media counts
-      String contentPreview = (replySource['content'] ?? '').toString();
-      if (imageCount > 0 || videoCount > 0) {
-        if (imageCount > 0 && videoCount > 0) {
-          contentPreview = 'Media × ${imageCount + videoCount}';
-        } else if (imageCount > 0) {
-          contentPreview = 'Photo × $imageCount';
-        } else if (videoCount > 0) {
-          contentPreview = 'Video × $videoCount';
-        }
-      }
-
-      // SANITIZE reply preview content to avoid UTF-16 issues in rendering
-      contentPreview = sanitizeString(contentPreview);
-
-      _replyPreview = {
-        'message_id': replySource['message_id'] ??
-            replySource['messageId'] ??
-            replySource['id'],
-
-        'content': contentPreview,
-
-        // ✅ media (LOCAL or NETWORK)
-        'originalUrl': originalUrl ?? '',
-        'imageUrl': replySource['imageUrl'] ?? originalUrl ?? '',
-        'fileUrl': replySource['fileUrl'] ?? originalUrl ?? '',
-        'fileName': replySource['fileName'] ?? '',
-        'fileType': fileType,
-        'isVideo': isVideo,
-        'isDocument': !isVideo &&
-            (replySource['fileUrl'] != null &&
-                replySource['fileUrl'].isNotEmpty &&
-                (replySource['imageUrl'] == null ||
-                    replySource['imageUrl'].isEmpty)),
-
-        // user
-        'sender': replySource['sender'],
-        'receiver': replySource['receiver'],
-        'senderId': currentUserId,
-        'isSendMe': isSendMe,
-        'imageCount': imageCount,
-        'videoCount': videoCount,
-        'group_message_id': groupId,
-      };
-
+      _replyMessage = Map<String, dynamic>.from(message);
+      _replyPreview = replyPreview;
       _focusNode.requestFocus();
     });
   }
@@ -2871,7 +2269,7 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
     // 🔥 Fallback: If message failed, show resend dialog on tap
     final status = message['messageStatus']?.toString() ?? '';
     if (status == 'failed' || status == 'pending_offline') {
-      _showResendDialog(message);
+      _offlineHandler.showResendDialog(message);
       return;
     }
 
@@ -2929,145 +2327,12 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
     }
   }
 
-  Future<void> _clearSessionImagePath() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('chat_image_path');
-    await prefs.remove('chat_file_path');
-  }
-
-  String _generateMessageKey(Map<String, dynamic> msg) {
-    return '${msg['message_id'] ?? msg['time']}_${msg['content']}_${msg['imageUrl'] ?? ''}_${msg['fileUrl'] ?? ''}${msg['userName'] ?? ''}';
-  }
-
-  bool _isGroupableMedia(Map<String, dynamic> msg) {
-    if (msg['isDeleted'] == true || msg['is_deleted'] == true) return false;
-
-    final String contentType = (msg['ContentType'] ?? msg['contentType'] ?? '')
-        .toString()
-        .toLowerCase();
-    final String fileType =
-        (msg['fileType'] ?? msg['mimeType'] ?? '').toString().toLowerCase();
-    final String fileUrl =
-        (msg['fileUrl'] ?? msg['originalUrl'] ?? '').toString().toLowerCase();
-
-    // 1. Explicitly NOT audio or common document types
-    if (contentType == 'audio' || fileType.startsWith('audio/')) return false;
-
-    // 2. Identify Image
-    // More robust image check:
-    final bool isRealImage =
-        (msg['imageUrl'] != null && msg['imageUrl'].toString().isNotEmpty) &&
-            (fileType.startsWith('image/') ||
-                contentType == 'image' ||
-                ['.jpg', '.jpeg', '.png', '.gif', '.webp']
-                    .any((ext) => fileUrl.endsWith(ext)));
-
-    final bool isLocalImage = (msg['localImagePath'] != null &&
-        msg['localImagePath'].toString().isNotEmpty);
-
-    // 3. Identify Video
-    final bool isRealVideo = fileType.startsWith('video/') ||
-        contentType == 'video' ||
-        ['.mp4', '.mov', '.mkv', '.avi', '.webm']
-            .any((ext) => fileUrl.endsWith(ext));
-
-    return isRealImage || isLocalImage || isRealVideo;
-  }
-
   List<Map<String, dynamic>> _inferGrouping(
       List<Map<String, dynamic>> messages) {
-    if (messages.isEmpty) return messages;
-
-    for (int i = 0; i < messages.length; i++) {
-      final currentMsg = messages[i];
-
-      // Skip if already grouped
-      if (currentMsg['is_grouped_message'] == true &&
-          currentMsg['group_message_id'] != null) {
-        continue;
-      }
-
-      final bool isMedia = _isGroupableMedia(currentMsg);
-      if (!isMedia) continue;
-
-      // Look ahead for consecutive media from same sender within time threshold
-      List<int> groupIndices = [i];
-      final currentSender = currentMsg['sender'] is Map
-          ? currentMsg['sender']['_id']?.toString()
-          : currentMsg['sender']?.toString();
-      final currentTime = _parseTime(currentMsg['time']);
-
-      for (int j = i + 1; j < messages.length; j++) {
-        final nextMsg = messages[j];
-        final nextSender = nextMsg['sender'] is Map
-            ? nextMsg['sender']['_id']?.toString()
-            : nextMsg['sender']?.toString();
-        final nextTime = _parseTime(nextMsg['time']);
-
-        // Detect media for next message
-        // Detect media for next message
-        final bool nextIsMedia = _isGroupableMedia(nextMsg);
-        final String nextContent =
-            (nextMsg['content']?.toString() ?? '').trim();
-
-        if (nextSender != currentSender ||
-            !nextIsMedia ||
-            nextTime.difference(currentTime).inMinutes.abs() > 1) {
-          break;
-        }
-
-        // Handle Captions:
-        // Group only if BOTH have NO caption OR BOTH have IDENTICAL captions
-        final String currentContent =
-            (currentMsg['content']?.toString() ?? '').trim();
-        if (currentContent != nextContent) {
-          break;
-        }
-
-        // Handle group_message_id boundary:
-        // If either has a group_message_id from the server, they must match
-        final String? currentGrpId =
-            (currentMsg['group_message_id'] ?? currentMsg['groupMessageId'])
-                ?.toString();
-        final String? nextGrpId =
-            (nextMsg['group_message_id'] ?? nextMsg['groupMessageId'])
-                ?.toString();
-
-        if (currentGrpId != null || nextGrpId != null) {
-          if (currentGrpId != nextGrpId) {
-            break;
-          }
-        }
-
-        groupIndices.add(j);
-      }
-
-      // If we found a group of 2+ media items
-      if (groupIndices.length > 1) {
-        final groupId = ObjectId().toString();
-
-        // ✅ CRITICAL: Persist grouping info to the ORIGINAL SOURCE messages
-        for (final index in groupIndices) {
-          final messageToGroup = messages[index];
-          final msgId = (messageToGroup['message_id'] ??
-                  messageToGroup['messageId'] ??
-                  messageToGroup['id'])
-              ?.toString();
-
-          // Apply grouping to combined list
-          messageToGroup['is_grouped_message'] = true;
-          messageToGroup['group_message_id'] = groupId;
-
-          // Also persist to source arrays
-          if (msgId != null) {
-            _applyGroupingToSource(msgId, groupId);
-          }
-        }
-        // Skip the processed messages in the outer loop
-        i = groupIndices.last;
-      }
-    }
-    return messages;
+    return GroupChatMediaGroupingUtils.inferGrouping(
+      messages,
+      _applyGroupingToSource,
+    );
   }
 
   /// Persist grouping info to source message arrays
@@ -3092,14 +2357,16 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
   /// Merge all messages (db + messages + socket), sort, dedupe
   /// Merge all messages (db + messages + socket), sort, dedupe
   List<Map<String, dynamic>> _getCombinedMessages() {
-    final List<Map<String, dynamic>> combined = [];
+    // 🚀 OPTIMIZED: Use Map for O(1) lookups instead of O(N) list searches.
+    // This reduces merging complexity from O(N^2) to O(N).
+    final Map<String, Map<String, dynamic>> mergedMap = {};
 
-    void addUnique(Map<String, dynamic> msg) {
+    // Helper to process a message and merge it into the map
+    void mergeMessage(Map<String, dynamic> msg) {
       // 🔥 SAFETY: Filter out messages from other conversations
       final msgConvoId =
           msg['conversationId'] ?? msg['convoId'] ?? msg['conversation_id'];
 
-      // Allow if ID is null (legacy) but block if explicit mismatch
       if (msgConvoId != null &&
           msgConvoId.toString() != widget.conversationId &&
           msgConvoId.toString() != widget.datumId) {
@@ -3112,81 +2379,76 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
         return;
       }
 
-      // 1. Check by ID first (strongest check)
+      // 1. Resolve ID
       final msgId =
           msg['message_id'] ?? msg['messageId'] ?? msg['_id'] ?? msg['id'];
+
+      String? primaryKey;
       if (msgId != null) {
-        final idString = msgId.toString();
+        primaryKey = msgId.toString();
+      }
 
-        // Find existing message with same ID
-        final existingIndex = combined.indexWhere((m) {
-          final mId = m['message_id'] ?? m['messageId'] ?? m['_id'] ?? m['id'];
-          return mId != null && mId.toString() == idString;
-        });
+      // 2. If no ID, generate a unique key based on content+time (Fallback)
+      if (primaryKey == null) {
+        // Only use this recursive fallback if we absolutely can't find an ID.
+        // We use a composite key for "content-based" uniqueness.
+        final time = msg['time']?.toString() ?? '';
+        final content = msg['content']?.toString() ?? '';
+        final contentType = msg['ContentType']?.toString() ?? '';
+        final isReply = (msg['isReplyMessage'] ?? false).toString();
+        // This is not perfect but mimics the previous 'any' check logic efficiently
+        primaryKey =
+            "fallback_${time}_${content.hashCode}_${contentType}_$isReply";
+      }
 
-        if (existingIndex != -1) {
-          // Message with this ID already exists - merge/update it
-          final existing = combined[existingIndex];
-          final existingStatus = (existing['messageStatus'] ?? '').toString();
-          final newStatus = (msg['messageStatus'] ?? '').toString();
+      // 3. Merge Logic
+      if (mergedMap.containsKey(primaryKey)) {
+        final existing = mergedMap[primaryKey]!;
+        final existingStatus = (existing['messageStatus'] ?? '').toString();
+        final newStatus = (msg['messageStatus'] ?? '').toString();
 
-          // Priority: sent/delivered/read > sending > pending
-          final statusPriority = {
-            'read': 4,
-            'delivered': 3,
-            'sent': 2,
-            'sending': 1,
-            'pending': 0,
-            'pending_offline': 0,
-            'failed': 0,
-          };
+        // Priority: read > delivered > sent > sending > pending > failed
+        const statusPriority = {
+          'read': 4,
+          'delivered': 3,
+          'sent': 2,
+          'sending': 1,
+          'pending': 0,
+          'pending_offline': 0,
+          'failed': 0,
+        };
 
-          final existingPriority = statusPriority[existingStatus] ?? 0;
-          final newPriority = statusPriority[newStatus] ?? 0;
+        final existingPriority = statusPriority[existingStatus] ?? 0;
+        final newPriority = statusPriority[newStatus] ?? 0;
 
-          // If new message has better status or more complete data, replace
-          if (newPriority > existingPriority ||
-              (msg['originalUrl'] != null && existing['originalUrl'] == null) ||
-              (msg['fileUrl'] != null && existing['isLocal'] == true)) {
-            // Merge: keep any local data, but update with server data
-            final merged = Map<String, dynamic>.from(existing);
-            msg.forEach((key, value) {
-              if (value != null) merged[key] = value;
-            });
-            combined[existingIndex] = merged;
-          }
-          return; // Don't add duplicate
+        // If new message has better status or more complete data, replace/merge
+        if (newPriority > existingPriority ||
+            (msg['originalUrl'] != null && existing['originalUrl'] == null) ||
+            (msg['fileUrl'] != null && existing['isLocal'] == true)) {
+          // Merge: keep any local data, but update with server data
+          final merged = Map<String, dynamic>.from(existing);
+          msg.forEach((key, value) {
+            if (value != null) merged[key] = value;
+          });
+          mergedMap[primaryKey] = merged;
         }
-      }
-
-      // 2. Fallback to content/time check
-      bool exists = combined.any((m) =>
-          m['time'] == msg['time'] &&
-          m['content'] == msg['content'] &&
-          m['ContentType'] == msg['ContentType'] &&
-          (m['isReplyMessage'] ?? false) == (msg['isReplyMessage'] ?? false) &&
-          (m['imageUrl'] ?? '') == (msg['imageUrl'] ?? '') &&
-          (m['fileName'] ?? '') == (msg['fileName'] ?? '') &&
-          (m['fileUrl'] ?? '') == (msg['fileUrl'] ?? ''));
-
-      if (!exists) {
-        final copy = Map<String, dynamic>.from(msg);
-        combined.add(copy);
+      } else {
+        // New message
+        mergedMap[primaryKey] = Map<String, dynamic>.from(msg);
       }
     }
 
-    for (var m in socketMessages) {
-      addUnique(m);
-    }
-    for (var m in messages) {
-      addUnique(m);
-    }
-    for (var m in dbMessages) {
-      addUnique(m);
-    }
+    // Process lists in order. Order matters if we want later lists to override earlier ones
+    // (though our merge logic handles priority explicitly).
+    // Usually: DB (oldest cache) -> Messages (RAM) -> Socket (Live)
+    for (var m in dbMessages) mergeMessage(m);
+    for (var m in messages) mergeMessage(m);
+    for (var m in socketMessages) mergeMessage(m);
+
+    final combined = mergedMap.values.toList();
 
     combined.sort(
-      (a, b) => _parseTime(a['time']).compareTo(_parseTime(b['time'])),
+      (a, b) => parseChatTime(a['time']).compareTo(parseChatTime(b['time'])),
     );
 
     return _inferGrouping(combined);
@@ -3225,19 +2487,11 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
     final total = _allMessages.length;
     final count = _visibleCount.clamp(0, total);
 
-    // _allMessages is Old -> New.
-    // We want the *last* `count` messages (the newest ones).
-    // Start index = total - count.
     final startIndex = total - count;
 
     final visibleSlice = (count == 0)
         ? <Map<String, dynamic>>[]
         : _allMessages.sublist(startIndex, total);
-
-    // List passed to ListView (reverse: true).
-    // The list itself is [OldestSlice, ..., NewestSlice].
-    // ListView index 0 (bottom) will be the last item of this list.
-    // This matches PrivateChatScreen logic.
 
     _messagesNotifier.value = List<Map<String, dynamic>>.from(visibleSlice);
   }
@@ -3305,10 +2559,9 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
       return true;
     }
 
-
     final combined = _getCombinedMessages();
     final msgIndex = combined.indexWhere(
-      (m) => (_anyId(m)?.toString() ?? '') == messageId,
+      (m) => GroupChatMessageUtils.anyId(m) == messageId,
     );
 
     if (msgIndex == -1) {
@@ -3318,7 +2571,7 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
           // After fetching, ensure visibility and retry
           final updatedCombined = _getCombinedMessages();
           final newMsgIndex = updatedCombined.indexWhere(
-            (m) => (_anyId(m)?.toString() ?? '') == messageId,
+            (m) => GroupChatMessageUtils.anyId(m) == messageId,
           );
           if (newMsgIndex != -1) {
             final neededVisible = updatedCombined.length - newMsgIndex;
@@ -3364,7 +2617,6 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
       _updateNotifier();
       await WidgetsBinding.instance.endOfFrame;
     }
-
 
     final targetCtx = _messageContexts[messageId];
     if (targetCtx != null && targetCtx.mounted) {
@@ -3426,9 +2678,10 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
 
     // Date separator logic
     double separatorHeight = 0.0;
-    final currentTime = _parseTime(message['time']);
-    final prevTime = index > 0 ? _parseTime(messages[index - 1]['time']) : null;
-    if (index == 0 || !isSameDay(currentTime, prevTime)) {
+    final currentTime = parseChatTime(message['time']);
+    final prevTime =
+        index > 0 ? parseChatTime(messages[index - 1]['time']) : null;
+    if (index == 0 || !GroupChatMessageUtils.isSameDay(currentTime, prevTime)) {
       separatorHeight = 40.0;
     }
 
@@ -3561,6 +2814,60 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
 
     return flat;
   }
+  // Widget _buildChatBody() {
+  //     return GroupChatBody(
+  //       data: GroupChatBodyData(
+  //         groupBloc: _groupBloc,
+  //         messagesNotifier: _messagesNotifier,
+  //         scrollController: _scrollController,
+  //         searchController: _searchController,
+  //         messages: messages,
+  //         socketMessages: socketMessages,
+  //         dbMessages: dbMessages,
+  //         seenMessageIds: _seenMessageIds,
+  //         messageContexts: _messageContexts,
+  //         allMessages: _allMessages,
+  //         currentUserId: currentUserId,
+  //         conversationId: widget.conversationId,
+  //         datumId: widget.datumId,
+  //         groupName: widget.groupName,
+  //         highlightedMessageId: _highlightedMessageId,
+  //         selectedMessageKeys: _selectedMessageKeys,
+  //         limit: _limit,
+  //         currentPage: _currentPage,
+  //         isLoadingMore: _isLoadingMore,
+  //         hasLeftGroup: _hasLeftGroup,
+  //         isSelectionMode: _isSelectionMode,
+  //         hasNextPage: _hasNextPage,
+  //         visibleCount: _visibleCount,
+  //       ),
+  //       callbacks: GroupChatBodyCallbacks(
+  //         onPermissionResponse: _handlePermissionResponse,
+  //         onUpdateMessageStatus: _updateMessageStatus,
+  //         onSetState: (fn) => setState(fn),
+  //         onSetHasNextPage: (value) => setState(() => _hasNextPage = value),
+  //         onSetIsLoadingMore: (value) => setState(() => _isLoadingMore = value),
+  //         onSetVisibleCount: (count) => setState(() => _visibleCount = count),
+  //         onSetDbMessages: (msgs) => dbMessages = msgs,
+  //         onAddSeenMessageId: (id) => _seenMessageIds.add(id),
+  //         onUpdateNotifier: _updateNotifier,
+  //         onUpdateNotifierFromAll: _updateNotifierFromAll,
+  //         onMarkVisibleMessagesAsRead: _markVisibleMessagesAsRead,
+  //         onReplyToMessage: _replyToMessage,
+  //         onToggleMessageSelection: _toggleMessageSelection,
+  //         onShowReactionPicker: _showReactionPicker,
+  //         onSetSelectionMode: (value) => setState(() => _isSelectionMode = value),
+  //         buildMessageBubble: _buildMessageBubble,
+  //         buildReactionsBar: _buildReactionsBar,
+  //         buildAvatarWithInitial: _buildAvatarWithInitial,
+  //         hasReply: _hasReply,
+  //         flattenGroupedMessages: flattenGroupedMessages,
+  //         onBuildMemberDetailsFromMessages: _buildMemberDetailsFromMessages,
+  //         getKnownMemberIds: () => _knownMemberIds,
+  //         getGroupMembersList: () => _groupMembersList,
+  //       ),
+  //     );
+  //   }
 
   Widget _buildChatBody() {
     return BlocListener<GroupChatBloc, GroupChatState>(
@@ -3589,7 +2896,8 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
           final incomingLoaded = flattenGroupedMessages(state.response.data);
 
           final incomingNormalized = incomingLoaded
-              .map<Map<String, dynamic>>((msg) => normalizeMessage(msg))
+              .map<Map<String, dynamic>>(
+                  (msg) => GroupChatNormalizeUtils.normalizeMessage(msg))
               .where((m) => m.isNotEmpty)
               .where((msg) {
             // 🔥 SAFETY: Filter out messages from other conversations
@@ -3659,18 +2967,13 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
       child: ValueListenableBuilder<List<Map<String, dynamic>>>(
         valueListenable: _messagesNotifier,
         builder: (context, combinedMessages, child) {
-
-          final groupedMessages = buildGroupedMessages(combinedMessages);
-          Future.delayed(const Duration(milliseconds: 300), () {
-            if (!mounted) return;
-            _markVisibleMessagesAsRead(groupedMessages);
-          });
-          // if (groupedMessages.isNotEmpty) {
-          //   WidgetsBinding.instance.addPostFrameCallback((_) {
-          //     _markVisibleMessagesAsRead(groupedMessages);
-          //   });
-          // }
-
+          final groupedMessages =
+              GroupChatMediaGroupingUtils.buildGroupedMessages(
+                  combinedMessages);
+          _latestGroupedMessages = groupedMessages;
+          if (groupedMessages.isNotEmpty && _isNearBottom()) {
+            _scheduleMarkReadAfterScrollStops();
+          }
 
           return BlocBuilder<GroupChatBloc, GroupChatState>(
             bloc: _groupBloc,
@@ -3729,9 +3032,9 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
                                   message['messageStatus'] == 'deleted' ||
                                   content == ' This message was deleted';
 
-                          final currentTime = _parseTime(message['time']);
+                          final currentTime = parseChatTime(message['time']);
                           final prevTime = realIndex > 0
-                              ? _parseTime(
+                              ? parseChatTime(
                                   groupedMessages[realIndex - 1]['time'])
                               : null;
 
@@ -3766,7 +3069,8 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
                                   nextMsg['group_message_id']?.toString();
                               if (nextGrpId == groupMessageId) {
                                 final normalizedNext =
-                                    normalizeMessage(nextMsg);
+                                    GroupChatNormalizeUtils.normalizeMessage(
+                                        nextMsg);
                                 groupMessagesList.add(normalizedNext);
                                 final mediaUrl =
                                     nextMsg['originalUrl']?.toString() ??
@@ -3817,7 +3121,7 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
                                       message['profile_pic_path']?.toString() ??
                                       "";
                               final messageId =
-                                  _anyId(message)?.toString() ?? '';
+                                  GroupChatMessageUtils.anyId(message);
                               final bool isHighlighted =
                                   _highlightedMessageId == messageId ||
                                       (isGroupMessage &&
@@ -3827,12 +3131,13 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
                                               m['group_message_id']
                                                       ?.toString() ==
                                                   groupMessageId &&
-                                              _anyId(m)?.toString() ==
+                                              GroupChatMessageUtils.anyId(m) ==
                                                   _highlightedMessageId));
 
                               final bool isGroupSelected = groupMessagesList
-                                  .any((m) => _selectedMessageKeys
-                                      .contains(_generateMessageKey(m)));
+                                  .any((m) => _selectedMessageKeys.contains(
+                                      GroupChatMessageUtils.generateMessageKey(
+                                          m)));
                               final screenWidth =
                                   MediaQuery.of(context).size.width;
 
@@ -3854,8 +3159,10 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
                                             : CrossAxisAlignment.start,
                                         children: [
                                           if (realIndex == 0 ||
-                                              !isSameDay(currentTime, prevTime))
-                                            _buildDateSeparator(currentTime),
+                                              !GroupChatMessageUtils.isSameDay(
+                                                  currentTime, prevTime))
+                                            buildGroupChatDateSeparator(
+                                                currentTime),
                                           Padding(
                                             padding: const EdgeInsets.symmetric(
                                                 horizontal: 8.0, vertical: 4.0),
@@ -3866,10 +3173,9 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
                                                       _replyToMessage(message),
                                               child: Builder(builder: (ctx) {
                                                 final String anchorMessageId =
-                                                    _anyId(groupMessagesList
-                                                                .first)
-                                                            ?.toString() ??
-                                                        '';
+                                                    GroupChatMessageUtils.anyId(
+                                                        groupMessagesList
+                                                            .first);
                                                 if (anchorMessageId
                                                     .isNotEmpty) {
                                                   _messageContexts[
@@ -4114,7 +3420,7 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
                                                                                       ),
                                                                                     ),
                                                                                   );
-                                                                               }
+                                                                                }
                                                                               },
                                                                             ),
                                                                           ),
@@ -4277,12 +3583,14 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
                               (content.contains('Group created by') ||
                                   content.contains('added') ||
                                   content.contains('left'))) {
-                            children.add(_buildtextSeparator(content));
+                            children.add(buildGroupChatTextSeparator(content));
                           }
 
                           if (realIndex == 0 ||
-                              !isSameDay(currentTime, prevTime)) {
-                            children.add(_buildDateSeparator(currentTime));
+                              !GroupChatMessageUtils.isSameDay(
+                                  currentTime, prevTime)) {
+                            children
+                                .add(buildGroupChatDateSeparator(currentTime));
                           }
 
                           children
@@ -4566,1316 +3874,1095 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
     return content.contains('Media x ');
   }
 
+  List<InlineSpan> _buildHighlightSpans(String content, TextStyle style) {
+    if (_searchController.text.isEmpty) {
+      return [TextSpan(text: content, style: style)];
+    }
+
+    final searchTerm = _searchController.text.toLowerCase();
+    final contentLower = content.toLowerCase();
+    final spans = <InlineSpan>[];
+    int start = 0;
+    int indexOfHighlight = contentLower.indexOf(searchTerm);
+
+    while (indexOfHighlight != -1) {
+      if (indexOfHighlight > start) {
+        spans.add(TextSpan(
+          text: content.substring(start, indexOfHighlight),
+          style: style,
+        ));
+      }
+
+      spans.add(TextSpan(
+        text: content.substring(
+            indexOfHighlight, indexOfHighlight + searchTerm.length),
+        style: style.copyWith(
+          backgroundColor: Colors.yellow,
+          color: Colors.black,
+        ),
+      ));
+
+      start = indexOfHighlight + searchTerm.length;
+      indexOfHighlight = contentLower.indexOf(searchTerm, start);
+    }
+
+    if (start < content.length) {
+      spans.add(TextSpan(
+        text: content.substring(start),
+        style: style,
+      ));
+    }
+
+    return spans;
+  }
+
   Widget _buildMessageBubble(Map<String, dynamic> message, bool isSentByMe) {
-    // Sanitize message content early to avoid invalid strings in any downstream Text widgets
-    final String content = sanitizeString(message['content']?.toString() ?? '');
-    final String? imageUrl = message['imageUrl'] ?? _imageFile;
-    final String? fileUrl = message['fileUrl'] ?? _fileUrl;
-    final String? fileName = message['fileName']?.toString() ?? '';
-    final String? fileType = message['fileType'];
-    final bool? isForwarded = message['isForwarded'] ?? false;
-
-    final String userName =
-        (message['userName']?.toString().trim().isNotEmpty == true)
-            ? sanitizeString(message['userName']?.toString())
-            : (() {
-                final s = message['sender'];
-                if (s is Map) {
-                  final first =
-                      sanitizeString(s['first_name'] ?? s['firstName'] ?? '');
-                  final last =
-                      sanitizeString(s['last_name'] ?? s['lastName'] ?? '');
-                  return [first, last, sanitizeString(s['name'] ?? '')]
-                      .where((e) => e != null && e.toString().trim().isNotEmpty)
-                      .join(' ')
-                      .trim();
-                }
-                return '';
-              })();
-
-    final String contentType = message['ContentType'] ?? "";
-    final senderData = message['sender'] is Map ? message['sender'] : {};
-    final String profileImageUrl = senderData['profile_pic_path']?.toString() ??
-        senderData['profilePic']?.toString() ??
-        senderData['avatar']?.toString() ??
-        message['profile_pic_path']?.toString() ??
-        "";
-
-    final bool isImage =
-        (fileType != null && fileType.toLowerCase().startsWith("image")) ||
-            (fileName != null &&
-                RegExp(r'\.(jpg|jpeg|png|gif|webp|bmp)$', caseSensitive: false)
-                    .hasMatch(fileName));
-
-    final bool isVideo =
-        (fileType != null && fileType.toLowerCase().startsWith("video")) ||
-            (fileName != null &&
-                RegExp(r'\.(mp4|mov|avi|mkv|webm)$', caseSensitive: false)
-                    .hasMatch(fileName));
-
-    final bool isAudio = (fileType != null &&
-            fileType.toLowerCase().startsWith("audio")) ||
-        (fileName != null &&
-            RegExp(r'\.(mp3|wav|aac|m4a|flac|ogg|opus)$', caseSensitive: false)
-                .hasMatch(fileName));
-
-    final String messageStatus =
-        message['messageStatus']?.toString() ?? 'delivered';
-
-    if (content.isEmpty &&
-        (imageUrl == null || imageUrl.isEmpty) &&
-        (fileUrl == null || fileUrl.isEmpty)) {
-      return const SizedBox.shrink();
-    }
-
-    final isSelected =
-        _selectedMessageKeys.contains(_generateMessageKey(message));
-    final bool isDeleted = message['is_deleted'] == true ||
-        message['isDeleted'] == true ||
-        message['messageStatus'] == 'deleted' ||
-        message['content'] == '🚫 This message was deleted';
-
-    final bool hasReply = !isDeleted &&
-            (message['repliedMessage'] is Map &&
-                (message['repliedMessage']['id'] ??
-                        message['repliedMessage']['message_id'] ??
-                        message['repliedMessage']['messageId']) !=
-                    null) ||
-        (message['reply'] is Map &&
-            (message['reply']['id'] ??
-                    message['reply']['message_id'] ??
-                    message['reply']['messageId']) !=
-                null);
-
-    final messageId = (message['message_id'] ??
-                message['messageId'] ??
-                message['id'] ??
-                message['_id'])
-            ?.toString() ??
-        '';
-    final bool hasFile = fileUrl != null && fileUrl.isNotEmpty;
-    return message['content'].contains('Group created by')
-        ? voidBox
-        : (contentType == "system" &&
-                (content.contains('added') || content.contains('left')))
-            ? voidBox
-            : Builder(
-                builder: (context) {
-                  // Register context for scrolling
-                  if (messageId.isNotEmpty) {
-                    _messageContexts[messageId] = context;
-                  }
-
-                  return SwipeToReply(
-                      icon: Icons.reply,
-                      iconColor: Colors.grey.shade600,
-                      onReply: isDeleted
-                          ? null
-                          : () {
-                              _replyToMessage(message);
-                            },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 5.0, horizontal: 4.0),
-                        child: GestureDetector(
-                          onTap: () => _onMessageTap(message),
-                          onLongPress: () {
-                            // log("messssssssssssssssssssss $message");
-                            if (_isSelectionMode) {
-                              _toggleMessageSelection(message);
-                            } else if (!isDeleted) {
-                              _showReactionPicker(context, message);
-
-                              // Enter selection mode
-                              setState(() {
-                                _isSelectionMode = true;
-                              });
-                              _toggleMessageSelection(message);
-                            } else {
-                              // If deleted, only enter selection mode
-                              setState(() {
-                                _isSelectionMode = true;
-                              });
-                              _toggleMessageSelection(message);
-                            }
-                          },
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              Align(
-                                alignment: isSentByMe
-                                    ? Alignment.centerRight
-                                    : Alignment.centerLeft,
-                                widthFactor: hasReply ? 1.0 : null,
-                                child: Stack(
-                                    clipBehavior: Clip.none,
-                                    children: [
-                                      Row(
-                                        mainAxisAlignment: isSentByMe
-                                            ? MainAxisAlignment.end
-                                            : MainAxisAlignment.start,
-                                        children: [
-                                          if (isSentByMe &&
-                                              (isVideo ||
-                                                  isImage ||
-                                                  hasFile ||
-                                                  (content.isNotEmpty &&
-                                                      RegExp(r'((https?:\/\/)|(www\.))[^\s]+',
-                                                              caseSensitive:
-                                                                  false)
-                                                          .hasMatch(content))))
-                                            Center(
-                                              child: Material(
-                                                color: Colors.transparent,
-                                                child: InkWell(
-                                                  borderRadius:
-                                                      BorderRadius.circular(20),
-                                                  onTap: () {
-                                                    MyRouter.pushReplace(
-                                                      screen:
-                                                          ForwardMessageScreen(
-                                                        messages: [
-                                                          normalizeMessage(
-                                                              message)
-                                                        ],
-                                                        currentUserId:
-                                                            currentUserId,
-                                                        conversionalid: widget
-                                                            .conversationId,
-                                                        username:
-                                                            widget.groupName,
-                                                      ),
-                                                    );
-                                                  },
-                                                  child: CircleAvatar(
-                                                    maxRadius: 16,
-                                                    backgroundColor:
-                                                        Colors.white,
-                                                    child: Image.asset(
-                                                      "assets/images/forward.png",
-                                                      height: 20,
-                                                      width: 20,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          Flexible(
-                                            child: Padding(
-                                              padding: const EdgeInsets.only(
-                                                  left: 30),
-                                              child: Container(
-                                                margin: EdgeInsets.only(
-                                                  left: 5,
-                                                  right: 5,
-                                                  top: 0,
-                                                  bottom: (message[
-                                                                  'reactions'] !=
-                                                              null &&
-                                                          message['reactions']
-                                                              .isNotEmpty)
-                                                      ? 20
-                                                      : 0,
-                                                ),
-                                                padding: hasReply
-                                                    ? EdgeInsets.only(
-                                                        left: 5,
-                                                        bottom: 3,
-                                                        right: 6)
-                                                    : const EdgeInsets.only(
-                                                        top: 8,
-                                                        left: 10,
-                                                        right: 6,
-                                                        bottom: 8),
-                                                constraints: BoxConstraints(
-                                                    maxWidth: 250,
-                                                    minWidth:
-                                                        hasReply ? 120 : 0),
-                                                decoration: BoxDecoration(
-                                                  color: isSelected
-                                                      ? senderColor
-                                                          .withOpacity(0.2)
-                                                      : (isSentByMe
-                                                          ? senderColor
-                                                          : receiverColor),
-                                                  borderRadius:
-                                                      BorderRadius.only(
-                                                    topLeft: isSentByMe
-                                                        ? const Radius.circular(
-                                                            18)
-                                                        : const Radius.circular(
-                                                            18),
-                                                    topRight: isSentByMe
-                                                        ? const Radius.circular(
-                                                            18)
-                                                        : const Radius.circular(
-                                                            18),
-                                                    bottomLeft: isSentByMe
-                                                        ? const Radius.circular(
-                                                            18)
-                                                        : Radius.zero,
-                                                    bottomRight: isSentByMe
-                                                        ? Radius.zero
-                                                        : const Radius.circular(
-                                                            16),
-                                                  ),
-                                                  border: isSelected
-                                                      ? Border.all(
-                                                          color: Colors.blue,
-                                                          width: 2)
-                                                      : null,
-                                                  boxShadow: [
-                                                    BoxShadow(
-                                                      color: Colors.black
-                                                          .withOpacity(0.05),
-                                                      blurRadius: 4,
-                                                      offset:
-                                                          const Offset(0, 2),
-                                                    ),
-                                                  ],
-                                                ),
-                                                child: Stack(
-                                                  children: [
-                                                    Column(
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .start,
-                                                        children: [
-                                                          if (!isSentByMe &&
-                                                              userName
-                                                                  .isNotEmpty)
-                                                            Padding(
-                                                              padding: EdgeInsets
-                                                                  .only(
-                                                                      bottom: 4,
-                                                                      left: 7,
-                                                                      right: 6,
-                                                                      top: hasReply
-                                                                          ? 6.5
-                                                                          : 0),
-                                                              child: Text(
-                                                                userName,
-                                                                style:
-                                                                    TextStyle(
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .bold,
-                                                                  color: ColorUtil
-                                                                      .getColorFromAlphabet(
-                                                                          userName),
-                                                                  fontSize: 14,
-                                                                ),
-                                                              ),
-                                                            ),
-
-                                                          if (isForwarded ==
-                                                              true)
-                                                            Padding(
-                                                              padding:
-                                                                  const EdgeInsets
-                                                                      .only(
-                                                                      bottom:
-                                                                          4.0,
-                                                                      left: 7,
-                                                                      right: 6),
-                                                              child: Row(
-                                                                mainAxisSize:
-                                                                    MainAxisSize
-                                                                        .min,
-                                                                children: [
-                                                                  Image.asset(
-                                                                    "assets/images/forward.png",
-                                                                    height: 14,
-                                                                    width: 14,
-                                                                  ),
-                                                                  const SizedBox(
-                                                                      width: 4),
-                                                                  Text(
-                                                                    "Forwarded",
-                                                                    style:
-                                                                        TextStyle(
-                                                                      fontSize:
-                                                                          12,
-                                                                      color: Colors
-                                                                              .grey[
-                                                                          700],
-                                                                    ),
-                                                                  ),
-                                                                ],
-                                                              ),
-                                                            ),
-
-                                                          // REPLY PREVIEW - opacity trick for measurement
-                                                          if (hasReply)
-                                                            Opacity(
-                                                              opacity: 0,
-                                                              child:
-                                                                  GroupRepliedMessagePreview(
-                                                                key: ValueKey(
-                                                                    '${messageId}_${message['replyContent']}_placeholder'),
-                                                                replied: (message['repliedMessage'] ??
-                                                                            message['reply'])
-                                                                        is Map
-                                                                    ? Map<
-                                                                        String,
-                                                                        dynamic>.from(message[
-                                                                            'repliedMessage'] ??
-                                                                        message[
-                                                                            'reply'])
-                                                                    : <String,
-                                                                        dynamic>{},
-                                                                receiver: message[
-                                                                            'receiver']
-                                                                        is Map
-                                                                    ? Map<String,
-                                                                            dynamic>.from(
-                                                                        message[
-                                                                            'receiver'])
-                                                                    : {},
-                                                                isSender:
-                                                                    isSentByMe,
-                                                                groupMediaLength:
-                                                                    _calculateGroupMediaLength(_mergeReplyData(message[
-                                                                            'repliedMessage'] ??
-                                                                        message[
-                                                                            'reply'])),
-                                                                onTap: null,
-                                                              ),
-                                                            ),
-
-                                                          // Main content with proper padding when reply exists
-                                                          Padding(
-                                                            padding: hasReply
-                                                                ? const EdgeInsets
-                                                                    .only(
-                                                                    left: 7,
-                                                                    right: 0,
-                                                                    bottom: 0,
-                                                                    top: 0)
-                                                                : EdgeInsets
-                                                                    .zero,
-                                                            child: Column(
-                                                              crossAxisAlignment:
-                                                                  CrossAxisAlignment
-                                                                      .start,
-                                                              children: [
-                                                                if (imageUrl !=
-                                                                        null &&
-                                                                    imageUrl
-                                                                        .isNotEmpty &&
-                                                                    (isImage ||
-                                                                        imageUrl !=
-                                                                            fileUrl))
-                                                                  content ==
-                                                                          "Message Deleted"
-                                                                      ? const SizedBox
-                                                                          .shrink()
-                                                                      : Stack(
-                                                                          clipBehavior:
-                                                                              Clip.none,
-                                                                          children: [
-                                                                            GestureDetector(
-                                                                              onTap: () => _showFullImage(context, imageUrl, message: message),
-                                                                              child: ClipRRect(
-                                                                                borderRadius: BorderRadius.circular(12),
-                                                                                child: imageUrl.startsWith('https') || imageUrl.startsWith('http')
-                                                                                    ? CachedNetworkImage(
-                                                                                        imageUrl: imageUrl,
-                                                                                        width: 240,
-                                                                                        memCacheWidth: 480,
-                                                                                        memCacheHeight: 600,
-                                                                                        height: 300,
-                                                                                        fit: BoxFit.cover,
-                                                                                        placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-                                                                                        errorWidget: (context, url, error) => const Icon(Icons.error, color: Colors.red),
-                                                                                      )
-                                                                                    : Image.file(File(imageUrl), width: 240, height: 240, fit: BoxFit.cover),
-                                                                              ),
-                                                                            ),
-                                                                            if (content.isEmpty)
-                                                                              Positioned(
-                                                                                bottom: 5,
-                                                                                right: 4,
-                                                                                child: Container(
-                                                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                                                  decoration: BoxDecoration(
-                                                                                    boxShadow: [
-                                                                                      BoxShadow(
-                                                                                        color: Colors.black.withOpacity(0.2),
-                                                                                        blurRadius: 2,
-                                                                                        offset: const Offset(0, 1),
-                                                                                      ),
-                                                                                    ],
-                                                                                    color: Colors.black45.withOpacity(0.1),
-                                                                                    borderRadius: BorderRadius.circular(8),
-                                                                                  ),
-                                                                                  child: Row(
-                                                                                    mainAxisSize: MainAxisSize.min,
-                                                                                    children: [
-                                                                                      Text(
-                                                                                        TimeUtils.formatUtcToIst(message['time']),
-                                                                                        style: const TextStyle(
-                                                                                          fontSize: 10,
-                                                                                          color: Colors.white,
-                                                                                        ),
-                                                                                      ),
-                                                                                      if (isSentByMe) ...[
-                                                                                        const SizedBox(width: 4),
-                                                                                        Builder(builder: (context) {
-                                                                                          switch (messageStatus) {
-                                                                                            case 'sent':
-                                                                                              return const Icon(Icons.check, size: 12, color: Colors.white);
-                                                                                            case 'delivered':
-                                                                                              return const Icon(Icons.done_all_rounded, size: 12, color: Colors.white);
-                                                                                            case 'read':
-                                                                                              return const Icon(Icons.done_all, size: 12, color: Colors.blue);
-                                                                                            default:
-                                                                                              return const SizedBox.shrink();
-                                                                                          }
-                                                                                        }),
-                                                                                      ],
-                                                                                    ],
-                                                                                  ),
-                                                                                ),
-                                                                              ),
-                                                                          ],
-                                                                        ),
-                                                                if (fileUrl !=
-                                                                        null &&
-                                                                    fileUrl
-                                                                        .isNotEmpty &&
-                                                                    isVideo)
-                                                                  _buildVideoPreviewTile(
-                                                                    context,
-                                                                    fileUrl,
-                                                                    fileName ??
-                                                                        "",
-                                                                    isSentByMe,
-                                                                    message,
-                                                                  )
-                                                                else if (fileUrl !=
-                                                                        null &&
-                                                                    fileUrl
-                                                                        .isNotEmpty &&
-                                                                    isAudio)
-                                                                  AudioMessageWidget(
-                                                                    audioUrl:
-                                                                        fileUrl,
-                                                                    profileAvatarUrl:
-                                                                        profileImageUrl,
-                                                                    isSender:
-                                                                        isSentByMe,
-                                                                    duration: message[
-                                                                            'duration']
-                                                                        ?.toString(),
-                                                                    timestamp: TimeUtils
-                                                                        .formatUtcToIst(
-                                                                            message['time']),
-                                                                    status:
-                                                                        messageStatus,
-                                                                    showContainer:
-                                                                        false,
-                                                                  )
-                                                                else if (fileUrl !=
-                                                                        null &&
-                                                                    fileUrl
-                                                                        .isNotEmpty &&
-                                                                    !(content ==
-                                                                            "Message Deleted" ||
-                                                                        isImage || // Use pre-calculated isImage
-                                                                        (fileType !=
-                                                                                null &&
-                                                                            fileType.toLowerCase().startsWith(
-                                                                                "image")) ||
-                                                                        (fileName !=
-                                                                                null &&
-                                                                            RegExp(r'\.(jpg|jpeg|png|gif|webp|bmp)$', caseSensitive: false).hasMatch(fileName))))
-                                                                  Stack(
-                                                                    clipBehavior:
-                                                                        Clip.none,
-                                                                    children: [
-                                                                      Column(
-                                                                        crossAxisAlignment:
-                                                                            CrossAxisAlignment.end,
-                                                                        children: [
-                                                                          Container(
-                                                                            width:
-                                                                                300,
-                                                                            margin:
-                                                                                const EdgeInsets.only(top: 8),
-                                                                            padding:
-                                                                                const EdgeInsets.all(8),
-                                                                            decoration:
-                                                                                BoxDecoration(
-                                                                              color: Colors.grey[200],
-                                                                              borderRadius: BorderRadius.circular(12),
-                                                                            ),
-                                                                            child:
-                                                                                Row(
-                                                                              mainAxisSize: MainAxisSize.min,
-                                                                              children: [
-                                                                                buildIcon(type: '', mimeType: (fileType != null && fileType.isNotEmpty) ? fileType : fileName, size: 30),
-                                                                                const SizedBox(width: 8),
-                                                                                Expanded(
-                                                                                  child: RichText(
-                                                                                    overflow: TextOverflow.ellipsis,
-                                                                                    text: TextSpan(
-                                                                                      children: _buildHighlightSpans(
-                                                                                        isDeleted ? '' : (fileName ?? 'Download file'),
-                                                                                        const TextStyle(
-                                                                                          fontWeight: FontWeight.w500,
-                                                                                          color: Colors.black,
-                                                                                        ),
-                                                                                      ),
-                                                                                    ),
-                                                                                  ),
-                                                                                ),
-                                                                                IconButton(
-                                                                                  icon: const Icon(Icons.download_rounded),
-                                                                                  onPressed: () => _openFile(fileUrl, fileType),
-                                                                                ),
-                                                                              ],
-                                                                            ),
-                                                                          ),
-                                                                          // Only show time/status for documents without caption
-                                                                          if (content
-                                                                              .isEmpty)
-                                                                            Padding(
-                                                                              padding: const EdgeInsets.only(top: 0, right: 0),
-                                                                              child: Row(
-                                                                                mainAxisSize: MainAxisSize.min,
-                                                                                children: [
-                                                                                  Text(
-                                                                                    TimeUtils.formatUtcToIst(message['time']),
-                                                                                    style: const TextStyle(fontSize: 10, color: Colors.black54),
-                                                                                  ),
-                                                                                  const SizedBox(width: 4),
-                                                                                  if (isSentByMe) _buildStatusIcon(messageStatus, message),
-                                                                                ],
-                                                                              ),
-                                                                            ),
-                                                                        ],
-                                                                      ),
-                                                                    ],
-                                                                  )
-                                                                else
-                                                                  const SizedBox
-                                                                      .shrink(),
-                                                                if (content
-                                                                    .isNotEmpty)
-                                                                  // Use MessageCaption for image/video/document captions to position time/status in the right corner
-                                                                  if ((isImage &&
-                                                                          (imageUrl != null &&
-                                                                              imageUrl
-                                                                                  .isNotEmpty)) ||
-                                                                      (isVideo &&
-                                                                          fileUrl !=
-                                                                              null &&
-                                                                          fileUrl
-                                                                              .isNotEmpty) ||
-                                                                      (fileUrl !=
-                                                                              null &&
-                                                                          fileUrl
-                                                                              .isNotEmpty &&
-                                                                          !isImage &&
-                                                                          !isVideo &&
-                                                                          !isAudio))
-                                                                    MessageCaption(
-                                                                      content:
-                                                                          content,
-                                                                      time: TimeUtils
-                                                                          .formatUtcToIst(
-                                                                              message['time']),
-                                                                      isSentByMe:
-                                                                          isSentByMe,
-                                                                      messageStatus:
-                                                                          messageStatus,
-                                                                      buildStatusIcon: (status) => _buildStatusIcon(
-                                                                          status,
-                                                                          message),
-                                                                      searchText:
-                                                                          _searchController
-                                                                              .text,
-                                                                      isDeleted:
-                                                                          isDeleted,
-                                                                    )
-                                                                  else
-                                                                    Padding(
-                                                                      padding: const EdgeInsets
-                                                                          .only(
-                                                                          top:
-                                                                              0),
-                                                                      child:
-                                                                          Column(
-                                                                        crossAxisAlignment: hasReply
-                                                                            ? CrossAxisAlignment.start
-                                                                            : CrossAxisAlignment.start,
-                                                                        mainAxisSize:
-                                                                            MainAxisSize.min,
-                                                                        children: [
-                                                                          if (RegExp(r'((https?:\/\/)|(www\.))[^\s]+', caseSensitive: false)
-                                                                              .hasMatch(content))
-                                                                            Stack(
-                                                                              clipBehavior: Clip.none,
-                                                                              children: [
-                                                                                Padding(
-                                                                                  padding: const EdgeInsets.symmetric(vertical: 0.0),
-                                                                                  child: ClipRRect(
-                                                                                    borderRadius: BorderRadius.circular(12),
-                                                                                    child: AnyLinkPreview(
-                                                                                      link: (() {
-                                                                                        final match = RegExp(r'((https?:\/\/)|(www\.))[^\s]+', caseSensitive: false).firstMatch(content);
-                                                                                        if (match == null) {
-                                                                                          return '';
-                                                                                        }
-                                                                                        String url = match.group(0)!;
-                                                                                        try {
-                                                                                          final uri = Uri.parse(url.startsWith('www.') ? 'https://$url' : url);
-                                                                                          return uri.toString();
-                                                                                        } catch (e) {
-                                                                                          return url;
-                                                                                        }
-                                                                                      })(),
-                                                                                      displayDirection: UIDirection.uiDirectionVertical,
-                                                                                      showMultimedia: true,
-                                                                                      backgroundColor: Colors.grey.shade100,
-                                                                                      bodyStyle: const TextStyle(
-                                                                                        color: Colors.black87,
-                                                                                        fontSize: 12,
-                                                                                        fontWeight: FontWeight.w400,
-                                                                                      ),
-                                                                                      titleStyle: const TextStyle(
-                                                                                        color: Colors.black,
-                                                                                        fontSize: 14,
-                                                                                        fontWeight: FontWeight.bold,
-                                                                                      ),
-                                                                                      cache: const Duration(hours: 1),
-                                                                                      borderRadius: 12,
-                                                                                      errorBody: 'Could not load link preview',
-                                                                                      errorTitle: 'Link Preview',
-                                                                                      errorWidget: Container(
-                                                                                        height: 100,
-                                                                                        color: Colors.grey[200],
-                                                                                        child: const Center(child: Icon(Icons.link_off)),
-                                                                                      ),
-                                                                                    ),
-                                                                                  ),
-                                                                                ),
-                                                                              ],
-                                                                            ),
-                                                                          Stack(
-                                                                            children: [
-                                                                              StatefulBuilder(
-                                                                                builder: (context, setState) {
-                                                                                  const maxCharsPerLine = 30;
-                                                                                  final bool isTextLong = (content.length / maxCharsPerLine).ceil() > 10;
-                                                                                  bool isExpanded = (message['isExpanded'] ?? false) == true;
-                                                                                  return Stack(
-                                                                                    clipBehavior: Clip.none,
-                                                                                    children: [
-                                                                                      Padding(
-                                                                                        padding: const EdgeInsets.only(bottom: 3.0, top: 1.0),
-                                                                                        child: Column(
-                                                                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                                                                          children: [
-                                                                                            RichText(
-                                                                                              maxLines: !isExpanded && isTextLong ? 9 : null,
-                                                                                              overflow: !isExpanded && isTextLong ? TextOverflow.ellipsis : TextOverflow.visible,
-                                                                                              text: TextSpan(
-                                                                                                children: [
-                                                                                                  ..._buildMessageTextSpans(content, isDeleted),
-                                                                                                  WidgetSpan(
-                                                                                                    child: SizedBox(width: isSentByMe ? 75 : 60, height: 20),
-                                                                                                  ),
-                                                                                                ],
-                                                                                              ),
-                                                                                            ),
-                                                                                            if (!isExpanded && isTextLong)
-                                                                                              GestureDetector(
-                                                                                                onTap: () => setState(() => message['isExpanded'] = true),
-                                                                                                child: const Padding(
-                                                                                                  padding: EdgeInsets.symmetric(vertical: 4),
-                                                                                                  child: Text(
-                                                                                                    "Read more",
-                                                                                                    style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
-                                                                                                  ),
-                                                                                                ),
-                                                                                              ),
-                                                                                            if (isExpanded)
-                                                                                              GestureDetector(
-                                                                                                onTap: () => setState(() => message['isExpanded'] = false),
-                                                                                                child: const Padding(
-                                                                                                  padding: EdgeInsets.symmetric(vertical: 4),
-                                                                                                  child: Text(
-                                                                                                    "Read less",
-                                                                                                    style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
-                                                                                                  ),
-                                                                                                ),
-                                                                                              ),
-                                                                                            if (!isExpanded && isTextLong)
-                                                                                              Align(
-                                                                                                alignment: Alignment.centerRight,
-                                                                                                child: Row(
-                                                                                                  mainAxisSize: MainAxisSize.min,
-                                                                                                  children: [
-                                                                                                    Text(
-                                                                                                      TimeUtils.formatUtcToIst(message['time']),
-                                                                                                      style: const TextStyle(fontSize: 10, color: Colors.black54),
-                                                                                                    ),
-                                                                                                    const SizedBox(width: 4),
-                                                                                                    if (isSentByMe && content != "Message Deleted") _buildStatusIcon(messageStatus, message),
-                                                                                                  ],
-                                                                                                ),
-                                                                                              ),
-                                                                                          ],
-                                                                                        ),
-                                                                                      ),
-
-                                                                                      /// ---- TIMESTAMP & STATUS (Positioned like private chat) ----
-                                                                                      if (!(!isExpanded && isTextLong) && !hasReply)
-                                                                                        Positioned(
-                                                                                          bottom: 3,
-                                                                                          right: 3,
-                                                                                          child: Row(
-                                                                                            mainAxisAlignment: MainAxisAlignment.end,
-                                                                                            mainAxisSize: MainAxisSize.min,
-                                                                                            children: [
-                                                                                              Text(
-                                                                                                TimeUtils.formatUtcToIst(message['time']),
-                                                                                                style: const TextStyle(fontSize: 10, color: Colors.black54),
-                                                                                              ),
-                                                                                              const SizedBox(width: 4),
-                                                                                              if (isSentByMe && content != "Message Deleted") _buildStatusIcon(messageStatus, message),
-                                                                                            ],
-                                                                                          ),
-                                                                                        ),
-                                                                                    ],
-                                                                                  );
-                                                                                },
-                                                                              ),
-                                                                            ],
-                                                                          ),
-                                                                        ],
-                                                                      ),
-                                                                    ),
-                                                              ],
-                                                            ),
-                                                          ),
-                                                        ]),
-
-                                                    // Positioned reply preview (visible)
-                                                    if (hasReply)
-                                                      Positioned(
-                                                        top: (!isSentByMe &&
-                                                                userName
-                                                                    .isNotEmpty)
-                                                            ? 25
-                                                            : 0,
-                                                        left: 0,
-                                                        right: 0,
-                                                        child:
-                                                            GroupRepliedMessagePreview(
-                                                          key: ValueKey(
-                                                              '${messageId}_${message['replyContent']}'),
-                                                          replied: _mergeReplyData(
-                                                              message['repliedMessage'] ??
-                                                                  message[
-                                                                      'reply']),
-                                                          receiver: message[
-                                                                      'receiver']
-                                                                  is Map
-                                                              ? Map<String,
-                                                                      dynamic>.from(
-                                                                  message[
-                                                                      'receiver'])
-                                                              : {},
-                                                          isSender: isSentByMe,
-                                                          groupMediaLength:
-                                                              _calculateGroupMediaLength(
-                                                                  _mergeReplyData(message[
-                                                                          'repliedMessage'] ??
-                                                                      message[
-                                                                          'reply'])),
-                                                          hasMixedMedia: _hasMixedMediaTypes(
-                                                              _mergeReplyData(message[
-                                                                      'repliedMessage'] ??
-                                                                  message[
-                                                                      'reply'])),
-                                                          // groupMediaLength:
-                                                          //     _calculateGroupMediaLength(
-                                                          //         _mergeReplyData(message[
-                                                          //                 'repliedMessage'] ??
-                                                          //             message[
-                                                          //                 'reply'])),
-                                                          onTap: () async {
-                                                            final replyId = ((message['repliedMessage'] ?? message['reply'])?['id'] ??
-                                                                        (message['repliedMessage'] ??
-                                                                                message['reply'])?[
-                                                                            'message_id'] ??
-                                                                        (message['repliedMessage'] ??
-                                                                            message['reply'])?['messageId'])
-                                                                    ?.toString() ??
-                                                                '';
-                                                            if (replyId
-                                                                .isNotEmpty) {
-                                                              await _scrollToMessageById(
-                                                                  replyId,
-                                                                  fetchIfMissing:
-                                                                      true);
-                                                            }
-                                                          },
-                                                        ),
-                                                      ),
-                                                    // TIMESTAMP & STATUS - Positioned at Container Stack level for replied messages
-                                                    if (hasReply &&
-                                                        content.isNotEmpty)
-                                                      Positioned(
-                                                        bottom: 3,
-                                                        right: 3,
-                                                        child: Row(
-                                                          mainAxisAlignment:
-                                                              MainAxisAlignment
-                                                                  .end,
-                                                          mainAxisSize:
-                                                              MainAxisSize.min,
-                                                          children: [
-                                                            Text(
-                                                              TimeUtils
-                                                                  .formatUtcToIst(
-                                                                      message[
-                                                                          'time']),
-                                                              style: const TextStyle(
-                                                                  fontSize: 10,
-                                                                  color: Colors
-                                                                      .black54),
-                                                            ),
-                                                            const SizedBox(
-                                                                width: 4),
-                                                            if (isSentByMe &&
-                                                                content !=
-                                                                    "Message Deleted")
-                                                              _buildStatusIcon(
-                                                                  messageStatus,
-                                                                  message),
-                                                          ],
-                                                        ),
-                                                      ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                          if (!isSentByMe &&
-                                              (isVideo ||
-                                                  isImage ||
-                                                  hasFile ||
-                                                  (content.isNotEmpty &&
-                                                      RegExp(r'((https?:\/\/)|(www\.))[^\s]+',
-                                                              caseSensitive:
-                                                                  false)
-                                                          .hasMatch(content))))
-                                            Center(
-                                              child: Material(
-                                                color: Colors.transparent,
-                                                child: Padding(
-                                                  padding:
-                                                      const EdgeInsets.only(
-                                                          left: 15.0),
-                                                  child: InkWell(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            20),
-                                                    onTap: () {
-                                                      MyRouter.pushReplace(
-                                                        screen:
-                                                            ForwardMessageScreen(
-                                                          messages: [
-                                                            normalizeMessage(
-                                                                message)
-                                                          ],
-                                                          currentUserId:
-                                                              currentUserId,
-                                                          conversionalid: widget
-                                                              .conversationId,
-                                                          username:
-                                                              widget.groupName,
-                                                        ),
-                                                      );
-                                                    },
-                                                    child: CircleAvatar(
-                                                      maxRadius: 16,
-                                                      backgroundColor:
-                                                          Colors.white,
-                                                      child: Image.asset(
-                                                        "assets/images/forward.png",
-                                                        height: 20,
-                                                        width: 20,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ]),
-                              ),
-                              // Avatar positioned outside the message bubble
-                              if (!isSentByMe)
-                                Positioned(
-                                  left: -2,
-                                  top: 10,
-                                  child: CircleAvatar(
-                                    radius: 16,
-                                    backgroundColor: Colors.transparent,
-                                    child: ClipOval(
-                                      child: profileImageUrl.isNotEmpty
-                                          ? CachedNetworkImage(
-                                              imageUrl: profileImageUrl,
-                                              width: 32,
-                                              height: 32,
-                                              memCacheWidth: 480,
-                                              memCacheHeight: 600,
-                                              fit: BoxFit.cover,
-                                              placeholder: (context, url) =>
-                                                  _buildAvatarWithInitial(
-                                                      userName),
-                                              errorWidget:
-                                                  (context, url, error) =>
-                                                      _buildAvatarWithInitial(
-                                                          userName),
-                                            )
-                                          : _buildAvatarWithInitial(userName),
-                                    ),
-                                  ),
-                                ),
-                              // REACTIONS BAR - Positioned outside the message bubble
-                              if (message['reactions'] != null &&
-                                  message['reactions'].isNotEmpty)
-                                Positioned(
-                                  bottom: hasReply ? -20 : -18,
-                                  left: isSentByMe ? null : 40,
-                                  right: isSentByMe ? 14 : null,
-                                  child: Padding(
-                                    padding: EdgeInsets.only(
-                                      bottom: 12,
-                                      left: isSentByMe ? 5 : 0,
-                                    ),
-                                    child:
-                                        _buildReactionsBar(message, isSentByMe),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ));
-                },
-              );
-  }
-
-  void _openFile(String urlOrPath, String? fileType) async {
-    // 1. If it's a local file, just open it
-    if (!urlOrPath.startsWith('http')) {
-      final result = await OpenFile.open(urlOrPath);
-      if (result.type != ResultType.done) {
-        Messenger.alertError("Could not open local file.");
-      }
-      return;
-    }
-
-    // 2. It's a URL - Check if we already have it downloaded
-    try {
-      final String packageName = "com.nowdigitaleasy.NDEconnect";
-      final String baseDir =
-          "/storage/emulated/0/Android/media/$packageName/NowDigitalEasy/Media";
-
-      final Directory directory = Directory(baseDir);
-      if (!await directory.exists()) {
-        await directory.create(recursive: true);
-      }
-
-      // Extract filename
-      final String fileName = urlOrPath.split('/').last.split('?').first;
-      String safeFileName = fileName.isEmpty
-          ? 'document_${DateTime.now().millisecondsSinceEpoch}'
-          : fileName;
-
-      // Check for extension
-      String extension = p.extension(safeFileName);
-      if (extension.isEmpty) {
-        if (fileType != null) {
-          final lowerType = fileType.toLowerCase();
-          if (lowerType.contains('pdf'))
-            extension = '.pdf';
-          else if (lowerType.contains('word') ||
-              lowerType.contains('doc') ||
-              lowerType.contains('msword'))
-            extension = '.docx';
-          else if (lowerType.contains('excel') ||
-              lowerType.contains('sheet') ||
-              lowerType.contains('spreadsheet'))
-            extension = '.xlsx';
-          else if (lowerType.contains('presentation') ||
-              lowerType.contains('powerpoint'))
-            extension = '.pptx';
-          else if (lowerType.contains('image'))
-            extension = '.jpg';
-          else if (lowerType.contains('video'))
-            extension = '.mp4';
-          else if (lowerType.contains('text') || lowerType.contains('plain'))
-            extension = '.txt';
-          else if (lowerType.contains('csv'))
-            extension = '.csv';
-          else if (lowerType.contains('zip'))
-            extension = '.zip';
-          else if (lowerType.contains('rar'))
-            extension = '.rar';
-          else if (lowerType.contains('json'))
-            extension = '.json';
-          else if (lowerType.contains('xml')) extension = '.xml';
-        }
-
-        // Fallback checks on filename/url matching common patterns if no type or type didn't match
-        if (extension.isEmpty) {
-          final lowerName = safeFileName.toLowerCase();
-          if (lowerName.contains('pdf'))
-            extension = '.pdf';
-          else if (lowerName.contains('doc'))
-            extension = '.docx';
-          else if (lowerName.contains('xls'))
-            extension = '.xlsx';
-          else if (lowerName.contains('ppt')) extension = '.pptx';
-        }
-
-        if (extension.isNotEmpty) {
-          safeFileName += extension;
-        }
-      }
-
-      final String finalPath = p.join(baseDir, safeFileName);
-      final File targetFile = File(finalPath);
-
-      if (await targetFile.exists()) {
-        // Open existing
-        final result = await OpenFile.open(finalPath);
-        if (result.type != ResultType.done) {
-          Messenger.alertError("Could not open file.");
-        }
-        return;
-      }
-
-      // 3. Not downloaded - Request Permission
-      if (Platform.isAndroid) {
-        final status = await Permission.storage.request();
-        final status2 = await Permission.manageExternalStorage.request();
-        // Note: checking both might be needed depending on Android version
-        // Ideally checking 'storage' is enough for older, 'manage' for newer if targeting full access
-        // But for scoped storage in app-specific public dir, sometimes we just need to ensure dir exists.
-        // Keeping logic similar to MixedMediaViewer which requested these.
-        if (!status.isGranted && !status2.isGranted) {
-          // Continue anyway? MixedMediaViewer returns.
-          // But valid public app folder might be writeable without broad permissions on some versions.
-          // We will try to proceed but warn if allowed.
-          // Actually, complying with MixedMediaViewer logic:
-          // Messenger.alertError('Storage permission denied');
-          // return;
-        }
-      }
-
-      // 4. Download
-      Messenger.alertSuccess('Downloading document...');
-      await Dio().download(urlOrPath, finalPath);
-      Messenger.alertSuccess('Saved to NowDigitalEasy/Media');
-
-      // 5. Open
-      final result = await OpenFile.open(finalPath);
-      if (result.type != ResultType.done) {
-        Messenger.alertError("Could not open downloaded file.");
-      }
-    } catch (e) {
-      print("Error downloading/opening file: $e");
-      Messenger.alertError("Failed to open file.");
-    }
-  }
-
-  DateTime _parseTime(dynamic time) {
-    if (time == null) return DateTime.now();
-    if (time is int) return DateTime.fromMillisecondsSinceEpoch(time);
-    if (time is String) {
-      try {
-        return DateTime.parse(time);
-      } catch (_) {
-        return DateTime.now();
-      }
-    }
-    return DateTime.now();
-  }
-
-  Widget _buildStatusIcon(String status, Map<String, dynamic> message) {
-    // Add tap handler for all unsent/pending messages
-    // Allow resend/delete for: failed, pending_offline, pending, sending
-    if (status == 'failed' ||
-        status == 'pending_offline' ||
-        status == 'pending' ||
-        status == 'sending') {
-      return GestureDetector(
-        onTap: () => _showResendDialog(message),
-        child: MessageStatusIcon(status: status),
-      );
-    }
-    return MessageStatusIcon(status: status);
-  }
-
-  void _showResendDialog(Map<String, dynamic> message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Message not sent'),
-        content:
-            Text('This message couldn\'t be sent. Do you want to try again?'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _deleteMessage(message);
-            },
-            child: Text('Delete', style: TextStyle(color: Colors.red)),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _resendMessage(message);
-            },
-            child: Text('Resend'),
-          ),
-        ],
-      ),
+    return GroupMessageBubbleWidget(
+      message: message,
+      isSentByMe: isSentByMe,
+      currentUserId: currentUserId,
+      isSelectionMode: _isSelectionMode,
+      selectedMessageKeys: _selectedMessageKeys,
+      searchText: _searchController.text,
+      imageFile: _imageFile,
+      fileUrl: _fileUrl,
+      conversationId: widget.conversationId,
+      groupName: widget.groupName,
+      messageContexts: _messageContexts,
+      // Callbacks
+      onMessageTap: _onMessageTap,
+      onReplyToMessage: _replyToMessage,
+      onShowReactionPicker: _showReactionPicker,
+      onToggleMessageSelection: _toggleMessageSelection,
+      onShowFullImage: _showFullImage,
+      onOpenFile: FileOpenerUtils.openFile,
+      onScrollToMessageById: _scrollToMessageById,
+      // Helper functions
+      sanitizeString: sanitizeString,
+      buildHighlightSpans: _buildHighlightSpans,
+      calculateGroupMediaLength: _calculateGroupMediaLength,
+      hasMixedMediaTypes: _hasMixedMediaTypes,
+      mergeReplyData: _mergeReplyData,
+      normalizeMessage: GroupChatNormalizeUtils.normalizeMessage,
+      buildStatusIcon: _offlineHandler.buildStatusIcon,
+      buildMessageTextSpans: _buildMessageTextSpans,
+      buildVideoPreviewTile: _buildVideoPreviewTile,
+      buildReactionsBar: _buildReactionsBar,
+      buildAvatarWithInitial: _buildAvatarWithInitial,
+      generateMessageKey: GroupChatMessageUtils.generateMessageKey,
     );
   }
 
-  void _resendMessage(Map<String, dynamic> failedMessage) async {
-    final oldMessageId = failedMessage['message_id']?.toString() ?? '';
-    final content = failedMessage['content']?.toString() ?? '';
+  // Widget _buildMessageBubble(Map<String, dynamic> message, bool isSentByMe) {
+  //   // Sanitize message content early to avoid invalid strings in any downstream Text widgets
+  //   final String content = sanitizeString(message['content']?.toString() ?? '');
+  //   final String? imageUrl = message['imageUrl'] ?? _imageFile;
+  //   final String? fileUrl = message['fileUrl'] ?? _fileUrl;
+  //   final String? fileName = message['fileName']?.toString() ?? '';
+  //   final String? fileType = message['fileType'];
+  //   final bool? isForwarded = message['isForwarded'] ?? false;
 
-    if (content.isEmpty) return;
+  //   final String userName =
+  //       (message['userName']?.toString().trim().isNotEmpty == true)
+  //           ? sanitizeString(message['userName']?.toString())
+  //           : (() {
+  //               final s = message['sender'];
+  //               if (s is Map) {
+  //                 final first =
+  //                     sanitizeString(s['first_name'] ?? s['firstName'] ?? '');
+  //                 final last =
+  //                     sanitizeString(s['last_name'] ?? s['lastName'] ?? '');
+  //                 return [first, last, sanitizeString(s['name'] ?? '')]
+  //                     .where((e) => e != null && e.toString().trim().isNotEmpty)
+  //                     .join(' ')
+  //                     .trim();
+  //               }
+  //               return '';
+  //             })();
 
-    if (!(_isOnline && socketService.isConnected)) {
-      Messenger.alertError("Cannot resend: No internet or socket disconnected");
-      _updateMessageStatus(oldMessageId, 'failed');
-      return;
-    }
+  //   final String contentType = message['ContentType'] ?? "";
+  //   final senderData = message['sender'] is Map ? message['sender'] : {};
+  //   final String profileImageUrl = senderData['profile_pic_path']?.toString() ??
+  //       senderData['profilePic']?.toString() ??
+  //       senderData['avatar']?.toString() ??
+  //       message['profile_pic_path']?.toString() ??
+  //       "";
 
-    // Update status to sending for the existing message
-    _updateMessageStatus(oldMessageId, 'sending');
+  //   final bool isImage =
+  //       (fileType != null && fileType.toLowerCase().startsWith("image")) ||
+  //           (fileName != null &&
+  //               RegExp(r'\.(jpg|jpeg|png|gif|webp|bmp)$', caseSensitive: false)
+  //                   .hasMatch(fileName));
 
-    try {
-      // Create a completer to wait for the sent message
-      final completer = Completer<GrpMessage>();
-      final subscription = _groupBloc.stream.listen((state) {
-        if (state is GrpMessageSentSuccessfully) {
-          completer.complete(state.sentMessage);
-        } else if (state is GroupChatError) {
-          completer.completeError(state.message);
-        }
-      });
+  //   final bool isVideo =
+  //       (fileType != null && fileType.toLowerCase().startsWith("video")) ||
+  //           (fileName != null &&
+  //               RegExp(r'\.(mp4|mov|avi|mkv|webm)$', caseSensitive: false)
+  //                   .hasMatch(fileName));
 
-      // Dispatch the send event (this creates a NEW message with NEW ID)
-      _groupBloc.add(
-        SendMessageEvent(
-          convoId: widget.conversationId,
-          message: content,
-          senderId: currentUserId,
-          receiverId: widget.datumId,
-          replyTo: failedMessage['reply'],
-        ),
-      );
+  //   final bool isAudio = (fileType != null &&
+  //           fileType.toLowerCase().startsWith("audio")) ||
+  //       (fileName != null &&
+  //           RegExp(r'\.(mp3|wav|aac|m4a|flac|ogg|opus)$', caseSensitive: false)
+  //               .hasMatch(fileName));
 
-      // Wait for the server response
-      final sentMsg = await completer.future.timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          throw TimeoutException('Resend timed out');
-        },
-      );
-      await subscription.cancel();
+  //   final String messageStatus =
+  //       message['messageStatus']?.toString() ?? 'delivered';
 
-      // Replace the old failed message with the new successful one
-      _replaceTempMessageWithReal(
-        tempId: oldMessageId,
-        realId: sentMsg.messageId,
-        status: 'sent',
-      );
-    } catch (e) {
-      _updateMessageStatus(oldMessageId, 'failed');
-      if (e is! TimeoutException) {
-        Messenger.alertError("Resend failed: $e");
-      }
-    }
-  }
+  //   if (content.isEmpty &&
+  //       (imageUrl == null || imageUrl.isEmpty) &&
+  //       (fileUrl == null || fileUrl.isEmpty)) {
+  //     return const SizedBox.shrink();
+  //   }
 
-  /// Delete a failed message
-  void _deleteMessage(Map<String, dynamic> message) {
-    final messageId = message['message_id']?.toString() ?? '';
+  //   final isSelected = _selectedMessageKeys
+  //       .contains(GroupChatMessageUtils.generateMessageKey(message));
+  //   final bool isDeleted = message['is_deleted'] == true ||
+  //       message['isDeleted'] == true ||
+  //       message['messageStatus'] == 'deleted' ||
+  //       message['content'] == '🚫 This message was deleted';
 
-    setState(() {
-      socketMessages
-          .removeWhere((m) => (m['message_id'] ?? '').toString() == messageId);
-      messages
-          .removeWhere((m) => (m['message_id'] ?? '').toString() == messageId);
-      dbMessages
-          .removeWhere((m) => (m['message_id'] ?? '').toString() == messageId);
+  //   final bool hasReply = !isDeleted &&
+  //           (message['repliedMessage'] is Map &&
+  //               (message['repliedMessage']['id'] ??
+  //                       message['repliedMessage']['message_id'] ??
+  //                       message['repliedMessage']['messageId']) !=
+  //                   null) ||
+  //       (message['reply'] is Map &&
+  //           (message['reply']['id'] ??
+  //                   message['reply']['message_id'] ??
+  //                   message['reply']['messageId']) !=
+  //               null);
 
-      _refreshMessages();
-    });
+  //   final messageId = (message['message_id'] ??
+  //               message['messageId'] ??
+  //               message['id'] ??
+  //               message['_id'])
+  //           ?.toString() ??
+  //       '';
+  //   final bool hasFile = fileUrl != null && fileUrl.isNotEmpty;
+  //   return message['content'].contains('Group created by')
+  //       ? voidBox
+  //       : (contentType == "system" &&
+  //               (content.contains('added') || content.contains('left')))
+  //           ? voidBox
+  //           : Builder(
+  //               builder: (context) {
+  //                 // Register context for scrolling
+  //                 if (messageId.isNotEmpty) {
+  //                   _messageContexts[messageId] = context;
+  //                 }
 
-    // Save to storage
-    final combined = _getCombinedMessages();
-    GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
-  }
+  //                 return SwipeToReply(
+  //                     icon: Icons.reply,
+  //                     iconColor: Colors.grey.shade600,
+  //                     onReply: isDeleted
+  //                         ? null
+  //                         : () {
+  //                             _replyToMessage(message);
+  //                           },
+  //                     child: Container(
+  //                       padding: const EdgeInsets.symmetric(
+  //                           vertical: 5.0, horizontal: 4.0),
+  //                       child: GestureDetector(
+  //                         onTap: () => _onMessageTap(message),
+  //                         onLongPress: () {
+  //                           // log("messssssssssssssssssssss $message");
+  //                           if (_isSelectionMode) {
+  //                             _toggleMessageSelection(message);
+  //                           } else if (!isDeleted) {
+  //                             _showReactionPicker(context, message);
 
-  Widget _buildDateSeparator(DateTime? dateTime) {
-    if (dateTime == null) return const SizedBox.shrink();
-    return Center(
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        decoration: BoxDecoration(
-          color: Colors.grey[200],
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Text(
-          _formatDateTime(dateTime),
-          style: const TextStyle(
-            fontSize: 12,
-            color: Colors.grey,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ),
-    );
-  }
+  //                             // Enter selection mode
+  //                             setState(() {
+  //                               _isSelectionMode = true;
+  //                             });
+  //                             _toggleMessageSelection(message);
+  //                           } else {
+  //                             // If deleted, only enter selection mode
+  //                             setState(() {
+  //                               _isSelectionMode = true;
+  //                             });
+  //                             _toggleMessageSelection(message);
+  //                           }
+  //                         },
+  //                         child: Stack(
+  //                           clipBehavior: Clip.none,
+  //                           children: [
+  //                             Align(
+  //                               alignment: isSentByMe
+  //                                   ? Alignment.centerRight
+  //                                   : Alignment.centerLeft,
+  //                               widthFactor: hasReply ? 1.0 : null,
+  //                               child: Stack(
+  //                                   clipBehavior: Clip.none,
+  //                                   children: [
+  //                                     Row(
+  //                                       mainAxisAlignment: isSentByMe
+  //                                           ? MainAxisAlignment.end
+  //                                           : MainAxisAlignment.start,
+  //                                       children: [
+  //                                         if (isSentByMe &&
+  //                                             (isVideo ||
+  //                                                 isImage ||
+  //                                                 hasFile ||
+  //                                                 (content.isNotEmpty &&
+  //                                                     RegExp(r'((https?:\/\/)|(www\.))[^\s]+',
+  //                                                             caseSensitive:
+  //                                                                 false)
+  //                                                         .hasMatch(content))))
+  //                                           Center(
+  //                                             child: Material(
+  //                                               color: Colors.transparent,
+  //                                               child: InkWell(
+  //                                                 borderRadius:
+  //                                                     BorderRadius.circular(20),
+  //                                                 onTap: () {
+  //                                                   MyRouter.pushReplace(
+  //                                                     screen:
+  //                                                         ForwardMessageScreen(
+  //                                                       messages: [
+  //                                                         GroupChatNormalizeUtils
+  //                                                             .normalizeMessage(
+  //                                                                 message)
+  //                                                       ],
+  //                                                       currentUserId:
+  //                                                           currentUserId,
+  //                                                       conversionalid: widget
+  //                                                           .conversationId,
+  //                                                       username:
+  //                                                           widget.groupName,
+  //                                                     ),
+  //                                                   );
+  //                                                 },
+  //                                                 child: CircleAvatar(
+  //                                                   maxRadius: 16,
+  //                                                   backgroundColor:
+  //                                                       Colors.white,
+  //                                                   child: Image.asset(
+  //                                                     "assets/images/forward.png",
+  //                                                     height: 20,
+  //                                                     width: 20,
+  //                                                   ),
+  //                                                 ),
+  //                                               ),
+  //                                             ),
+  //                                           ),
+  //                                         Flexible(
+  //                                           child: Padding(
+  //                                             padding: const EdgeInsets.only(
+  //                                                 left: 30),
+  //                                             child: Container(
+  //                                               margin: EdgeInsets.only(
+  //                                                 left: 5,
+  //                                                 right: 5,
+  //                                                 top: 0,
+  //                                                 bottom: (message[
+  //                                                                 'reactions'] !=
+  //                                                             null &&
+  //                                                         message['reactions']
+  //                                                             .isNotEmpty)
+  //                                                     ? 20
+  //                                                     : 0,
+  //                                               ),
+  //                                               padding: hasReply
+  //                                                   ? EdgeInsets.only(
+  //                                                       left: 5,
+  //                                                       bottom: 3,
+  //                                                       right: 6)
+  //                                                   : const EdgeInsets.only(
+  //                                                       top: 8,
+  //                                                       left: 10,
+  //                                                       right: 6,
+  //                                                       bottom: 8),
+  //                                               constraints: BoxConstraints(
+  //                                                   maxWidth: 250,
+  //                                                   minWidth:
+  //                                                       hasReply ? 120 : 0),
+  //                                               decoration: BoxDecoration(
+  //                                                 color: isSelected
+  //                                                     ? senderColor
+  //                                                         .withOpacity(0.2)
+  //                                                     : (isSentByMe
+  //                                                         ? senderColor
+  //                                                         : receiverColor),
+  //                                                 borderRadius:
+  //                                                     BorderRadius.only(
+  //                                                   topLeft: isSentByMe
+  //                                                       ? const Radius.circular(
+  //                                                           18)
+  //                                                       : const Radius.circular(
+  //                                                           18),
+  //                                                   topRight: isSentByMe
+  //                                                       ? const Radius.circular(
+  //                                                           18)
+  //                                                       : const Radius.circular(
+  //                                                           18),
+  //                                                   bottomLeft: isSentByMe
+  //                                                       ? const Radius.circular(
+  //                                                           18)
+  //                                                       : Radius.zero,
+  //                                                   bottomRight: isSentByMe
+  //                                                       ? Radius.zero
+  //                                                       : const Radius.circular(
+  //                                                           16),
+  //                                                 ),
+  //                                                 border: isSelected
+  //                                                     ? Border.all(
+  //                                                         color: Colors.blue,
+  //                                                         width: 2)
+  //                                                     : null,
+  //                                                 boxShadow: [
+  //                                                   BoxShadow(
+  //                                                     color: Colors.black
+  //                                                         .withOpacity(0.05),
+  //                                                     blurRadius: 4,
+  //                                                     offset:
+  //                                                         const Offset(0, 2),
+  //                                                   ),
+  //                                                 ],
+  //                                               ),
+  //                                               child: Stack(
+  //                                                 children: [
+  //                                                   Column(
+  //                                                       crossAxisAlignment:
+  //                                                           CrossAxisAlignment
+  //                                                               .start,
+  //                                                       children: [
+  //                                                         if (!isSentByMe &&
+  //                                                             userName
+  //                                                                 .isNotEmpty)
+  //                                                           Padding(
+  //                                                             padding: EdgeInsets
+  //                                                                 .only(
+  //                                                                     bottom: 4,
+  //                                                                     left: 7,
+  //                                                                     right: 6,
+  //                                                                     top: hasReply
+  //                                                                         ? 6.5
+  //                                                                         : 0),
+  //                                                             child: Text(
+  //                                                               userName,
+  //                                                               style:
+  //                                                                   TextStyle(
+  //                                                                 fontWeight:
+  //                                                                     FontWeight
+  //                                                                         .bold,
+  //                                                                 color: ColorUtil
+  //                                                                     .getColorFromAlphabet(
+  //                                                                         userName),
+  //                                                                 fontSize: 14,
+  //                                                               ),
+  //                                                             ),
+  //                                                           ),
 
-  Widget _buildtextSeparator(String? text) {
-    if (text == null) return const SizedBox.shrink();
-    return Center(
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        decoration: BoxDecoration(
-          color: Colors.grey[200],
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Text(
-          text,
-          style: const TextStyle(
-            fontSize: 12,
-            color: Colors.grey,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ),
-    );
-  }
+  //                                                         if (isForwarded ==
+  //                                                             true)
+  //                                                           Padding(
+  //                                                             padding:
+  //                                                                 const EdgeInsets
+  //                                                                     .only(
+  //                                                                     bottom:
+  //                                                                         4.0,
+  //                                                                     left: 7,
+  //                                                                     right: 6),
+  //                                                             child: Row(
+  //                                                               mainAxisSize:
+  //                                                                   MainAxisSize
+  //                                                                       .min,
+  //                                                               children: [
+  //                                                                 Image.asset(
+  //                                                                   "assets/images/forward.png",
+  //                                                                   height: 14,
+  //                                                                   width: 14,
+  //                                                                 ),
+  //                                                                 const SizedBox(
+  //                                                                     width: 4),
+  //                                                                 Text(
+  //                                                                   "Forwarded",
+  //                                                                   style:
+  //                                                                       TextStyle(
+  //                                                                     fontSize:
+  //                                                                         12,
+  //                                                                     color: Colors
+  //                                                                             .grey[
+  //                                                                         700],
+  //                                                                   ),
+  //                                                                 ),
+  //                                                               ],
+  //                                                             ),
+  //                                                           ),
+
+  //                                                         // REPLY PREVIEW - opacity trick for measurement
+  //                                                         if (hasReply)
+  //                                                           Opacity(
+  //                                                             opacity: 0,
+  //                                                             child:
+  //                                                                 GroupRepliedMessagePreview(
+  //                                                               key: ValueKey(
+  //                                                                   '${messageId}_${message['replyContent']}_placeholder'),
+  //                                                               replied: (message['repliedMessage'] ??
+  //                                                                           message['reply'])
+  //                                                                       is Map
+  //                                                                   ? Map<
+  //                                                                       String,
+  //                                                                       dynamic>.from(message[
+  //                                                                           'repliedMessage'] ??
+  //                                                                       message[
+  //                                                                           'reply'])
+  //                                                                   : <String,
+  //                                                                       dynamic>{},
+  //                                                               receiver: message[
+  //                                                                           'receiver']
+  //                                                                       is Map
+  //                                                                   ? Map<String,
+  //                                                                           dynamic>.from(
+  //                                                                       message[
+  //                                                                           'receiver'])
+  //                                                                   : {},
+  //                                                               isSender:
+  //                                                                   isSentByMe,
+  //                                                               groupMediaLength:
+  //                                                                   _calculateGroupMediaLength(_mergeReplyData(message[
+  //                                                                           'repliedMessage'] ??
+  //                                                                       message[
+  //                                                                           'reply'])),
+  //                                                               onTap: null,
+  //                                                             ),
+  //                                                           ),
+
+  //                                                         // Main content with proper padding when reply exists
+  //                                                         Padding(
+  //                                                           padding: hasReply
+  //                                                               ? const EdgeInsets
+  //                                                                   .only(
+  //                                                                   left: 7,
+  //                                                                   right: 0,
+  //                                                                   bottom: 0,
+  //                                                                   top: 0)
+  //                                                               : EdgeInsets
+  //                                                                   .zero,
+  //                                                           child: Column(
+  //                                                             crossAxisAlignment:
+  //                                                                 CrossAxisAlignment
+  //                                                                     .start,
+  //                                                             children: [
+  //                                                               if (imageUrl !=
+  //                                                                       null &&
+  //                                                                   imageUrl
+  //                                                                       .isNotEmpty &&
+  //                                                                   (isImage ||
+  //                                                                       imageUrl !=
+  //                                                                           fileUrl))
+  //                                                                 content ==
+  //                                                                         "Message Deleted"
+  //                                                                     ? const SizedBox
+  //                                                                         .shrink()
+  //                                                                     : Stack(
+  //                                                                         clipBehavior:
+  //                                                                             Clip.none,
+  //                                                                         children: [
+  //                                                                           GestureDetector(
+  //                                                                             onTap: () => _showFullImage(context, imageUrl, message: message),
+  //                                                                             child: ClipRRect(
+  //                                                                               borderRadius: BorderRadius.circular(12),
+  //                                                                               child: imageUrl.startsWith('https') || imageUrl.startsWith('http')
+  //                                                                                   ? CachedNetworkImage(
+  //                                                                                       imageUrl: imageUrl,
+  //                                                                                       width: 240,
+  //                                                                                       memCacheWidth: 480,
+  //                                                                                       memCacheHeight: 600,
+  //                                                                                       height: 300,
+  //                                                                                       fit: BoxFit.cover,
+  //                                                                                       placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+  //                                                                                       errorWidget: (context, url, error) => const Icon(Icons.error, color: Colors.red),
+  //                                                                                     )
+  //                                                                                   : Image.file(File(imageUrl), width: 240, height: 240, fit: BoxFit.cover),
+  //                                                                             ),
+  //                                                                           ),
+  //                                                                           if (content.isEmpty)
+  //                                                                             Positioned(
+  //                                                                               bottom: 5,
+  //                                                                               right: 4,
+  //                                                                               child: Container(
+  //                                                                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+  //                                                                                 decoration: BoxDecoration(
+  //                                                                                   boxShadow: [
+  //                                                                                     BoxShadow(
+  //                                                                                       color: Colors.black.withOpacity(0.2),
+  //                                                                                       blurRadius: 2,
+  //                                                                                       offset: const Offset(0, 1),
+  //                                                                                     ),
+  //                                                                                   ],
+  //                                                                                   color: Colors.black45.withOpacity(0.1),
+  //                                                                                   borderRadius: BorderRadius.circular(8),
+  //                                                                                 ),
+  //                                                                                 child: Row(
+  //                                                                                   mainAxisSize: MainAxisSize.min,
+  //                                                                                   children: [
+  //                                                                                     Text(
+  //                                                                                       TimeUtils.formatUtcToIst(message['time']),
+  //                                                                                       style: const TextStyle(
+  //                                                                                         fontSize: 10,
+  //                                                                                         color: Colors.white,
+  //                                                                                       ),
+  //                                                                                     ),
+  //                                                                                     if (isSentByMe) ...[
+  //                                                                                       const SizedBox(width: 4),
+  //                                                                                       Builder(builder: (context) {
+  //                                                                                         switch (messageStatus) {
+  //                                                                                           case 'sent':
+  //                                                                                             return const Icon(Icons.check, size: 12, color: Colors.white);
+  //                                                                                           case 'delivered':
+  //                                                                                             return const Icon(Icons.done_all_rounded, size: 12, color: Colors.white);
+  //                                                                                           case 'read':
+  //                                                                                             return const Icon(Icons.done_all, size: 12, color: Colors.blue);
+  //                                                                                           default:
+  //                                                                                             return const SizedBox.shrink();
+  //                                                                                         }
+  //                                                                                       }),
+  //                                                                                     ],
+  //                                                                                   ],
+  //                                                                                 ),
+  //                                                                               ),
+  //                                                                             ),
+  //                                                                         ],
+  //                                                                       ),
+  //                                                               if (fileUrl !=
+  //                                                                       null &&
+  //                                                                   fileUrl
+  //                                                                       .isNotEmpty &&
+  //                                                                   isVideo)
+  //                                                                 _buildVideoPreviewTile(
+  //                                                                   context,
+  //                                                                   fileUrl,
+  //                                                                   fileName ??
+  //                                                                       "",
+  //                                                                   isSentByMe,
+  //                                                                   message,
+  //                                                                 )
+  //                                                               else if (fileUrl !=
+  //                                                                       null &&
+  //                                                                   fileUrl
+  //                                                                       .isNotEmpty &&
+  //                                                                   isAudio)
+  //                                                                 AudioMessageWidget(
+  //                                                                   audioUrl:
+  //                                                                       fileUrl,
+  //                                                                   profileAvatarUrl:
+  //                                                                       profileImageUrl,
+  //                                                                   isSender:
+  //                                                                       isSentByMe,
+  //                                                                   duration: message[
+  //                                                                           'duration']
+  //                                                                       ?.toString(),
+  //                                                                   timestamp: TimeUtils
+  //                                                                       .formatUtcToIst(
+  //                                                                           message['time']),
+  //                                                                   status:
+  //                                                                       messageStatus,
+  //                                                                   showContainer:
+  //                                                                       false,
+  //                                                                 )
+  //                                                               else if (fileUrl !=
+  //                                                                       null &&
+  //                                                                   fileUrl
+  //                                                                       .isNotEmpty &&
+  //                                                                   !(content ==
+  //                                                                           "Message Deleted" ||
+  //                                                                       isImage || // Use pre-calculated isImage
+  //                                                                       (fileType !=
+  //                                                                               null &&
+  //                                                                           fileType.toLowerCase().startsWith(
+  //                                                                               "image")) ||
+  //                                                                       (fileName !=
+  //                                                                               null &&
+  //                                                                           RegExp(r'\.(jpg|jpeg|png|gif|webp|bmp)$', caseSensitive: false).hasMatch(fileName))))
+  //                                                                 Stack(
+  //                                                                   clipBehavior:
+  //                                                                       Clip.none,
+  //                                                                   children: [
+  //                                                                     Column(
+  //                                                                       crossAxisAlignment:
+  //                                                                           CrossAxisAlignment.end,
+  //                                                                       children: [
+  //                                                                         Container(
+  //                                                                           width:
+  //                                                                               300,
+  //                                                                           margin:
+  //                                                                               const EdgeInsets.only(top: 8),
+  //                                                                           padding:
+  //                                                                               const EdgeInsets.all(8),
+  //                                                                           decoration:
+  //                                                                               BoxDecoration(
+  //                                                                             color: Colors.grey[200],
+  //                                                                             borderRadius: BorderRadius.circular(12),
+  //                                                                           ),
+  //                                                                           child:
+  //                                                                               Row(
+  //                                                                             mainAxisSize: MainAxisSize.min,
+  //                                                                             children: [
+  //                                                                               buildIcon(type: '', mimeType: (fileType != null && fileType.isNotEmpty) ? fileType : fileName, size: 30),
+  //                                                                               const SizedBox(width: 8),
+  //                                                                               Expanded(
+  //                                                                                 child: RichText(
+  //                                                                                   overflow: TextOverflow.ellipsis,
+  //                                                                                   text: TextSpan(
+  //                                                                                     children: buildHighlightSpans(
+  //                                                                                       text: isDeleted ? '' : (fileName ?? 'Download file'),
+  //                                                                                       baseStyle: const TextStyle(
+  //                                                                                         fontWeight: FontWeight.w500,
+  //                                                                                         color: Colors.black,
+  //                                                                                       ),
+  //                                                                                       query: _searchController.text,
+  //                                                                                     ),
+  //                                                                                   ),
+  //                                                                                 ),
+  //                                                                               ),
+  //                                                                               IconButton(
+  //                                                                                 icon: const Icon(Icons.download_rounded),
+  //                                                                                 onPressed: () => FileOpenerUtils.openFile(fileUrl, fileType),
+  //                                                                               ),
+  //                                                                             ],
+  //                                                                           ),
+  //                                                                         ),
+  //                                                                         // Only show time/status for documents without caption
+  //                                                                         if (content
+  //                                                                             .isEmpty)
+  //                                                                           Padding(
+  //                                                                             padding: const EdgeInsets.only(top: 0, right: 0),
+  //                                                                             child: Row(
+  //                                                                               mainAxisSize: MainAxisSize.min,
+  //                                                                               children: [
+  //                                                                                 Text(
+  //                                                                                   TimeUtils.formatUtcToIst(message['time']),
+  //                                                                                   style: const TextStyle(fontSize: 10, color: Colors.black54),
+  //                                                                                 ),
+  //                                                                                 const SizedBox(width: 4),
+  //                                                                                 if (isSentByMe) _offlineHandler.buildStatusIcon(messageStatus, message),
+  //                                                                               ],
+  //                                                                             ),
+  //                                                                           ),
+  //                                                                       ],
+  //                                                                     ),
+  //                                                                   ],
+  //                                                                 )
+  //                                                               else
+  //                                                                 const SizedBox
+  //                                                                     .shrink(),
+  //                                                               if (content
+  //                                                                   .isNotEmpty)
+  //                                                                 // Use MessageCaption for image/video/document captions to position time/status in the right corner
+  //                                                                 if ((isImage &&
+  //                                                                         (imageUrl != null &&
+  //                                                                             imageUrl
+  //                                                                                 .isNotEmpty)) ||
+  //                                                                     (isVideo &&
+  //                                                                         fileUrl !=
+  //                                                                             null &&
+  //                                                                         fileUrl
+  //                                                                             .isNotEmpty) ||
+  //                                                                     (fileUrl !=
+  //                                                                             null &&
+  //                                                                         fileUrl
+  //                                                                             .isNotEmpty &&
+  //                                                                         !isImage &&
+  //                                                                         !isVideo &&
+  //                                                                         !isAudio))
+  //                                                                   MessageCaption(
+  //                                                                     content:
+  //                                                                         content,
+  //                                                                     time: TimeUtils
+  //                                                                         .formatUtcToIst(
+  //                                                                             message['time']),
+  //                                                                     isSentByMe:
+  //                                                                         isSentByMe,
+  //                                                                     messageStatus:
+  //                                                                         messageStatus,
+  //                                                                     buildStatusIcon: (status) => _offlineHandler.buildStatusIcon(
+  //                                                                         status,
+  //                                                                         message),
+  //                                                                     searchText:
+  //                                                                         _searchController
+  //                                                                             .text,
+  //                                                                     isDeleted:
+  //                                                                         isDeleted,
+  //                                                                   )
+  //                                                                 else
+  //                                                                   Padding(
+  //                                                                     padding: const EdgeInsets
+  //                                                                         .only(
+  //                                                                         top:
+  //                                                                             0),
+  //                                                                     child:
+  //                                                                         Column(
+  //                                                                       crossAxisAlignment: hasReply
+  //                                                                           ? CrossAxisAlignment.start
+  //                                                                           : CrossAxisAlignment.start,
+  //                                                                       mainAxisSize:
+  //                                                                           MainAxisSize.min,
+  //                                                                       children: [
+  //                                                                         if (RegExp(r'((https?:\/\/)|(www\.))[^\s]+', caseSensitive: false)
+  //                                                                             .hasMatch(content))
+  //                                                                           Stack(
+  //                                                                             clipBehavior: Clip.none,
+  //                                                                             children: [
+  //                                                                               Padding(
+  //                                                                                 padding: const EdgeInsets.symmetric(vertical: 0.0),
+  //                                                                                 child: ClipRRect(
+  //                                                                                   borderRadius: BorderRadius.circular(12),
+  //                                                                                   child: AnyLinkPreview(
+  //                                                                                     link: (() {
+  //                                                                                       final match = RegExp(r'((https?:\/\/)|(www\.))[^\s]+', caseSensitive: false).firstMatch(content);
+  //                                                                                       if (match == null) {
+  //                                                                                         return '';
+  //                                                                                       }
+  //                                                                                       String url = match.group(0)!;
+  //                                                                                       try {
+  //                                                                                         final uri = Uri.parse(url.startsWith('www.') ? 'https://$url' : url);
+  //                                                                                         return uri.toString();
+  //                                                                                       } catch (e) {
+  //                                                                                         return url;
+  //                                                                                       }
+  //                                                                                     })(),
+  //                                                                                     displayDirection: UIDirection.uiDirectionVertical,
+  //                                                                                     showMultimedia: true,
+  //                                                                                     backgroundColor: Colors.grey.shade100,
+  //                                                                                     bodyStyle: const TextStyle(
+  //                                                                                       color: Colors.black87,
+  //                                                                                       fontSize: 12,
+  //                                                                                       fontWeight: FontWeight.w400,
+  //                                                                                     ),
+  //                                                                                     titleStyle: const TextStyle(
+  //                                                                                       color: Colors.black,
+  //                                                                                       fontSize: 14,
+  //                                                                                       fontWeight: FontWeight.bold,
+  //                                                                                     ),
+  //                                                                                     cache: const Duration(hours: 1),
+  //                                                                                     borderRadius: 12,
+  //                                                                                     errorBody: 'Could not load link preview',
+  //                                                                                     errorTitle: 'Link Preview',
+  //                                                                                     errorWidget: Container(
+  //                                                                                       height: 100,
+  //                                                                                       color: Colors.grey[200],
+  //                                                                                       child: const Center(child: Icon(Icons.link_off)),
+  //                                                                                     ),
+  //                                                                                   ),
+  //                                                                                 ),
+  //                                                                               ),
+  //                                                                             ],
+  //                                                                           ),
+  //                                                                         Stack(
+  //                                                                           children: [
+  //                                                                             StatefulBuilder(
+  //                                                                               builder: (context, setState) {
+  //                                                                                 const maxCharsPerLine = 30;
+  //                                                                                 final bool isTextLong = (content.length / maxCharsPerLine).ceil() > 10;
+  //                                                                                 bool isExpanded = (message['isExpanded'] ?? false) == true;
+  //                                                                                 return Stack(
+  //                                                                                   clipBehavior: Clip.none,
+  //                                                                                   children: [
+  //                                                                                     Padding(
+  //                                                                                       padding: const EdgeInsets.only(bottom: 3.0, top: 1.0),
+  //                                                                                       child: Column(
+  //                                                                                         crossAxisAlignment: CrossAxisAlignment.start,
+  //                                                                                         children: [
+  //                                                                                           RichText(
+  //                                                                                             maxLines: !isExpanded && isTextLong ? 9 : null,
+  //                                                                                             overflow: !isExpanded && isTextLong ? TextOverflow.ellipsis : TextOverflow.visible,
+  //                                                                                             text: TextSpan(
+  //                                                                                               children: [
+  //                                                                                                 ..._buildMessageTextSpans(content, isDeleted),
+  //                                                                                                 WidgetSpan(
+  //                                                                                                   child: SizedBox(width: isSentByMe ? 75 : 60, height: 20),
+  //                                                                                                 ),
+  //                                                                                               ],
+  //                                                                                             ),
+  //                                                                                           ),
+  //                                                                                           if (!isExpanded && isTextLong)
+  //                                                                                             GestureDetector(
+  //                                                                                               onTap: () => setState(() => message['isExpanded'] = true),
+  //                                                                                               child: const Padding(
+  //                                                                                                 padding: EdgeInsets.symmetric(vertical: 4),
+  //                                                                                                 child: Text(
+  //                                                                                                   "Read more",
+  //                                                                                                   style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+  //                                                                                                 ),
+  //                                                                                               ),
+  //                                                                                             ),
+  //                                                                                           if (isExpanded)
+  //                                                                                             GestureDetector(
+  //                                                                                               onTap: () => setState(() => message['isExpanded'] = false),
+  //                                                                                               child: const Padding(
+  //                                                                                                 padding: EdgeInsets.symmetric(vertical: 4),
+  //                                                                                                 child: Text(
+  //                                                                                                   "Read less",
+  //                                                                                                   style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+  //                                                                                                 ),
+  //                                                                                               ),
+  //                                                                                             ),
+  //                                                                                           if (!isExpanded && isTextLong)
+  //                                                                                             Align(
+  //                                                                                               alignment: Alignment.centerRight,
+  //                                                                                               child: Row(
+  //                                                                                                 mainAxisSize: MainAxisSize.min,
+  //                                                                                                 children: [
+  //                                                                                                   Text(
+  //                                                                                                     TimeUtils.formatUtcToIst(message['time']),
+  //                                                                                                     style: const TextStyle(fontSize: 10, color: Colors.black54),
+  //                                                                                                   ),
+  //                                                                                                   const SizedBox(width: 4),
+  //                                                                                                   if (isSentByMe && content != "Message Deleted") _offlineHandler.buildStatusIcon(messageStatus, message),
+  //                                                                                                 ],
+  //                                                                                               ),
+  //                                                                                             ),
+  //                                                                                         ],
+  //                                                                                       ),
+  //                                                                                     ),
+
+  //                                                                                     /// ---- TIMESTAMP & STATUS (Positioned like private chat) ----
+  //                                                                                     if (!(!isExpanded && isTextLong) && !hasReply)
+  //                                                                                       Positioned(
+  //                                                                                         bottom: 3,
+  //                                                                                         right: 3,
+  //                                                                                         child: Row(
+  //                                                                                           mainAxisAlignment: MainAxisAlignment.end,
+  //                                                                                           mainAxisSize: MainAxisSize.min,
+  //                                                                                           children: [
+  //                                                                                             Text(
+  //                                                                                               TimeUtils.formatUtcToIst(message['time']),
+  //                                                                                               style: const TextStyle(fontSize: 10, color: Colors.black54),
+  //                                                                                             ),
+  //                                                                                             const SizedBox(width: 4),
+  //                                                                                             if (isSentByMe && content != "Message Deleted") _offlineHandler.buildStatusIcon(messageStatus, message),
+  //                                                                                           ],
+  //                                                                                         ),
+  //                                                                                       ),
+  //                                                                                   ],
+  //                                                                                 );
+  //                                                                               },
+  //                                                                             ),
+  //                                                                           ],
+  //                                                                         ),
+  //                                                                       ],
+  //                                                                     ),
+  //                                                                   ),
+  //                                                             ],
+  //                                                           ),
+  //                                                         ),
+  //                                                       ]),
+
+  //                                                   // Positioned reply preview (visible)
+  //                                                   if (hasReply)
+  //                                                     Positioned(
+  //                                                       top: (!isSentByMe &&
+  //                                                               userName
+  //                                                                   .isNotEmpty)
+  //                                                           ? 25
+  //                                                           : 0,
+  //                                                       left: 0,
+  //                                                       right: 0,
+  //                                                       child:
+  //                                                           GroupRepliedMessagePreview(
+  //                                                         key: ValueKey(
+  //                                                             '${messageId}_${message['replyContent']}'),
+  //                                                         replied: _mergeReplyData(
+  //                                                             message['repliedMessage'] ??
+  //                                                                 message[
+  //                                                                     'reply']),
+  //                                                         receiver: message[
+  //                                                                     'receiver']
+  //                                                                 is Map
+  //                                                             ? Map<String,
+  //                                                                     dynamic>.from(
+  //                                                                 message[
+  //                                                                     'receiver'])
+  //                                                             : {},
+  //                                                         isSender: isSentByMe,
+  //                                                         groupMediaLength:
+  //                                                             _calculateGroupMediaLength(
+  //                                                                 _mergeReplyData(message[
+  //                                                                         'repliedMessage'] ??
+  //                                                                     message[
+  //                                                                         'reply'])),
+  //                                                         hasMixedMedia: _hasMixedMediaTypes(
+  //                                                             _mergeReplyData(message[
+  //                                                                     'repliedMessage'] ??
+  //                                                                 message[
+  //                                                                     'reply'])),
+  //                                                         // groupMediaLength:
+  //                                                         //     _calculateGroupMediaLength(
+  //                                                         //         _mergeReplyData(message[
+  //                                                         //                 'repliedMessage'] ??
+  //                                                         //             message[
+  //                                                         //                 'reply'])),
+  //                                                         onTap: () async {
+  //                                                           final replyId = ((message['repliedMessage'] ?? message['reply'])?['id'] ??
+  //                                                                       (message['repliedMessage'] ??
+  //                                                                               message['reply'])?[
+  //                                                                           'message_id'] ??
+  //                                                                       (message['repliedMessage'] ??
+  //                                                                           message['reply'])?['messageId'])
+  //                                                                   ?.toString() ??
+  //                                                               '';
+  //                                                           if (replyId
+  //                                                               .isNotEmpty) {
+  //                                                             await _scrollToMessageById(
+  //                                                                 replyId,
+  //                                                                 fetchIfMissing:
+  //                                                                     true);
+  //                                                           }
+  //                                                         },
+  //                                                       ),
+  //                                                     ),
+  //                                                   // TIMESTAMP & STATUS - Positioned at Container Stack level for replied messages
+  //                                                   if (hasReply &&
+  //                                                       content.isNotEmpty)
+  //                                                     Positioned(
+  //                                                       bottom: 3,
+  //                                                       right: 3,
+  //                                                       child: Row(
+  //                                                         mainAxisAlignment:
+  //                                                             MainAxisAlignment
+  //                                                                 .end,
+  //                                                         mainAxisSize:
+  //                                                             MainAxisSize.min,
+  //                                                         children: [
+  //                                                           Text(
+  //                                                             TimeUtils
+  //                                                                 .formatUtcToIst(
+  //                                                                     message[
+  //                                                                         'time']),
+  //                                                             style: const TextStyle(
+  //                                                                 fontSize: 10,
+  //                                                                 color: Colors
+  //                                                                     .black54),
+  //                                                           ),
+  //                                                           const SizedBox(
+  //                                                               width: 4),
+  //                                                           if (isSentByMe &&
+  //                                                               content !=
+  //                                                                   "Message Deleted")
+  //                                                             _offlineHandler
+  //                                                                 .buildStatusIcon(
+  //                                                                     messageStatus,
+  //                                                                     message),
+  //                                                         ],
+  //                                                       ),
+  //                                                     ),
+  //                                                 ],
+  //                                               ),
+  //                                             ),
+  //                                           ),
+  //                                         ),
+  //                                         if (!isSentByMe &&
+  //                                             (isVideo ||
+  //                                                 isImage ||
+  //                                                 hasFile ||
+  //                                                 (content.isNotEmpty &&
+  //                                                     RegExp(r'((https?:\/\/)|(www\.))[^\s]+',
+  //                                                             caseSensitive:
+  //                                                                 false)
+  //                                                         .hasMatch(content))))
+  //                                           Center(
+  //                                             child: Material(
+  //                                               color: Colors.transparent,
+  //                                               child: Padding(
+  //                                                 padding:
+  //                                                     const EdgeInsets.only(
+  //                                                         left: 15.0),
+  //                                                 child: InkWell(
+  //                                                   borderRadius:
+  //                                                       BorderRadius.circular(
+  //                                                           20),
+  //                                                   onTap: () {
+  //                                                     MyRouter.pushReplace(
+  //                                                       screen:
+  //                                                           ForwardMessageScreen(
+  //                                                         messages: [
+  //                                                           GroupChatNormalizeUtils
+  //                                                               .normalizeMessage(
+  //                                                                   message)
+  //                                                         ],
+  //                                                         currentUserId:
+  //                                                             currentUserId,
+  //                                                         conversionalid: widget
+  //                                                             .conversationId,
+  //                                                         username:
+  //                                                             widget.groupName,
+  //                                                       ),
+  //                                                     );
+  //                                                   },
+  //                                                   child: CircleAvatar(
+  //                                                     maxRadius: 16,
+  //                                                     backgroundColor:
+  //                                                         Colors.white,
+  //                                                     child: Image.asset(
+  //                                                       "assets/images/forward.png",
+  //                                                       height: 20,
+  //                                                       width: 20,
+  //                                                     ),
+  //                                                   ),
+  //                                                 ),
+  //                                               ),
+  //                                             ),
+  //                                           ),
+  //                                       ],
+  //                                     ),
+  //                                   ]),
+  //                             ),
+  //                             // Avatar positioned outside the message bubble
+  //                             if (!isSentByMe)
+  //                               Positioned(
+  //                                 left: -2,
+  //                                 top: 10,
+  //                                 child: CircleAvatar(
+  //                                   radius: 16,
+  //                                   backgroundColor: Colors.transparent,
+  //                                   child: ClipOval(
+  //                                     child: profileImageUrl.isNotEmpty
+  //                                         ? CachedNetworkImage(
+  //                                             imageUrl: profileImageUrl,
+  //                                             width: 32,
+  //                                             height: 32,
+  //                                             memCacheWidth: 480,
+  //                                             memCacheHeight: 600,
+  //                                             fit: BoxFit.cover,
+  //                                             placeholder: (context, url) =>
+  //                                                 _buildAvatarWithInitial(
+  //                                                     userName),
+  //                                             errorWidget:
+  //                                                 (context, url, error) =>
+  //                                                     _buildAvatarWithInitial(
+  //                                                         userName),
+  //                                           )
+  //                                         : _buildAvatarWithInitial(userName),
+  //                                   ),
+  //                                 ),
+  //                               ),
+  //                             // REACTIONS BAR - Positioned outside the message bubble
+  //                             if (message['reactions'] != null &&
+  //                                 message['reactions'].isNotEmpty)
+  //                               Positioned(
+  //                                 bottom: hasReply ? -20 : -18,
+  //                                 left: isSentByMe ? null : 40,
+  //                                 right: isSentByMe ? 14 : null,
+  //                                 child: Padding(
+  //                                   padding: EdgeInsets.only(
+  //                                     bottom: 12,
+  //                                     left: isSentByMe ? 5 : 0,
+  //                                   ),
+  //                                   child:
+  //                                       _buildReactionsBar(message, isSentByMe),
+  //                                 ),
+  //                               ),
+  //                           ],
+  //                         ),
+  //                       ),
+  //                     ));
+  //               },
+  //             );
+  // }
 
   void _cancelReply() {
     setState(() {
@@ -6107,130 +5194,6 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
     );
   }
 
-  bool _sameMediaType(String a, String b) {
-    final bool aIsVisual = a.startsWith('image') || a.startsWith('video');
-    final bool bIsVisual = b.startsWith('image') || b.startsWith('video');
-
-    return aIsVisual && bIsVisual;
-  }
-
-  bool _isVisualMedia(Map m) {
-    final String url = (
-      m['fileUrl'] ?? 
-      m['originalUrl'] ?? 
-      m['imageUrl'] ??
-       ''
-       ).toString().toLowerCase();
-
-    final String name = 
-    (m['fileName'] ?? '').toString().toLowerCase();
-
-    return url.endsWith('.jpg') ||
-        url.endsWith('.jpeg') ||
-        url.endsWith('.png') ||
-        url.endsWith('.webp') ||
-        url.endsWith('.mp4') ||
-        url.endsWith('.mov') ||
-        url.endsWith('.mkv') ||
-        name.endsWith('.jpg') ||
-        name.endsWith('.jpeg') ||
-        name.endsWith('.png') ||
-        name.endsWith('.webp') ||
-        name.endsWith('.mp4') ||
-        name.endsWith('.mov') ||
-        name.endsWith('.mkv');
-  }
-
-  String? senderIdOf(Map msg) {
-    return msg['sender']?['_id']?.toString() ??
-        msg['senderId']?.toString() ??
-        msg['from']?.toString();
-  }
-
-  String _forwardBatchKey(Map<String, dynamic> m) {
-    return [
-      senderIdOf(m),
-      m['isForwarded'] == true ? 'FWD' : 'NF',
-      _parseTime(m['time']).millisecondsSinceEpoch ~/ 60000 // 1-min bucket
-    ].join('_');
-  }
-
-  List<Map<String, dynamic>> buildGroupedMessages(List raw) {
-    final List<Map<String, dynamic>> messages = List<Map<String, dynamic>>.from(
-        raw)
-      ..sort((a, b) => _parseTime(a['time']).compareTo(_parseTime(b['time'])));
-
-    final List<Map<String, dynamic>> result = [];
-    final Map<String, Map<String, dynamic>> lastMediaBySender = {};
-
-    String normCaption(Map m) =>
-        (m['content'] ?? '').toString().trim();
-
-    for (final current in messages) {
-      final senderId = senderIdOf(current);
-
-      if (senderId == null || !_isVisualMedia(current)) {
-        result.add(current);
-        continue;
-      }
-
-      final prev = lastMediaBySender[senderId];
-
-      if (prev != null && _isVisualMedia(prev)) {
-        final diffSeconds = _parseTime(current['time'])
-            .difference(_parseTime(prev['time']))
-            .inSeconds
-            .abs();
-
-        final bool prevHasCaption = normCaption(prev).isNotEmpty;
-        final bool currHasCaption = normCaption(current).isNotEmpty;
-
-        final bool sameForwardBatch = prev['isForwarded'] == true &&
-            current['isForwarded'] == true &&
-            _forwardBatchKey(prev) == _forwardBatchKey(current);
-
-        final bool sameCaption =
-            normCaption(prev) == normCaption(current);
-
-        final bool shouldGroup =
-        // 🔹 Normal send (no captions)
-        (!prevHasCaption &&
-            !currHasCaption &&
-            diffSeconds <= 60)
-
-            ||
-
-            // 🔥 Forwarded batch (ALLOW captions if SAME)
-            (
-                prev['isForwarded'] == true &&
-                    current['isForwarded'] == true &&
-                    sameForwardBatch &&
-                    (
-                        (!prevHasCaption && !currHasCaption) ||
-                            sameCaption
-                    )
-            );
-
-        if (shouldGroup) {
-          final groupId = prev['group_message_id'] ??
-              prev['message_id'] ??
-              current['message_id'];
-
-          prev['is_grouped_message'] = true;
-          prev['group_message_id'] = groupId;
-
-          current['is_grouped_message'] = true;
-          current['group_message_id'] = groupId;
-        }
-      }
-
-      result.add(current);
-      lastMediaBySender[senderId] = current;
-    }
-
-    return result;
-  }
-
   @override
   Widget build(BuildContext context) {
     return BlocProvider.value(
@@ -6378,11 +5341,12 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
         return;
       }
 
-      final apiMessageId = _normalizeMessageIdForApi(rawId);
+      final apiMessageId =
+          GroupChatMessageUtils.normalizeMessageIdForApi(rawId);
 
       // 🔥 Extract reactions safely
       final List<Map<String, dynamic>> reactions =
-          _extractReactions(message['reactions']);
+          GroupChatReactionUtils.extractReactions(message['reactions']);
 
       int myIndex = -1;
       String? oldEmoji;
@@ -6528,14 +5492,6 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
     // first build the initial normalized list
     List<Map<String, dynamic>> allReacts = _normalizeFromMap(message);
 
-    // Debug logging
-
-    // Allow showing sheet even if empty - users can still add reactions
-    // if (allReacts.isEmpty) {
-    //   return;
-    // }
-
-    // group builder (returns grouped map)
     Map<String, List<Map<String, dynamic>>> buildGroupedFromList(
         List<Map<String, dynamic>> list) {
       final Map<String, List<Map<String, dynamic>>> grouped = {};
@@ -6862,8 +5818,8 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
                                     // optimistic local removal of current user's reaction
                                     _updateLocalReactions(msgId,
                                         null); // remove my reaction locally
-                                    final apiMessageId =
-                                        _normalizeMessageIdForApi(msgId);
+                                    final apiMessageId = GroupChatMessageUtils
+                                        .normalizeMessageIdForApi(msgId);
 
                                     // dispatch your GroupRemoveReaction event
                                     context
@@ -6926,55 +5882,6 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
         .toList();
   }
 
-  void _replaceTempMessageWithReal({
-    required String tempId,
-    required String realId,
-    required String status,
-  }) {
-    bool changed = false;
-
-    // Check if we have a buffered status update for this realId
-    String finalStatus = status;
-    if (_pendingStatusUpdates.containsKey(realId)) {
-      final bufferedStatus = _pendingStatusUpdates[realId]!;
-      // Only apply if buffered status is "better" (e.g. read > delivered > sent)
-      // For simplicity, we assume buffered is always newer/better than "sent"
-      finalStatus = bufferedStatus;
-      _pendingStatusUpdates.remove(realId);
-    }
-
-    void updateList(List<Map<String, dynamic>> list) {
-      for (var i = 0; i < list.length; i++) {
-        final m = list[i];
-        final mid = (m['message_id'] ?? m['messageId'] ?? '').toString();
-        if (mid == tempId) {
-          final copy = Map<String, dynamic>.from(m);
-
-          // Assign server id + status
-          copy['message_id'] = realId;
-          copy['messageStatus'] = finalStatus;
-
-          list[i] = copy;
-          changed = true;
-          break;
-        }
-      }
-    }
-
-    // Usually optimistic messages are only in socketMessages
-    updateList(socketMessages);
-    updateList(messages);
-    updateList(dbMessages);
-
-    if (changed) {
-      if (!_seenMessageIds.contains(realId)) _seenMessageIds.add(realId);
-      final combined = _getCombinedMessages();
-      GrpLocalChatStorage.saveMessages(widget.conversationId, combined);
-      setState(() {});
-      _refreshMessages();
-    }
-  }
-
   void _markVisibleMessagesAsRead(List<Map<String, dynamic>> combined) {
     final allUnreadIds = _getUnreadMessageIds(combined);
     final idsToSend = allUnreadIds
@@ -7002,65 +5909,5 @@ log("nameeeeeeeeeeeee ${widget.groupName}");
       conversationId: widget.conversationId,
       roomId: widget.datumId,
     );
-  }
-
-  Future<void> _flushOfflinePendingMessages() async {
-    if (_offlineQueue.isEmpty) return;
-    if (!(_isOnline && socketService.isConnected)) return;
-
-    final pending = List<Map<String, dynamic>>.from(_offlineQueue);
-    _offlineQueue.clear();
-
-    for (final item in pending) {
-      final String? tempId = item['message_id'];
-      final String content = item['content'];
-      final Map<String, dynamic>? replyTo = item['replyTo'];
-
-      if (tempId == null) continue;
-
-      // Update status to sending for the existing message
-      _updateMessageStatus(tempId, 'sending');
-
-      try {
-        // Create a completer to wait for the sent message
-        final completer = Completer<GrpMessage>();
-        final subscription = _groupBloc.stream.listen((state) {
-          if (state is GrpMessageSentSuccessfully) {
-            completer.complete(state.sentMessage);
-          } else if (state is GroupChatError) {
-            completer.completeError(state.message);
-          }
-        });
-
-        // Dispatch the send event (this creates a NEW message with NEW ID)
-        _groupBloc.add(
-          SendMessageEvent(
-            convoId: widget.conversationId,
-            message: content,
-            senderId: currentUserId,
-            receiverId: widget.datumId,
-            replyTo: replyTo,
-          ),
-        );
-
-        // Wait for the server response
-        final sentMsg = await completer.future.timeout(
-          const Duration(seconds: 10),
-          onTimeout: () {
-            throw TimeoutException('Flush timed out');
-          },
-        );
-        await subscription.cancel();
-
-        // Replace the old failed message with the new successful one
-        _replaceTempMessageWithReal(
-          tempId: tempId,
-          realId: sentMsg.messageId,
-          status: 'sent',
-        );
-      } catch (e) {
-        _updateMessageStatus(tempId, 'failed');
-      }
-    }
   }
 }
