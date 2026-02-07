@@ -982,7 +982,7 @@ class SocketService {
         final snapshot = await exportChatSnapshot();
         // final frontiers = await exportChatFrontiers();
         final frontiers = await exportChatFrontiersJsonSafe();
-        log(frontiers.toString());
+        // log(frontiers.toString());
 
         final box = await Hive.openBox<ConvoListCrdt>('convo_crdt');
         await box.put(
