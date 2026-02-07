@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'fatchmail_boxes_api.dart';
 import 'mailbox_model.dart';
 import 'app_bar_event.dart';
@@ -9,14 +10,22 @@ class AppBarBloc extends Bloc<AppBarEvent, AppBarState> {
   final FetchMailBoxesApi apiService;
 
   bool _hasFetched = false;
+  String? _lastAuthKey;
 
   AppBarBloc(this.apiService) : super(AppBarLoading()) {
     on<FetchMailboxesEvent>(_onFetchMailboxes);
+    on<ClearMailboxesEvent>(_onClearMailboxes);
   }
 
   Future<void> _onFetchMailboxes(
       FetchMailboxesEvent event, Emitter<AppBarState> emit) async {
-    if (_hasFetched && state is AppBarMailboxesLoaded) {
+    final authKey = await _getAuthKey();
+    final bool isSameAuth = authKey != null && authKey == _lastAuthKey;
+
+    if (!event.force &&
+        _hasFetched &&
+        state is AppBarMailboxesLoaded &&
+        isSameAuth) {
       return;
     }
 
@@ -36,6 +45,7 @@ class AppBarBloc extends Bloc<AppBarEvent, AppBarState> {
           other: [],
         ));
         _hasFetched = true;
+        _lastAuthKey = authKey;
         return;
       }
 
@@ -79,7 +89,10 @@ class AppBarBloc extends Bloc<AppBarEvent, AppBarState> {
       ));
 
       _hasFetched = true;
+      _lastAuthKey = authKey;
     } catch (e) {
+      _hasFetched = false;
+      _lastAuthKey = null;
       if (e.toString().contains("Unauthorized")) {
         emit(AppBarUnauthorized());
       } else if (e.toString().contains("No internet")) {
@@ -88,5 +101,21 @@ class AppBarBloc extends Bloc<AppBarEvent, AppBarState> {
         emit(AppBarError("Something went wrong."));
       }
     }
+  }
+
+  Future<void> _onClearMailboxes(
+      ClearMailboxesEvent event, Emitter<AppBarState> emit) async {
+    _hasFetched = false;
+    _lastAuthKey = null;
+    emit(AppBarLoading());
+  }
+
+  Future<String?> _getAuthKey() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('user_id');
+    final workspaceId = prefs.getString('default_workspace');
+    if (userId == null || userId.isEmpty) return null;
+    if (workspaceId == null || workspaceId.isEmpty) return null;
+    return '$userId|$workspaceId';
   }
 }

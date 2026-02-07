@@ -50,6 +50,16 @@ class _CustomDrawerState extends State<CustomDrawer> {
 
   Future<void> _loadSelectedMailbox() async {
     final id = await MailboxStorage.getMailboxId();
+    if (id == null || id.isEmpty) {
+      final inboxId = await MailboxStorage.getInboxMailboxId();
+      if (inboxId != null && inboxId.isNotEmpty) {
+        await MailboxStorage.saveMailboxId(inboxId);
+        if (mounted) {
+          setState(() => selectedMailboxId = inboxId);
+        }
+        return;
+      }
+    }
     if (mounted) {
       setState(() => selectedMailboxId = id);
     }

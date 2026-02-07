@@ -11,6 +11,7 @@ import 'package:nde_email/presantation/drive/Bloc/starred_bloc/stared_local.dart
 import 'package:nde_email/presantation/mail/mail_list/bloc/mail_list_bloc.dart';
 import 'package:nde_email/presantation/mail/mail_list/bloc/mail_list_event.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar_bloc.dart';
+import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar_event.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
 import 'package:nde_email/presantation/login/login_screen.dart';
 import 'package:nde_email/presantation/login/login_screen_bloc.dart';
@@ -218,6 +219,7 @@ class UserPreferences {
 
     // 4️⃣ 🔥 RESET ALL APP BLOCS (IMPORTANT)
     context.read<MailListBloc>().add(ResetAllMailState());
+    context.read<AppBarBloc>().add(ClearMailboxesEvent());
     context.read<LoginBloc>().add(LoginLoggedOut());
 
     // 5️⃣ Small delay to let blocs emit
