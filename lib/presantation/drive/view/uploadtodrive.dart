@@ -74,12 +74,12 @@ class _UploadToDriveScreenState extends State<UploadToDriveScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        iconTheme: const IconThemeData(color: Colors.white),
+        backgroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.black),
         title: const Text('Upload to Drive',
-            style: TextStyle(color: Colors.white)),
+            style: TextStyle(color: Colors.black)),
         actions: [
           TextButton(
             onPressed: () async {
@@ -208,13 +208,13 @@ class _UploadToDriveScreenState extends State<UploadToDriveScreen> {
                           onPressed: () => _clearSelectedFileAt(index),
                         ),
                         filled: true,
-                        fillColor: Colors.grey[900],
+                        fillColor: Colors.white,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
                         hintStyle: const TextStyle(color: Colors.white38),
                       ),
-                      style: const TextStyle(color: Colors.white),
+                      style: const TextStyle(color: Colors.black),
                       inputFormatters: [
                         _FileNameWithExtensionFormatter(extension: ".$ext"),
                         FilteringTextInputFormatter.deny(
@@ -227,17 +227,17 @@ class _UploadToDriveScreenState extends State<UploadToDriveScreen> {
               const SizedBox(height: 20),
               DropdownButtonFormField<String>(
                 value: selectedLocation,
-                dropdownColor: Colors.grey[900],
+                dropdownColor: Colors.white,
                 items: ['My Drive', 'Shared Folder', 'Team Drive'].map(
                   (loc) {
                     return DropdownMenuItem(
                       value: loc,
                       child: Row(
                         children: [
-                          const Icon(Icons.cloud, color: Colors.white),
+                          const Icon(Icons.cloud, color: Colors.black),
                           const SizedBox(width: 10),
                           Text(loc,
-                              style: const TextStyle(color: Colors.white)),
+                              style: const TextStyle(color: Colors.black)),
                         ],
                       ),
                     );
@@ -252,9 +252,9 @@ class _UploadToDriveScreenState extends State<UploadToDriveScreen> {
                 },
                 decoration: InputDecoration(
                   labelText: 'Location',
-                  labelStyle: const TextStyle(color: Colors.white),
+                  labelStyle: const TextStyle(color: Colors.black),
                   filled: true,
-                  fillColor: Colors.grey[900],
+                  fillColor: Colors.white,
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10)),
                 ),
@@ -275,7 +275,7 @@ class _UploadToDriveScreenState extends State<UploadToDriveScreen> {
       );
     } else {
       return const Center(
-        child: Icon(Icons.insert_drive_file, size: 50, color: Colors.white),
+        child: Icon(Icons.insert_drive_file, size: 50, color: Colors.black),
       );
     }
   }

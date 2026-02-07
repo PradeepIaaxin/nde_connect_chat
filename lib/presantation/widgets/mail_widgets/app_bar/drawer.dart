@@ -212,7 +212,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                   if (state is AppBarError) {
                     return ErrorDisplay(
                       message: state.message,
-                      type: ErrorType.Somethingwrong,
+                      type: ErrorType.somethingwrong,
                     );
                   }
 
@@ -443,7 +443,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
       decoration: BoxDecoration(
         // color: isSelected ? AppColors.sectiontool : Colors.transparent,
         color: isSelected
-            ? AppColors.iconActive.withOpacity(0.08)
+            ? AppColors.iconActive.withValues(alpha:0.08)
             : Colors.transparent,
         border: isSelected
             ? const Border(
@@ -472,8 +472,8 @@ class _CustomDrawerState extends State<CustomDrawer> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? AppColors.iconActive.withOpacity(0.15)
-                      : AppColors.secondaryText.withOpacity(0.12),
+                      ? AppColors.iconActive.withValues(alpha:0.15)
+                      : AppColors.secondaryText.withValues(alpha:0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(

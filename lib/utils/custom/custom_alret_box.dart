@@ -40,7 +40,7 @@ class CustomConfirmationDialog {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: iconColor.withOpacity(0.15),
+                          color: iconColor.withValues(alpha: 0.15),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(icon, size: 36, color: iconColor),
@@ -64,7 +64,7 @@ class CustomConfirmationDialog {
                         message,
                         style: TextStyle(
                           fontSize: 15,
-                          color: textColor.withOpacity(0.8),
+                          color: textColor.withValues(alpha: 0.8),
                         ),
                         textAlign: TextAlign.center,
                       ),

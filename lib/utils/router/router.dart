@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class MyRouter {
   static final navigatorKey = GlobalKey<NavigatorState>();
 
-  static push({required Widget screen}) {
+  static Future<dynamic>? push({required Widget screen}) {
     return navigatorKey.currentState?.push(
       MaterialPageRoute(
         builder: (context) => screen,
@@ -11,7 +11,7 @@ class MyRouter {
     );
   }
 
-  static restorablePushNamed({required String screen, Object? arguments}) {
+  static String? restorablePushNamed({required String screen, Object? arguments}) {
     return navigatorKey.currentState
         ?.restorablePushNamed(screen, arguments: arguments);
   }
@@ -21,13 +21,13 @@ class MyRouter {
     return canPop == true;
   }
 
-  static pop<T extends Object?>([T? result]) {
+  static void pop<T extends Object?>([T? result]) {
     bool? canPop = navigatorKey.currentState?.canPop();
     if (canPop != true) return;
     navigatorKey.currentState?.pop(result);
   }
 
-  static pushReplace({required Widget screen}) {
+  static void pushReplace({required Widget screen}) {
     navigatorKey.currentState?.pushReplacement(
       MaterialPageRoute(
         builder: (context) => screen,
@@ -35,7 +35,7 @@ class MyRouter {
     );
   }
 
-  static pushRemoveUntil({required Widget screen}) {
+  static void pushRemoveUntil({required Widget screen}) {
     navigatorKey.currentState?.pushAndRemoveUntil(
       MaterialPageRoute(
         builder: (context) => screen,
@@ -73,7 +73,7 @@ class MyRouter {
       predicate ?? (route) => false,
 );
 }
-  static pushReplacement({required Widget screen}) {
+  static dynamic pushReplacement({required Widget screen}) {
     return pushReplace(screen: screen);
   }
 

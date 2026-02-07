@@ -1,6 +1,5 @@
 import 'dart:developer';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:nde_email/utils/router/router.dart';
 import 'package:nde_email/utils/snackbar/snackbar.dart';
@@ -14,11 +13,11 @@ class VideoMessageScreen extends StatefulWidget {
   final String lastSendTime;
 
   const VideoMessageScreen({
-    Key? key,
+    super.key,
     required this.videoUrl,
     required this.thumbnailUrl,
     required this.lastSendTime,
-  }) : super(key: key);
+  });
 
   @override
   _VideoMessageScreenState createState() => _VideoMessageScreenState();
@@ -53,11 +52,11 @@ class VideoMessageWidget extends StatefulWidget {
   final String thumbnailUrl;
 
   const VideoMessageWidget({
-    Key? key,
+    super.key,
     required this.videoUrl,
     required this.thumbnailUrl,
     required lastSendTime,
-  }) : super(key: key);
+  });
 
   @override
   _VideoMessageWidgetState createState() => _VideoMessageWidgetState();
@@ -159,8 +158,7 @@ class _VideoMessageWidgetState extends State<VideoMessageWidget> {
 class FullScreenVideoPlayer extends StatefulWidget {
   final String videoUrl;
 
-  const FullScreenVideoPlayer({Key? key, required this.videoUrl})
-      : super(key: key);
+  const FullScreenVideoPlayer({super.key, required this.videoUrl});
 
   @override
   _FullScreenVideoPlayerState createState() => _FullScreenVideoPlayerState();

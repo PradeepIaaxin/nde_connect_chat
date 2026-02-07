@@ -306,7 +306,7 @@ class _MailListScreenState extends State<MailListScreen> {
               children: [
                 ErrorDisplay(
                   message: state.errorMessage ?? 'Something went wrong',
-                  type: ErrorType.Somethingwrong,
+                  type: ErrorType.somethingwrong,
                 ),
                 const SizedBox(height: 12),
                 ElevatedButton(

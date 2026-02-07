@@ -30,7 +30,7 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
             .toString();
     final bool isGrouped = widget.replied['is_grouped_message'] == true &&
         widget.replied['group_message_id'] != null;
-    log(".................. ${isGrouped}");
+    log(".................. $isGrouped");
     final mediaUrl = widget.replied['originalUrl'] ??
         widget.replied['imageUrl'] ??
         widget.replied['fileUrl'] ??
@@ -133,7 +133,7 @@ class _RepliedMessagePreviewState extends State<RepliedMessagePreview> {
                 );
               }
 
-              if (thumbFile != null && thumbFile.existsSync()) {
+              if (thumbFile.existsSync()) {
                 return Stack(
                   alignment: Alignment.center,
                   children: [

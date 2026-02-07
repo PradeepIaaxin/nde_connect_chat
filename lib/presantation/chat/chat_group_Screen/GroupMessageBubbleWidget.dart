@@ -31,7 +31,7 @@ class GroupMessageBubbleWidget extends StatelessWidget {
   final Function(Map<String, dynamic>) onToggleMessageSelection;
   final Function(BuildContext, String, {Map<String, dynamic>? message})
       onShowFullImage;
-  final Function(String, String?) onOpenFile;
+  final Function(String, String?) onOpenFilex;
   final Function(String, {bool fetchIfMissing}) onScrollToMessageById;
 
   // Helper functions
@@ -68,7 +68,7 @@ class GroupMessageBubbleWidget extends StatelessWidget {
     required this.onShowReactionPicker,
     required this.onToggleMessageSelection,
     required this.onShowFullImage,
-    required this.onOpenFile,
+    required this.onOpenFilex,
     required this.onScrollToMessageById,
     required this.sanitizeString,
     required this.buildHighlightSpans,
@@ -300,7 +300,7 @@ class GroupMessageBubbleWidget extends StatelessWidget {
                                                 minWidth: hasReply ? 120 : 0),
                                             decoration: BoxDecoration(
                                               color: isSelected
-                                                  ? senderColor.withOpacity(0.2)
+                                                  ? senderColor.withValues(alpha:0.2)
                                                   : (isSentByMe
                                                       ? senderColor
                                                       : receiverColor),
@@ -326,7 +326,7 @@ class GroupMessageBubbleWidget extends StatelessWidget {
                                               boxShadow: [
                                                 BoxShadow(
                                                   color: Colors.black
-                                                      .withOpacity(0.05),
+                                                      .withValues(alpha:0.05),
                                                   blurRadius: 4,
                                                   offset: const Offset(0, 2),
                                                 ),
@@ -745,12 +745,12 @@ class GroupMessageBubbleWidget extends StatelessWidget {
                       decoration: BoxDecoration(
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
+                            color: Colors.black.withValues(alpha:0.2),
                             blurRadius: 2,
                             offset: const Offset(0, 1),
                           ),
                         ],
-                        color: Colors.black45.withOpacity(0.1),
+                        color: Colors.black45.withValues(alpha:0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -859,7 +859,7 @@ class GroupMessageBubbleWidget extends StatelessWidget {
                     ),
                     IconButton(
                       icon: const Icon(Icons.download_rounded),
-                      onPressed: () => onOpenFile(fileUrlValue, fileType),
+                      onPressed: () => onOpenFilex(fileUrlValue, fileType),
                     ),
                   ],
                 ),

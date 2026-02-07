@@ -30,9 +30,7 @@ import 'package:dio/dio.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:media_scanner/media_scanner.dart';
 import 'package:path/path.dart' as p;
-
 import '../../../../widgets/chat_widgets/Common/grouped_media_viewer.dart';
-import 'VideoPlayerScreen.dart';
 
 class MixedMediaViewer extends StatefulWidget {
   final List<GroupMediaItem> items;
@@ -204,7 +202,7 @@ class _MixedMediaViewerState extends State<MixedMediaViewer> {
       extendBodyBehindAppBar: true,
       appBar: _showUI
           ? AppBar(
-              backgroundColor: Colors.black.withOpacity(0.4),
+              backgroundColor: Colors.black.withValues(alpha:0.4),
               elevation: 0,
               iconTheme: const IconThemeData(color: Colors.white),
               titleSpacing: 0,

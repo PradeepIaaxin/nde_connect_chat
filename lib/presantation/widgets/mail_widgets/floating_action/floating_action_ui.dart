@@ -9,7 +9,7 @@ import 'floating_action_state.dart';
 class FloatingActionButtonWidget extends StatelessWidget {
   final VoidCallback onPressed;
 
-  const FloatingActionButtonWidget({Key? key, required this.onPressed}) : super(key: key);
+  const FloatingActionButtonWidget({super.key, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {

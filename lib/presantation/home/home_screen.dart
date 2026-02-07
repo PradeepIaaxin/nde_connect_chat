@@ -272,7 +272,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     ErrorDisplay(
                       message: 'Something went wrong',
-                      type: ErrorType.Somethingwrong,
+                      type: ErrorType.somethingwrong,
                     ),
                     const SizedBox(height: 6),
                     const Text(

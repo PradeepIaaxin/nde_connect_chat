@@ -16,7 +16,7 @@ import 'package:nde_email/presantation/drive/view/file_deatilsScreen.dart';
 import 'package:nde_email/presantation/drive/view/file_deep_view.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/const/consts.dart';
-import 'package:nde_email/utils/datetime/dateFormatter.dart';
+import 'package:nde_email/utils/datetime/dateformatter.dart';
 import 'package:nde_email/utils/reusbale/dowloading_mime.dart';
 import 'package:nde_email/utils/router/router.dart';
 import 'package:nde_email/utils/simmer_effect.dart/drive_simmer.dart';
@@ -67,10 +67,9 @@ class _RecentScreenState extends State<RecentScreen> {
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(
-          surfaceTintColor: Colors.white,
+        surfaceTintColor: Colors.white,
         title: Text('Recent'),
         backgroundColor: Colors.transparent,
-        actions: [IconButton(onPressed: () {}, icon: Icon(Icons.search))],
       ),
       body: Column(
         children: [
@@ -78,9 +77,7 @@ class _RecentScreenState extends State<RecentScreen> {
             child: BlocConsumer<RecentBloc, RecentState>(
               listener: (context, state) {
                 if (state is StarredError) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text(state.message)));
+                  Messenger.alertError('state.message');
                 }
               },
               builder: (context, state) {
@@ -386,7 +383,8 @@ class _FolderGridItem extends StatelessWidget {
               ),
             );
           } else {
-            MyRouter.push(screen: FilePreviewScreen(fileUrl: folder.preview??""));
+            MyRouter.push(
+                screen: FilePreviewScreen(fileUrl: folder.preview ?? ""));
           }
         }
       },
@@ -474,7 +472,9 @@ class _FolderGridItem extends StatelessWidget {
                                             : '';
 
                                     if (textToShare.isNotEmpty) {
-                                      Share.share(textToShare);
+                                      await SharePlus.instance.share(
+                                        ShareParams(text: textToShare),
+                                      );
                                     } else {
                                       log("Nothing to share.");
                                     }
@@ -630,12 +630,13 @@ class _FolderListItem extends StatelessWidget {
               ),
             );
           } else {
-            MyRouter.push(screen: FilePreviewScreen(fileUrl: folder.preview??""));
+            MyRouter.push(
+                screen: FilePreviewScreen(fileUrl: folder.preview ?? ""));
           }
         }
       },
       child: Container(
-        color: isSelected ? Colors.blue.withOpacity(0.1) : null,
+        color: isSelected ? Colors.blue.withValues(alpha: 0.1) : null,
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 4),
           leading: Stack(
@@ -738,7 +739,9 @@ class _FolderListItem extends StatelessWidget {
                               : '';
 
                       if (textToShare.isNotEmpty) {
-                        Share.share(textToShare);
+                        await SharePlus.instance.share(
+                          ShareParams(text: textToShare),
+                        );
                       } else {
                         log("Nothing to share.");
                       }
@@ -817,7 +820,7 @@ Color _parseColor(String hexColor) {
 }
 
 Widget _buildMimeIcon(RecentModel folder) {
-  final type = folder.type?.toLowerCase();
+  final type = folder.type.toLowerCase();
   final ext = folder.extname?.toLowerCase().trim() ?? "";
   final mimetype = folder.mimetype?.toLowerCase().trim() ?? "";
   log(mimetype);

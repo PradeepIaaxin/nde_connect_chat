@@ -86,18 +86,7 @@ class GroupProfileHeader extends StatelessWidget {
     );
   }
 
-  ContactModel? _getGroupFromState(MediaState state) {
-    if (state is! ContactLoaded) return null;
-    return state.contacts.firstWhere(
-      (contact) => contact.id == groupId,
-      orElse: () => ContactModel(),
-    );
-  }
 
-  int _getMemberCount(ContactModel? group) {
-    if (group == null) return 0;
-    return group.totalMembers ?? group.groupMembers.length;
-  }
 
   Widget _buildProfileAvatar(
       BuildContext context, String displayLetter, String fullName, String avatarUrl,) {

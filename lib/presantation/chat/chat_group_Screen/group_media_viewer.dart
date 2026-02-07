@@ -68,7 +68,7 @@ class _GroupedMediaViewerState extends State<GroupedMediaViewer> {
       extendBodyBehindAppBar: true,
       appBar: _showUI
           ? AppBar(
-              backgroundColor: Colors.black.withOpacity(0.5),
+              backgroundColor: Colors.black.withValues(alpha:0.5),
               elevation: 0,
               iconTheme: const IconThemeData(color: Colors.white),
               title: Text(
@@ -174,7 +174,7 @@ class _GroupedMediaViewerState extends State<GroupedMediaViewer> {
               left: 0,
               right: 0,
               child: Container(
-                color: Colors.black.withOpacity(0.5),
+                color: Colors.black.withValues(alpha:0.5),
                 padding: const EdgeInsets.only(bottom: 20, top: 10),
                 child: SizedBox(
                   height: 80,

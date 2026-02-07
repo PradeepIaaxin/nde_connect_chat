@@ -525,7 +525,7 @@ class _TrashScreenState extends State<TrashScreen> {
                                                 },
                                           child: Container(
                                             color: isSelected
-                                                ? chatColor.withOpacity(0.1)
+                                                ? chatColor.withValues(alpha:0.1)
                                                 : null,
                                             child: ListTile(
                                               contentPadding:

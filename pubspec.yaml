@@ -49,7 +49,7 @@ dependencies:
   fwfh_svg: ^0.16.0
   fwfh_url_launcher: ^0.16.0
   fwfh_webview: ^0.15.4
-  open_file: ^3.5.10
+  # open_file: ^3.5.10
   
   carousel_slider: ^5.0.0
   permission_handler: ^12.0.0+1
@@ -138,6 +138,9 @@ dependencies:
   flutter_secure_storage: ^10.0.0
   image_editor_plus: ^1.0.8
   flutter_image_compress: ^2.4.0
+  open_filex: ^4.7.0
+  image: ^4.7.2
+  bloc: ^9.2.0
   
 
 dev_dependencies:

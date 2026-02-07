@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path/path.dart' as p;
 import 'dart:math' as math;
@@ -2632,12 +2633,12 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
         onRightSwipe: message['is_deleted'] == true
             ? null
             : () => _replyToMessage(message),
-        onFileTap: (url, type) => _openFile(url, type),
+        onFileTap: (url, type) => _OpenFilex(url, type),
         buildStatusIcon: (status) => MessageStatusIcon(status: status),
         buildReactionsBar: (msg, sentByMe) => _buildReactionsBar(msg, sentByMe),
         sentMessageColor: senderColor,
         receivedMessageColor: receiverColor,
-        selectedMessageColor: senderColor.withOpacity(0.2),
+        selectedMessageColor: senderColor.withValues(alpha:0.2),
         borderColor: Colors.blue,
         chatColor: chatColor,
         onReact: (msg, emoji) {
@@ -3107,7 +3108,7 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
                                 horizontal: 10, vertical: 8),
                             decoration: BoxDecoration(
                               color: showEmojiPicker
-                                  ? Colors.green.withOpacity(0.12)
+                                  ? Colors.green.withValues(alpha:0.12)
                                   : Colors.grey.shade100,
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(color: Colors.grey.shade300),
@@ -3149,7 +3150,7 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
                                         horizontal: 10, vertical: 8),
                                     decoration: BoxDecoration(
                                       color: isSelected
-                                          ? Colors.greenAccent.withOpacity(0.3)
+                                          ? Colors.greenAccent.withValues(alpha:0.3)
                                           : Colors.grey.shade100,
                                       borderRadius: BorderRadius.circular(14),
                                       border: Border.all(
@@ -3534,7 +3535,7 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
   bool isValidUrl(String url) =>
       url.startsWith('http://') || url.startsWith('https://');
 
-  void _openFile(String urlOrPath, String? fileType) async {
+  void _OpenFilex(String urlOrPath, String? fileType) async {
     // ✅ 1. VIDEO: open in your own player
     if (fileType != null && fileType.startsWith('video/')) {
       final isNetwork =
@@ -3588,7 +3589,7 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
 
     // If it's a local file, just open it
     if (!urlOrPath.startsWith('http')) {
-      final result = await OpenFile.open(urlOrPath);
+      final result = await OpenFilex.open(urlOrPath);
       if (result.type != ResultType.done) {
         Messenger.alertError("Could not open local file.");
       }
@@ -3669,7 +3670,7 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
 
       if (await targetFile.exists()) {
         // Open existing
-        final result = await OpenFile.open(finalPath);
+        final result = await OpenFilex.open(finalPath);
         if (result.type != ResultType.done) {
           Messenger.alertError("Could not open file.");
         }
@@ -3691,7 +3692,7 @@ log("replyPayload?['group_message_id'] ${replyPayload?['group_message_id']}");
       Messenger.alertSuccess('Saved to NowDigitalEasy/Media');
 
       // Open
-      final result = await OpenFile.open(finalPath);
+      final result = await OpenFilex.open(finalPath);
       if (result.type != ResultType.done) {
         Messenger.alertError("Could not open downloaded file.");
       }

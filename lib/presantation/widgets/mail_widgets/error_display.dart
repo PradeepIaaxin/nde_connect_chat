@@ -8,7 +8,7 @@ class ErrorDisplay extends StatelessWidget {
   const ErrorDisplay({
     super.key,
     required this.message,
-    this.type = ErrorType.Somethingwrong,
+    this.type = ErrorType.somethingwrong,
     this.imageSize = 200,
   });
 
@@ -18,7 +18,7 @@ class ErrorDisplay extends StatelessWidget {
         return 'assets/images/empty_mailbox.png';
       case ErrorType.noInternet:
         return 'assets/images/network_error.png';
-      case ErrorType.Somethingwrong:
+      case ErrorType.somethingwrong:
         return 'assets/images/somthingwrong.png';
     }
   }
@@ -50,7 +50,7 @@ class ErrorDisplay extends StatelessWidget {
 }
 
 enum ErrorType {
-  Somethingwrong,
+  somethingwrong,
   emptymailbox,
   noInternet,
 }

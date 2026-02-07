@@ -31,7 +31,7 @@ class ShimmerMessageBubble extends StatelessWidget {
       child: Align(
         alignment: isSentByMe ? Alignment.centerRight : Alignment.centerLeft,
         child: Shimmer.fromColors(
-          baseColor: baseColor.withOpacity(0.5),
+          baseColor: baseColor.withValues(alpha: 0.5),
           highlightColor: highlightColor,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -103,7 +103,7 @@ class ShimmerMessageBubble extends StatelessWidget {
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: baseColor.withOpacity(0.3),
+                                color: baseColor.withValues(alpha: 0.3),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Row(

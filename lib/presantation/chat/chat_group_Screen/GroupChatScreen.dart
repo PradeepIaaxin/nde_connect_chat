@@ -1,9 +1,6 @@
 ﻿import 'package:flutter/foundation.dart' as foundation;
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
-import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
-
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/gestures.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/local_strorage.dart';
@@ -39,16 +36,13 @@ import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/sho
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/reaction_bar.dart';
 import 'package:nde_email/utils/reusbale/colour_utlis.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
-
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/whatsapp_swipe_to_reply.dart';
 import '../../../data/respiratory.dart';
 import '../../../utils/simmer_effect.dart/chat_simmerefect.dart';
 import '../../widgets/chat_widgets/messager_Wifgets/ForwardMessageScreen_widget.dart';
 import '../../widgets/chat_widgets/messager_Wifgets/buildMessageInputField_widgets.dart';
 import '../Socket/socket_service.dart';
-
 import '../chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
-// import 'package:nde_email/presantation/chat/widget/image_viewer.dart';
 import '../chat_list/chat_session_storage/chat_session.dart';
 import '../chat_list/chat_bloc.dart';
 import '../chat_list/chat_event.dart';
@@ -116,6 +110,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   final int _limit = 40;
   Timer? _timer;
+  bool _messagesFetched = false;
+
 
   // Locked Recording State
   bool _isRecordingLocked = false;
@@ -139,9 +135,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   final List<Map<String, dynamic>> _selectedMessages = [];
   bool _showEmoji = false;
   bool _showSearchAppBar = false;
-  List<String> _searchMatchIds = [];
   List<String> _searchMatchGroupIds = [];
-  String? _highlightedGroupId;
 
   int _currentSearchMatchIndex = -1;
   bool _permissionChecked = false;
@@ -174,65 +168,72 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Timer? _readMarkDebounce;
   List<Map<String, dynamic>> _latestGroupedMessages = const [];
 
-  Future<void>? _pendingExitCleanup;
+@override
+void dispose() {
+  // 🔥 Immediate safe cancels (must run instantly)
+  _draftDebounce?.cancel();
+  _saveMessagesDebounce?.cancel();
+  _readMarkDebounce?.cancel();
 
-  @override
-  void dispose() {
-    _draftDebounce?.cancel();
-    _saveMessagesDebounce?.cancel();
-    _readMarkDebounce?.cancel();
+  _messageDeletedSubscription?.cancel();
+  _reactionSubscription?.cancel();
+  _messageSubscription?.cancel();
+  _statusSubscription?.cancel();
+  _blocStateSubscription?.cancel();
+  _connSub?.cancel();
+
+  _timer?.cancel();
+  _recordingTimer?.cancel();
+  _recordTimer?.cancel();
+  _highlightTimer?.cancel();
+
+  _scrollController.removeListener(_scrollListener);
+  _scrollController.dispose();
+
+  _messageController.dispose();
+  _focusNode.dispose();
+  _searchController.dispose();
+
+  _messageContexts.clear();
+
+  // 🕒 Delay heavy cleanup (0.1 sec)
+  Future.delayed(const Duration(milliseconds: 100), () {
     SocketService().clearActiveConversation();
-    _messageDeletedSubscription?.cancel();
-    final unsentText = _messageController.text.trim();
 
-    _pendingExitCleanup = _scheduleExitCleanup(unsentText);
+    _scheduleClearSessionImagePath();
+  });
 
-    _messageController.dispose();
-    _focusNode.dispose();
-    _scrollController.removeListener(_scrollListener);
-    _scrollController.dispose();
+  super.dispose();
+}
 
-    _timer?.cancel();
-    _recordingTimer?.cancel();
-    _recordTimer?.cancel();
-    _highlightTimer?.cancel();
-    _messageContexts.clear();
-    _reactionSubscription?.cancel();
-    _messageSubscription?.cancel();
-    _statusSubscription?.cancel();
-    _blocStateSubscription?.cancel();
-    _connSub?.cancel();
-    _searchController.dispose();
+  // void dispose() {
+  //   _draftDebounce?.cancel();
+  //   _saveMessagesDebounce?.cancel();
+  //   _readMarkDebounce?.cancel();
+  //   SocketService().clearActiveConversation();
+  //   _messageDeletedSubscription?.cancel();
+  //   _messageController.text.trim();
 
-    unawaited(_scheduleClearSessionImagePath());
-    super.dispose();
-  }
+  //   _messageController.dispose();
+  //   _focusNode.dispose();
+  //   _scrollController.removeListener(_scrollListener);
+  //   _scrollController.dispose();
 
-  Future<void> _scheduleExitCleanup(String unsentText) {
-    return Future<void>(() async {
-      try {
-        if (widget.conversationId.isEmpty) return;
+  //   _timer?.cancel();
+  //   _recordingTimer?.cancel();
+  //   _recordTimer?.cancel();
+  //   _highlightTimer?.cancel();
+  //   _messageContexts.clear();
+  //   _reactionSubscription?.cancel();
+  //   _messageSubscription?.cancel();
+  //   _statusSubscription?.cancel();
+  //   _blocStateSubscription?.cancel();
+  //   _connSub?.cancel();
+  //   _searchController.dispose();
 
-        if (unsentText.isNotEmpty) {
-          await GrpLocalChatStorage.saveDraftMessage(
-              widget.conversationId, unsentText);
-          ChatSessionStorage.updateDraftMessage(
-            convoId: widget.conversationId,
-            draftMessage: unsentText,
-          );
-        } else {
-          await GrpLocalChatStorage.clearDraftMessage(widget.conversationId);
-          ChatSessionStorage.updateDraftMessage(
-            convoId: widget.conversationId,
-            draftMessage: null,
-          );
-        }
-
-        await Future<void>.delayed(Duration.zero);
-        _chatListBloc.add(UpdateLocalChatList());
-      } catch (_) {}
-    });
-  }
+  //   unawaited(_scheduleClearSessionImagePath());
+  //   super.dispose();
+  // }
 
   Future<void> _scheduleClearSessionImagePath() {
     return Future<void>(() async {
@@ -314,8 +315,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       // Skip media messages without meaningful text content
       if (hasImageUrl && contentText.isEmpty) continue; // Image without caption
       if (isVideo && contentText.isEmpty) continue; // Video without caption
-      if (isDocument && contentText.isEmpty)
-        continue; // Document without caption
+      if (isDocument && contentText.isEmpty) {
+        continue;
+      }
       if (hasLink) continue; // Any message containing a URL
 
       // Only search in text content (not file names for media)
@@ -517,7 +519,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
       _searchMatchGroupIds.clear();
       _currentSearchMatchIndex = 0;
-      _highlightedGroupId = null;
     });
   }
 
@@ -526,7 +527,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   @override
   void initState() {
     super.initState();
-    log("nameeeeeeeeeeeee ${widget.groupName}");
+
     SocketService().setActiveConversation(widget.conversationId);
     currentUserId = widget.currentUserId;
     _groupBloc = GroupChatBloc(socketService, GrpMessagerApiService());
@@ -558,18 +559,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       isGroupChat: true,
     );
 
-    _checkingPersmmion();
     _initMessages();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final painter = TextPainter(
-        text: const TextSpan(
-          text: '😀😁😂🤣😍🥰👍🙏🔥❤️',
-          style: TextStyle(fontSize: 16),
-        ),
-        textDirection: TextDirection.ltr,
-      );
-      painter.layout();
-    });
 
     // Check connectivity
     Connectivity().checkConnectivity().then((results) {
@@ -599,10 +589,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       _permissionChecked = true;
     }
 
-    // _fetchMessages2();
-
     _scrollController.addListener(_scrollListener);
-    _setupReactionListener();
+ 
     _setupMessageListener();
 
     _messageController.addListener(() {
@@ -973,8 +961,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         final combined = _getCombinedMessages();
         combinedToSave = combined;
       } else {
-        // ⚠️ Race condition handling: Message might be temporary (pending replacement)
-        // Store status to apply later when real ID arrives
         _pendingStatusUpdates[messageId] = status;
       }
       _updateNotifier();
@@ -1278,7 +1264,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           _selectedMessageKeys.clear();
         });
       }
-    } catch (e, st) {}
+    } catch (e) {
+      log(e.toString());
+    }
   }
 
   bool isValidUrl(String url) {
@@ -1295,8 +1283,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       // Handle local file vs network url mismatch if possible
       if (m.mediaUrl == imageUrl) return true;
       if (imageUrl.startsWith('http') &&
-          m.mediaUrl.endsWith(imageUrl.split('/').last))
+          m.mediaUrl.endsWith(imageUrl.split('/').last)) {
         return true; // weak match on filename
+      }
       return false;
     });
 
@@ -1358,62 +1347,107 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       );
     }
   }
-
   Future<void> _initMessages() async {
-    // 🟢 OPTIMIZATION: Yield to event loop to allow navigation animation to finish smoothly
-    await Future.delayed(Duration.zero);
+  if (_messagesFetched) return;   
+  _messagesFetched = true;
 
-    // Clear current messages first
+  await Future.delayed(Duration.zero);
+
+  if (mounted) {
+    setState(() {
+      dbMessages.clear();
+      messages.clear();
+      socketMessages.clear();
+      _seenMessageIds.clear();
+    });
+  }
+
+  final savedMessages =
+      await GrpLocalChatStorage.loadMessages(widget.conversationId);
+
+  if (savedMessages.isNotEmpty) {
     if (mounted) {
       setState(() {
-        dbMessages.clear();
-        messages.clear();
-        socketMessages.clear();
-        _seenMessageIds.clear();
+        dbMessages = savedMessages
+            .map<Map<String, dynamic>>(
+                (msg) => GroupChatNormalizeUtils.normalizeMessage(msg))
+            .where((m) => m.isNotEmpty)
+            .toList();
+
+        for (var m in dbMessages) {
+          final id = (m['message_id'] ?? m['id'])?.toString();
+          if (id != null && id.isNotEmpty) _seenMessageIds.add(id);
+        }
       });
-    }
 
-    // Load from local storage
-    final savedMessages =
-        await GrpLocalChatStorage.loadMessages(widget.conversationId);
-
-    if (savedMessages.isNotEmpty) {
-      if (mounted) {
-        setState(() {
-          dbMessages = savedMessages
-              .map<Map<String, dynamic>>(
-                  (msg) => GroupChatNormalizeUtils.normalizeMessage(msg))
-              .where((m) => m.isNotEmpty)
-              .toList();
-
-          for (var m in dbMessages) {
-            final id = (m['message_id'] ?? m['id'])?.toString();
-            if (id != null && id.isNotEmpty) _seenMessageIds.add(id);
-          }
-        });
-
-        _updateNotifier();
-      }
-
-      // Also fetch fresh messages from server
-      _groupBloc.add(
-        FetchGroupMessages(
-          convoId: widget.conversationId,
-          page: 1,
-          limit: _limit,
-        ),
-      );
-    } else {
-      // If no local messages, fetch from server
-      _groupBloc.add(
-        FetchGroupMessages(
-          convoId: widget.conversationId,
-          page: 1,
-          limit: _limit,
-        ),
-      );
+      _updateNotifier();
     }
   }
+
+  // 🔥 API CALL ONLY ONCE
+  _groupBloc.add(
+    FetchGroupMessages(
+      convoId: widget.conversationId,
+      page: 1,
+      limit: _limit,
+    ),
+  );
+}
+
+
+  // Future<void> _initMessages() async {
+  //   // 🟢 OPTIMIZATION: Yield to event loop to allow navigation animation to finish smoothly
+  //   await Future.delayed(Duration.zero);
+
+  //   // Clear current messages first
+  //   if (mounted) {
+  //     setState(() {
+  //       dbMessages.clear();
+  //       messages.clear();
+  //       socketMessages.clear();
+  //       _seenMessageIds.clear();
+  //     });
+  //   }
+
+  //   // Load from local storage
+  //   final savedMessages =
+  //       await GrpLocalChatStorage.loadMessages(widget.conversationId);
+
+  //   if (savedMessages.isNotEmpty) {
+  //     if (mounted) {
+  //       setState(() {
+  //         dbMessages = savedMessages
+  //             .map<Map<String, dynamic>>(
+  //                 (msg) => GroupChatNormalizeUtils.normalizeMessage(msg))
+  //             .where((m) => m.isNotEmpty)
+  //             .toList();
+
+  //         for (var m in dbMessages) {
+  //           final id = (m['message_id'] ?? m['id'])?.toString();
+  //           if (id != null && id.isNotEmpty) _seenMessageIds.add(id);
+  //         }
+  //       });
+
+  //       _updateNotifier();
+  //     }
+
+  //     _groupBloc.add(
+  //       FetchGroupMessages(
+  //         convoId: widget.conversationId,
+  //         page: 1,
+  //         limit: _limit,
+  //       ),
+  //     );
+  //   } else {
+  //     _groupBloc.add(
+  //       FetchGroupMessages(
+  //         convoId: widget.conversationId,
+  //         page: 1,
+  //         limit: _limit,
+  //       ),
+  //     );
+  //   }
+  // }
 
 // ------------------ Draft Methods ------------------
   Future<void> _saveDraft(String draft) async {
@@ -1469,12 +1503,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
   }
 
-  void _checkingPersmmion() {
-    context.read<GroupChatBloc>().add(
-          PermissionCheck(widget.datumId),
-        );
-  }
-
 // Add this method to handle permission state changes
   void _handlePermissionResponse(Map<String, dynamic>? response) {
     if (response != null && response['type'] == 'left') {
@@ -1492,13 +1520,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
       // Show a snackbar notification
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('You have left this group'),
-            backgroundColor: Colors.redAccent,
-            duration: Duration(seconds: 3),
-          ),
-        );
+        Messenger.alertError("You have left this group");
       }
     } else {
       if (mounted) {
@@ -1722,10 +1744,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       final completer = Completer<GrpMessage>();
       final subscription = _groupBloc.stream.listen((state) {
         if (state is GrpMessageSentSuccessfully) {
-          // We assume the next success is ours.
-          // Ideally we'd match ID, but the server generates a new one.
-          // Matching content/time is a heuristics.
-          // For now, satisfy with the first success event.
           if (!completer.isCompleted) {
             completer.complete(state.sentMessage);
           }
@@ -2435,9 +2453,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     // Process lists in order. Order matters if we want later lists to override earlier ones
     // (though our merge logic handles priority explicitly).
     // Usually: DB (oldest cache) -> Messages (RAM) -> Socket (Live)
-    for (var m in dbMessages) mergeMessage(m);
-    for (var m in messages) mergeMessage(m);
-    for (var m in socketMessages) mergeMessage(m);
+    for (var m in dbMessages) {
+      mergeMessage(m);
+    }
+    for (var m in messages) {
+      mergeMessage(m);
+    }
+    for (var m in socketMessages) {
+      mergeMessage(m);
+    }
 
     final combined = mergedMap.values.toList();
 
@@ -2589,13 +2613,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-                'Original message not found. It may have been deleted or is unavailable.'),
-            duration: Duration(seconds: 3),
-          ),
-        );
+        Messenger.alertError(
+            "Original message not found. It may have been deleted or is unavailable.");
       }
       return false;
     }
@@ -3118,7 +3137,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                               final bool isHighlighted =
                                   _highlightedMessageId == messageId ||
                                       (isGroupMessage &&
-                                          groupMessageId != null &&
                                           _highlightedMessageId != null &&
                                           groupedMessages.any((m) =>
                                               m['group_message_id']
@@ -3144,7 +3162,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                       duration:
                                           const Duration(milliseconds: 300),
                                       color: isHighlighted
-                                          ? Colors.blueAccent.withOpacity(0.3)
+                                          ? Colors.blueAccent
+                                              .withValues(alpha: 0.3)
                                           : Colors.transparent,
                                       child: Column(
                                         crossAxisAlignment: isSentByMe
@@ -3307,8 +3326,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                   decoration:
                                                                       BoxDecoration(
                                                                     color: isGroupSelected
-                                                                        ? senderColor.withOpacity(
-                                                                            0.2)
+                                                                        ? senderColor.withValues(
+                                                                            alpha:
+                                                                                0.2)
                                                                         : (isSentByMe
                                                                             ? senderColor
                                                                             : receiverColor),
@@ -3425,7 +3445,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                                                               child: Container(
                                                                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                                                                 decoration: BoxDecoration(
-                                                                                  color: Colors.black.withOpacity(0.45),
+                                                                                  color: Colors.black.withValues(alpha: 0.45),
                                                                                   borderRadius: BorderRadius.circular(8),
                                                                                 ),
                                                                                 child: Row(
@@ -3604,7 +3624,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                   margin:
                                       const EdgeInsets.symmetric(vertical: 2),
                                   color: isHighlighted
-                                      ? Colors.blueAccent.withOpacity(0.3)
+                                      ? Colors.blueAccent.withValues(alpha: 0.3)
                                       : Colors.transparent,
                                   child: Column(
                                     crossAxisAlignment: isSentByMe
@@ -3641,8 +3661,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         children: [
           GestureDetector(
             onTap: () {
-              final isNetwork = fileUrl.startsWith('http://') ||
-                  fileUrl.startsWith('https://');
               final media = buildConversationMedia(
                 _allMessages,
                 currentUserId: currentUserId,
@@ -3709,7 +3727,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.45),
+                  color: Colors.black.withValues(alpha: 0.45),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -3928,7 +3946,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       onShowReactionPicker: _showReactionPicker,
       onToggleMessageSelection: _toggleMessageSelection,
       onShowFullImage: _showFullImage,
-      onOpenFile: FileOpenerUtils.openFile,
+      onOpenFilex: FileOpenerUtils.openFile,
       onScrollToMessageById: _scrollToMessageById,
       // Helper functions
       sanitizeString: sanitizeString,
@@ -3945,1017 +3963,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       generateMessageKey: GroupChatMessageUtils.generateMessageKey,
     );
   }
-
-  // Widget _buildMessageBubble(Map<String, dynamic> message, bool isSentByMe) {
-  //   // Sanitize message content early to avoid invalid strings in any downstream Text widgets
-  //   final String content = sanitizeString(message['content']?.toString() ?? '');
-  //   final String? imageUrl = message['imageUrl'] ?? _imageFile;
-  //   final String? fileUrl = message['fileUrl'] ?? _fileUrl;
-  //   final String? fileName = message['fileName']?.toString() ?? '';
-  //   final String? fileType = message['fileType'];
-  //   final bool? isForwarded = message['isForwarded'] ?? false;
-
-  //   final String userName =
-  //       (message['userName']?.toString().trim().isNotEmpty == true)
-  //           ? sanitizeString(message['userName']?.toString())
-  //           : (() {
-  //               final s = message['sender'];
-  //               if (s is Map) {
-  //                 final first =
-  //                     sanitizeString(s['first_name'] ?? s['firstName'] ?? '');
-  //                 final last =
-  //                     sanitizeString(s['last_name'] ?? s['lastName'] ?? '');
-  //                 return [first, last, sanitizeString(s['name'] ?? '')]
-  //                     .where((e) => e != null && e.toString().trim().isNotEmpty)
-  //                     .join(' ')
-  //                     .trim();
-  //               }
-  //               return '';
-  //             })();
-
-  //   final String contentType = message['ContentType'] ?? "";
-  //   final senderData = message['sender'] is Map ? message['sender'] : {};
-  //   final String profileImageUrl = senderData['profile_pic_path']?.toString() ??
-  //       senderData['profilePic']?.toString() ??
-  //       senderData['avatar']?.toString() ??
-  //       message['profile_pic_path']?.toString() ??
-  //       "";
-
-  //   final bool isImage =
-  //       (fileType != null && fileType.toLowerCase().startsWith("image")) ||
-  //           (fileName != null &&
-  //               RegExp(r'\.(jpg|jpeg|png|gif|webp|bmp)$', caseSensitive: false)
-  //                   .hasMatch(fileName));
-
-  //   final bool isVideo =
-  //       (fileType != null && fileType.toLowerCase().startsWith("video")) ||
-  //           (fileName != null &&
-  //               RegExp(r'\.(mp4|mov|avi|mkv|webm)$', caseSensitive: false)
-  //                   .hasMatch(fileName));
-
-  //   final bool isAudio = (fileType != null &&
-  //           fileType.toLowerCase().startsWith("audio")) ||
-  //       (fileName != null &&
-  //           RegExp(r'\.(mp3|wav|aac|m4a|flac|ogg|opus)$', caseSensitive: false)
-  //               .hasMatch(fileName));
-
-  //   final String messageStatus =
-  //       message['messageStatus']?.toString() ?? 'delivered';
-
-  //   if (content.isEmpty &&
-  //       (imageUrl == null || imageUrl.isEmpty) &&
-  //       (fileUrl == null || fileUrl.isEmpty)) {
-  //     return const SizedBox.shrink();
-  //   }
-
-  //   final isSelected = _selectedMessageKeys
-  //       .contains(GroupChatMessageUtils.generateMessageKey(message));
-  //   final bool isDeleted = message['is_deleted'] == true ||
-  //       message['isDeleted'] == true ||
-  //       message['messageStatus'] == 'deleted' ||
-  //       message['content'] == '🚫 This message was deleted';
-
-  //   final bool hasReply = !isDeleted &&
-  //           (message['repliedMessage'] is Map &&
-  //               (message['repliedMessage']['id'] ??
-  //                       message['repliedMessage']['message_id'] ??
-  //                       message['repliedMessage']['messageId']) !=
-  //                   null) ||
-  //       (message['reply'] is Map &&
-  //           (message['reply']['id'] ??
-  //                   message['reply']['message_id'] ??
-  //                   message['reply']['messageId']) !=
-  //               null);
-
-  //   final messageId = (message['message_id'] ??
-  //               message['messageId'] ??
-  //               message['id'] ??
-  //               message['_id'])
-  //           ?.toString() ??
-  //       '';
-  //   final bool hasFile = fileUrl != null && fileUrl.isNotEmpty;
-  //   return message['content'].contains('Group created by')
-  //       ? voidBox
-  //       : (contentType == "system" &&
-  //               (content.contains('added') || content.contains('left')))
-  //           ? voidBox
-  //           : Builder(
-  //               builder: (context) {
-  //                 // Register context for scrolling
-  //                 if (messageId.isNotEmpty) {
-  //                   _messageContexts[messageId] = context;
-  //                 }
-
-  //                 return SwipeToReply(
-  //                     icon: Icons.reply,
-  //                     iconColor: Colors.grey.shade600,
-  //                     onReply: isDeleted
-  //                         ? null
-  //                         : () {
-  //                             _replyToMessage(message);
-  //                           },
-  //                     child: Container(
-  //                       padding: const EdgeInsets.symmetric(
-  //                           vertical: 5.0, horizontal: 4.0),
-  //                       child: GestureDetector(
-  //                         onTap: () => _onMessageTap(message),
-  //                         onLongPress: () {
-  //                           // log("messssssssssssssssssssss $message");
-  //                           if (_isSelectionMode) {
-  //                             _toggleMessageSelection(message);
-  //                           } else if (!isDeleted) {
-  //                             _showReactionPicker(context, message);
-
-  //                             // Enter selection mode
-  //                             setState(() {
-  //                               _isSelectionMode = true;
-  //                             });
-  //                             _toggleMessageSelection(message);
-  //                           } else {
-  //                             // If deleted, only enter selection mode
-  //                             setState(() {
-  //                               _isSelectionMode = true;
-  //                             });
-  //                             _toggleMessageSelection(message);
-  //                           }
-  //                         },
-  //                         child: Stack(
-  //                           clipBehavior: Clip.none,
-  //                           children: [
-  //                             Align(
-  //                               alignment: isSentByMe
-  //                                   ? Alignment.centerRight
-  //                                   : Alignment.centerLeft,
-  //                               widthFactor: hasReply ? 1.0 : null,
-  //                               child: Stack(
-  //                                   clipBehavior: Clip.none,
-  //                                   children: [
-  //                                     Row(
-  //                                       mainAxisAlignment: isSentByMe
-  //                                           ? MainAxisAlignment.end
-  //                                           : MainAxisAlignment.start,
-  //                                       children: [
-  //                                         if (isSentByMe &&
-  //                                             (isVideo ||
-  //                                                 isImage ||
-  //                                                 hasFile ||
-  //                                                 (content.isNotEmpty &&
-  //                                                     RegExp(r'((https?:\/\/)|(www\.))[^\s]+',
-  //                                                             caseSensitive:
-  //                                                                 false)
-  //                                                         .hasMatch(content))))
-  //                                           Center(
-  //                                             child: Material(
-  //                                               color: Colors.transparent,
-  //                                               child: InkWell(
-  //                                                 borderRadius:
-  //                                                     BorderRadius.circular(20),
-  //                                                 onTap: () {
-  //                                                   MyRouter.pushReplace(
-  //                                                     screen:
-  //                                                         ForwardMessageScreen(
-  //                                                       messages: [
-  //                                                         GroupChatNormalizeUtils
-  //                                                             .normalizeMessage(
-  //                                                                 message)
-  //                                                       ],
-  //                                                       currentUserId:
-  //                                                           currentUserId,
-  //                                                       conversionalid: widget
-  //                                                           .conversationId,
-  //                                                       username:
-  //                                                           widget.groupName,
-  //                                                     ),
-  //                                                   );
-  //                                                 },
-  //                                                 child: CircleAvatar(
-  //                                                   maxRadius: 16,
-  //                                                   backgroundColor:
-  //                                                       Colors.white,
-  //                                                   child: Image.asset(
-  //                                                     "assets/images/forward.png",
-  //                                                     height: 20,
-  //                                                     width: 20,
-  //                                                   ),
-  //                                                 ),
-  //                                               ),
-  //                                             ),
-  //                                           ),
-  //                                         Flexible(
-  //                                           child: Padding(
-  //                                             padding: const EdgeInsets.only(
-  //                                                 left: 30),
-  //                                             child: Container(
-  //                                               margin: EdgeInsets.only(
-  //                                                 left: 5,
-  //                                                 right: 5,
-  //                                                 top: 0,
-  //                                                 bottom: (message[
-  //                                                                 'reactions'] !=
-  //                                                             null &&
-  //                                                         message['reactions']
-  //                                                             .isNotEmpty)
-  //                                                     ? 20
-  //                                                     : 0,
-  //                                               ),
-  //                                               padding: hasReply
-  //                                                   ? EdgeInsets.only(
-  //                                                       left: 5,
-  //                                                       bottom: 3,
-  //                                                       right: 6)
-  //                                                   : const EdgeInsets.only(
-  //                                                       top: 8,
-  //                                                       left: 10,
-  //                                                       right: 6,
-  //                                                       bottom: 8),
-  //                                               constraints: BoxConstraints(
-  //                                                   maxWidth: 250,
-  //                                                   minWidth:
-  //                                                       hasReply ? 120 : 0),
-  //                                               decoration: BoxDecoration(
-  //                                                 color: isSelected
-  //                                                     ? senderColor
-  //                                                         .withOpacity(0.2)
-  //                                                     : (isSentByMe
-  //                                                         ? senderColor
-  //                                                         : receiverColor),
-  //                                                 borderRadius:
-  //                                                     BorderRadius.only(
-  //                                                   topLeft: isSentByMe
-  //                                                       ? const Radius.circular(
-  //                                                           18)
-  //                                                       : const Radius.circular(
-  //                                                           18),
-  //                                                   topRight: isSentByMe
-  //                                                       ? const Radius.circular(
-  //                                                           18)
-  //                                                       : const Radius.circular(
-  //                                                           18),
-  //                                                   bottomLeft: isSentByMe
-  //                                                       ? const Radius.circular(
-  //                                                           18)
-  //                                                       : Radius.zero,
-  //                                                   bottomRight: isSentByMe
-  //                                                       ? Radius.zero
-  //                                                       : const Radius.circular(
-  //                                                           16),
-  //                                                 ),
-  //                                                 border: isSelected
-  //                                                     ? Border.all(
-  //                                                         color: Colors.blue,
-  //                                                         width: 2)
-  //                                                     : null,
-  //                                                 boxShadow: [
-  //                                                   BoxShadow(
-  //                                                     color: Colors.black
-  //                                                         .withOpacity(0.05),
-  //                                                     blurRadius: 4,
-  //                                                     offset:
-  //                                                         const Offset(0, 2),
-  //                                                   ),
-  //                                                 ],
-  //                                               ),
-  //                                               child: Stack(
-  //                                                 children: [
-  //                                                   Column(
-  //                                                       crossAxisAlignment:
-  //                                                           CrossAxisAlignment
-  //                                                               .start,
-  //                                                       children: [
-  //                                                         if (!isSentByMe &&
-  //                                                             userName
-  //                                                                 .isNotEmpty)
-  //                                                           Padding(
-  //                                                             padding: EdgeInsets
-  //                                                                 .only(
-  //                                                                     bottom: 4,
-  //                                                                     left: 7,
-  //                                                                     right: 6,
-  //                                                                     top: hasReply
-  //                                                                         ? 6.5
-  //                                                                         : 0),
-  //                                                             child: Text(
-  //                                                               userName,
-  //                                                               style:
-  //                                                                   TextStyle(
-  //                                                                 fontWeight:
-  //                                                                     FontWeight
-  //                                                                         .bold,
-  //                                                                 color: ColorUtil
-  //                                                                     .getColorFromAlphabet(
-  //                                                                         userName),
-  //                                                                 fontSize: 14,
-  //                                                               ),
-  //                                                             ),
-  //                                                           ),
-
-  //                                                         if (isForwarded ==
-  //                                                             true)
-  //                                                           Padding(
-  //                                                             padding:
-  //                                                                 const EdgeInsets
-  //                                                                     .only(
-  //                                                                     bottom:
-  //                                                                         4.0,
-  //                                                                     left: 7,
-  //                                                                     right: 6),
-  //                                                             child: Row(
-  //                                                               mainAxisSize:
-  //                                                                   MainAxisSize
-  //                                                                       .min,
-  //                                                               children: [
-  //                                                                 Image.asset(
-  //                                                                   "assets/images/forward.png",
-  //                                                                   height: 14,
-  //                                                                   width: 14,
-  //                                                                 ),
-  //                                                                 const SizedBox(
-  //                                                                     width: 4),
-  //                                                                 Text(
-  //                                                                   "Forwarded",
-  //                                                                   style:
-  //                                                                       TextStyle(
-  //                                                                     fontSize:
-  //                                                                         12,
-  //                                                                     color: Colors
-  //                                                                             .grey[
-  //                                                                         700],
-  //                                                                   ),
-  //                                                                 ),
-  //                                                               ],
-  //                                                             ),
-  //                                                           ),
-
-  //                                                         // REPLY PREVIEW - opacity trick for measurement
-  //                                                         if (hasReply)
-  //                                                           Opacity(
-  //                                                             opacity: 0,
-  //                                                             child:
-  //                                                                 GroupRepliedMessagePreview(
-  //                                                               key: ValueKey(
-  //                                                                   '${messageId}_${message['replyContent']}_placeholder'),
-  //                                                               replied: (message['repliedMessage'] ??
-  //                                                                           message['reply'])
-  //                                                                       is Map
-  //                                                                   ? Map<
-  //                                                                       String,
-  //                                                                       dynamic>.from(message[
-  //                                                                           'repliedMessage'] ??
-  //                                                                       message[
-  //                                                                           'reply'])
-  //                                                                   : <String,
-  //                                                                       dynamic>{},
-  //                                                               receiver: message[
-  //                                                                           'receiver']
-  //                                                                       is Map
-  //                                                                   ? Map<String,
-  //                                                                           dynamic>.from(
-  //                                                                       message[
-  //                                                                           'receiver'])
-  //                                                                   : {},
-  //                                                               isSender:
-  //                                                                   isSentByMe,
-  //                                                               groupMediaLength:
-  //                                                                   _calculateGroupMediaLength(_mergeReplyData(message[
-  //                                                                           'repliedMessage'] ??
-  //                                                                       message[
-  //                                                                           'reply'])),
-  //                                                               onTap: null,
-  //                                                             ),
-  //                                                           ),
-
-  //                                                         // Main content with proper padding when reply exists
-  //                                                         Padding(
-  //                                                           padding: hasReply
-  //                                                               ? const EdgeInsets
-  //                                                                   .only(
-  //                                                                   left: 7,
-  //                                                                   right: 0,
-  //                                                                   bottom: 0,
-  //                                                                   top: 0)
-  //                                                               : EdgeInsets
-  //                                                                   .zero,
-  //                                                           child: Column(
-  //                                                             crossAxisAlignment:
-  //                                                                 CrossAxisAlignment
-  //                                                                     .start,
-  //                                                             children: [
-  //                                                               if (imageUrl !=
-  //                                                                       null &&
-  //                                                                   imageUrl
-  //                                                                       .isNotEmpty &&
-  //                                                                   (isImage ||
-  //                                                                       imageUrl !=
-  //                                                                           fileUrl))
-  //                                                                 content ==
-  //                                                                         "Message Deleted"
-  //                                                                     ? const SizedBox
-  //                                                                         .shrink()
-  //                                                                     : Stack(
-  //                                                                         clipBehavior:
-  //                                                                             Clip.none,
-  //                                                                         children: [
-  //                                                                           GestureDetector(
-  //                                                                             onTap: () => _showFullImage(context, imageUrl, message: message),
-  //                                                                             child: ClipRRect(
-  //                                                                               borderRadius: BorderRadius.circular(12),
-  //                                                                               child: imageUrl.startsWith('https') || imageUrl.startsWith('http')
-  //                                                                                   ? CachedNetworkImage(
-  //                                                                                       imageUrl: imageUrl,
-  //                                                                                       width: 240,
-  //                                                                                       memCacheWidth: 480,
-  //                                                                                       memCacheHeight: 600,
-  //                                                                                       height: 300,
-  //                                                                                       fit: BoxFit.cover,
-  //                                                                                       placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-  //                                                                                       errorWidget: (context, url, error) => const Icon(Icons.error, color: Colors.red),
-  //                                                                                     )
-  //                                                                                   : Image.file(File(imageUrl), width: 240, height: 240, fit: BoxFit.cover),
-  //                                                                             ),
-  //                                                                           ),
-  //                                                                           if (content.isEmpty)
-  //                                                                             Positioned(
-  //                                                                               bottom: 5,
-  //                                                                               right: 4,
-  //                                                                               child: Container(
-  //                                                                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-  //                                                                                 decoration: BoxDecoration(
-  //                                                                                   boxShadow: [
-  //                                                                                     BoxShadow(
-  //                                                                                       color: Colors.black.withOpacity(0.2),
-  //                                                                                       blurRadius: 2,
-  //                                                                                       offset: const Offset(0, 1),
-  //                                                                                     ),
-  //                                                                                   ],
-  //                                                                                   color: Colors.black45.withOpacity(0.1),
-  //                                                                                   borderRadius: BorderRadius.circular(8),
-  //                                                                                 ),
-  //                                                                                 child: Row(
-  //                                                                                   mainAxisSize: MainAxisSize.min,
-  //                                                                                   children: [
-  //                                                                                     Text(
-  //                                                                                       TimeUtils.formatUtcToIst(message['time']),
-  //                                                                                       style: const TextStyle(
-  //                                                                                         fontSize: 10,
-  //                                                                                         color: Colors.white,
-  //                                                                                       ),
-  //                                                                                     ),
-  //                                                                                     if (isSentByMe) ...[
-  //                                                                                       const SizedBox(width: 4),
-  //                                                                                       Builder(builder: (context) {
-  //                                                                                         switch (messageStatus) {
-  //                                                                                           case 'sent':
-  //                                                                                             return const Icon(Icons.check, size: 12, color: Colors.white);
-  //                                                                                           case 'delivered':
-  //                                                                                             return const Icon(Icons.done_all_rounded, size: 12, color: Colors.white);
-  //                                                                                           case 'read':
-  //                                                                                             return const Icon(Icons.done_all, size: 12, color: Colors.blue);
-  //                                                                                           default:
-  //                                                                                             return const SizedBox.shrink();
-  //                                                                                         }
-  //                                                                                       }),
-  //                                                                                     ],
-  //                                                                                   ],
-  //                                                                                 ),
-  //                                                                               ),
-  //                                                                             ),
-  //                                                                         ],
-  //                                                                       ),
-  //                                                               if (fileUrl !=
-  //                                                                       null &&
-  //                                                                   fileUrl
-  //                                                                       .isNotEmpty &&
-  //                                                                   isVideo)
-  //                                                                 _buildVideoPreviewTile(
-  //                                                                   context,
-  //                                                                   fileUrl,
-  //                                                                   fileName ??
-  //                                                                       "",
-  //                                                                   isSentByMe,
-  //                                                                   message,
-  //                                                                 )
-  //                                                               else if (fileUrl !=
-  //                                                                       null &&
-  //                                                                   fileUrl
-  //                                                                       .isNotEmpty &&
-  //                                                                   isAudio)
-  //                                                                 AudioMessageWidget(
-  //                                                                   audioUrl:
-  //                                                                       fileUrl,
-  //                                                                   profileAvatarUrl:
-  //                                                                       profileImageUrl,
-  //                                                                   isSender:
-  //                                                                       isSentByMe,
-  //                                                                   duration: message[
-  //                                                                           'duration']
-  //                                                                       ?.toString(),
-  //                                                                   timestamp: TimeUtils
-  //                                                                       .formatUtcToIst(
-  //                                                                           message['time']),
-  //                                                                   status:
-  //                                                                       messageStatus,
-  //                                                                   showContainer:
-  //                                                                       false,
-  //                                                                 )
-  //                                                               else if (fileUrl !=
-  //                                                                       null &&
-  //                                                                   fileUrl
-  //                                                                       .isNotEmpty &&
-  //                                                                   !(content ==
-  //                                                                           "Message Deleted" ||
-  //                                                                       isImage || // Use pre-calculated isImage
-  //                                                                       (fileType !=
-  //                                                                               null &&
-  //                                                                           fileType.toLowerCase().startsWith(
-  //                                                                               "image")) ||
-  //                                                                       (fileName !=
-  //                                                                               null &&
-  //                                                                           RegExp(r'\.(jpg|jpeg|png|gif|webp|bmp)$', caseSensitive: false).hasMatch(fileName))))
-  //                                                                 Stack(
-  //                                                                   clipBehavior:
-  //                                                                       Clip.none,
-  //                                                                   children: [
-  //                                                                     Column(
-  //                                                                       crossAxisAlignment:
-  //                                                                           CrossAxisAlignment.end,
-  //                                                                       children: [
-  //                                                                         Container(
-  //                                                                           width:
-  //                                                                               300,
-  //                                                                           margin:
-  //                                                                               const EdgeInsets.only(top: 8),
-  //                                                                           padding:
-  //                                                                               const EdgeInsets.all(8),
-  //                                                                           decoration:
-  //                                                                               BoxDecoration(
-  //                                                                             color: Colors.grey[200],
-  //                                                                             borderRadius: BorderRadius.circular(12),
-  //                                                                           ),
-  //                                                                           child:
-  //                                                                               Row(
-  //                                                                             mainAxisSize: MainAxisSize.min,
-  //                                                                             children: [
-  //                                                                               buildIcon(type: '', mimeType: (fileType != null && fileType.isNotEmpty) ? fileType : fileName, size: 30),
-  //                                                                               const SizedBox(width: 8),
-  //                                                                               Expanded(
-  //                                                                                 child: RichText(
-  //                                                                                   overflow: TextOverflow.ellipsis,
-  //                                                                                   text: TextSpan(
-  //                                                                                     children: buildHighlightSpans(
-  //                                                                                       text: isDeleted ? '' : (fileName ?? 'Download file'),
-  //                                                                                       baseStyle: const TextStyle(
-  //                                                                                         fontWeight: FontWeight.w500,
-  //                                                                                         color: Colors.black,
-  //                                                                                       ),
-  //                                                                                       query: _searchController.text,
-  //                                                                                     ),
-  //                                                                                   ),
-  //                                                                                 ),
-  //                                                                               ),
-  //                                                                               IconButton(
-  //                                                                                 icon: const Icon(Icons.download_rounded),
-  //                                                                                 onPressed: () => FileOpenerUtils.openFile(fileUrl, fileType),
-  //                                                                               ),
-  //                                                                             ],
-  //                                                                           ),
-  //                                                                         ),
-  //                                                                         // Only show time/status for documents without caption
-  //                                                                         if (content
-  //                                                                             .isEmpty)
-  //                                                                           Padding(
-  //                                                                             padding: const EdgeInsets.only(top: 0, right: 0),
-  //                                                                             child: Row(
-  //                                                                               mainAxisSize: MainAxisSize.min,
-  //                                                                               children: [
-  //                                                                                 Text(
-  //                                                                                   TimeUtils.formatUtcToIst(message['time']),
-  //                                                                                   style: const TextStyle(fontSize: 10, color: Colors.black54),
-  //                                                                                 ),
-  //                                                                                 const SizedBox(width: 4),
-  //                                                                                 if (isSentByMe) _offlineHandler.buildStatusIcon(messageStatus, message),
-  //                                                                               ],
-  //                                                                             ),
-  //                                                                           ),
-  //                                                                       ],
-  //                                                                     ),
-  //                                                                   ],
-  //                                                                 )
-  //                                                               else
-  //                                                                 const SizedBox
-  //                                                                     .shrink(),
-  //                                                               if (content
-  //                                                                   .isNotEmpty)
-  //                                                                 // Use MessageCaption for image/video/document captions to position time/status in the right corner
-  //                                                                 if ((isImage &&
-  //                                                                         (imageUrl != null &&
-  //                                                                             imageUrl
-  //                                                                                 .isNotEmpty)) ||
-  //                                                                     (isVideo &&
-  //                                                                         fileUrl !=
-  //                                                                             null &&
-  //                                                                         fileUrl
-  //                                                                             .isNotEmpty) ||
-  //                                                                     (fileUrl !=
-  //                                                                             null &&
-  //                                                                         fileUrl
-  //                                                                             .isNotEmpty &&
-  //                                                                         !isImage &&
-  //                                                                         !isVideo &&
-  //                                                                         !isAudio))
-  //                                                                   MessageCaption(
-  //                                                                     content:
-  //                                                                         content,
-  //                                                                     time: TimeUtils
-  //                                                                         .formatUtcToIst(
-  //                                                                             message['time']),
-  //                                                                     isSentByMe:
-  //                                                                         isSentByMe,
-  //                                                                     messageStatus:
-  //                                                                         messageStatus,
-  //                                                                     buildStatusIcon: (status) => _offlineHandler.buildStatusIcon(
-  //                                                                         status,
-  //                                                                         message),
-  //                                                                     searchText:
-  //                                                                         _searchController
-  //                                                                             .text,
-  //                                                                     isDeleted:
-  //                                                                         isDeleted,
-  //                                                                   )
-  //                                                                 else
-  //                                                                   Padding(
-  //                                                                     padding: const EdgeInsets
-  //                                                                         .only(
-  //                                                                         top:
-  //                                                                             0),
-  //                                                                     child:
-  //                                                                         Column(
-  //                                                                       crossAxisAlignment: hasReply
-  //                                                                           ? CrossAxisAlignment.start
-  //                                                                           : CrossAxisAlignment.start,
-  //                                                                       mainAxisSize:
-  //                                                                           MainAxisSize.min,
-  //                                                                       children: [
-  //                                                                         if (RegExp(r'((https?:\/\/)|(www\.))[^\s]+', caseSensitive: false)
-  //                                                                             .hasMatch(content))
-  //                                                                           Stack(
-  //                                                                             clipBehavior: Clip.none,
-  //                                                                             children: [
-  //                                                                               Padding(
-  //                                                                                 padding: const EdgeInsets.symmetric(vertical: 0.0),
-  //                                                                                 child: ClipRRect(
-  //                                                                                   borderRadius: BorderRadius.circular(12),
-  //                                                                                   child: AnyLinkPreview(
-  //                                                                                     link: (() {
-  //                                                                                       final match = RegExp(r'((https?:\/\/)|(www\.))[^\s]+', caseSensitive: false).firstMatch(content);
-  //                                                                                       if (match == null) {
-  //                                                                                         return '';
-  //                                                                                       }
-  //                                                                                       String url = match.group(0)!;
-  //                                                                                       try {
-  //                                                                                         final uri = Uri.parse(url.startsWith('www.') ? 'https://$url' : url);
-  //                                                                                         return uri.toString();
-  //                                                                                       } catch (e) {
-  //                                                                                         return url;
-  //                                                                                       }
-  //                                                                                     })(),
-  //                                                                                     displayDirection: UIDirection.uiDirectionVertical,
-  //                                                                                     showMultimedia: true,
-  //                                                                                     backgroundColor: Colors.grey.shade100,
-  //                                                                                     bodyStyle: const TextStyle(
-  //                                                                                       color: Colors.black87,
-  //                                                                                       fontSize: 12,
-  //                                                                                       fontWeight: FontWeight.w400,
-  //                                                                                     ),
-  //                                                                                     titleStyle: const TextStyle(
-  //                                                                                       color: Colors.black,
-  //                                                                                       fontSize: 14,
-  //                                                                                       fontWeight: FontWeight.bold,
-  //                                                                                     ),
-  //                                                                                     cache: const Duration(hours: 1),
-  //                                                                                     borderRadius: 12,
-  //                                                                                     errorBody: 'Could not load link preview',
-  //                                                                                     errorTitle: 'Link Preview',
-  //                                                                                     errorWidget: Container(
-  //                                                                                       height: 100,
-  //                                                                                       color: Colors.grey[200],
-  //                                                                                       child: const Center(child: Icon(Icons.link_off)),
-  //                                                                                     ),
-  //                                                                                   ),
-  //                                                                                 ),
-  //                                                                               ),
-  //                                                                             ],
-  //                                                                           ),
-  //                                                                         Stack(
-  //                                                                           children: [
-  //                                                                             StatefulBuilder(
-  //                                                                               builder: (context, setState) {
-  //                                                                                 const maxCharsPerLine = 30;
-  //                                                                                 final bool isTextLong = (content.length / maxCharsPerLine).ceil() > 10;
-  //                                                                                 bool isExpanded = (message['isExpanded'] ?? false) == true;
-  //                                                                                 return Stack(
-  //                                                                                   clipBehavior: Clip.none,
-  //                                                                                   children: [
-  //                                                                                     Padding(
-  //                                                                                       padding: const EdgeInsets.only(bottom: 3.0, top: 1.0),
-  //                                                                                       child: Column(
-  //                                                                                         crossAxisAlignment: CrossAxisAlignment.start,
-  //                                                                                         children: [
-  //                                                                                           RichText(
-  //                                                                                             maxLines: !isExpanded && isTextLong ? 9 : null,
-  //                                                                                             overflow: !isExpanded && isTextLong ? TextOverflow.ellipsis : TextOverflow.visible,
-  //                                                                                             text: TextSpan(
-  //                                                                                               children: [
-  //                                                                                                 ..._buildMessageTextSpans(content, isDeleted),
-  //                                                                                                 WidgetSpan(
-  //                                                                                                   child: SizedBox(width: isSentByMe ? 75 : 60, height: 20),
-  //                                                                                                 ),
-  //                                                                                               ],
-  //                                                                                             ),
-  //                                                                                           ),
-  //                                                                                           if (!isExpanded && isTextLong)
-  //                                                                                             GestureDetector(
-  //                                                                                               onTap: () => setState(() => message['isExpanded'] = true),
-  //                                                                                               child: const Padding(
-  //                                                                                                 padding: EdgeInsets.symmetric(vertical: 4),
-  //                                                                                                 child: Text(
-  //                                                                                                   "Read more",
-  //                                                                                                   style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
-  //                                                                                                 ),
-  //                                                                                               ),
-  //                                                                                             ),
-  //                                                                                           if (isExpanded)
-  //                                                                                             GestureDetector(
-  //                                                                                               onTap: () => setState(() => message['isExpanded'] = false),
-  //                                                                                               child: const Padding(
-  //                                                                                                 padding: EdgeInsets.symmetric(vertical: 4),
-  //                                                                                                 child: Text(
-  //                                                                                                   "Read less",
-  //                                                                                                   style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
-  //                                                                                                 ),
-  //                                                                                               ),
-  //                                                                                             ),
-  //                                                                                           if (!isExpanded && isTextLong)
-  //                                                                                             Align(
-  //                                                                                               alignment: Alignment.centerRight,
-  //                                                                                               child: Row(
-  //                                                                                                 mainAxisSize: MainAxisSize.min,
-  //                                                                                                 children: [
-  //                                                                                                   Text(
-  //                                                                                                     TimeUtils.formatUtcToIst(message['time']),
-  //                                                                                                     style: const TextStyle(fontSize: 10, color: Colors.black54),
-  //                                                                                                   ),
-  //                                                                                                   const SizedBox(width: 4),
-  //                                                                                                   if (isSentByMe && content != "Message Deleted") _offlineHandler.buildStatusIcon(messageStatus, message),
-  //                                                                                                 ],
-  //                                                                                               ),
-  //                                                                                             ),
-  //                                                                                         ],
-  //                                                                                       ),
-  //                                                                                     ),
-
-  //                                                                                     /// ---- TIMESTAMP & STATUS (Positioned like private chat) ----
-  //                                                                                     if (!(!isExpanded && isTextLong) && !hasReply)
-  //                                                                                       Positioned(
-  //                                                                                         bottom: 3,
-  //                                                                                         right: 3,
-  //                                                                                         child: Row(
-  //                                                                                           mainAxisAlignment: MainAxisAlignment.end,
-  //                                                                                           mainAxisSize: MainAxisSize.min,
-  //                                                                                           children: [
-  //                                                                                             Text(
-  //                                                                                               TimeUtils.formatUtcToIst(message['time']),
-  //                                                                                               style: const TextStyle(fontSize: 10, color: Colors.black54),
-  //                                                                                             ),
-  //                                                                                             const SizedBox(width: 4),
-  //                                                                                             if (isSentByMe && content != "Message Deleted") _offlineHandler.buildStatusIcon(messageStatus, message),
-  //                                                                                           ],
-  //                                                                                         ),
-  //                                                                                       ),
-  //                                                                                   ],
-  //                                                                                 );
-  //                                                                               },
-  //                                                                             ),
-  //                                                                           ],
-  //                                                                         ),
-  //                                                                       ],
-  //                                                                     ),
-  //                                                                   ),
-  //                                                             ],
-  //                                                           ),
-  //                                                         ),
-  //                                                       ]),
-
-  //                                                   // Positioned reply preview (visible)
-  //                                                   if (hasReply)
-  //                                                     Positioned(
-  //                                                       top: (!isSentByMe &&
-  //                                                               userName
-  //                                                                   .isNotEmpty)
-  //                                                           ? 25
-  //                                                           : 0,
-  //                                                       left: 0,
-  //                                                       right: 0,
-  //                                                       child:
-  //                                                           GroupRepliedMessagePreview(
-  //                                                         key: ValueKey(
-  //                                                             '${messageId}_${message['replyContent']}'),
-  //                                                         replied: _mergeReplyData(
-  //                                                             message['repliedMessage'] ??
-  //                                                                 message[
-  //                                                                     'reply']),
-  //                                                         receiver: message[
-  //                                                                     'receiver']
-  //                                                                 is Map
-  //                                                             ? Map<String,
-  //                                                                     dynamic>.from(
-  //                                                                 message[
-  //                                                                     'receiver'])
-  //                                                             : {},
-  //                                                         isSender: isSentByMe,
-  //                                                         groupMediaLength:
-  //                                                             _calculateGroupMediaLength(
-  //                                                                 _mergeReplyData(message[
-  //                                                                         'repliedMessage'] ??
-  //                                                                     message[
-  //                                                                         'reply'])),
-  //                                                         hasMixedMedia: _hasMixedMediaTypes(
-  //                                                             _mergeReplyData(message[
-  //                                                                     'repliedMessage'] ??
-  //                                                                 message[
-  //                                                                     'reply'])),
-  //                                                         // groupMediaLength:
-  //                                                         //     _calculateGroupMediaLength(
-  //                                                         //         _mergeReplyData(message[
-  //                                                         //                 'repliedMessage'] ??
-  //                                                         //             message[
-  //                                                         //                 'reply'])),
-  //                                                         onTap: () async {
-  //                                                           final replyId = ((message['repliedMessage'] ?? message['reply'])?['id'] ??
-  //                                                                       (message['repliedMessage'] ??
-  //                                                                               message['reply'])?[
-  //                                                                           'message_id'] ??
-  //                                                                       (message['repliedMessage'] ??
-  //                                                                           message['reply'])?['messageId'])
-  //                                                                   ?.toString() ??
-  //                                                               '';
-  //                                                           if (replyId
-  //                                                               .isNotEmpty) {
-  //                                                             await _scrollToMessageById(
-  //                                                                 replyId,
-  //                                                                 fetchIfMissing:
-  //                                                                     true);
-  //                                                           }
-  //                                                         },
-  //                                                       ),
-  //                                                     ),
-  //                                                   // TIMESTAMP & STATUS - Positioned at Container Stack level for replied messages
-  //                                                   if (hasReply &&
-  //                                                       content.isNotEmpty)
-  //                                                     Positioned(
-  //                                                       bottom: 3,
-  //                                                       right: 3,
-  //                                                       child: Row(
-  //                                                         mainAxisAlignment:
-  //                                                             MainAxisAlignment
-  //                                                                 .end,
-  //                                                         mainAxisSize:
-  //                                                             MainAxisSize.min,
-  //                                                         children: [
-  //                                                           Text(
-  //                                                             TimeUtils
-  //                                                                 .formatUtcToIst(
-  //                                                                     message[
-  //                                                                         'time']),
-  //                                                             style: const TextStyle(
-  //                                                                 fontSize: 10,
-  //                                                                 color: Colors
-  //                                                                     .black54),
-  //                                                           ),
-  //                                                           const SizedBox(
-  //                                                               width: 4),
-  //                                                           if (isSentByMe &&
-  //                                                               content !=
-  //                                                                   "Message Deleted")
-  //                                                             _offlineHandler
-  //                                                                 .buildStatusIcon(
-  //                                                                     messageStatus,
-  //                                                                     message),
-  //                                                         ],
-  //                                                       ),
-  //                                                     ),
-  //                                                 ],
-  //                                               ),
-  //                                             ),
-  //                                           ),
-  //                                         ),
-  //                                         if (!isSentByMe &&
-  //                                             (isVideo ||
-  //                                                 isImage ||
-  //                                                 hasFile ||
-  //                                                 (content.isNotEmpty &&
-  //                                                     RegExp(r'((https?:\/\/)|(www\.))[^\s]+',
-  //                                                             caseSensitive:
-  //                                                                 false)
-  //                                                         .hasMatch(content))))
-  //                                           Center(
-  //                                             child: Material(
-  //                                               color: Colors.transparent,
-  //                                               child: Padding(
-  //                                                 padding:
-  //                                                     const EdgeInsets.only(
-  //                                                         left: 15.0),
-  //                                                 child: InkWell(
-  //                                                   borderRadius:
-  //                                                       BorderRadius.circular(
-  //                                                           20),
-  //                                                   onTap: () {
-  //                                                     MyRouter.pushReplace(
-  //                                                       screen:
-  //                                                           ForwardMessageScreen(
-  //                                                         messages: [
-  //                                                           GroupChatNormalizeUtils
-  //                                                               .normalizeMessage(
-  //                                                                   message)
-  //                                                         ],
-  //                                                         currentUserId:
-  //                                                             currentUserId,
-  //                                                         conversionalid: widget
-  //                                                             .conversationId,
-  //                                                         username:
-  //                                                             widget.groupName,
-  //                                                       ),
-  //                                                     );
-  //                                                   },
-  //                                                   child: CircleAvatar(
-  //                                                     maxRadius: 16,
-  //                                                     backgroundColor:
-  //                                                         Colors.white,
-  //                                                     child: Image.asset(
-  //                                                       "assets/images/forward.png",
-  //                                                       height: 20,
-  //                                                       width: 20,
-  //                                                     ),
-  //                                                   ),
-  //                                                 ),
-  //                                               ),
-  //                                             ),
-  //                                           ),
-  //                                       ],
-  //                                     ),
-  //                                   ]),
-  //                             ),
-  //                             // Avatar positioned outside the message bubble
-  //                             if (!isSentByMe)
-  //                               Positioned(
-  //                                 left: -2,
-  //                                 top: 10,
-  //                                 child: CircleAvatar(
-  //                                   radius: 16,
-  //                                   backgroundColor: Colors.transparent,
-  //                                   child: ClipOval(
-  //                                     child: profileImageUrl.isNotEmpty
-  //                                         ? CachedNetworkImage(
-  //                                             imageUrl: profileImageUrl,
-  //                                             width: 32,
-  //                                             height: 32,
-  //                                             memCacheWidth: 480,
-  //                                             memCacheHeight: 600,
-  //                                             fit: BoxFit.cover,
-  //                                             placeholder: (context, url) =>
-  //                                                 _buildAvatarWithInitial(
-  //                                                     userName),
-  //                                             errorWidget:
-  //                                                 (context, url, error) =>
-  //                                                     _buildAvatarWithInitial(
-  //                                                         userName),
-  //                                           )
-  //                                         : _buildAvatarWithInitial(userName),
-  //                                   ),
-  //                                 ),
-  //                               ),
-  //                             // REACTIONS BAR - Positioned outside the message bubble
-  //                             if (message['reactions'] != null &&
-  //                                 message['reactions'].isNotEmpty)
-  //                               Positioned(
-  //                                 bottom: hasReply ? -20 : -18,
-  //                                 left: isSentByMe ? null : 40,
-  //                                 right: isSentByMe ? 14 : null,
-  //                                 child: Padding(
-  //                                   padding: EdgeInsets.only(
-  //                                     bottom: 12,
-  //                                     left: isSentByMe ? 5 : 0,
-  //                                   ),
-  //                                   child:
-  //                                       _buildReactionsBar(message, isSentByMe),
-  //                                 ),
-  //                               ),
-  //                           ],
-  //                         ),
-  //                       ),
-  //                     ));
-  //               },
-  //             );
-  // }
 
   void _cancelReply() {
     setState(() {
@@ -5433,7 +4440,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Future<void> _showReactionsBottomSheet(
       Map<String, dynamic> message, String initialEmoji) async {
     // helper to build normalized reactions list for a message object
-    List<Map<String, dynamic>> _normalizeFromMap(Map<String, dynamic> msg) {
+    List<Map<String, dynamic>> normalizeFromMap(Map<String, dynamic> msg) {
       final List<Map<String, dynamic>> out = [];
       if (msg['reactions'] is! List) return out;
       for (final r in (msg['reactions'] as List)) {
@@ -5482,7 +4489,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     ];
 
     // first build the initial normalized list
-    List<Map<String, dynamic>> allReacts = _normalizeFromMap(message);
+    List<Map<String, dynamic>> allReacts = normalizeFromMap(message);
 
     Map<String, List<Map<String, dynamic>>> buildGroupedFromList(
         List<Map<String, dynamic>> list) {
@@ -5531,7 +4538,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 return mid == id;
               }, orElse: () => message);
               // rebuild normalized list and grouped
-              allReacts = _normalizeFromMap(latest);
+              allReacts = normalizeFromMap(latest);
               grouped = buildGroupedFromList(allReacts);
               final newEmojis = grouped.keys.toList();
               if (!newEmojis.contains(selectedEmoji) && newEmojis.isNotEmpty) {
@@ -5592,7 +4599,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                 horizontal: 10, vertical: 8),
                             decoration: BoxDecoration(
                               color: showEmojiPicker
-                                  ? Colors.green.withOpacity(0.12)
+                                  ? Colors.green.withValues(alpha: 0.12)
                                   : Colors.grey.shade100,
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(color: Colors.grey.shade300),
@@ -5634,7 +4641,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                         horizontal: 10, vertical: 8),
                                     decoration: BoxDecoration(
                                       color: isSelected
-                                          ? Colors.greenAccent.withOpacity(0.3)
+                                          ? Colors.greenAccent
+                                              .withValues(alpha: 0.3)
                                           : Colors.grey.shade100,
                                       borderRadius: BorderRadius.circular(14),
                                       border: Border.all(
@@ -5895,7 +4903,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   void _sendReadReceipts(List<String> messageIds) {
     if (messageIds.isEmpty || widget.conversationId.isEmpty) return;
 
-    // Using conversationId as roomId/channelId for group logic if applicable
     socketService.sendReadReceipts(
       messageIds: messageIds,
       conversationId: widget.conversationId,

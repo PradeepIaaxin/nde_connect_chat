@@ -402,7 +402,7 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
                 } else if (state.message.contains('empty')) {
                   type = ErrorType.emptymailbox;
                 } else {
-                  type = ErrorType.Somethingwrong;
+                  type = ErrorType.somethingwrong;
                 }
 
                 return ErrorDisplay(

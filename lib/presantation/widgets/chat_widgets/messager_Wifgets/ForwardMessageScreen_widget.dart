@@ -20,6 +20,7 @@ import 'package:nde_email/presantation/chat/chat_list/chat_response_model.dart';
 import 'package:nde_email/utils/const/consts.dart';
 import 'package:nde_email/utils/reusbale/colour_utlis.dart';
 import 'package:nde_email/utils/router/router.dart';
+import 'package:nde_email/utils/snackbar/snackbar.dart';
 
 import '../../../chat/chat_private_screen/Private_Chat_Screen.dart';
 
@@ -626,29 +627,8 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
                       } // end messages loop
                     } // end targets loop
 
-                    // Close progress dialog
-                    //   Navigator.of(context).pop();
-                    // Show summary
-                    // if (failures.isEmpty) {
-                    //   ScaffoldMessenger.of(context).showSnackBar(
-                    //     SnackBar(content: Text("Message forwarded to ${successes.length} recipient(s).")),
-                    //   );
-                    // } else {
-                    //   ScaffoldMessenger.of(context).showSnackBar(
-                    //     SnackBar(content: Text("Forward failed for ${failures.length} recipient(s).")),
-                    //   );
-                    // }
-
                     // Finally navigate to last selected user's chat
                     final lastTarget = selectedUsers.last;
-                    print(
-                        " lastTarget.conversationId ${lastTarget.conversationId}");
-                    print(" lastTarget.userId ${lastTarget.userId}");
-                    print(" lastTarget.userId ${lastTarget.userId}");
-                    print(" lastTarget.firstName ${lastTarget.firstName}");
-                    print(" lastTarget.lastName ${lastTarget.lastName}");
-                    print(" lastTarget.lastName ${lastTarget.lastName}");
-                    log("Optimistic UI messages: ${optimisticMessagesForUI.length}");
 
                     Navigator.of(context).pop();
                     MyRouter.pushReplace(
@@ -674,8 +654,9 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
                       Navigator.of(context).pop();
                     } catch (_) {}
                     log("Error forwarding messages from UI: $e");
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text("Error forwarding messages")));
+
+                    Messenger.alertError("Error forwarding messages");
+                   
                   }
                 },
                 backgroundColor: chatColor,
@@ -711,7 +692,7 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
       },
       child: Container(
         decoration: BoxDecoration(
-          color: isSelected ? chatColor.withOpacity(0.2) : Colors.transparent,
+          color: isSelected ? chatColor.withValues(alpha:0.2) : Colors.transparent,
         ),
         child: ListTile(
           leading: Stack(

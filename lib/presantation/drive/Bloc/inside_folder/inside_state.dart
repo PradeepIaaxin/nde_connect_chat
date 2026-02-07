@@ -1,4 +1,3 @@
-import 'package:equatable/equatable.dart';
 import 'package:nde_email/presantation/drive/model/folderinside_model.dart';
 
 abstract class InsidefileState {}

@@ -10,7 +10,7 @@ class SearchAppBar extends StatelessWidget implements PreferredSizeWidget {
   final int currentIndex;
 
   const SearchAppBar({
-    Key? key,
+    super.key,
     required this.onBack,
     this.controller,
     this.onChanged,
@@ -18,7 +18,7 @@ class SearchAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.onDownPressed,
     this.matchCount = 0,
     this.currentIndex = 1,
-  }) : super(key: key);
+  });
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);

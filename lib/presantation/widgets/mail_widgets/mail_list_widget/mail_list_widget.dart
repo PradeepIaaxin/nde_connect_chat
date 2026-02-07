@@ -79,7 +79,6 @@ class _MailListWidgetState extends State<MailListWidget> {
   Widget build(BuildContext context) {
     return BlocBuilder<MailListBloc, MailListState>(
       builder: (context, state) {
-        print(state.specialUse);
         log("hilll : ${state.specialUse.toString()}");
         final bool isFlaggedScreen = widget.mailboxId == "flagged";
 
@@ -242,7 +241,8 @@ class _MailListWidgetState extends State<MailListWidget> {
                                           padding: const EdgeInsets.symmetric(
                                               horizontal: 6, vertical: 2),
                                           decoration: BoxDecoration(
-                                            color: Colors.red.withOpacity(0.1),
+                                            color: Colors.red
+                                                .withValues(alpha: 0.1),
                                             borderRadius:
                                                 BorderRadius.circular(4),
                                           ),
