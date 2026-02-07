@@ -253,25 +253,73 @@ class _CustomDrawerState extends State<CustomDrawer> {
         children: [
           CircleAvatar(
             radius: 25,
-            backgroundColor: AppColors.bg,
+            backgroundColor: Colors.transparent,
             child: profilePicUrl != null && profilePicUrl!.isNotEmpty
                 ? ClipOval(
                     child: CachedNetworkImage(
                       imageUrl: profilePicUrl!,
                       width: 50,
                       height: 50,
+                      memCacheHeight: 50,
                       fit: BoxFit.cover,
+                      placeholder: (_, __) => const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      errorWidget: (_, __, ___) => CircleAvatar(
+                        radius: 25,
+                        backgroundColor: AppColors.bg,
+                        child: Text(
+                          userName?.isNotEmpty == true
+                              ? userName![0].toUpperCase()
+                              : "",
+                          style: const TextStyle(
+                            color: AppColors.profile,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
                     ),
                   )
-                : Text(
-                    _getInitial(userName),
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.profile,
+                : CircleAvatar(
+                    radius: 25,
+                    backgroundColor: AppColors.bg,
+                    child: Text(
+                      userName?.isNotEmpty == true
+                          ? userName![0].toUpperCase()
+                          : "",
+                      style: const TextStyle(
+                        color: AppColors.profile,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
           ),
+
+          // CircleAvatar(
+          //   radius: 25,
+          //   backgroundColor: AppColors.bg,
+          //   child: profilePicUrl != null && profilePicUrl!.isNotEmpty
+          //       ? ClipOval(
+          //           child: CachedNetworkImage(
+          //             imageUrl: profilePicUrl!,
+          //             width: 50,
+          //             height: 50,
+          //             fit: BoxFit.cover,
+          //           ),
+          //         )
+          //       : Text(
+          //           _getInitial(userName),
+          //           style: const TextStyle(
+          //             fontSize: 22,
+          //             fontWeight: FontWeight.bold,
+          //             color: AppColors.profile,
+          //           ),
+          //         ),
+          // ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -443,7 +491,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
       decoration: BoxDecoration(
         // color: isSelected ? AppColors.sectiontool : Colors.transparent,
         color: isSelected
-            ? AppColors.iconActive.withValues(alpha:0.08)
+            ? AppColors.iconActive.withValues(alpha: 0.08)
             : Colors.transparent,
         border: isSelected
             ? const Border(
@@ -472,8 +520,8 @@ class _CustomDrawerState extends State<CustomDrawer> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? AppColors.iconActive.withValues(alpha:0.15)
-                      : AppColors.secondaryText.withValues(alpha:0.12),
+                      ? AppColors.iconActive.withValues(alpha: 0.15)
+                      : AppColors.secondaryText.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
