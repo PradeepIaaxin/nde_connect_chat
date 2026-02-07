@@ -4,7 +4,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:media_scanner/media_scanner.dart';
 import 'package:nde_email/utils/snackbar/snackbar.dart';
-import 'package:open_file/open_file.dart';
+import 'package:open_filex/open_filex.dart';
+
 import 'package:path/path.dart' as p;
 import 'package:photo_view/photo_view.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -338,7 +339,7 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
         if (isImage) {
           _showImagePreview(file);
         } else {
-          await OpenFile.open(actualFilePath);
+          await OpenFilex.open(filePath);
         }
         return;
       }
@@ -367,7 +368,7 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
           if (isImage) {
             _showImagePreview(file);
           } else {
-            await OpenFile.open(actualFilePath);
+            await OpenFilex.open(actualFilePath);
           }
           return;
         }
@@ -431,7 +432,7 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
         if (isImage) {
           _showImagePreview(file);
         } else {
-          await OpenFile.open(actualFilePath);
+          await OpenFilex.open(filePath);
         }
       } else {
         Messenger.alert(msg: 'Failed to download: ${response.statusCode}');
@@ -447,7 +448,7 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
     //     if (isImage) {
     //       _showImagePreview(file);
     //     } else {
-    //       await OpenFile.open(filePath);
+    //       await OpenFilex.open(filePath);
     //     }
     //   } else {
     //     Messenger.alert(msg: 'Failed to download: ${response.statusCode}');
@@ -461,7 +462,7 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
     showDialog(
       context: context,
       builder: (_) => Dialog(
-        child: Container(
+        child: SizedBox(
           width: double.infinity,
           height: MediaQuery.of(context).size.height * 0.75,
           child: PhotoView(

@@ -23,7 +23,7 @@ import 'package:nde_email/presantation/drive/view/move_screen.dart';
 import 'package:nde_email/presantation/drive/view/send_screen.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/const/consts.dart';
-import 'package:nde_email/utils/datetime/dateFormatter.dart';
+import 'package:nde_email/utils/datetime/dateformatter.dart';
 import 'package:nde_email/utils/reusbale/dowloading_mime.dart';
 import 'package:nde_email/utils/reusbale/mime.type.dart';
 import 'package:nde_email/utils/router/router.dart';
@@ -149,7 +149,7 @@ class _HomePageState extends State<HomePage>
                           );
                         },
               child: Container(
-                color: isSelected ? chatColor.withOpacity(0.1) : null,
+                color: isSelected ? chatColor.withValues(alpha: 0.1) : null,
                 child: ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 15),
                   leading: Stack(
@@ -315,7 +315,9 @@ class _HomePageState extends State<HomePage>
                                         : '';
 
                                 if (textToShare.isNotEmpty) {
-                                  Share.share(textToShare);
+                                  await SharePlus.instance.share(
+                                    ShareParams(text: textToShare),
+                                  );
                                 } else {
                                   log("Nothing to share.");
                                 }
@@ -339,7 +341,7 @@ class _HomePageState extends State<HomePage>
                                   fileId: file.id,
                                   filePath: file.previewpath ?? '',
                                   fileName: file.name,
-                                  mimeType: file.mimetype ?? file.type,
+                                  mimeType: file.mimetype,
                                 );
                               },
                             ),
@@ -583,7 +585,10 @@ class _HomePageState extends State<HomePage>
                                                       : '';
 
                                               if (textToShare.isNotEmpty) {
-                                                Share.share(textToShare);
+                                                await SharePlus.instance.share(
+                                                  ShareParams(
+                                                      text: textToShare),
+                                                );
                                               } else {
                                                 log("Nothing to share.");
                                               }
@@ -609,8 +614,7 @@ class _HomePageState extends State<HomePage>
                                                 fileName: file.name,
                                                 filePath:
                                                     file.previewpath ?? '',
-                                                mimeType:
-                                                    file.mimetype ?? file.type,
+                                                mimeType: file.mimetype,
                                               );
                                             },
                                           ),
@@ -657,13 +661,13 @@ class _HomePageState extends State<HomePage>
                                                 (context, error, stackTrace) {
                                               return Center(
                                                 child: getMimeTypeImage(
-                                                    file.mimetype ?? ""),
+                                                    file.mimetype),
                                               );
                                             },
                                           )
                                         : Center(
                                             child: getMimeTypeImage(
-                                                file.mimetype ?? "")),
+                                                file.mimetype)),
                                   ),
                                   if (file.starred == true)
                                     const Positioned(
@@ -674,17 +678,16 @@ class _HomePageState extends State<HomePage>
                                     ),
                                 ],
                               )
-                            : Center(
-                                child: getMimeTypeImage(file.mimetype ?? "")),
+                            : Center(child: getMimeTypeImage(file.mimetype)),
                       ),
                       ListTile(
-                        leading: file.profilePic!.isNotEmpty
+                        leading: file.profilePic.isNotEmpty
                             ? CircleAvatar(
                                 radius: 22,
                                 backgroundColor: Colors.transparent,
                                 child: ClipOval(
                                   child: CachedNetworkImage(
-                                    imageUrl: file.profilePic!,
+                                    imageUrl: file.profilePic,
                                     width: 40,
                                     height: 40,
                                     // memCacheWidth: 480,
@@ -712,8 +715,8 @@ class _HomePageState extends State<HomePage>
                                 radius: 20,
                                 backgroundColor: AppColors.profile,
                                 child: Text(
-                                  file.name!.isNotEmpty
-                                      ? file.name![0].toUpperCase()
+                                  file.name.isNotEmpty
+                                      ? file.name[0].toUpperCase()
                                       : "",
                                   style: const TextStyle(
                                     color: AppColors.bg,
@@ -743,8 +746,8 @@ class _HomePageState extends State<HomePage>
     FileModel folder,
   ) {
     final type = folder.type.toLowerCase();
-    final mimeType = folder.mimetype?.toLowerCase() ?? '';
-    final fileName = folder.name?.toLowerCase() ?? '';
+    final mimeType = folder.mimetype.toLowerCase();
+    final fileName = folder.name.toLowerCase();
 
     // If it's a folder
     if (type == 'folder') {
@@ -827,43 +830,6 @@ class _HomePageState extends State<HomePage>
     // Default icon
     return Image.asset('assets/images/folder.png', height: 24, width: 24);
   }
-  // Widget _buildMimeIcon(FileModel folder, Color iconColor) {
-  //   final type = folder.type.toLowerCase();
-  //   final mimeType = folder.mimetype?.toLowerCase() ?? '';
-
-  //   if (type == 'folder') {
-  //     return Icon(Icons.folder, color: ColorUtils.fromHex(folder.organize));
-  //   }
-
-  //   if (mimeType.contains('pdf')) {
-  //     return Icon(
-  //       Icons.picture_as_pdf,
-  //       color: iconColor,
-  //     );
-  //   } else if (mimeType.contains('image')) {
-  //     return Icon(Icons.image, color: iconColor);
-  //   } else if (mimeType.contains('video')) {
-  //     return Icon(Icons.videocam, color: iconColor);
-  //   } else if (mimeType.contains('audio')) {
-  //     return Icon(Icons.audiotrack, color: iconColor);
-  //   } else if (mimeType.contains('msword') ||
-  //       mimeType.contains('officedocument.word')) {
-  //     return Icon(Icons.description, color: iconColor);
-  //   } else if (mimeType.contains('excel') || mimeType.contains('spreadsheet')) {
-  //     return Icon(Icons.grid_on, color: iconColor);
-  //   } else if (mimeType.contains('presentation') ||
-  //       mimeType.contains('powerpoint')) {
-  //     return Icon(Icons.slideshow, color: iconColor);
-  //   } else if (mimeType.contains('text')) {
-  //     return Icon(Icons.notes, color: iconColor);
-  //   } else if (mimeType.contains('zip') ||
-  //       mimeType.contains('rar') ||
-  //       mimeType.contains('compressed')) {
-  //     return Icon(Icons.archive, color: iconColor);
-  //   }
-
-  //   return Icon(Icons.insert_drive_file, color: iconColor);
-  // }
 
   @override
   Widget build(BuildContext context) {
@@ -968,8 +934,9 @@ class _HomePageState extends State<HomePage>
                                                       .contains(f.id))
                                                   .toList();
 
-                                          if (selectedFolderModels.isEmpty)
+                                          if (selectedFolderModels.isEmpty) {
                                             return;
+                                          }
 
                                           showReusableBottomSheet(
                                             context,
@@ -1008,9 +975,7 @@ class _HomePageState extends State<HomePage>
                                                       fileName: folder.name,
                                                       filePath:
                                                           folder.preview ?? '',
-                                                      mimeType:
-                                                          folder.mimetype ??
-                                                              folder.type,
+                                                      mimeType: folder.mimetype,
                                                     );
                                                   }
                                                   _clearSelection();

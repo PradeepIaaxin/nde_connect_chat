@@ -204,7 +204,7 @@ class _LandingHomeState extends State<LandingHome> {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: isSelected
-                  ? Colors.black.withOpacity(0.05)
+                  ? Colors.black.withValues(alpha :0.05)
                   : Colors.transparent,
             ),
             child: Icon(

@@ -221,7 +221,7 @@ class _AudioMessageWidgetState extends State<AudioMessageWidget> {
                 child: CircleAvatar(
                   radius: 20,
                   backgroundColor: widget.isSender
-                      ? chatColor.withOpacity(0.2)
+                      ? chatColor.withValues(alpha:0.2)
                       : const Color.fromARGB(255, 213, 212, 212),
                   child: Icon(
                     widget.mimeType == "audio/aac"
@@ -261,7 +261,7 @@ class _AudioMessageWidgetState extends State<AudioMessageWidget> {
                   activeTrackColor:
                       widget.isSender ? chatColor : Colors.grey[700],
                   inactiveTrackColor: widget.isSender
-                      ? chatColor.withOpacity(0.2)
+                      ? chatColor.withValues(alpha:0.2)
                       : Colors.grey[300],
                   thumbColor: widget.isSender ? chatColor : Colors.grey[700],
                 ),
@@ -321,7 +321,7 @@ class _AudioMessageWidgetState extends State<AudioMessageWidget> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha:0.1),
             blurRadius: 2,
             offset: const Offset(0, 1),
           )

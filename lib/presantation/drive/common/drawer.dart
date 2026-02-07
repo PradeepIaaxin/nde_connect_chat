@@ -111,42 +111,45 @@ class _DrawerMenuState extends State<DrawerMenu> {
 
   @override
   Widget build(BuildContext context) {
-    final double usedBytes = storageData?.totelsize?.size?.toDouble() ?? 0;
+    final double usedBytes = storageData?.totelsize.size.toDouble() ?? 0;
     final double usagePercent = usedBytes / totalCapacity;
     final double screenWidth = MediaQuery.of(context).size.width;
     final double iconSize = screenWidth * 0.05;
 
-    List<StorageItem> items = storageData?.filesize?.map((fileSize) {
+    List<StorageItem> items = storageData?.filesize.map((fileSize) {
           return StorageItem(
             type: fileSize.type,
-            size: fileSize.size?.toDouble() ?? 0,
+            size: fileSize.size.toDouble(),
           );
         }).toList() ??
         [];
 
     return Drawer(
-      child: SafeArea(
-        child: Container(
-          color: Colors.white,
-          child: ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              const _DrawerHeader(),
-              const Divider(),
-              _buildDrawerItems(iconSize),
-              _buildAdditionalItems(iconSize),
-              if (storageData != null) ...[
-                _StorageInfoSection(
-                  usedBytes: usedBytes,
-                  usagePercent: usagePercent,
-                  totalCapacity: totalCapacity,
-                  items: items,
-                  formatFileSize: formatFileSize,
-                  getColorByType: getColorByType,
-                ),
-                const SizedBox(height: 16),
+      child: Container(
+        color: Colors.white,
+        child: SafeArea(
+          child: Container(
+            color: Colors.white,
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                const _DrawerHeader(),
+                const Divider(),
+                _buildDrawerItems(iconSize),
+                _buildAdditionalItems(iconSize),
+                if (storageData != null) ...[
+                  _StorageInfoSection(
+                    usedBytes: usedBytes,
+                    usagePercent: usagePercent,
+                    totalCapacity: totalCapacity,
+                    items: items,
+                    formatFileSize: formatFileSize,
+                    getColorByType: getColorByType,
+                  ),
+                  const SizedBox(height: 16),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -307,22 +310,14 @@ class _StorageInfoSection extends StatelessWidget {
                 getColorByType: getColorByType),
             const SizedBox(height: 12),
             Text(
-              "${formatFileSize(usedBytes.toInt())} of ${formatFileSize(totalCapacity.toInt())} used (${(usagePercent * 100).toStringAsFixed(1)}%)",
-              style:
-                  const TextStyle(fontSize: 13, color: AppColors.secondaryText),
+              "${formatFileSize(usedBytes.toInt())} of "
+              "${formatFileSize(totalCapacity.toInt())} used "
+              "(${_formatPercent(usagePercent)})",
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.secondaryText,
+              ),
             ),
-
-            // Wrap(
-            //   spacing: 10,
-            //   runSpacing: 8,
-            //   children: items.map((item) {
-            //     return _StorageLegendItem(
-            //       item: item,
-            //       formatFileSize: formatFileSize,
-            //       getColorByType: getColorByType,
-            //     );
-            //   }).toList(),
-            // ),
           ],
         ),
       ),
@@ -361,6 +356,19 @@ class _StorageBar extends StatelessWidget {
   }
 }
 
+String _formatPercent(double value) {
+  final percent = value * 100;
+
+  if (percent == 0) return "0%";
+
+  if (percent < 0.1) {
+    return "${percent.toStringAsFixed(2)}%";
+  }
+
+  return "${percent.toStringAsFixed(1)}%";
+}
+
+// ignore: unused_element
 class _StorageLegendItem extends StatelessWidget {
   const _StorageLegendItem({
     required this.item,

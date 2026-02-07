@@ -12,6 +12,7 @@ import 'package:nde_email/presantation/chat/chat_group_Screen/group_event.dart'
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/MessagerBloc.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/MessagerEvent.dart';
 import 'package:mime/mime.dart';
+import 'package:nde_email/utils/reusbale/common_import.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:objectid/objectid.dart';
 
@@ -82,7 +83,7 @@ class ShowAltDialog {
                                   senderId: senderId!,
                                   receiverId: receiverId!,
                                   isGroupChat: isGroupChat ?? false,
-                                  mediaContent:"Gallery" ,
+                                  mediaContent: "Gallery",
                                 ),
                               ),
                             );
@@ -110,10 +111,8 @@ class ShowAltDialog {
                             }).toList();
 
                             if (videoFiles.isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text("No videos selected")),
-                              );
+                              Messenger.alertError("No videos selected");
+
                               return;
                             }
 
@@ -131,7 +130,7 @@ class ShowAltDialog {
                                   senderId: senderId!,
                                   receiverId: receiverId!,
                                   isGroupChat: isGroupChat ?? false,
-                                  mediaContent:"Video" ,
+                                  mediaContent: "Video",
                                 ),
                               ),
                             );
@@ -140,9 +139,10 @@ class ShowAltDialog {
                               onOptionSelected(localMessages);
                             }
                           }),
-                          _buildOption(context, Icons.camera_alt, "Camera", () async {
-                            final XFile? file =
-                            await ImagePicker().pickImage(source: ImageSource.camera);
+                          _buildOption(context, Icons.camera_alt, "Camera",
+                              () async {
+                            final XFile? file = await ImagePicker()
+                                .pickImage(source: ImageSource.camera);
 
                             if (file == null) return;
 
@@ -150,7 +150,8 @@ class ShowAltDialog {
                             Navigator.of(context).pop();
 
                             // ✅ Open Media Preview (same as others)
-                            final localMessages = await Navigator.push<List<Map<String, dynamic>>>(
+                            final localMessages = await Navigator.push<
+                                List<Map<String, dynamic>>>(
                               context,
                               MaterialPageRoute(
                                 builder: (_) => MediaPreviewScreen(
@@ -159,12 +160,13 @@ class ShowAltDialog {
                                   senderId: senderId!,
                                   receiverId: receiverId!,
                                   isGroupChat: isGroupChat ?? false,
-                                  mediaContent:"Camera" ,
+                                  mediaContent: "Camera",
                                 ),
                               ),
                             );
 
-                            if (localMessages != null && localMessages.isNotEmpty) {
+                            if (localMessages != null &&
+                                localMessages.isNotEmpty) {
                               onOptionSelected(localMessages);
                             }
                           }),
@@ -191,7 +193,7 @@ class ShowAltDialog {
                                   senderId: senderId!,
                                   receiverId: receiverId!,
                                   isGroupChat: isGroupChat ?? false,
-                                  mediaContent:"Document" ,
+                                  mediaContent: "Document",
                                 ),
                               ),
                             );
@@ -232,57 +234,62 @@ class ShowAltDialog {
                           //   }
                           // }),
 
-              _buildOption(context, Icons.audiotrack, "Audio", () async {
-                final result = await FilePicker.platform.pickFiles(
-                  type: FileType.custom,
-                  allowedExtensions: [
-                    'mp3',
-                    'wav',
-                    'aac',
-                    'm4a',
-                    'flac',
-                    'ogg',
-                    'opus',
-                  ],
-                );
+                          _buildOption(context, Icons.audiotrack, "Audio",
+                              () async {
+                            final result = await FilePicker.platform.pickFiles(
+                              type: FileType.custom,
+                              allowedExtensions: [
+                                'mp3',
+                                'wav',
+                                'aac',
+                                'm4a',
+                                'flac',
+                                'ogg',
+                                'opus',
+                              ],
+                            );
 
-                if (result == null || result.files.single.path == null) return;
+                            if (result == null ||
+                                result.files.single.path == null) return;
 
-                final path = result.files.single.path!;
-                final xfile = XFile(path);
+                            final path = result.files.single.path!;
+                            final xfile = XFile(path);
 
-                // 🔥 GET AUDIO DURATION
-               // final durationFormatted = await getAudioDurationFormatted(path);
-                final durationFormatted = await getAudioDurationInSeconds(path);
-               // log("🎧 Audio duration: $durationFormatted");
-                log("🎧 Audio duration: $durationFormatted");
+                            // 🔥 GET AUDIO DURATION
+                            // final durationFormatted = await getAudioDurationFormatted(path);
+                            final durationFormatted =
+                                await getAudioDurationInSeconds(path);
+                            // log("🎧 Audio duration: $durationFormatted");
+                            log("🎧 Audio duration: $durationFormatted");
 
-                Navigator.of(context).pop();
+                            Navigator.of(context).pop();
 
-                final localMessages = await Navigator.push<List<Map<String, dynamic>>>(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => MediaPreviewScreen(
-                      files: [xfile],
-                      conversationId: conversationId!,
-                      senderId: senderId!,
-                      receiverId: receiverId!,
-                      isGroupChat: isGroupChat ?? false,
-                      mediaContent:"Audio" ,
-                      duration: durationFormatted.toString(),
+                            final localMessages = await Navigator.push<
+                                List<Map<String, dynamic>>>(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => MediaPreviewScreen(
+                                  files: [xfile],
+                                  conversationId: conversationId!,
+                                  senderId: senderId!,
+                                  receiverId: receiverId!,
+                                  isGroupChat: isGroupChat ?? false,
+                                  mediaContent: "Audio",
+                                  duration: durationFormatted.toString(),
+                                ),
+                              ),
+                            );
 
-                    ),
-                  ),
-                );
+                            // 🔥 ATTACH DURATION TO MESSAGE
+                            if (localMessages != null &&
+                                localMessages.isNotEmpty) {
+                              localMessages.first['duration'] =
+                                  durationFormatted;
+                              onOptionSelected(localMessages);
+                            }
+                          }),
 
-                // 🔥 ATTACH DURATION TO MESSAGE
-                if (localMessages != null && localMessages.isNotEmpty) {
-                  localMessages.first['duration'] = durationFormatted;
-                  onOptionSelected(localMessages);
-                }
-              }),
-
-              _buildOption(context, Icons.location_on, "Location",
+                          _buildOption(context, Icons.location_on, "Location",
                               () async {}),
                         ],
                       )
@@ -494,7 +501,6 @@ class ShowAltDialog {
     log(" File path saved to session: ${fileFile.path}");
   }
 
-
   static Future<Map<String, dynamic>?> sendFile({
     required BuildContext context,
     required XFile file,
@@ -505,17 +511,15 @@ class ShowAltDialog {
     required bool isGroupMessage,
     String? groupMessageId,
     String? caption, // ✅ Added caption param
-  })
-  async {
+  }) async {
     try {
       final File localFile = File(file.path);
       log("File path: ${file.path}");
 
       if (!localFile.existsSync()) {
         log("  File does not exist at: ${file.path}");
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Selected file is missing.")),
-        );
+        Messenger.alert(msg: "Selected file is missing.");
+
         return null;
       }
 
@@ -604,7 +608,7 @@ class ShowAltDialog {
                 conversationId,
                 senderId,
                 receiverId: receiverId,
-                message: caption ?? null, // ✅ Pass caption here
+                message: caption ?? null, 
                 isGroupMessage: isGroupChat,
                 isGroupMessageChat: isGroupMessage,
                 groupMesageId: groupMessageId,
@@ -619,12 +623,13 @@ class ShowAltDialog {
     } catch (e, stacktrace) {
       log("  Error uploading file: $e");
       log("🪵 Stacktrace: $stacktrace");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to upload file.")),
-      );
+
+      Messenger.alertError("Failed to upload file.");
+
       return null;
     }
   }
+
   static Future<int> getAudioDurationInSeconds(String path) async {
     final player = AudioPlayer();
 

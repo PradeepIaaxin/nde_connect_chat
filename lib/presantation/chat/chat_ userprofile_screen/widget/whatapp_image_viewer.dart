@@ -1,15 +1,14 @@
-import 'dart:io';
 import 'package:dio/dio.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:gallery_saver_plus/gallery_saver.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
-import 'package:open_file/open_file.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:nde_email/utils/reusbale/common_import.dart';
+import 'package:open_filex/open_filex.dart';
+
 import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shimmer/shimmer.dart';
-import 'package:nde_email/utils/datetime/dateFormatter.dart';
+import 'package:nde_email/utils/datetime/dateformatter.dart';
 
 class WhatsAppImageViewer extends StatefulWidget {
   final List<String> imageUrls;
@@ -84,18 +83,14 @@ class _WhatsAppImageViewerState extends State<WhatsAppImageViewer> {
 
   Future<void> _openDownloadedFile(String filePath) async {
     try {
-      final result = await OpenFile.open(filePath);
+      final result = await OpenFilex.open(filePath);
       if (result.type != ResultType.done) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not open file: ${result.message}')),
-        );
+        Messenger.alertError("Could not open file: ${result.message}");
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open file')),
-      );
+      Messenger.alertError("Could not open file");
     }
   }
 
@@ -111,9 +106,8 @@ class _WhatsAppImageViewerState extends State<WhatsAppImageViewer> {
       final hasPermission = await _requestStoragePermission();
       if (!hasPermission) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Permission required to save images')),
-        );
+        Messenger.alertError("Permission required to save images");
+
         return;
       }
 
@@ -124,9 +118,7 @@ class _WhatsAppImageViewerState extends State<WhatsAppImageViewer> {
 
       // Notify start
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Downloading image...')),
-        );
+        Messenger.alertSuccess("Downloading image...");
       }
 
       // Download with live progress
@@ -175,9 +167,7 @@ class _WhatsAppImageViewerState extends State<WhatsAppImageViewer> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Download failed: ${e.toString()}')),
-      );
+      Messenger.alertError("Try again later ");
     } finally {
       if (mounted) {
         setState(() {
@@ -192,9 +182,8 @@ class _WhatsAppImageViewerState extends State<WhatsAppImageViewer> {
     final imageUrl = widget.imageUrls[_currentIndex];
 
     if (imageUrl.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No image to share')),
-      );
+      Messenger.alertError("No image to share");
+
       return;
     }
 
@@ -208,9 +197,7 @@ class _WhatsAppImageViewerState extends State<WhatsAppImageViewer> {
         text: 'Check out this image!',
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error sharing image: $e')),
-      );
+      Messenger.alertError("Error sharing image: $e");
     }
   }
 
@@ -254,7 +241,7 @@ class _WhatsAppImageViewerState extends State<WhatsAppImageViewer> {
       backgroundColor: AppColors.bg,
       appBar: AppBar(
         backgroundColor: Colors.white,
-          surfaceTintColor: Colors.white,
+        surfaceTintColor: Colors.white,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -321,7 +308,7 @@ class _WhatsAppImageViewerState extends State<WhatsAppImageViewer> {
                 maxScale: 4.0,
                 child: Center(
                   child: Hero(
-                   transitionOnUserGestures: true,
+                    transitionOnUserGestures: true,
                     tag: widget.imageUrls[index],
                     child: Image.network(
                       widget.imageUrls[index],
@@ -374,7 +361,7 @@ class _WhatsAppImageViewerState extends State<WhatsAppImageViewer> {
                     shape: BoxShape.circle,
                     color: _currentIndex == index
                         ? Colors.white
-                        : Colors.white.withOpacity(0.5),
+                        : Colors.white.withValues(alpha:0.5),
                   ),
                 ),
               ),

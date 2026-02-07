@@ -15,6 +15,7 @@ import 'package:nde_email/presantation/calender/schedule/calendar_screen.dart';
 import 'package:nde_email/utils/const/consts.dart';
 import 'package:nde_email/utils/reusbale/color_assign_utils.dart';
 import 'package:nde_email/utils/router/router.dart';
+import 'package:nde_email/utils/snackbar/snackbar.dart';
 
 class CalendarDrawer extends StatefulWidget {
   final CalendarViewType currentView;
@@ -51,9 +52,7 @@ class _CalendarDrawerState extends State<CalendarDrawer> {
     return BlocConsumer<CalendarEventBloc, CalendarEventState>(
       listener: (context, state) {
         if (state is CalendarEventError) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.message)),
-          );
+          Messenger.alertError('state.message');
         } else if (state is CalendarCombinedLoaded) {
           _initialLoadComplete = true;
           _initializeSelectionStates(state);
@@ -318,7 +317,7 @@ class _CalendarDrawerState extends State<CalendarDrawer> {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(35),
-          color: isSelected ? chatColor.withOpacity(0.3) : null,
+          color: isSelected ? chatColor.withValues(alpha:0.3) : null,
         ),
         child: ListTile(
           leading: Icon(icon, color: Colors.black, size: 23),

@@ -12,6 +12,7 @@ import 'package:nde_email/presantation/drive/view/move_drive_page.dart';
 import 'package:nde_email/presantation/drive/view/move_sharred_page.dart';
 import 'package:nde_email/presantation/drive/view/move_starred_page.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
+import 'package:nde_email/utils/snackbar/snackbar.dart';
 
 class MoveFileScreen extends StatelessWidget {
   final String movingFileId;
@@ -66,14 +67,11 @@ class _MoveFileViewState extends State<MoveFileView> {
     return BlocListener<MoveFileBloc, MoveFileState>(
       listener: (context, state) {
         if (state is MoveFileSuccess) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('File moved successfully')),
-          );
+          Messenger.alertSuccess("File moved successfully");
+
           Navigator.pop(context);
         } else if (state is MoveFileFailure) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.message)),
-          );
+          Messenger.alertError(state.message);
         }
       },
       child: DefaultTabController(
@@ -81,7 +79,7 @@ class _MoveFileViewState extends State<MoveFileView> {
         child: Scaffold(
           backgroundColor: AppColors.bg,
           appBar: AppBar(
-              surfaceTintColor: Colors.white,
+            surfaceTintColor: Colors.white,
             automaticallyImplyLeading: false,
             backgroundColor: Colors.white,
             foregroundColor: Colors.black,

@@ -49,7 +49,7 @@ class _NewGroupChoosenState extends State<NewGroupChoosen> {
       setState(() {
         _imageFile = imageTemp;
         base64Image = base64;
-        print("Base64 image: $base64Image");
+       
       });
     }
   }
@@ -234,14 +234,12 @@ class _NewGroupChoosenState extends State<NewGroupChoosen> {
     // 3. Default Icon
     ImageProvider? bgImage;
     Widget? childWidget;
-    Color? bgColor = Colors.grey[700];
 
     if (_imageFile != null) {
       bgImage = FileImage(_imageFile!);
       childWidget = null;
     } else if (_groupNameController.text.trim().isNotEmpty) {
       String firstChar = _groupNameController.text.trim().characters.first;
-      bgColor = ColorUtil.getColorFromAlphabet(firstChar);
       childWidget = Text(
         firstChar.toUpperCase(),
         style: const TextStyle(fontSize: 24, color: Colors.white),

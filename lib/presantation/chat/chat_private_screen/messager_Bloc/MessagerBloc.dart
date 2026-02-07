@@ -328,8 +328,8 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
       final String backendId = _normalizeMessageIdForApi(rawId);
 
       // 3️⃣ temp_ check must be on RAW id (only local synthetic)
-      final bool isTemp = rawId.startsWith('temp_');
-      print("receivarrr ${event.receiverId}");
+      rawId.startsWith('temp_');
+      log("receivarrr ${event.receiverId}");
       // 4️⃣ Only hit REST if this is a real server id
       // if (!isTemp) {
       //   await apiService.reactionUpdated(
@@ -370,7 +370,7 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
 
       final String rawId = event.messageId;
       final String backendId = _normalizeMessageIdForApi(rawId);
-      final bool isTemp = rawId.startsWith('temp_');
+      rawId.startsWith('temp_');
 
       // if (!isTemp) {
       //   await apiService.reactionRemove(
@@ -584,7 +584,6 @@ class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
       );
 
       emit(MessageSentSuccessfully(localMessage));
-      print("localMessage ${localMessage}");
     } catch (e) {
       log("❌ Error sending message: $e");
     }
@@ -627,28 +626,6 @@ List<MessageGroup> _convertFlatToGroups(List<Datum> messages) {
   return map.entries
       .map((e) => MessageGroup(label: e.key, messages: e.value))
       .toList();
-}
-bool _isPresignedExpired(String url) {
-  try {
-    final u = Uri.parse(url);
-    final xDate = u.queryParameters['X-Amz-Date'];
-    final expires = int.tryParse(u.queryParameters['X-Amz-Expires'] ?? '') ?? 0;
-    if (xDate == null || expires == 0) return false;
-
-    final signedAt = DateTime.utc(
-      int.parse(xDate.substring(0, 4)),
-      int.parse(xDate.substring(4, 6)),
-      int.parse(xDate.substring(6, 8)),
-      int.parse(xDate.substring(9, 11)),
-      int.parse(xDate.substring(11, 13)),
-      int.parse(xDate.substring(13, 15)),
-    );
-
-    return DateTime.now().toUtc()
-        .isAfter(signedAt.add(Duration(seconds: expires)));
-  } catch (_) {
-    return false;
-  }
 }
 
 String _extractDateLabel(DateTime? time) {

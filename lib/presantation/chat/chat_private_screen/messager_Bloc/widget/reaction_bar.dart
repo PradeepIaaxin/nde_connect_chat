@@ -179,7 +179,6 @@ class ReactionBar extends StatelessWidget {
     chips.addAll(reactionCounts.entries.map((entry) {
       final emoji = entry.key;
       final count = entry.value;
-      final isMyReaction = userReacted[emoji] ?? false;
       return GestureDetector(
         onTap: () {
           onOpenReactors!(message, emoji);

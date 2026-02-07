@@ -390,7 +390,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
                 unreadCountByMailbox: updatedUnreadMap,
                 totalUnreadCount: updatedUnreadMap.values.fold<int>(
                   0,
-                  (a, b) => a + (b ?? 0),
+                  (a, b) => a + (b),
                 ),
               )
             : state.copyWith(

@@ -3,7 +3,6 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:hive/hive.dart';
 import 'package:nde_email/bridge_generated.dart/api.dart';
 import 'package:nde_email/convo_list_crdt.dart';
-import 'dart:typed_data';
 import 'package:nde_email/data/respiratory.dart';
 import 'package:nde_email/presantation/chat/chat_list/chat_response_model.dart';
 import 'package:nde_email/presantation/chat/model/emoj_model.dart';
@@ -255,7 +254,7 @@ class SocketService {
           // device info
           final deviceInfo = await getDeviceInfo();
 
-          print("device info: $deviceInfo");
+          log("device info: $deviceInfo");
 
           log("login : $token");
 
@@ -305,11 +304,9 @@ class SocketService {
         // _onlineStatusController.add(true);
       }
 
-      print("soxket id : ${socket!.id}");
-      print("socket : ${socket!.connected}");
-      // socket!.onAny((event, data) {
-      //   print("🔥 RAW USER PRESENCE EVENT → $event : $data");
-      // });
+      log("soxket id : ${socket!.id}");
+      log("socket : ${socket!.connected}");
+     
     });
 
     // ========================
@@ -318,10 +315,10 @@ class SocketService {
 
     socket!.off('device_registered');
     socket!.on('device_registered', (_) async {
-      print('🔐 device_registered');
+      log('🔐 device_registered');
 
       socket!.emit('request_device_challenge');
-      print('📤 request_device_challenge emitted');
+      log('📤 request_device_challenge emitted');
     });
 
     socket!.off('device_challenge');
@@ -346,7 +343,7 @@ class SocketService {
 
     socket!.off('device_authenticated');
     socket!.on('device_authenticated', (_) {
-      print('🎉 Device authenticated');
+      log('🎉 Device authenticated');
     });
 
     _registerAllEventHandlers();
@@ -447,8 +444,8 @@ class SocketService {
 
     final completer = Completer<bool>();
     log("Emitting reaction: $emoji to messageId: $messageId in convoId: $conversationId");
-    print("print : $roomId");
-    final rid = generateRoomId(userId, receiverId);
+    log("print : $roomId");
+    generateRoomId(userId, receiverId);
     socket!.emitWithAck(
       'update_reaction',
       <String, dynamic>{
@@ -459,7 +456,7 @@ class SocketService {
       },
       ack: (dynamic response) {
         if (completer.isCompleted) return;
-        log("resoonseeeeee ${response}");
+        log("resoonseeeeee $response");
         final bool success =
             response == true || (response is Map && response['ok'] == true);
 
@@ -577,10 +574,10 @@ class SocketService {
       return;
     }
 
-    print("emit favorite called");
-    print("conversationId: $conversationId, isFavourite: $isFavourite");
-    print("socket id : ${socket!.id}");
-    print("socket connected : ${socket!.connected}");
+    log("emit favorite called");
+    log("conversationId: $conversationId, isFavourite: $isFavourite");
+    log("socket id : ${socket!.id}");
+    log("socket connected : ${socket!.connected}");
     final payload = {
       'conversationId': conversationId,
       'isFavourite': isFavourite,
@@ -609,7 +606,7 @@ class SocketService {
         // 🔥 apply CRDT update
         final jsonString = await importChatUpdate(updateBytes: bytes);
         final decoded = jsonDecode(jsonString);
-        log("chastLitttttttttt $decoded");
+      //  log("chastLitttttttttt $decoded");
         final List list = decoded['chatDataList'] ?? [];
 
         if (list.isEmpty) return;
@@ -1159,7 +1156,7 @@ class SocketService {
       "userName": userName,
     };
 
-    print("typing data : $typingData");
+    log("typing data : $typingData");
     socket!.emit('get_typing', typingData);
   }
 
@@ -1431,7 +1428,7 @@ class SocketService {
       'targetId': targetId,
       'isFavourite': !isCurrentlyFavorite
     }, ack: (response) {
-      log("ack response ${response}");
+      log("ack response $response");
       try {
         if (response is Map && response['success'] == true) {
           Messenger.alertWithSvgImage(
@@ -1455,18 +1452,18 @@ class SocketService {
     String? convoId,
     required String updateKey,
   }) async {
-    log("groupId ${groupId}");
-    log("groupName ${groupName}");
-    log("updateKey ${updateKey}");
-    log("groupId ${groupId}");
-    log("convoId ${convoId}");
+    log("groupId $groupId");
+    log("groupName $groupName");
+    log("updateKey $updateKey");
+    log("groupId $groupId");
+    log("convoId $convoId");
     if (!isConnected) return;
     socket!.emitWithAck('update_group', {
       'groupId': groupId,
       updateKey: groupName ?? description,
       'convoId': convoId
     }, ack: (response) {
-      log("responseeeeeee ${response}");
+      log("responseeeeeee $response");
       try {
         if (response is Map && response['success'] == true) {
           Messenger.alertSuccess("Group updated successfully");
@@ -1630,10 +1627,10 @@ class SocketService {
     required String conversationId,
     required bool nextPinnedState,
   }) async {
-    print(
+    log(
         "archiveChat called with conversationId: $conversationId, nextPinnedState: $nextPinnedState");
     if (!isConnected) return;
-    print(isConnected);
+    log(isConnected.toString());
     log("Emitting chat:archive for convoId: $conversationId");
     log("Next pinned state: $nextPinnedState");
     log("Socket instance: $socket");
@@ -1643,7 +1640,7 @@ class SocketService {
       'action': nextPinnedState,
       'convoIds': [conversationId],
     }, ack: (response) {
-      print('ACK from server: $response');
+      log('ACK from server: $response');
     });
   }
 

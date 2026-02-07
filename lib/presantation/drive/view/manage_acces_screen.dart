@@ -37,7 +37,7 @@ class ManageAccessScreenUI extends StatelessWidget {
             if (state is ManageAccessLoaded) {
               final data = state.shareDetails;
               final owner = data.owner;
-              final users = data.users ?? [];
+              final users = data.users;
               final sharePermission = data.sharePermission ?? "restricted";
 
               return ListView(
@@ -63,7 +63,7 @@ class ManageAccessScreenUI extends StatelessWidget {
                         name:
                             "${user.firstName ?? 'Unknown'} ${user.lastName ?? 'name'}"
                                 .trim(),
-                        email: user.email ?? "",
+                        email: user.email,
                         role: _mapPermissionToRole(user),
                         imageUrl: (user.profilePic?.isNotEmpty ?? false)
                             ? user.profilePic
@@ -74,7 +74,7 @@ class ManageAccessScreenUI extends StatelessWidget {
                         bgColor: _getColorForRole(user),
                       ),
                     );
-                  }).toList(),
+                  }),
                   const SizedBox(height: 30),
                   const Text("General access",
                       style:

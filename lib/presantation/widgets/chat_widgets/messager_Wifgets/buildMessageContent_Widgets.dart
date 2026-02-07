@@ -6,7 +6,7 @@ import 'package:nde_email/utils/snackbar/snackbar.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 import 'AudioMessageWidget.dart';
-import 'ImageMessageWidget.dart';
+import 'imagemessagewidget.dart';
 import 'VideoMessageWidget.dart';
 import 'package:nde_email/utils/reusbale/mime.type.dart';
 

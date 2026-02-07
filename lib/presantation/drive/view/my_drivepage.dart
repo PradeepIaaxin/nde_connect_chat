@@ -144,8 +144,6 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
         return {'sortBy': 'modifiedByMe', 'order': 'desc'};
       case SortOption.dateOpenedByMe:
         return {'sortBy': 'openedByMe', 'order': 'desc'};
-      default:
-        return {'sortBy': 'updatedAt', 'order': 'desc'};
     }
   }
 
@@ -197,7 +195,7 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                                 FilePreviewScreen(fileUrl: file.preview ?? ""));
                       },
             child: Container(
-              color: isSelected ? chatColor.withOpacity(0.1) : null,
+              color: isSelected ? chatColor.withValues(alpha: 0.1) : null,
               child: ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 15),
                 leading: Stack(
@@ -461,13 +459,9 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                           );
                         }
                       : () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => FilePreviewScreen(
-                                  fileUrl: file.previewpath ?? ''),
-                            ),
-                          );
+                          MyRouter.push(
+                              screen: FilePreviewScreen(
+                                  fileUrl: file.preview ?? ""));
                         },
               behavior: HitTestBehavior.opaque,
               child: Container(
