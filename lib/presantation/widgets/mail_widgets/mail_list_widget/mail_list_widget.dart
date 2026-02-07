@@ -3,10 +3,7 @@ import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:nde_email/presantation/mail/mail_detail/mail_detail_api.dart';
 import 'package:nde_email/presantation/mail/mail_list/model/mail_list_model.dart';
-import 'package:nde_email/presantation/mail/mail_detail/mail_detail_event.dart';
-import 'package:nde_email/presantation/mail/mail_detail/mail_detail_bloc.dart';
 import 'package:nde_email/presantation/mail/mail_detail/mail_detail_screen.dart';
 import 'package:nde_email/presantation/mail/mail_list/bloc/mail_list_bloc.dart';
 import 'package:nde_email/presantation/mail/mail_list/bloc/mail_list_event.dart';
@@ -16,7 +13,6 @@ import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_style
 import 'package:nde_email/presantation/widgets/mail_widgets/gradient_avatar.dart';
 import 'package:nde_email/utils/router/router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:nde_email/presantation/mail/compose/screen/compose_screen.dart';
 
 class MailListWidget extends StatefulWidget {
   final List<GMMailModels> mails;
@@ -127,15 +123,10 @@ class _MailListWidgetState extends State<MailListWidget> {
                     } else {
                       if (widget.mailboxId == draftsMailboxId) {
                         MyRouter.push(
-                          screen: ComposeScreen(
-                            draftData: {
-                              'to':
-                                  mail.to.isNotEmpty ? mail.to[0].address : '',
-                              'cc': '',
-                              'bcc': '',
-                              'subject': mail.subject,
-                              'body': mail.intro,
-                            },
+                          screen: MailDetailScreen(
+                            mailboxId: widget.mailboxId,
+                            messageId: mail.id.toString(),
+                            enableDraftEdit: true,
                           ),
                         );
                       } else {
@@ -147,19 +138,9 @@ class _MailListWidgetState extends State<MailListWidget> {
                             );
 
                         MyRouter.push(
-                          screen: BlocProvider(
-                            create: (context) => MailDetailBloc(
-                              apiService: Fatchdetailmailapi(),
-                            )..add(
-                                FetchMailDetailEvent(
-                                  actualMailboxId,
-                                  mail.id.toString(),
-                                ),
-                              ),
-                            child: MailDetailScreen(
-                              mailboxId: actualMailboxId,
-                              messageId: mail.id.toString(),
-                            ),
+                          screen: MailDetailScreen(
+                            mailboxId: actualMailboxId,
+                            messageId: mail.id.toString(),
                           ),
                         );
                       }
@@ -290,9 +271,12 @@ class _MailListWidgetState extends State<MailListWidget> {
                                                   ? "To: ${mail.to[0].address}"
                                                   : "Draft")
                                               : issentMailbox
-                                                  ? (mail.to.isNotEmpty
+                                                  ? (mail.to.isNotEmpty &&
+                                                          mail.to[0].name
+                                                              .trim()
+                                                              .isNotEmpty
                                                       ? "To: ${mail.to[0].name}"
-                                                      : "To: Unknown")
+                                                      : "To: ${mail.to[0].address}")
                                                   : (mail.fromName.isNotEmpty ==
                                                           true
                                                       ? mail.fromName

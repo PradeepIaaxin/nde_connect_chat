@@ -356,7 +356,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
     return WillPopScope(
       onWillPop: () async {
         if (_hasUnsavedChanges()) {
-          _saveDraft();
+         // _saveDraft();
           return false;
         }
         return true;
