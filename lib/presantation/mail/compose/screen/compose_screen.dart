@@ -355,8 +355,10 @@ class _ComposeScreenState extends State<ComposeScreen> {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
+        MyRouter.pop();
         if (_hasUnsavedChanges()) {
          // _saveDraft();
+         MyRouter.pop();
           return false;
         }
         return true;
