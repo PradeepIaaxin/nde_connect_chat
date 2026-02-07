@@ -19,6 +19,7 @@ import 'package:nde_email/presantation/chat/chat_list/chat_screen.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar_state.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar_bloc.dart';
+import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar_event.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/bottam_nav/bottom_nav_state.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/error_display.dart';
@@ -81,11 +82,31 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Only handle FAB visibility — no mail fetching here!
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (selectedMailboxId.isNotEmpty) {
+        MailboxStorage.saveMailboxId(selectedMailboxId);
+      }
+
+      if (widget.filter == null && widget.mailboxId.isEmpty) {
+        MailboxStorage.getInboxMailboxId().then((inboxId) {
+          if (!mounted) return;
+          if (inboxId == null || inboxId.isEmpty) return;
+          MailboxStorage.saveMailboxId(inboxId);
+          if (selectedMailboxId != inboxId) {
+            setState(() {
+              selectedMailboxId = inboxId;
+            });
+          }
+        });
+      }
+
       final selectedIndex =
           context.read<BottomNavigationBloc>().state.selectedIndex;
       context.read<FabBloc>().add(
             selectedIndex == 0 ? ShowFab() : HideFab(),
           );
+      if (widget.filter == null) {
+        context.read<AppBarBloc>().add(FetchMailboxesEvent());
+      }
     });
   }
 
@@ -133,14 +154,24 @@ class _HomeScreenState extends State<HomeScreen> {
       },
       child: BlocListener<AppBarBloc, AppBarState>(
         listener: (context, state) {
-          if (state is AppBarMailboxesLoaded && selectedMailboxId.isEmpty) {
-            setState(() {
-              selectedMailboxId = state.inbox.isNotEmpty
-                  ? state.inbox.first.id
-                  : state.other.isNotEmpty
-                      ? state.other.first.id
-                      : "";
-            });
+          if (state is AppBarMailboxesLoaded &&
+              widget.filter == null &&
+              widget.mailboxId.isEmpty) {
+            final mailboxId = state.inbox.isNotEmpty
+                ? state.inbox.first.id
+                : state.other.isNotEmpty
+                    ? state.other.first.id
+                    : "";
+
+            if (mailboxId.isNotEmpty) {
+              MailboxStorage.saveMailboxId(mailboxId);
+            }
+
+            if (selectedMailboxId != mailboxId) {
+              setState(() {
+                selectedMailboxId = mailboxId;
+              });
+            }
           }
         },
         child: BlocBuilder<BottomNavigationBloc, BottomNavigationState>(
@@ -149,7 +180,7 @@ class _HomeScreenState extends State<HomeScreen> {
               builder: (context, mailState) {
                 final isSelectionActive = mailState.selectedMailIds.isNotEmpty;
 
-                if (selectedMailboxId.isEmpty && widget.filter == null) {
+                if (widget.filter == null && selectedMailboxId.isEmpty) {
                   return _buildLoadingScaffold(
                       isSelectionActive, navState.selectedIndex);
                 }
@@ -217,15 +248,21 @@ class _HomeScreenState extends State<HomeScreen> {
           mailboxName: widget.mailboxName,
         );
       } else {
-        return FutureBuilder<String?>(
-          future: MailboxStorage.getInboxMailboxId(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
+        return BlocBuilder<AppBarBloc, AppBarState>(
+          builder: (context, state) {
+            if (state is AppBarLoading) {
               return const Center(child: CircularProgressIndicator());
-            } else if (snapshot.hasData && snapshot.data!.isNotEmpty) {
-              selectedMailboxId = snapshot.data!;
+            }
+            
+            if (state is AppBarMailboxesLoaded) {
+              final mailboxId = state.inbox.isNotEmpty
+                  ? state.inbox.first.id
+                  : state.other.isNotEmpty
+                      ? state.other.first.id
+                      : "";
+
               return MailListScreen(
-                mailboxId: selectedMailboxId,
+                mailboxId: mailboxId,
                 mailboxName: widget.mailboxName,
               );
             } else {
