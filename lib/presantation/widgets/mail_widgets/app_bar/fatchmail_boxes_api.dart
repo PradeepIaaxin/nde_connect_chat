@@ -105,4 +105,54 @@ class FetchMailBoxesApi {
     log("Unauthorized access detected! Redirecting to login...");
     NavigationService.navigateToLogin();
   }
+
+  Future<String> deleteMailbox(String mailboxId) async {
+    try {
+      final accessToken = await UserPreferences.getAccessToken();
+      final defaultWorkspace = await UserPreferences.getDefaultWorkspace();
+
+      if (accessToken == null || accessToken.isEmpty) {
+        await _handleUnauthorized();
+        throw Exception('Access token is missing or expired');
+      }
+
+      final url = Uri.parse('${ApiService.baseUrl}/user/mailboxes/$mailboxId');
+
+      final response = await http.delete(
+        url,
+        headers: {
+          'Authorization': 'Bearer $accessToken',
+          'Content-Type': 'application/json',
+          'X-WorkSpace': defaultWorkspace ?? '',
+        },
+      );
+
+      if (response.statusCode == 200 ||
+          response.statusCode == 201 ||
+          response.statusCode == 204) {
+        if (response.body.isEmpty) return 'mailbox deleted successfully';
+
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          log(decoded['message'] ?? 'mailbox deleted successfully');
+        }
+
+        return 'mailbox deleted successfully';
+      } else if (response.statusCode == 401) {
+        await _handleUnauthorized();
+        throw Exception("Unauthorized access, logging out...");
+      } else {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          throw Exception(decoded['message'] ?? 'Unknown error');
+        }
+        throw Exception('Failed to delete mailbox');
+      }
+    } catch (e) {
+      if (e.toString().contains("Failed host lookup")) {
+        throw Exception("No internet connection");
+      }
+      throw Exception('Failed to delete mailbox: $e');
+    }
+  }
 }

@@ -352,17 +352,23 @@ class _CustomDrawerState extends State<CustomDrawer> {
   /// ---------------- FOLDER TILE (OPTIMIZED) ----------------
   Widget _buildMailboxTile(BuildContext context, Mailbox mailbox) {
     final isSelected = mailbox.id == selectedMailboxId;
+    final isDrafts = mailbox.name.toLowerCase() == 'drafts';
 
     return BlocSelector<MailListBloc, MailListState, int>(
-      selector: (state) =>
-          state.unreadCountByMailbox[mailbox.id] ?? mailbox.unseen,
-      builder: (context, unread) {
+      selector: (state) {
+        // For drafts, show total count instead of unread count
+        if (isDrafts) {
+          return state.totalCountByMailbox[mailbox.id] ?? mailbox.total;
+        }
+        // For other mailboxes, show unread count
+        return state.unreadCountByMailbox[mailbox.id] ?? mailbox.unseen;
+      },
+      builder: (context, count) {
         return _buildSelectableTile(
           key: ValueKey(mailbox.id),
           isSelected: isSelected,
           title: mailbox.name,
-          trailing:
-              unread > 0 ? (unread > 99 ? "99+" : unread.toString()) : null,
+          trailing: count > 0 ? (count > 99 ? "99+" : count.toString()) : null,
           leading: SvgPicture.asset(
             mailboxIcons[mailbox.name.toLowerCase()] ??
                 'assets/images/Sent.svg',

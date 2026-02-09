@@ -20,6 +20,7 @@ class MailListWidget extends StatefulWidget {
   final ScrollController controller;
   final int itemCount;
   final bool isPaginating;
+  final ScrollPhysics physics;
 
   const MailListWidget({
     required this.mails,
@@ -27,8 +28,8 @@ class MailListWidget extends StatefulWidget {
     required this.controller,
     required this.itemCount,
     required this.isPaginating,
+    required this.physics,
     super.key,
-    required AlwaysScrollableScrollPhysics physics,
   });
 
   @override
@@ -91,6 +92,7 @@ class _MailListWidgetState extends State<MailListWidget> {
           child: ListView.builder(
             key: ValueKey(widget.mailboxId),
             controller: widget.controller,
+            physics: widget.physics,
             itemCount: widget.mails.length + (widget.isPaginating ? 1 : 0),
             itemBuilder: (context, index) {
               if (index >= widget.mails.length) {
