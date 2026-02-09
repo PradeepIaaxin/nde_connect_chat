@@ -28,14 +28,17 @@ class MailDetailScreen extends StatefulWidget {
   final String mailboxId;
   final String messageId;
   final bool enableDraftEdit;
+  final String selectedTag;
 
   const MailDetailScreen(
       {super.key,
       required this.mailboxId,
       required this.messageId,
+      required this.selectedTag,
       this.enableDraftEdit = false});
 
   @override
+  // ignore: library_private_types_in_public_api
   _MailDetailScreenState createState() => _MailDetailScreenState();
 }
 
@@ -45,6 +48,7 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    print(widget.selectedTag);
     return BlocProvider(
       create: (context) => MailDetailBloc(apiService: Fatchdetailmailapi())
         ..add(FetchMailDetailEvent(widget.mailboxId, widget.messageId)),
@@ -57,40 +61,48 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
 
           final mailDetail =
               state is MailDetailLoaded ? state.mailDetail : null;
-          final showEdit =
-              mailDetail != null && (widget.enableDraftEdit || mailDetail.draft);
+          final showEdit = mailDetail != null &&
+              (widget.enableDraftEdit || mailDetail.draft);
 
           return Scaffold(
+            backgroundColor: Colors.white,
             appBar: AppBar(
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.white,
               actions: [
                 if (showEdit)
                   IconButton(
                     icon: const Icon(Icons.edit),
-                    onPressed: () => _openDraftEditor(mailDetail!),
+                    onPressed: () => _openDraftEditor(mailDetail),
                   ),
-                IconButton(
-                  icon: const Icon(Icons.archive),
-                  onPressed: () {
-                    context.read<MailListBloc>().add(
-                          MoveToArchiveEvent(
-                              [int.parse(widget.messageId)], widget.mailboxId),
-                        );
-                    Navigator.pop(context);
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline),
-                  onPressed: () {
-                    context.read<MailListBloc>().add(DeleteMailEvent(
-                        widget.mailboxId, [int.parse(widget.messageId)]));
-                    MyRouter.pop();
-                  },
-                ),
+                widget.enableDraftEdit || widget.selectedTag == "\\Trash"
+                    ? SizedBox()
+                    : IconButton(
+                        icon: const Icon(Icons.archive),
+                        onPressed: () {
+                          context.read<MailListBloc>().add(
+                                MoveToArchiveEvent(
+                                    [int.parse(widget.messageId)],
+                                    widget.mailboxId),
+                              );
+                          Navigator.pop(context);
+                        },
+                      ),
+                widget.enableDraftEdit || widget.selectedTag == "\\Trash"
+                    ? SizedBox()
+                    : IconButton(
+                        icon: const Icon(Icons.delete_outline),
+                        onPressed: () {
+                          context.read<MailListBloc>().add(DeleteMailEvent(
+                              widget.mailboxId, [int.parse(widget.messageId)]));
+                          MyRouter.pop();
+                        },
+                      ),
                 IconButton(
                   icon: const Icon(Icons.mark_as_unread),
                   onPressed: () {
-                    context.read<MailListBloc>().add(
-                        MarkAsUnreadEvent(widget.mailboxId, [widget.messageId]));
+                    context.read<MailListBloc>().add(MarkAsUnreadEvent(
+                        widget.mailboxId, [widget.messageId]));
                     MyRouter.pop();
                   },
                 ),
@@ -266,8 +278,7 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
                               children: [
                                 Row(
                                   mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
                                     Text(
                                       _formatDate(
@@ -313,8 +324,8 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
                       ),
                       if (isExpanded)
                         Container(
-                          margin: const EdgeInsets.only(
-                              left: 5, right: 5, top: 10),
+                          margin:
+                              const EdgeInsets.only(left: 5, right: 5, top: 10),
                           padding: const EdgeInsets.all(10),
                           width: double.infinity,
                           decoration: BoxDecoration(
@@ -360,11 +371,40 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
                           ),
                         ),
                       const SizedBox(height: 15),
+                      // Replace your existing HtmlWidget with this:
+
                       if (mailDetail.html.isNotEmpty)
-                        HtmlWidget(
-                          mailDetail.html,
-                          onTapUrl: (url) => launchUrl(Uri.parse(url)),
+                        SizedBox(
+                          width: double.infinity,
+                          child: HtmlWidget(
+                            mailDetail.html,
+                            renderMode: RenderMode
+                                .column, // Critical: forces block-level layout
+                            factoryBuilder: () => NoInlineImageWidgetFactory(),
+                            onTapUrl: (url) async {
+                              final uri = Uri.parse(url);
+                              if (await canLaunchUrl(uri)) {
+                                await launchUrl(uri);
+                              }
+                              return true;
+                            },
+                            // Optional: helps tables render better
+                            customStylesBuilder: (element) {
+                              if (element.localName == 'table') {
+                                return {
+                                  'width': '100%',
+                                  'table-layout': 'fixed'
+                                };
+                              }
+                              return null;
+                            },
+                          ),
                         ),
+
+                      // HtmlWidget(
+                      //   mailDetail.html,
+                      //   onTapUrl: (url) => launchUrl(Uri.parse(url)),
+                      // ),
                       const SizedBox(height: 20),
                       if (mailDetail.attachments.isNotEmpty)
                         Wrap(
@@ -387,8 +427,8 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
                               mailDetail, ComposeAction.reply),
                           _buildBorderedButton(context, Icons.reply_all,
                               "Reply all", mailDetail, ComposeAction.replyAll),
-                          _buildBorderedButton(context, Icons.forward, "Forward",
-                              mailDetail, ComposeAction.forward),
+                          _buildBorderedButton(context, Icons.forward,
+                              "Forward", mailDetail, ComposeAction.forward),
                         ],
                       ),
                     ],
@@ -590,6 +630,20 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
       ),
       icon: Icon(icon, color: AppColors.secondaryText),
       label: Text(label),
+    );
+  }
+}
+
+class NoInlineImageWidgetFactory extends WidgetFactory {
+  @override
+  Widget? buildImageWidget(BuildTree element, ImageSource src) {
+    final imageWidget = super.buildImageWidget(element, src);
+    if (imageWidget == null) return null;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8.0),
+      alignment: Alignment.centerLeft,
+      child: imageWidget,
     );
   }
 }

@@ -128,6 +128,7 @@ class _MailListWidgetState extends State<MailListWidget> {
                             mailboxId: widget.mailboxId,
                             messageId: mail.id.toString(),
                             enableDraftEdit: true,
+                            selectedTag: state.specialUse ?? "",
                           ),
                         );
                       } else {
@@ -142,13 +143,12 @@ class _MailListWidgetState extends State<MailListWidget> {
                           screen: MailDetailScreen(
                             mailboxId: actualMailboxId,
                             messageId: mail.id.toString(),
+                            selectedTag: state.specialUse ?? "",
                           ),
                         );
                       }
                     }
                   },
-
-                  /// ✅ ONLY ADDED DISMISSIBLE HERE
                   child: Dismissible(
                     key: ValueKey("dismiss_${mail.id}"),
                     background: Container(
@@ -167,6 +167,10 @@ class _MailListWidgetState extends State<MailListWidget> {
                         child: Icon(Icons.delete, color: Colors.white),
                       ),
                     ),
+
+                    direction: isTrashMailbox
+                        ? DismissDirection.endToStart
+                        : DismissDirection.horizontal,
 
                     confirmDismiss: (direction) async {
                       if (direction == DismissDirection.startToEnd) {
@@ -324,7 +328,9 @@ class _MailListWidgetState extends State<MailListWidget> {
                                         : Icons.star_border,
                                     color: mail.flagged == true
                                         ? Colors.amber
-                                        : AppColors.secondaryText,
+                                        : isTrashMailbox
+                                            ? Colors.transparent
+                                            : AppColors.secondaryText,
                                     size: 15,
                                   ),
                                   onPressed: isJunkMailbox || isTrashMailbox

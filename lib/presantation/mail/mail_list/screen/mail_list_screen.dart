@@ -8,8 +8,6 @@ import '../../compose/bloc/send_mail_bloc/send_mail_bloc.dart';
 import '../../compose/bloc/send_mail_bloc/send_mail_state.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/error_display.dart';
 
-
-
 class MailListScreen extends StatefulWidget {
   final String mailboxId;
   final String? mailboxName;

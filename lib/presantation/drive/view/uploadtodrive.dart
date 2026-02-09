@@ -118,13 +118,14 @@ class _UploadToDriveScreenState extends State<UploadToDriveScreen> {
                     height: 16,
                     width: 16,
                     child: CircularProgressIndicator(
-                      color: Colors.white,
+                      color: Colors.black,
                       strokeWidth: 2,
                     ),
                   )
                 : const Text(
                     'Upload',
-                    style: TextStyle(color: Colors.white),
+                    style: TextStyle(
+                        color: Colors.black, fontWeight: FontWeight.bold),
                   ),
           )
         ],
