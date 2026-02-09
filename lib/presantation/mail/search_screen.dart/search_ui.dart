@@ -78,8 +78,9 @@ class SearchMailHit {
       toName: toNames,
       dateMs: json['date'] is int ? json['date'] as int : int.tryParse('${json['date']}'),
       seen: json['seen'] is bool ? json['seen'] as bool : null,
-      hasAttachments:
-          json['hasAttachments'] is bool ? json['hasAttachments'] as bool : null,
+      hasAttachments: json['hasAttachments'] is bool
+          ? json['hasAttachments'] as bool
+          : null,
       subject: (json['subject'] ?? '').toString(),
       fromAddress: (json['fromAddress'] ?? '').toString(),
       fromName: (json['fromName'] ?? '').toString(),
@@ -271,7 +272,9 @@ class _SearchScreenState extends State<SearchScreen> {
       if (match.start > index) {
         spans.add(
           TextSpan(
-            text: text.substring(index, match.start).replaceAll(RegExp(r'<[^>]*>'), ''),
+            text: text
+                .substring(index, match.start)
+                .replaceAll(RegExp(r'<[^>]*>'), ''),
             style: normalStyle,
           ),
         );
@@ -485,7 +488,8 @@ class _SearchScreenState extends State<SearchScreen> {
                                         fontSize: 14,
                                         fontWeight: FontWeight.w600,
                                       );
-                                      final highlightStyle = titleStyle.copyWith(
+                                      final highlightStyle =
+                                          titleStyle.copyWith(
                                         color: AppColors.iconActive,
                                         fontWeight: FontWeight.w700,
                                       );
@@ -639,24 +643,14 @@ class _SearchScreenState extends State<SearchScreen> {
                                                 hit.id.isEmpty
                                             ? null
                                             : () {
-                                                FocusScope.of(context).unfocus();
+                                                FocusScope.of(context)
+                                                    .unfocus();
                                                 final mailboxId = hit.mailboxId;
                                                 MyRouter.push(
-                                                  screen: BlocProvider(
-                                                    create: (context) =>
-                                                        MailDetailBloc(
-                                                      apiService:
-                                                          Fatchdetailmailapi(),
-                                                    )..add(
-                                                            FetchMailDetailEvent(
-                                                              mailboxId,
-                                                              hit.id,
-                                                            ),
-                                                          ),
-                                                    child: MailDetailScreen(
-                                                      mailboxId: mailboxId,
-                                                      messageId: hit.id,
-                                                    ),
+                                                  screen: MailDetailScreen(
+                                                    mailboxId: mailboxId,
+                                                    messageId: hit.id,
+                                                    selectedTag: '',
                                                   ),
                                                 );
                                               },

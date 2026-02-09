@@ -189,6 +189,7 @@ class CommonAppBarBuilder {
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.white,
           shadowColor: Colors.white,
+          
           scrolledUnderElevation: 0.0,
           leadingWidth: 90,
           leading: Row(

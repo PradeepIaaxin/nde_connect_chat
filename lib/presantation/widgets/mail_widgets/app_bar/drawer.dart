@@ -79,14 +79,6 @@ class _CustomDrawerState extends State<CustomDrawer> {
     }
   }
 
-  String _getInitial(String? name) {
-    if (name == null || name.isEmpty) return "U";
-    final parts = name.trim().split(' ');
-    return parts.length > 1
-        ? "${parts[0][0]}${parts[1][0]}".toUpperCase()
-        : parts[0][0].toUpperCase();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Drawer(
@@ -113,7 +105,9 @@ class _CustomDrawerState extends State<CustomDrawer> {
                       ...state.trash,
                     ];
 
-                    final labels = [...state.other];
+                    final labels = state.other.where((m) {
+                      return !m.path.contains('/');
+                    }).toList();
 
                     return Theme(
                       data: Theme.of(context)

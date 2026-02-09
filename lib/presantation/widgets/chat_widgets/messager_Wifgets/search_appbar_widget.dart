@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class SearchAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback onBack;
@@ -28,6 +29,11 @@ class SearchAppBar extends StatelessWidget implements PreferredSizeWidget {
     return AppBar(
       backgroundColor: Colors.white,
       elevation: 0,
+        systemOverlayStyle: const SystemUiOverlayStyle(
+        statusBarColor: Colors.white, 
+        statusBarIconBrightness: Brightness.dark, 
+        statusBarBrightness: Brightness.light, 
+      ),
       leading: IconButton(
         icon: const Icon(Icons.arrow_back, color: Colors.black),
         onPressed: onBack,

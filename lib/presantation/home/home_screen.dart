@@ -10,6 +10,7 @@ import 'package:nde_email/presantation/mail/common/mail_more_menu.dart';
 import 'package:nde_email/presantation/mail/common/menuaction/mail_menu_action.dart';
 import 'package:nde_email/presantation/mail/mail_list/bloc/mail_list_event.dart';
 import 'package:nde_email/presantation/meet/socket/test_socket.dart';
+import 'package:nde_email/presantation/meet/view/meeting_screen.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/bottam_nav/bottam_nav_bloc.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/drawer.dart';
@@ -253,7 +254,7 @@ class _HomeScreenState extends State<HomeScreen> {
             if (state is AppBarLoading) {
               return const Center(child: CircularProgressIndicator());
             }
-            
+
             if (state is AppBarMailboxesLoaded) {
               final mailboxId = state.inbox.isNotEmpty
                   ? state.inbox.first.id
@@ -296,14 +297,10 @@ class _HomeScreenState extends State<HomeScreen> {
         return ChatListScreen();
       case 2:
         return LandingHome();
-
       case 3:
         return CalendarScreen();
       case 4:
-        return VideoCallPage(
-          roomId: "681b1c6b81f3e0714cbbb91e",
-        );
-
+        return MeetingScreen();
       default:
         return const SizedBox();
     }
@@ -407,35 +404,40 @@ class _HomeScreenState extends State<HomeScreen> {
             context.read<MailListBloc>().add(ClearSelectionEvent());
           },
         ),
-        // isjunkMailbox || isdeleteMailbox
-        //     ? SizedBox()
-        //     :
-        IconButton(
-          icon: Icon(
-            hasUnreadSelected ? Icons.mark_email_read : Icons.mark_email_unread,
-          ),
-          onPressed: () {
-            if (hasUnreadSelected) {
-              //READ
-              context.read<MailListBloc>().add(
-                    MarkAsReadEvent(
-                      selectedMailboxId,
-                      state.selectedMailIds.map((e) => e.toString()).toList(),
-                    ),
-                  );
-            } else {
-              //UNREAD
-              context.read<MailListBloc>().add(
-                    MarkAsUnreadEvent(
-                      selectedMailboxId,
-                      state.selectedMailIds.map((e) => e.toString()).toList(),
-                    ),
-                  );
-            }
+        isTrashMailbox
+            ? SizedBox()
+            : IconButton(
+                icon: Icon(
+                  hasUnreadSelected
+                      ? Icons.mark_email_read
+                      : Icons.mark_email_unread,
+                ),
+                onPressed: () {
+                  if (hasUnreadSelected) {
+                    //READ
+                    context.read<MailListBloc>().add(
+                          MarkAsReadEvent(
+                            selectedMailboxId,
+                            state.selectedMailIds
+                                .map((e) => e.toString())
+                                .toList(),
+                          ),
+                        );
+                  } else {
+                    //UNREAD
+                    context.read<MailListBloc>().add(
+                          MarkAsUnreadEvent(
+                            selectedMailboxId,
+                            state.selectedMailIds
+                                .map((e) => e.toString())
+                                .toList(),
+                          ),
+                        );
+                  }
 
-            context.read<MailListBloc>().add(ClearSelectionEvent());
-          },
-        ),
+                  context.read<MailListBloc>().add(ClearSelectionEvent());
+                },
+              ),
 
         // isjunkMailbox || isdeleteMailbox
         //     ? SizedBox()

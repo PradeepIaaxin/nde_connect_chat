@@ -445,7 +445,10 @@ class _FolderGridItem extends StatelessWidget {
                 gridview: isGridView,
               ),
             );
-          } else {}
+          } else {
+            MyRouter.push(
+                screen: FilePreviewScreen(fileUrl: folder.preview ?? ""));
+          }
         }
       },
       child: Card(
@@ -738,7 +741,7 @@ class _FolderListItem extends StatelessWidget {
         }
       },
       child: Container(
-        color: isSelected ? Colors.blue.withValues(alpha :0.1) : null,
+        color: isSelected ? Colors.blue.withValues(alpha: 0.1) : null,
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 4),
           leading: Stack(
@@ -910,9 +913,8 @@ class _FolderListItem extends StatelessWidget {
 
                       if (textToShare.isNotEmpty) {
                         await SharePlus.instance.share(
-  ShareParams(text: textToShare),
-);
-
+                          ShareParams(text: textToShare),
+                        );
                       } else {
                         log("Nothing to share.");
                       }
