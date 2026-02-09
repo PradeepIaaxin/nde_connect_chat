@@ -173,12 +173,18 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
         (a, b) => a + b,
       );
 
+      /// ✅ Calculate total mail counts
+      final updatedTotalMap = Map<String, int>.from(state.totalCountByMailbox);
+
+      updatedTotalMap[event.mailboxId] = updatedMails.length;
+
       /// ✅ 8️⃣ SUCCESS emit
       emit(state.copyWith(
         status: MailListStatus.loaded,
         mails: updatedMails,
         unreadCountByMailbox: updatedUnreadMap,
         totalUnreadCount: totalUnread,
+        totalCountByMailbox: updatedTotalMap,
         nextCursor: nextCursor,
         isPaginating: false,
         specialUse: response.specialUse,
@@ -382,6 +388,11 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
 
         updatedUnreadMap[event.mailboxId] = unreadCount;
 
+        // Recalculate total count
+        final updatedTotalMap =
+            Map<String, int>.from(state.totalCountByMailbox);
+        updatedTotalMap[event.mailboxId] = updatedMails.length;
+
         // 3️⃣ Emit updated state
         emit(updatedMails.isEmpty
             ? state.copyWith(
@@ -392,6 +403,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
                   0,
                   (a, b) => a + (b),
                 ),
+                totalCountByMailbox: updatedTotalMap,
               )
             : state.copyWith(
                 status: MailListStatus.loaded,
@@ -401,6 +413,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
                   0,
                   (a, b) => a + (b ?? 0),
                 ),
+                totalCountByMailbox: updatedTotalMap,
               ));
 
         // 4️⃣ Update cache
@@ -460,6 +473,11 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
 
         updatedUnreadMap[event.fromMailboxId] = unreadCount;
 
+        // Recalculate total count
+        final updatedTotalMap =
+            Map<String, int>.from(state.totalCountByMailbox);
+        updatedTotalMap[event.fromMailboxId] = updatedMails.length;
+
         // 3️⃣ Emit updated state
         emit(updatedMails.isEmpty
             ? state.copyWith(
@@ -470,6 +488,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
                   0,
                   (a, b) => a + (b ?? 0),
                 ),
+                totalCountByMailbox: updatedTotalMap,
               )
             : state.copyWith(
                 status: MailListStatus.loaded,
@@ -479,6 +498,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
                   0,
                   (a, b) => a + (b ?? 0),
                 ),
+                totalCountByMailbox: updatedTotalMap,
               ));
 
         // 4️⃣ Update cache
@@ -641,6 +661,11 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
 
         updatedMap[event.mailboxId] = unreadCount;
 
+        // 🔢 Recalculate total count
+        final updatedTotalMap =
+            Map<String, int>.from(state.totalCountByMailbox);
+        updatedTotalMap[event.mailboxId] = updatedMails.length;
+
         emit(updatedMails.isEmpty
             ? state.copyWith(
                 status: MailListStatus.empty,
@@ -650,6 +675,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
                   0,
                   (a, b) => a + (b ?? 0),
                 ),
+                totalCountByMailbox: updatedTotalMap,
               )
             : state.copyWith(
                 status: MailListStatus.loaded,
@@ -659,6 +685,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
                   0,
                   (a, b) => a + (b ?? 0),
                 ),
+                totalCountByMailbox: updatedTotalMap,
               ));
 
         cachedMailLists[event.mailboxId] = updatedMails;
@@ -713,6 +740,11 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
 
         updatedUnreadMap[event.mailboxId] = unreadCount;
 
+        // 2️⃣ Recalculate total count
+        final updatedTotalMap =
+            Map<String, int>.from(state.totalCountByMailbox);
+        updatedTotalMap[event.mailboxId] = updatedMails.length;
+
         // 3️⃣ Emit updated state with unread counts
         emit(updatedMails.isEmpty
             ? state.copyWith(
@@ -723,6 +755,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
                   0,
                   (a, b) => a + (b ?? 0),
                 ),
+                totalCountByMailbox: updatedTotalMap,
               )
             : state.copyWith(
                 status: MailListStatus.loaded,
@@ -732,6 +765,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
                   0,
                   (a, b) => a + (b ?? 0),
                 ),
+                totalCountByMailbox: updatedTotalMap,
               ));
 
         // 4️⃣ Update cache
