@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
+import 'package:nde_email/utils/imports/common_imports.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:video_player/video_player.dart';
@@ -158,7 +159,6 @@ class _FilePreviewWidgetState extends State<FilePreviewWidget> {
 
   Widget _buildVideoControls() {
     final isPlaying = _videoController!.value.isPlaying;
-
     return Container(
       color: Colors.black54,
       child: Column(
@@ -218,7 +218,7 @@ class _FilePreviewWidgetState extends State<FilePreviewWidget> {
   Widget _buildImagePreview() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(8),
         child: CachedNetworkImage(
           imageUrl: widget.fileUrl!,
           fit: BoxFit.contain,
@@ -357,6 +357,7 @@ class FilePreviewScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    log("fileUrl $fileUrl");
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(

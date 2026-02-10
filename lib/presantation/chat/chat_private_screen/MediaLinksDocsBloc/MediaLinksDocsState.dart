@@ -1,6 +1,3 @@
-
-
-// States
 import 'package:equatable/equatable.dart';
 
 import 'MediaLinksDocsDataModel.dart';
