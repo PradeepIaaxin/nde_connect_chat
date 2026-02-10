@@ -4,7 +4,6 @@ import 'package:nde_email/presantation/widgets/mail_widgets/mail_list_widget/mai
 import 'package:nde_email/utils/imports/common_imports.dart';
 import '../bloc/mail_list_event.dart';
 import '../bloc/mail_list_state.dart';
-import '../../compose/bloc/send_mail_bloc/send_mail_bloc.dart';
 import '../../compose/bloc/send_mail_bloc/send_mail_state.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/error_display.dart';
 
@@ -37,7 +36,8 @@ class _MailListScreenState extends State<MailListScreen> {
       builder: (context) {
         return AlertDialog(
           title: const Text('Empty bin?'),
-          content: const Text('This will permanently remove the Trash mailbox.'),
+          content:
+              const Text('This will permanently remove the Trash mailbox.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -45,7 +45,10 @@ class _MailListScreenState extends State<MailListScreen> {
             ),
             TextButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Empty',style: TextStyle(color: Colors.red),),
+              child: const Text(
+                'Empty',
+                style: TextStyle(color: Colors.red),
+              ),
             ),
           ],
         );
@@ -83,64 +86,17 @@ class _MailListScreenState extends State<MailListScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.only(bottom: 12),
-            child: Text(
-              "Bin",
-              style: TextStyle(
-                fontSize: 16,
-                color: AppColors.secondaryText,
-              ),
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F4F9),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(
-                      Icons.delete_outline,
-                      color: Color(0xFF0B57D0),
-                      size: 20,
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text(
-                        "Items that have been in the bin for more than 30 days will be automatically deleted.",
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppColors.secondaryText,
-                          height: 1.4,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(left: 32, top: 8),
-                  child: GestureDetector(
-                    onTap: _isEmptyingBin ? null : _emptyBin,
-                    child: Text(
-                      "Empty Bin now",
-                      style: TextStyle(
-                        color: _isEmptyingBin
-                            ? AppColors.secondaryText
-                            : AppColors.profile,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          const Spacer(),
+          TextButton.icon(
+            onPressed: _isEmptyingBin ? null : _emptyBin,
+            icon: _isEmptyingBin
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.delete_sweep,color: Colors.red,),
+            label: const Text('Empty bin',style: TextStyle(color: Colors.red),),
           ),
         ],
       ),
@@ -324,7 +280,6 @@ class _MailListScreenState extends State<MailListScreen> {
     // Clear cache for current mailbox to force fresh API fetch
     _bloc.add(ResetMailListEvent(widget.mailboxId));
 
-    // Small delay to allow reset state to emit
     await Future.delayed(const Duration(milliseconds: 50));
 
     // Fetch fresh data from API
@@ -346,7 +301,6 @@ class _MailListScreenState extends State<MailListScreen> {
           debugPrint(
               "✅ Mail sent successfully! Refreshing list for $widget.mailboxId");
 
-          // Trigger silent refresh to update UI without loading spinner
           _bloc.add(RefreshMailListEvent(widget.mailboxId));
         }
       },
@@ -381,29 +335,29 @@ class _MailListScreenState extends State<MailListScreen> {
                     ],
                   )
 
-                // ✅ NORMAL MODE → REFRESH ENABLED
-                : RefreshIndicator(
-                    onRefresh: _onRefresh,
-                    child: Column(
-                      children: [
-                        _trashActions(show: state.mails.isNotEmpty),
-                        Expanded(
-                          child: MailListWidget(
-                            key: ValueKey(
-                                "${widget.mailboxId}-${state.mails.length}"),
-                            mails: state.mails,
-                            mailboxId: widget.mailboxId,
-                            controller: _controller,
+              // ✅ NORMAL MODE → REFRESH ENABLED
+              : RefreshIndicator(
+                  onRefresh: _onRefresh,
+                  child: Column(
+                    children: [
+                      _trashActions(show: state.mails.isNotEmpty),
+                      Expanded(
+                        child: MailListWidget(
+                          key: ValueKey(
+                              "${widget.mailboxId}-${state.mails.length}"),
+                          mails: state.mails,
+                          mailboxId: widget.mailboxId,
+                          controller: _controller,
                           itemCount:
                               state.mails.length + (state.isPaginating ? 1 : 0),
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            isPaginating: state.isPaginating,
-                          ),
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          isPaginating: state.isPaginating,
                         ),
-                      ],
-                    ),
-                  );
-          }
+                      ),
+                    ],
+                  ),
+                );
+        }
 
           if (state.status == MailListStatus.empty) {
             return RefreshIndicator(
