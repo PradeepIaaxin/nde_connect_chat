@@ -19,10 +19,44 @@ class Messenger {
       SnackBar(
         showCloseIcon: true,
         closeIconColor: Colors.white,
-        duration: const Duration(milliseconds: 3500),
+        duration: const Duration(seconds: 5),
         behavior: SnackBarBehavior.floating,
         backgroundColor: color,
         shape: const RoundedRectangleBorder(),
+        content: Text(
+          msg,
+          style: const TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 12,
+          ),
+        ),
+      ),
+    );
+  }
+
+  static ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? alertAction({
+    required String msg,
+    required String actionLabel,
+    required VoidCallback onAction,
+    Color? color,
+  }) {
+    if (msg.trim().isEmpty) return null;
+    log(msg);
+
+    rootScaffoldMessengerKey.currentState?.hideCurrentSnackBar();
+    return rootScaffoldMessengerKey.currentState?.showSnackBar(
+      SnackBar(
+        showCloseIcon: true,
+        closeIconColor: Colors.white,
+        duration: const Duration(seconds: 5),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: color,
+        shape: const RoundedRectangleBorder(),
+        action: SnackBarAction(
+          label: actionLabel,
+          textColor: Colors.white,
+          onPressed: onAction,
+        ),
         content: Text(
           msg,
           style: const TextStyle(

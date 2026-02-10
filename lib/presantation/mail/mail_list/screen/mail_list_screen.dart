@@ -9,6 +9,7 @@ import '../../compose/bloc/send_mail_bloc/send_mail_state.dart';
 import '../../compose/bloc/send_draft/save_draft_bloc.dart';
 import '../../compose/bloc/send_draft/save_draft_state.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/error_display.dart';
+import 'package:nde_email/utils/custom/custom_alret_box.dart';
 
 class MailListScreen extends StatefulWidget {
   final String mailboxId;
@@ -34,46 +35,34 @@ class _MailListScreenState extends State<MailListScreen> {
   Future<void> _emptyBin() async {
     if (_isEmptyingBin) return;
 
-    final shouldContinue = await showDialog<bool>(
+    final result = await CustomConfirmationDialog.show(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Empty bin?'),
-          content: const Text('This will permanently remove the Trash mailbox.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Empty',style: TextStyle(color: Colors.red),),
-            ),
-          ],
-        );
+      title: 'Empty bin?',
+      message: 'This will permanently remove the Trash mailbox.',
+      confirmText: 'Empty',
+      onConfirm: () async {
+        setState(() => _isEmptyingBin = true);
+        try {
+          final message =
+              await FetchMailBoxesApi().deleteMailbox(widget.mailboxId);
+
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(message)),
+          );
+        } catch (e) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e.toString())),
+          );
+        } finally {
+          if (mounted) setState(() => _isEmptyingBin = false);
+        }
       },
     );
 
-    if (shouldContinue != true || !mounted) return;
-
-    setState(() => _isEmptyingBin = true);
-
-    try {
-      final message = await FetchMailBoxesApi().deleteMailbox(widget.mailboxId);
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
-
+    if (result == true && mounted) {
       MyRouter.pushNamedAndRemoveUntil('/home');
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
-    } finally {
-      if (mounted) setState(() => _isEmptyingBin = false);
     }
   }
 
@@ -81,20 +70,68 @@ class _MailListScreenState extends State<MailListScreen> {
     if (!_isTrashMailbox || !show) return const SizedBox.shrink();
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Spacer(),
-          TextButton.icon(
-            onPressed: _isEmptyingBin ? null : _emptyBin,
-            icon: _isEmptyingBin
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.delete_sweep,color: Colors.red,),
-            label: const Text('Empty bin',style: TextStyle(color: Colors.red),),
+          const Padding(
+            padding: EdgeInsets.only(bottom: 12),
+            child: Text(
+              "Bin",
+              style: TextStyle(
+                fontSize: 16,
+                color: AppColors.secondaryText,
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F4F9),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.delete_outline,
+                      color: Color(0xFF0B57D0),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        "Items that have been in the bin for more than 30 days will be automatically deleted.",
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.secondaryText,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(left: 32, top: 8),
+                  child: GestureDetector(
+                    onTap: _isEmptyingBin ? null : _emptyBin,
+                    child: Text(
+                      "Empty Bin now",
+                      style: TextStyle(
+                        color: _isEmptyingBin
+                            ? AppColors.secondaryText
+                            : AppColors.profile,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../model/mail_list_model.dart';
 
 // maillist event
 
@@ -101,6 +102,46 @@ class DeleteMailEvent extends MailListEvent {
   List<Object> get props => [mailboxId, mailIds];
 }
 
+class UndoDeleteMailEvent extends MailListEvent {
+  final String pendingId;
+  final String mailboxId;
+  final List<int> mailIds;
+  final List<GMMailModels> restoreMails;
+  final Map<int, int> originalIndexById;
+
+  const UndoDeleteMailEvent({
+    required this.pendingId,
+    required this.mailboxId,
+    required this.mailIds,
+    required this.restoreMails,
+    required this.originalIndexById,
+  });
+
+  @override
+  List<Object?> get props => [pendingId, mailboxId, mailIds];
+}
+
+class CommitDeleteMailEvent extends MailListEvent {
+  final String pendingId;
+  final String mailboxId;
+  final String sourceMailboxId;
+  final List<int> mailIds;
+  final List<GMMailModels> restoreMails;
+  final Map<int, int> originalIndexById;
+
+  const CommitDeleteMailEvent({
+    required this.pendingId,
+    required this.mailboxId,
+    required this.sourceMailboxId,
+    required this.mailIds,
+    required this.restoreMails,
+    required this.originalIndexById,
+  });
+
+  @override
+  List<Object?> get props => [pendingId, mailboxId, sourceMailboxId, mailIds];
+}
+
 class MoveToArchiveEvent extends MailListEvent {
   final List<int> mailIds;
   final String mailboxId;
@@ -109,6 +150,46 @@ class MoveToArchiveEvent extends MailListEvent {
 
   @override
   List<Object> get props => [mailIds, mailboxId];
+}
+
+class UndoArchiveMailEvent extends MailListEvent {
+  final String pendingId;
+  final String mailboxId;
+  final List<int> mailIds;
+  final List<GMMailModels> restoreMails;
+  final Map<int, int> originalIndexById;
+
+  const UndoArchiveMailEvent({
+    required this.pendingId,
+    required this.mailboxId,
+    required this.mailIds,
+    required this.restoreMails,
+    required this.originalIndexById,
+  });
+
+  @override
+  List<Object?> get props => [pendingId, mailboxId, mailIds];
+}
+
+class CommitArchiveMailEvent extends MailListEvent {
+  final String pendingId;
+  final String mailboxId;
+  final String sourceMailboxId;
+  final List<int> mailIds;
+  final List<GMMailModels> restoreMails;
+  final Map<int, int> originalIndexById;
+
+  const CommitArchiveMailEvent({
+    required this.pendingId,
+    required this.mailboxId,
+    required this.sourceMailboxId,
+    required this.mailIds,
+    required this.restoreMails,
+    required this.originalIndexById,
+  });
+
+  @override
+  List<Object?> get props => [pendingId, mailboxId, sourceMailboxId, mailIds];
 }
 
 class MoveMailEvent extends MailListEvent {
