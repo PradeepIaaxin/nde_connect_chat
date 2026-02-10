@@ -10,6 +10,9 @@ import 'package:nde_email/utils/router/router.dart';
 import 'package:nde_email/utils/snackbar/snackbar.dart';
 import '../bloc/send_mail_bloc/send_mail_bloc.dart';
 import '../bloc/send_mail_bloc/send_mail_event.dart';
+import '../bloc/send_mail_bloc/send_mail_state.dart';
+import '../../mail_list/bloc/mail_list_bloc.dart';
+import '../../mail_list/bloc/mail_list_event.dart';
 import '../bloc/fetchname_bloc/fatchname_event.dart';
 import '../bloc/fetchname_bloc/fatchname_bloc.dart';
 import '../bloc/fetchname_bloc/fatchname_state.dart';
@@ -34,14 +37,18 @@ class ComposeScreen extends StatefulWidget {
   final Map<String, dynamic>? draftData;
   final MailDetailModel? mailDetail;
   final ComposeAction? action;
+  final List<UploadedAttachment>? initialAttachments;
 
   final String? mailboxId;
+  final int? draftId;
 
   const ComposeScreen(
       {super.key,
       this.draftData,
       this.mailDetail,
+      this.initialAttachments,
       this.mailboxId,
+      this.draftId,
       this.action});
 
   @override
@@ -90,6 +97,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
   @override
   void initState() {
     super.initState();
+    context.read<DraftBloc>().add(ResetDraftEvent());
 
     context.read<FatchnameBloc>().add(FetchSenderEmailEvent());
 
@@ -131,6 +139,11 @@ class _ComposeScreenState extends State<ComposeScreen> {
       }
     } else {
       _loadDraftData();
+    }
+
+    if (widget.initialAttachments != null &&
+        widget.initialAttachments!.isNotEmpty) {
+      attachments = List<UploadedAttachment>.from(widget.initialAttachments!);
     }
 
     toCont.addListener(() {
@@ -390,20 +403,56 @@ class _ComposeScreenState extends State<ComposeScreen> {
                   final attachmentIds =
                       attachments.map((e) => e.id).whereType<String>().toList();
 
-                  context.read<SendMailBloc>().add(
-                        SendMailRequest(
-                          fromEmail: fromEmail!,
-                          to: toEmails.join(','),
-                          subject: subjectCont.text,
-                          body: composeMailCont.text,
-                          attachmentIds: attachmentIds,
-                          cc: ccEmails.isNotEmpty ? ccEmails.join(',') : null,
-                          bcc:
-                              bccEmails.isNotEmpty ? bccEmails.join(',') : null,
-                        ),
-                      );
+                  final sendRequest = SendMailRequest(
+                    fromEmail: fromEmail!,
+                    to: toEmails.join(','),
+                    subject: subjectCont.text,
+                    body: composeMailCont.text,
+                    attachmentIds: attachmentIds,
+                    cc: ccEmails.isNotEmpty ? ccEmails.join(',') : null,
+                    bcc: bccEmails.isNotEmpty ? bccEmails.join(',') : null,
+                    draftId: widget.draftId,
+                          draftMailboxId: widget.mailboxId,
+                  );
+
+                  final draftData = <String, dynamic>{
+                    'to': toEmails.join(', '),
+                    'cc': ccEmails.join(', '),
+                    'bcc': bccEmails.join(', '),
+                    'subject': subjectCont.text,
+                    'body': composeMailCont.text,
+                  };
+
+                  final restoredAttachments =
+                      List<UploadedAttachment>.from(attachments);
+
+                  bool undone = false;
 
                   MyRouter.pop();
+
+                  Messenger.alertAction(
+                    msg: "Sending email",
+                    color: Colors.green,
+                    actionLabel: "UNDO",
+                    onAction: () {
+                      undone = true;
+                      MyRouter.push(
+                        screen: ComposeScreen(
+                          draftData: draftData,
+                          initialAttachments: restoredAttachments,
+                          mailboxId: widget.mailboxId,
+                        ),
+                      );
+                    },
+                  );
+
+                  // MyRouter.pop(); // Removed early pop
+                  Future.delayed(const Duration(seconds: 5), () {
+                    if (undone) return;
+                    final ctx = MyRouter.navigatorKey.currentContext;
+                    if (ctx == null) return;
+                    ctx.read<SendMailBloc>().add(sendRequest);
+                  });
                 },
               ),
               PopupMenuButton<String>(
@@ -518,6 +567,47 @@ class _ComposeScreenState extends State<ComposeScreen> {
                     Navigator.pop(context);
 
                     Messenger.alert(msg: "state.message");
+                  }
+                },
+              ),
+              BlocListener<SendMailBloc, SendMailState>(
+                listener: (context, state) {
+                  if (state is MailSending) {
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (context) => const AlertDialog(
+                        content: Row(
+                          children: [
+                            CircularProgressIndicator(),
+                            SizedBox(width: 20),
+                            Text("Sending mail..."),
+                          ],
+                        ),
+                      ),
+                    );
+                  } else if (state is MailSent) {
+                    // Remove loading dialog
+                    if (Navigator.canPop(context)) {
+                      Navigator.pop(context);
+                    }
+
+                    if (widget.draftId != null && widget.mailboxId != null) {
+                      context.read<MailListBloc>().add(
+                            RemoveMailFromListEvent(
+                                widget.draftId!, widget.mailboxId!),
+                          );
+                    }
+
+                    // Navigate back to the list screen (pop twice: Compose -> Detail -> List)
+                    Navigator.pop(context); // Pop Compose
+                    Navigator.pop(context); // Pop Detail
+                  } else if (state is MailSendError) {
+                    // Remove loading dialog
+                    if (Navigator.canPop(context)) {
+                      Navigator.pop(context);
+                    }
+                    Messenger.alertError(state.error);
                   }
                 },
               ),

@@ -32,6 +32,8 @@ class SendMailBloc extends Bloc<SendMailEvent, SendMailState> {
         ccEmail: event.cc,
         attachmentIds: event.attachmentIds,
         bccEmail: event.bcc,
+        draftId: event.draftId,
+        draftMailboxId: event.draftMailboxId,
         subject: event.subject,
         body: event.body,
       );

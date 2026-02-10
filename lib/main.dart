@@ -43,7 +43,7 @@ void main() async {
   // Handle killed → tap notification
   final action = await AwesomeNotifications().getInitialNotificationAction();
   if (action != null) {
-    if (action.buttonKeyPressed == null || action.buttonKeyPressed!.isEmpty) {
+    if (action.buttonKeyPressed.isEmpty) {
       Future.delayed(const Duration(milliseconds: 800), () {
         AwesomeNotificationService.openChatFromPayload(action.payload);
       });
