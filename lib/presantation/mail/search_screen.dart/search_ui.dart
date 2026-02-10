@@ -2,11 +2,7 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nde_email/data/respiratory.dart';
-import 'package:nde_email/presantation/mail/mail_detail/mail_detail_api.dart';
-import 'package:nde_email/presantation/mail/mail_detail/mail_detail_bloc.dart';
-import 'package:nde_email/presantation/mail/mail_detail/mail_detail_event.dart';
 import 'package:nde_email/presantation/mail/mail_detail/mail_detail_screen.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/router/router.dart';
