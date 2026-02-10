@@ -10,6 +10,9 @@ import 'package:nde_email/utils/router/router.dart';
 import 'package:nde_email/utils/snackbar/snackbar.dart';
 import '../bloc/send_mail_bloc/send_mail_bloc.dart';
 import '../bloc/send_mail_bloc/send_mail_event.dart';
+import '../bloc/send_mail_bloc/send_mail_state.dart';
+import '../../mail_list/bloc/mail_list_bloc.dart';
+import '../../mail_list/bloc/mail_list_event.dart';
 import '../bloc/fetchname_bloc/fatchname_event.dart';
 import '../bloc/fetchname_bloc/fatchname_bloc.dart';
 import '../bloc/fetchname_bloc/fatchname_state.dart';
@@ -36,12 +39,14 @@ class ComposeScreen extends StatefulWidget {
   final ComposeAction? action;
 
   final String? mailboxId;
+  final int? draftId;
 
   const ComposeScreen(
       {super.key,
       this.draftData,
       this.mailDetail,
       this.mailboxId,
+      this.draftId,
       this.action});
 
   @override
@@ -90,6 +95,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
   @override
   void initState() {
     super.initState();
+    context.read<DraftBloc>().add(ResetDraftEvent());
 
     context.read<FatchnameBloc>().add(FetchSenderEmailEvent());
 
@@ -400,10 +406,12 @@ class _ComposeScreenState extends State<ComposeScreen> {
                           cc: ccEmails.isNotEmpty ? ccEmails.join(',') : null,
                           bcc:
                               bccEmails.isNotEmpty ? bccEmails.join(',') : null,
+                          draftId: widget.draftId,
+                          draftMailboxId: widget.mailboxId,
                         ),
                       );
 
-                  MyRouter.pop();
+                  // MyRouter.pop(); // Removed early pop
                 },
               ),
               PopupMenuButton<String>(
@@ -518,6 +526,47 @@ class _ComposeScreenState extends State<ComposeScreen> {
                     Navigator.pop(context);
 
                     Messenger.alert(msg: "state.message");
+                  }
+                },
+              ),
+              BlocListener<SendMailBloc, SendMailState>(
+                listener: (context, state) {
+                  if (state is MailSending) {
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (context) => const AlertDialog(
+                        content: Row(
+                          children: [
+                            CircularProgressIndicator(),
+                            SizedBox(width: 20),
+                            Text("Sending mail..."),
+                          ],
+                        ),
+                      ),
+                    );
+                  } else if (state is MailSent) {
+                    // Remove loading dialog
+                    if (Navigator.canPop(context)) {
+                      Navigator.pop(context);
+                    }
+
+                    if (widget.draftId != null && widget.mailboxId != null) {
+                      context.read<MailListBloc>().add(
+                            RemoveMailFromListEvent(
+                                widget.draftId!, widget.mailboxId!),
+                          );
+                    }
+
+                    // Navigate back to the list screen (pop twice: Compose -> Detail -> List)
+                    Navigator.pop(context); // Pop Compose
+                    Navigator.pop(context); // Pop Detail
+                  } else if (state is MailSendError) {
+                    // Remove loading dialog
+                    if (Navigator.canPop(context)) {
+                      Navigator.pop(context);
+                    }
+                    Messenger.alertError(state.error);
                   }
                 },
               ),
