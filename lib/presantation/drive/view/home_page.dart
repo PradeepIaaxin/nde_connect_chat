@@ -744,7 +744,8 @@ class _HomePageState extends State<HomePage>
 
   Widget _buildMimeIcon(
     FileModel folder,
-  ) {
+  )
+  {
     final type = folder.type.toLowerCase();
     final mimeType = folder.mimetype.toLowerCase();
     final fileName = folder.name.toLowerCase();

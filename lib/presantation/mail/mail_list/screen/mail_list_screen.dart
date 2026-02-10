@@ -297,8 +297,6 @@ class _MailListScreenState extends State<MailListScreen> {
         if (sendState is MailSent) {
           debugPrint(
               "✅ Mail sent successfully! Refreshing list for $widget.mailboxId");
-
-          // Trigger silent refresh to update UI without loading spinner
           _bloc.add(RefreshMailListEvent(widget.mailboxId));
         }
       },

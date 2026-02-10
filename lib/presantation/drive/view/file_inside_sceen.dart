@@ -296,11 +296,11 @@ class _FileInsideSceenState extends State<FileInsideSceen> {
   Widget _buildMimeIconForInside(FolderinsideModel file) {
     final type = file.type.toLowerCase();
     final ext = file.extname?.toLowerCase().trim() ?? "";
-
     if (type == 'folder') {
       return Image.asset("assets/images/folder.png",
           height: 24, width: 24, color: Colors.amber);
-    } else if (ext.contains('doc') || ext.contains('msword')) {
+    }
+    else if (ext.contains('doc') || ext.contains('msword')) {
       return Image.asset('assets/images/word.png', height: 24, width: 24);
     } else if (ext.contains('excel') || ext.contains('spreadsheet')) {
       return Image.asset('assets/images/sheets.png', height: 24, width: 24);

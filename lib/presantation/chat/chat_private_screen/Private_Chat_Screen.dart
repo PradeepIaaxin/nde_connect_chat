@@ -1,10 +1,5 @@
-import 'dart:convert';
 import 'dart:io';
-import 'package:dio/dio.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/message_widgets.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:path/path.dart' as p;
-import 'dart:math' as math;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/message_handler.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/audio_reuable.dart';
@@ -13,12 +8,8 @@ import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/bui
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/show_Bottom_Sheet.dart';
 import 'package:nde_email/utils/imports/common_imports.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
-import '../../widgets/chat_widgets/Common/grouped_media_viewer.dart';
 import 'messager_Bloc/MessagerEvent.dart';
 import 'messager_Bloc/MessagerState.dart';
-import 'messager_Bloc/widget/MixedMediaViewer.dart';
-import 'messager_Bloc/widget/VideoPlayerScreen.dart';
-
 import 'messager_Bloc/widget/privat_common_funtions/privat_chat_funtions.dart';
 import 'messager_Bloc/widget/privat_common_funtions/privat_chat_funtions_2.dart';
 import 'messager_Bloc/widget/privat_common_funtions/privat_chat_funtions_3.dart';
