@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:developer';
 import 'package:bloc/bloc.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nde_email/data/mailboxid.dart';
 import 'package:nde_email/utils/snackbar/snackbar.dart';
 import '../model/mail_list_model.dart';
 import 'dart:convert';
@@ -16,6 +18,10 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
   final FetchMailListapi apiService;
   final Map<String, List<GMMailModels>> cachedMailLists = {};
   String? activeMailboxId;
+  int _pendingDeleteSequence = 0;
+  final Map<String, bool> _pendingDeleteUndone = {};
+  int _pendingArchiveSequence = 0;
+  final Map<String, bool> _pendingArchiveUndone = {};
 
   MailListBloc({required this.apiService}) : super(MailListState.initial()) {
     on<FetchMailListEvent>(_onFetchMailList);
@@ -23,7 +29,11 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
     on<ToggleMailSelectionEvent>(_onToggleMailSelection);
     on<ClearSelectionEvent>(_onClearSelection);
     on<DeleteMailEvent>(_onDeleteMail);
+    on<UndoDeleteMailEvent>(_onUndoDeleteMail);
+    on<CommitDeleteMailEvent>(_onCommitDeleteMail);
     on<MoveToArchiveEvent>(_onMoveToArchive);
+    on<UndoArchiveMailEvent>(_onUndoArchiveMail);
+    on<CommitArchiveMailEvent>(_onCommitArchiveMail);
     on<MoveMailEvent>(_onMoveMail);
     on<MarkAsReadEvent>(_onMarkAsRead);
     on<MarkAsUnreadEvent>(_onMarkAsUnread);
@@ -637,69 +647,210 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
     }
 
     try {
-      emit(state.copyWith(status: MailListStatus.loading));
+      final originalMails = List<GMMailModels>.from(state.mails);
+      final restoreMails = originalMails
+          .where((mail) => event.mailIds.contains(mail.id))
+          .toList();
+
+      final Map<int, int> originalIndexById = {
+        for (int i = 0; i < originalMails.length; i++) originalMails[i].id: i,
+      };
+
       final sourceMailboxId = _getSourceMailboxId(event.mailIds.toSet());
+      final updatedMails = state.mails
+          .where((mail) => !event.mailIds.contains(mail.id))
+          .toList();
 
-      final bool success = await apiService.deleteMessage(
-        sourceMailboxId,
-        event.mailIds,
-      );
+      final unreadCount = updatedMails.where((mail) => mail.seen == false).length;
+      final updatedUnreadMap = Map<String, int>.from(state.unreadCountByMailbox);
+      if (updatedUnreadMap.containsKey(event.mailboxId)) {
+        updatedUnreadMap[event.mailboxId] = unreadCount;
+      }
 
-      // final bool success =
-      //     await apiService.deleteMessage(event.mailboxId, event.mailIds);
-
-      if (success) {
-        final updatedMails = state.mails
-            .where((mail) => !event.mailIds.contains(mail.id))
-            .toList();
-
-        // 🔢 Recalculate unread count
-        final unreadCount =
-            updatedMails.where((mail) => mail.seen == false).length;
-
-        final updatedMap = Map<String, int>.from(state.unreadCountByMailbox);
-
-        updatedMap[event.mailboxId] = unreadCount;
-
-        // 🔢 Recalculate total count
-        final updatedTotalMap =
-            Map<String, int>.from(state.totalCountByMailbox);
+      final updatedTotalMap = Map<String, int>.from(state.totalCountByMailbox);
+      if (updatedTotalMap.containsKey(event.mailboxId)) {
         updatedTotalMap[event.mailboxId] = updatedMails.length;
+      }
 
-        emit(updatedMails.isEmpty
-            ? state.copyWith(
-                status: MailListStatus.empty,
-                mails: [],
-                unreadCountByMailbox: updatedMap,
-                totalUnreadCount: updatedMap.values.fold<int>(
-                  0,
-                  (a, b) => a + (b ?? 0),
-                ),
-                totalCountByMailbox: updatedTotalMap,
-              )
-            : state.copyWith(
-                status: MailListStatus.loaded,
-                mails: updatedMails,
-                unreadCountByMailbox: updatedMap,
-                totalUnreadCount: updatedMap.values.fold<int>(
-                  0,
-                  (a, b) => a + (b ?? 0),
-                ),
-                totalCountByMailbox: updatedTotalMap,
-              ));
+      emit(state.copyWith(
+        status: updatedMails.isEmpty ? MailListStatus.empty : MailListStatus.loaded,
+        mails: updatedMails,
+        unreadCountByMailbox: updatedUnreadMap,
+        totalUnreadCount: updatedUnreadMap.values.fold<int>(
+          0,
+          (a, b) => a + (b ?? 0),
+        ),
+        totalCountByMailbox: updatedTotalMap,
+      ));
 
-        cachedMailLists[event.mailboxId] = updatedMails;
+      cachedMailLists[event.mailboxId] = updatedMails;
+
+      final trashMailboxId = await MailboxStorage.getTrashMailboxId();
+      final canUndo = trashMailboxId != null &&
+          trashMailboxId.isNotEmpty &&
+          sourceMailboxId != trashMailboxId &&
+          restoreMails.isNotEmpty;
+
+      final pendingId =
+          "${DateTime.now().microsecondsSinceEpoch}-${_pendingDeleteSequence++}";
+      _pendingDeleteUndone[pendingId] = false;
+
+      final deletedMsg = event.mailIds.length == 1
+          ? "Email deleted successfully"
+          : "Emails deleted successfully";
+
+      if (canUndo) {
+        final controller = Messenger.alertAction(
+          msg: deletedMsg,
+          color: Colors.green,
+          actionLabel: "UNDO",
+          onAction: () {
+            _pendingDeleteUndone[pendingId] = true;
+            add(
+              UndoDeleteMailEvent(
+                pendingId: pendingId,
+                mailboxId: event.mailboxId,
+                mailIds: event.mailIds,
+                restoreMails: restoreMails,
+                originalIndexById: originalIndexById,
+              ),
+            );
+          },
+        );
+
+        controller?.closed.then((_) {
+          final wasUndone = _pendingDeleteUndone[pendingId] == true;
+          if (!wasUndone) {
+            add(
+              CommitDeleteMailEvent(
+                pendingId: pendingId,
+                mailboxId: event.mailboxId,
+                sourceMailboxId: sourceMailboxId,
+                mailIds: event.mailIds,
+                restoreMails: restoreMails,
+                originalIndexById: originalIndexById,
+              ),
+            );
+          }
+          _pendingDeleteUndone.remove(pendingId);
+        });
       } else {
-        emit(state.copyWith(
-          status: MailListStatus.error,
-          errorMessage: "Failed to delete emails.",
-        ));
+        await apiService.deleteMessage(sourceMailboxId, event.mailIds);
+        Messenger.alertSuccess(deletedMsg);
       }
     } catch (e) {
       emit(state.copyWith(
         status: MailListStatus.error,
         errorMessage: "Error deleting emails: $e",
       ));
+    }
+  }
+
+  Future<void> _onUndoDeleteMail(
+    UndoDeleteMailEvent event,
+    Emitter<MailListState> emit,
+  ) async {
+    if (event.mailIds.isEmpty) return;
+
+    final restoredMails = List<GMMailModels>.from(state.mails);
+
+    final toInsert = event.restoreMails
+        .where((m) => !restoredMails.any((x) => x.id == m.id))
+        .toList()
+      ..sort((a, b) {
+        final ai = event.originalIndexById[a.id] ?? 0;
+        final bi = event.originalIndexById[b.id] ?? 0;
+        return ai.compareTo(bi);
+      });
+
+    for (final mail in toInsert) {
+      final index = (event.originalIndexById[mail.id] ?? 0)
+          .clamp(0, restoredMails.length);
+      restoredMails.insert(index, mail);
+    }
+
+    final unreadCount = restoredMails.where((mail) => mail.seen == false).length;
+    final updatedUnreadMap = Map<String, int>.from(state.unreadCountByMailbox);
+    if (updatedUnreadMap.containsKey(event.mailboxId)) {
+      updatedUnreadMap[event.mailboxId] = unreadCount;
+    }
+
+    final updatedTotalMap = Map<String, int>.from(state.totalCountByMailbox);
+    if (updatedTotalMap.containsKey(event.mailboxId)) {
+      updatedTotalMap[event.mailboxId] = restoredMails.length;
+    }
+
+    emit(state.copyWith(
+      status: restoredMails.isEmpty ? MailListStatus.empty : MailListStatus.loaded,
+      mails: restoredMails,
+      unreadCountByMailbox: updatedUnreadMap,
+      totalUnreadCount: updatedUnreadMap.values.fold<int>(
+        0,
+        (a, b) => a + (b ?? 0),
+      ),
+      totalCountByMailbox: updatedTotalMap,
+    ));
+
+    cachedMailLists[event.mailboxId] = restoredMails;
+
+    final restoredMsg =
+        event.mailIds.length == 1 ? "Email restored" : "Emails restored";
+    Messenger.alertSuccess(restoredMsg);
+  }
+
+  Future<void> _onCommitDeleteMail(
+    CommitDeleteMailEvent event,
+    Emitter<MailListState> emit,
+  ) async {
+    if (event.mailIds.isEmpty) return;
+
+    try {
+      await apiService.deleteMessage(event.sourceMailboxId, event.mailIds);
+    } catch (e) {
+      final restoredMails = List<GMMailModels>.from(state.mails);
+
+      final toInsert = event.restoreMails
+          .where((m) => !restoredMails.any((x) => x.id == m.id))
+          .toList()
+        ..sort((a, b) {
+          final ai = event.originalIndexById[a.id] ?? 0;
+          final bi = event.originalIndexById[b.id] ?? 0;
+          return ai.compareTo(bi);
+        });
+
+      for (final mail in toInsert) {
+        final index = (event.originalIndexById[mail.id] ?? 0)
+            .clamp(0, restoredMails.length);
+        restoredMails.insert(index, mail);
+      }
+
+      final unreadCount =
+          restoredMails.where((mail) => mail.seen == false).length;
+      final updatedUnreadMap =
+          Map<String, int>.from(state.unreadCountByMailbox);
+      if (updatedUnreadMap.containsKey(event.mailboxId)) {
+        updatedUnreadMap[event.mailboxId] = unreadCount;
+      }
+
+      final updatedTotalMap = Map<String, int>.from(state.totalCountByMailbox);
+      if (updatedTotalMap.containsKey(event.mailboxId)) {
+        updatedTotalMap[event.mailboxId] = restoredMails.length;
+      }
+
+      emit(state.copyWith(
+        status:
+            restoredMails.isEmpty ? MailListStatus.empty : MailListStatus.loaded,
+        mails: restoredMails,
+        unreadCountByMailbox: updatedUnreadMap,
+        totalUnreadCount: updatedUnreadMap.values.fold<int>(
+          0,
+          (a, b) => a + (b ?? 0),
+        ),
+        totalCountByMailbox: updatedTotalMap,
+      ));
+
+      cachedMailLists[event.mailboxId] = restoredMails;
+      Messenger.alertError("Failed to delete emails");
     }
   }
 
@@ -715,73 +866,208 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
       return;
     }
 
-    emit(state.copyWith(status: MailListStatus.archiving));
-
     try {
+      final archiveMailboxId = await MailboxStorage.getArchiveMailboxId();
+      if (archiveMailboxId == null || archiveMailboxId.isEmpty) {
+        Messenger.alertError("Archive mailbox not found");
+        return;
+      }
+
+      final originalMails = List<GMMailModels>.from(state.mails);
+      final restoreMails = originalMails
+          .where((mail) => event.mailIds.contains(mail.id))
+          .toList();
+
+      final Map<int, int> originalIndexById = {
+        for (int i = 0; i < originalMails.length; i++) originalMails[i].id: i,
+      };
+
       final sourceMailboxId = _getSourceMailboxId(event.mailIds.toSet());
 
-      final bool success = await apiService.moveToArchive(
-        event.mailIds,
-        sourceMailboxId,
+      final updatedMails = state.mails
+          .where((mail) => !event.mailIds.contains(mail.id))
+          .toList();
+
+      final unreadCount = updatedMails.where((mail) => mail.seen == false).length;
+      final updatedUnreadMap = Map<String, int>.from(state.unreadCountByMailbox);
+      if (updatedUnreadMap.containsKey(event.mailboxId)) {
+        updatedUnreadMap[event.mailboxId] = unreadCount;
+      }
+
+      final updatedTotalMap = Map<String, int>.from(state.totalCountByMailbox);
+      if (updatedTotalMap.containsKey(event.mailboxId)) {
+        updatedTotalMap[event.mailboxId] = updatedMails.length;
+      }
+
+      emit(state.copyWith(
+        status: updatedMails.isEmpty ? MailListStatus.empty : MailListStatus.loaded,
+        mails: updatedMails,
+        unreadCountByMailbox: updatedUnreadMap,
+        totalUnreadCount: updatedUnreadMap.values.fold<int>(
+          0,
+          (a, b) => a + (b ?? 0),
+        ),
+        totalCountByMailbox: updatedTotalMap,
+      ));
+
+      cachedMailLists[event.mailboxId] = updatedMails;
+
+      final pendingId =
+          "${DateTime.now().microsecondsSinceEpoch}-${_pendingArchiveSequence++}";
+      _pendingArchiveUndone[pendingId] = false;
+
+      final archivedMsg = event.mailIds.length == 1
+          ? "Email archived successfully"
+          : "Emails archived successfully";
+
+      final controller = Messenger.alertAction(
+        msg: archivedMsg,
+        color: Colors.green,
+        actionLabel: "UNDO",
+        onAction: () {
+          _pendingArchiveUndone[pendingId] = true;
+          add(
+            UndoArchiveMailEvent(
+              pendingId: pendingId,
+              mailboxId: event.mailboxId,
+              mailIds: event.mailIds,
+              restoreMails: restoreMails,
+              originalIndexById: originalIndexById,
+            ),
+          );
+        },
       );
 
-      if (success) {
-        // 1️⃣ Remove archived mails from current mailbox
-        final updatedMails = state.mails
-            .where((mail) => !event.mailIds.contains(mail.id))
-            .toList();
-
-        // 2️⃣ Recalculate unread count for this mailbox
-        final unreadCount =
-            updatedMails.where((mail) => mail.seen == false).length;
-
-        final updatedUnreadMap =
-            Map<String, int>.from(state.unreadCountByMailbox);
-
-        updatedUnreadMap[event.mailboxId] = unreadCount;
-
-        // 2️⃣ Recalculate total count
-        final updatedTotalMap =
-            Map<String, int>.from(state.totalCountByMailbox);
-        updatedTotalMap[event.mailboxId] = updatedMails.length;
-
-        // 3️⃣ Emit updated state with unread counts
-        emit(updatedMails.isEmpty
-            ? state.copyWith(
-                status: MailListStatus.empty,
-                mails: [],
-                unreadCountByMailbox: updatedUnreadMap,
-                totalUnreadCount: updatedUnreadMap.values.fold<int>(
-                  0,
-                  (a, b) => a + (b ?? 0),
-                ),
-                totalCountByMailbox: updatedTotalMap,
-              )
-            : state.copyWith(
-                status: MailListStatus.loaded,
-                mails: updatedMails,
-                unreadCountByMailbox: updatedUnreadMap,
-                totalUnreadCount: updatedUnreadMap.values.fold<int>(
-                  0,
-                  (a, b) => a + (b ?? 0),
-                ),
-                totalCountByMailbox: updatedTotalMap,
-              ));
-
-        // 4️⃣ Update cache
-        cachedMailLists[event.mailboxId] = updatedMails;
-      } else {
-        emit(state.copyWith(
-          status: MailListStatus.error,
-          errorMessage: "Failed to move emails to archive.",
-        ));
-      }
+      controller?.closed.then((_) {
+        final wasUndone = _pendingArchiveUndone[pendingId] == true;
+        if (!wasUndone) {
+          add(
+            CommitArchiveMailEvent(
+              pendingId: pendingId,
+              mailboxId: event.mailboxId,
+              sourceMailboxId: sourceMailboxId,
+              mailIds: event.mailIds,
+              restoreMails: restoreMails,
+              originalIndexById: originalIndexById,
+            ),
+          );
+        }
+        _pendingArchiveUndone.remove(pendingId);
+      });
     } catch (e) {
       log("Error archiving emails: $e");
       emit(state.copyWith(
         status: MailListStatus.error,
         errorMessage: "Error archiving emails: $e",
       ));
+    }
+  }
+
+  Future<void> _onUndoArchiveMail(
+    UndoArchiveMailEvent event,
+    Emitter<MailListState> emit,
+  ) async {
+    if (event.mailIds.isEmpty) return;
+
+    final restoredMails = List<GMMailModels>.from(state.mails);
+
+    final toInsert = event.restoreMails
+        .where((m) => !restoredMails.any((x) => x.id == m.id))
+        .toList()
+      ..sort((a, b) {
+        final ai = event.originalIndexById[a.id] ?? 0;
+        final bi = event.originalIndexById[b.id] ?? 0;
+        return ai.compareTo(bi);
+      });
+
+    for (final mail in toInsert) {
+      final index =
+          (event.originalIndexById[mail.id] ?? 0).clamp(0, restoredMails.length);
+      restoredMails.insert(index, mail);
+    }
+
+    final unreadCount = restoredMails.where((mail) => mail.seen == false).length;
+    final updatedUnreadMap = Map<String, int>.from(state.unreadCountByMailbox);
+    if (updatedUnreadMap.containsKey(event.mailboxId)) {
+      updatedUnreadMap[event.mailboxId] = unreadCount;
+    }
+
+    final updatedTotalMap = Map<String, int>.from(state.totalCountByMailbox);
+    if (updatedTotalMap.containsKey(event.mailboxId)) {
+      updatedTotalMap[event.mailboxId] = restoredMails.length;
+    }
+
+    emit(state.copyWith(
+      status: restoredMails.isEmpty ? MailListStatus.empty : MailListStatus.loaded,
+      mails: restoredMails,
+      unreadCountByMailbox: updatedUnreadMap,
+      totalUnreadCount: updatedUnreadMap.values.fold<int>(
+        0,
+        (a, b) => a + (b ?? 0),
+      ),
+      totalCountByMailbox: updatedTotalMap,
+    ));
+
+    cachedMailLists[event.mailboxId] = restoredMails;
+    Messenger.alertSuccess(event.mailIds.length == 1 ? "Email unarchived" : "Emails unarchived");
+  }
+
+  Future<void> _onCommitArchiveMail(
+    CommitArchiveMailEvent event,
+    Emitter<MailListState> emit,
+  ) async {
+    if (event.mailIds.isEmpty) return;
+
+    try {
+      final success = await apiService.moveToArchive(event.mailIds, event.sourceMailboxId);
+      if (!success) {
+        throw Exception("moveToArchive failed");
+      }
+    } catch (e) {
+      final restoredMails = List<GMMailModels>.from(state.mails);
+
+      final toInsert = event.restoreMails
+          .where((m) => !restoredMails.any((x) => x.id == m.id))
+          .toList()
+        ..sort((a, b) {
+          final ai = event.originalIndexById[a.id] ?? 0;
+          final bi = event.originalIndexById[b.id] ?? 0;
+          return ai.compareTo(bi);
+        });
+
+      for (final mail in toInsert) {
+        final index = (event.originalIndexById[mail.id] ?? 0)
+            .clamp(0, restoredMails.length);
+        restoredMails.insert(index, mail);
+      }
+
+      final unreadCount =
+          restoredMails.where((mail) => mail.seen == false).length;
+      final updatedUnreadMap =
+          Map<String, int>.from(state.unreadCountByMailbox);
+      if (updatedUnreadMap.containsKey(event.mailboxId)) {
+        updatedUnreadMap[event.mailboxId] = unreadCount;
+      }
+
+      final updatedTotalMap = Map<String, int>.from(state.totalCountByMailbox);
+      if (updatedTotalMap.containsKey(event.mailboxId)) {
+        updatedTotalMap[event.mailboxId] = restoredMails.length;
+      }
+
+      emit(state.copyWith(
+        status:
+            restoredMails.isEmpty ? MailListStatus.empty : MailListStatus.loaded,
+        mails: restoredMails,
+        unreadCountByMailbox: updatedUnreadMap,
+        totalUnreadCount: updatedUnreadMap.values.fold<int>(
+          0,
+          (a, b) => a + (b ?? 0),
+        ),
+        totalCountByMailbox: updatedTotalMap,
+      ));
+
+      cachedMailLists[event.mailboxId] = restoredMails;
+      Messenger.alertError("Failed to archive emails");
     }
   }
 
