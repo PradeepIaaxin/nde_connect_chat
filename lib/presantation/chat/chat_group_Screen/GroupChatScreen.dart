@@ -5078,7 +5078,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   void _openFullEmojiPicker(
-      BuildContext context, Map<String, dynamic> message) {
+      BuildContext context, Map<String, dynamic> message)
+  {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -5321,7 +5322,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Future<void> _handleGroupReactionTap(
     Map<String, dynamic> message,
     String emoji,
-  ) async {
+  )
+  async {
     try {
       final rawId = (message['message_id'] ??
               message['messageId'] ??
@@ -5431,7 +5433,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   Future<void> _showReactionsBottomSheet(
-      Map<String, dynamic> message, String initialEmoji) async {
+      Map<String, dynamic> message, String initialEmoji)
+  async {
     // helper to build normalized reactions list for a message object
     List<Map<String, dynamic>> _normalizeFromMap(Map<String, dynamic> msg) {
       final List<Map<String, dynamic>> out = [];
