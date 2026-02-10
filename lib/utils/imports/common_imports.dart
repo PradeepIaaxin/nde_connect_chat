@@ -35,7 +35,7 @@ export 'package:nde_email/presantation/chat/chat_group_Screen/group_bloc.dart';
 export 'package:nde_email/presantation/chat/chat_private_screen/messager_api_service.dart';
 export 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/MessagerBloc.dart';
 export 'package:nde_email/presantation/chat/chat_private_screen/localstorage/local_storage.dart';
-export 'package:nde_email/presantation/chat/Socket/socket_service.dart';
+export 'package:nde_email/presantation/chat/Socket/Socket_Service.dart';
 
 // Mail
 export 'package:nde_email/presantation/mail/compose/api/api_service.dart';
