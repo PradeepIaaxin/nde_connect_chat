@@ -192,7 +192,7 @@ class _MessageBubbleState extends State<MessageBubble> {
       return const SizedBox.shrink();
     }
     bool _ignoreParentTap = false;
-
+log('isSentByMe ${widget.isSentByMe}');
     return Padding(
       padding:
           EdgeInsets.symmetric(vertical: widget.message['reactions'] != null &&
