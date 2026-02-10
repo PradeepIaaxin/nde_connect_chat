@@ -6,6 +6,7 @@ class MailboxStorage {
   static const String archiveKey = 'archive_mailbox_id';
   static const String inboxKey = 'inbox_mailbox_id';
   static const String sentKey ='sent_mailbox_id';
+  static const String trashKey = 'trash_mailbox_id';
 
   
 
@@ -75,5 +76,14 @@ static Future<String?> getSentMailboxId() async {
   return prefs.getString(sentKey);
 }
 
+static Future<void> saveTrashMailboxId(String trashMailboxId) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString(trashKey, trashMailboxId);
+}
+
+static Future<String?> getTrashMailboxId() async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getString(trashKey);
+}
 
 }

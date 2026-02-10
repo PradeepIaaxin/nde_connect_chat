@@ -145,8 +145,6 @@ class FetchMailListapi {
       );
 
       if (response.statusCode == 200) {
-        Messenger.alertSuccess('Messages deleted successfully!');
-
         return true;
       } else if (response.statusCode == 401) {
         _handleUnauthorized();
@@ -206,7 +204,6 @@ class FetchMailListapi {
     log("📥 Response Body: ${response.body}");
 
     if (response.statusCode == 200) {
-      Messenger.alertSuccess('mail archived successfully');
       return true;
     } else {
       log("❌ Failed to move emails");
