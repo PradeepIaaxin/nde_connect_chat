@@ -41,7 +41,8 @@ import '../../../data/respiratory.dart';
 import '../../../utils/simmer_effect.dart/chat_simmerefect.dart';
 import '../../widgets/chat_widgets/messager_Wifgets/ForwardMessageScreen_widget.dart';
 import '../../widgets/chat_widgets/messager_Wifgets/buildMessageInputField_widgets.dart';
-import '../Socket/socket_service.dart';
+import '../Socket/Socket_Service.dart';
+
 import '../chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
 import '../chat_list/chat_session_storage/chat_session.dart';
 import '../chat_list/chat_bloc.dart';
@@ -4085,7 +4086,8 @@ void dispose() {
   }
 
   void _openFullEmojiPicker(
-      BuildContext context, Map<String, dynamic> message) {
+      BuildContext context, Map<String, dynamic> message)
+  {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -4328,7 +4330,8 @@ void dispose() {
   Future<void> _handleGroupReactionTap(
     Map<String, dynamic> message,
     String emoji,
-  ) async {
+  )
+  async {
     try {
       final rawId = (message['message_id'] ??
               message['messageId'] ??
@@ -4438,7 +4441,8 @@ void dispose() {
   }
 
   Future<void> _showReactionsBottomSheet(
-      Map<String, dynamic> message, String initialEmoji) async {
+      Map<String, dynamic> message, String initialEmoji)
+  async {
     // helper to build normalized reactions list for a message object
     List<Map<String, dynamic>> normalizeFromMap(Map<String, dynamic> msg) {
       final List<Map<String, dynamic>> out = [];
