@@ -330,11 +330,10 @@ class _MailListScreenState extends State<MailListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<SendMailBloc, SendMailState>(
-      listener: (context, sendState) {
-        if (sendState is MailSent) {
-          debugPrint(
-              "✅ Mail sent successfully! Refreshing list for $widget.mailboxId");
+    return BlocListener<DraftBloc, DraftState>(
+      listener: (context, draftState) {
+        if (draftState is DraftSaved) {
+          debugPrint("✅ Draft saved! Refreshing list for ${widget.mailboxId}");
           _bloc.add(RefreshMailListEvent(widget.mailboxId));
         }
       },
@@ -342,9 +341,18 @@ class _MailListScreenState extends State<MailListScreen> {
         listener: (context, sendState) {
           if (sendState is MailSent) {
             debugPrint(
-                "✅ Mail sent successfully! Refreshing list for $widget.mailboxId");
+                "✅ Mail sent successfully! Refreshing list for ${widget.mailboxId}");
 
-            // Trigger silent refresh to update UI without loading spinner
+            // 1️⃣ Local removal for immediate UI sync
+            if (sendState.draftId != null &&
+                sendState.mailboxId == widget.mailboxId) {
+              _bloc.add(RemoveMailFromListEvent(
+                sendState.draftId!,
+                sendState.mailboxId!,
+              ));
+            }
+
+            // 2️⃣ Trigger silent refresh to update UI without loading spinner
             _bloc.add(RefreshMailListEvent(widget.mailboxId));
           }
         },

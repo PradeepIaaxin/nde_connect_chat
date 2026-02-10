@@ -3,8 +3,6 @@ import 'package:nde_email/presantation/mail/compose/api/api_service.dart';
 import 'save_draft_state.dart';
 import 'save_dratf_event.dart';
 
-
-
 class DraftBloc extends Bloc<DraftEvent, DraftState> {
   final ApiService apiService;
   int? lastDraftId;
@@ -13,6 +11,10 @@ class DraftBloc extends Bloc<DraftEvent, DraftState> {
     on<SaveDraftEvent>(_saveDraft);
     on<ResetDraftEvent>((event, emit) {
       lastDraftId = null;
+      emit(DraftInitial());
+    });
+    on<InitializeDraftEvent>((event, emit) {
+      lastDraftId = event.draftId;
       emit(DraftInitial());
     });
   }
@@ -30,8 +32,6 @@ class DraftBloc extends Bloc<DraftEvent, DraftState> {
 
       int? draftId =
           await apiService.saveDraft(event.mailboxId, event.draftData);
-
-          
 
       if (draftId != null) {
         lastDraftId = draftId;

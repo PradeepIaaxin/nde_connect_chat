@@ -39,7 +39,10 @@ class SendMailBloc extends Bloc<SendMailEvent, SendMailState> {
       );
 
       if (success) {
-        emit(MailSent());
+        emit(MailSent(
+          draftId: event.draftId,
+          mailboxId: event.draftMailboxId,
+        ));
       } else {
         emit(MailSendError("Failed to send email."));
       }
