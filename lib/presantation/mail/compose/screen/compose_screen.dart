@@ -37,6 +37,7 @@ class ComposeScreen extends StatefulWidget {
   final Map<String, dynamic>? draftData;
   final MailDetailModel? mailDetail;
   final ComposeAction? action;
+  final List<UploadedAttachment>? initialAttachments;
 
   final String? mailboxId;
   final int? draftId;
@@ -45,6 +46,7 @@ class ComposeScreen extends StatefulWidget {
       {super.key,
       this.draftData,
       this.mailDetail,
+      this.initialAttachments,
       this.mailboxId,
       this.draftId,
       this.action});
@@ -137,6 +139,11 @@ class _ComposeScreenState extends State<ComposeScreen> {
       }
     } else {
       _loadDraftData();
+    }
+
+    if (widget.initialAttachments != null &&
+        widget.initialAttachments!.isNotEmpty) {
+      attachments = List<UploadedAttachment>.from(widget.initialAttachments!);
     }
 
     toCont.addListener(() {
@@ -396,22 +403,56 @@ class _ComposeScreenState extends State<ComposeScreen> {
                   final attachmentIds =
                       attachments.map((e) => e.id).whereType<String>().toList();
 
-                  context.read<SendMailBloc>().add(
-                        SendMailRequest(
-                          fromEmail: fromEmail!,
-                          to: toEmails.join(','),
-                          subject: subjectCont.text,
-                          body: composeMailCont.text,
-                          attachmentIds: attachmentIds,
-                          cc: ccEmails.isNotEmpty ? ccEmails.join(',') : null,
-                          bcc:
-                              bccEmails.isNotEmpty ? bccEmails.join(',') : null,
-                          draftId: widget.draftId,
+                  final sendRequest = SendMailRequest(
+                    fromEmail: fromEmail!,
+                    to: toEmails.join(','),
+                    subject: subjectCont.text,
+                    body: composeMailCont.text,
+                    attachmentIds: attachmentIds,
+                    cc: ccEmails.isNotEmpty ? ccEmails.join(',') : null,
+                    bcc: bccEmails.isNotEmpty ? bccEmails.join(',') : null,
+                    draftId: widget.draftId,
                           draftMailboxId: widget.mailboxId,
+                  );
+
+                  final draftData = <String, dynamic>{
+                    'to': toEmails.join(', '),
+                    'cc': ccEmails.join(', '),
+                    'bcc': bccEmails.join(', '),
+                    'subject': subjectCont.text,
+                    'body': composeMailCont.text,
+                  };
+
+                  final restoredAttachments =
+                      List<UploadedAttachment>.from(attachments);
+
+                  bool undone = false;
+
+                  MyRouter.pop();
+
+                  Messenger.alertAction(
+                    msg: "Sending email",
+                    color: Colors.green,
+                    actionLabel: "UNDO",
+                    onAction: () {
+                      undone = true;
+                      MyRouter.push(
+                        screen: ComposeScreen(
+                          draftData: draftData,
+                          initialAttachments: restoredAttachments,
+                          mailboxId: widget.mailboxId,
                         ),
                       );
+                    },
+                  );
 
                   // MyRouter.pop(); // Removed early pop
+                  Future.delayed(const Duration(seconds: 5), () {
+                    if (undone) return;
+                    final ctx = MyRouter.navigatorKey.currentContext;
+                    if (ctx == null) return;
+                    ctx.read<SendMailBloc>().add(sendRequest);
+                  });
                 },
               ),
               PopupMenuButton<String>(

@@ -11,6 +11,7 @@ import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar_bloc
 import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar_state.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/error_display.dart';
+import 'package:nde_email/presantation/widgets/mail_widgets/gradient_avatar.dart';
 import 'package:nde_email/utils/router/router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
@@ -209,20 +210,11 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            CircleAvatar(
-                              radius: 30,
-                              backgroundColor: AppColors.profile,
-                              child: Text(
-                                mailDetail.from.name.isNotEmpty
-                                    ? mailDetail.from.name[0].toUpperCase()
-                                    : "U",
-                                style: const TextStyle(
-                                  fontFamily: 'Roboto',
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w500,
-                                  color: AppColors.bg,
-                                ),
-                              ),
+                            GmailAvatar(
+                              name: mailDetail.from.name.isNotEmpty
+                                  ? mailDetail.from.name
+                                  : mailDetail.from.address,
+                              radius: 24,
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -378,8 +370,7 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
                           width: double.infinity,
                           child: HtmlWidget(
                             mailDetail.html,
-                            renderMode: RenderMode
-                                .column, // Critical: forces block-level layout
+                            renderMode: RenderMode.column,
                             factoryBuilder: () => NoInlineImageWidgetFactory(),
                             onTapUrl: (url) async {
                               final uri = Uri.parse(url);
@@ -401,10 +392,6 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
                           ),
                         ),
 
-                      // HtmlWidget(
-                      //   mailDetail.html,
-                      //   onTapUrl: (url) => launchUrl(Uri.parse(url)),
-                      // ),
                       const SizedBox(height: 20),
                       if (mailDetail.attachments.isNotEmpty)
                         Wrap(
