@@ -79,7 +79,7 @@ class _ViewImageState extends State<ViewImage>
         : (widget.grpname?.isNotEmpty == true ? widget.grpname! : '');
 
     return Scaffold(
-      backgroundColor: Colors.black.withOpacity(_bgOpacity),
+      backgroundColor: Colors.black.withValues(alpha:_bgOpacity),
       body: Stack(
         children: [
           /// ================= IMAGE VIEW =================
@@ -159,7 +159,7 @@ class _ViewImageState extends State<ViewImage>
                 child: Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  color: Colors.black.withOpacity(0.35),
+                  color: Colors.black.withValues(alpha:0.35),
                   child: Row(
                     children: [
                       GestureDetector(

@@ -19,7 +19,7 @@ import 'package:nde_email/presantation/drive/view/move_screen.dart';
 import 'package:nde_email/presantation/drive/view/send_screen.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/const/consts.dart';
-import 'package:nde_email/utils/datetime/dateFormatter.dart';
+import 'package:nde_email/utils/datetime/dateformatter.dart';
 import 'package:nde_email/utils/reusbale/dowloading_mime.dart';
 import 'package:nde_email/utils/router/router.dart';
 import 'package:nde_email/utils/simmer_effect.dart/drive_simmer.dart';
@@ -97,9 +97,7 @@ class _FileDeepViewState extends State<FileDeepView> {
         body: BlocConsumer<InsideBloc, InsidefileState>(
           listener: (context, state) {
             if (state is InsideError) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Something went wrong!')),
-              );
+              Messenger.alertError("Something went wrong!");
             }
           },
           builder: (context, state) {
@@ -832,7 +830,7 @@ class _FolderListItem extends StatelessWidget {
         }
       },
       child: Container(
-        color: isSelected ? Colors.blue.withOpacity(0.1) : null,
+        color: isSelected ? Colors.blue.withValues(alpha:0.1) : null,
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 4),
           leading: Stack(

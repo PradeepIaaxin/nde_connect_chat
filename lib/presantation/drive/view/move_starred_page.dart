@@ -9,7 +9,7 @@ import 'package:nde_email/presantation/drive/model/starred/starred_model.dart';
 import 'package:nde_email/presantation/drive/view/file_inside_sceen.dart'
     show FileInsideSceen;
 
-import 'package:nde_email/utils/datetime/dateFormatter.dart';
+import 'package:nde_email/utils/datetime/dateformatter.dart';
 import 'package:nde_email/utils/simmer_effect.dart/drive_simmer.dart';
 
 class DriveStarredPage extends StatefulWidget {
@@ -108,7 +108,7 @@ class _DriveStarredPageState extends State<DriveStarredPage> {
       itemCount: folders.length,
       itemBuilder: (context, index) {
         final folder = folders[index];
-        final isFolder = folder.type?.toLowerCase() == 'folder';
+        final isFolder = folder.type.toLowerCase() == 'folder';
         final isSelected = folder.id == selectedFolderId;
 
         return GestureDetector(

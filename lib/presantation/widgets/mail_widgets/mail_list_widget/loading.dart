@@ -1,14 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 
-class loadingscreen extends StatefulWidget {
-  const loadingscreen({super.key});
+class Loadingscreen extends StatefulWidget {
+  const Loadingscreen({super.key});
 
   @override
-  State<loadingscreen> createState() => _SplashScreenState();
+  State<Loadingscreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<loadingscreen> {
+class _SplashScreenState extends State<Loadingscreen> {
   @override
   void initState() {
     super.initState();

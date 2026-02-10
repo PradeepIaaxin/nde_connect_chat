@@ -4,6 +4,8 @@ import 'package:nde_email/presantation/widgets/mail_widgets/mail_list_widget/mai
 import 'package:nde_email/utils/imports/common_imports.dart';
 import '../bloc/mail_list_event.dart';
 import '../bloc/mail_list_state.dart';
+import '../../compose/bloc/send_mail_bloc/send_mail_bloc.dart';
+import '../../compose/bloc/send_mail_bloc/send_mail_state.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/error_display.dart';
 
 class MailListScreen extends StatefulWidget {
@@ -21,6 +23,81 @@ class _MailListScreenState extends State<MailListScreen> {
   bool _canLoad = true;
 
   final ScrollController _controller = ScrollController();
+  bool _isEmptyingBin = false;
+  bool get _isTrashMailbox {
+    final name = widget.mailboxName?.trim().toLowerCase() ?? '';
+    return name == 'trash' || name == 'bin';
+  }
+
+  Future<void> _emptyBin() async {
+    if (_isEmptyingBin) return;
+
+    final shouldContinue = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Empty bin?'),
+          content: const Text('This will permanently remove the Trash mailbox.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Empty',style: TextStyle(color: Colors.red),),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldContinue != true || !mounted) return;
+
+    setState(() => _isEmptyingBin = true);
+
+    try {
+      final message = await FetchMailBoxesApi().deleteMailbox(widget.mailboxId);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+
+      MyRouter.pushNamedAndRemoveUntil('/home');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    } finally {
+      if (mounted) setState(() => _isEmptyingBin = false);
+    }
+  }
+
+  Widget _trashActions({required bool show}) {
+    if (!_isTrashMailbox || !show) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Row(
+        children: [
+          const Spacer(),
+          TextButton.icon(
+            onPressed: _isEmptyingBin ? null : _emptyBin,
+            icon: _isEmptyingBin
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.delete_sweep,color: Colors.red,),
+            label: const Text('Empty bin',style: TextStyle(color: Colors.red),),
+          ),
+        ],
+      ),
+    );
+  }
 
   String _emptyTitle() {
     final name = widget.mailboxName?.toLowerCase() ?? '';
@@ -192,6 +269,17 @@ class _MailListScreenState extends State<MailListScreen> {
   }
 
   Future<void> _onRefresh() async {
+    if (!mounted) return;
+
+    debugPrint("🔄 Pull-to-refresh triggered for ${widget.mailboxId}");
+
+    // Clear cache for current mailbox to force fresh API fetch
+    _bloc.add(ResetMailListEvent(widget.mailboxId));
+
+    // Small delay to allow reset state to emit
+    await Future.delayed(const Duration(milliseconds: 50));
+
+    // Fetch fresh data from API
     _fetch();
   }
 
@@ -204,11 +292,21 @@ class _MailListScreenState extends State<MailListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<MailListBloc, MailListState>(
-      builder: (context, state) {
-        if (state.status == MailListStatus.loading) {
-          return const Center(child: CircularProgressIndicator());
+    return BlocListener<SendMailBloc, SendMailState>(
+      listener: (context, sendState) {
+        if (sendState is MailSent) {
+          debugPrint(
+              "✅ Mail sent successfully! Refreshing list for $widget.mailboxId");
+
+          // Trigger silent refresh to update UI without loading spinner
+          _bloc.add(RefreshMailListEvent(widget.mailboxId));
         }
+      },
+      child: BlocBuilder<MailListBloc, MailListState>(
+        builder: (context, state) {
+          if (state.status == MailListStatus.loading) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
         if (state.status == MailListStatus.loaded ||
             state.status == MailListStatus.refreshing) {
@@ -240,6 +338,7 @@ class _MailListScreenState extends State<MailListScreen> {
                   onRefresh: _onRefresh,
                   child: Column(
                     children: [
+                      _trashActions(show: state.mails.isNotEmpty),
                       Expanded(
                         child: MailListWidget(
                           key: ValueKey(
@@ -304,7 +403,7 @@ class _MailListScreenState extends State<MailListScreen> {
               children: [
                 ErrorDisplay(
                   message: state.errorMessage ?? 'Something went wrong',
-                  type: ErrorType.Somethingwrong,
+                  type: ErrorType.somethingwrong,
                 ),
                 const SizedBox(height: 12),
                 ElevatedButton(
@@ -316,8 +415,9 @@ class _MailListScreenState extends State<MailListScreen> {
           );
         }
 
-        return const SizedBox.shrink();
-      },
+          return const SizedBox.shrink();
+        },
+      ),
     );
   }
 }

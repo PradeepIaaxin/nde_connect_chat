@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:nde_email/presantation/chat/chat_list/chat_response_model.dart';
 
-
 class ChatSubtitle extends StatelessWidget {
   final Datu chat;
   final Color textColor;
@@ -77,24 +76,9 @@ class ChatSubtitle extends StatelessWidget {
 
     // Text message
     return Text(
-      chat.lastMessage?.isNotEmpty == true
-          ? chat.lastMessage!
-          : "No message",
+      chat.lastMessage?.isNotEmpty == true ? chat.lastMessage! : "No message",
       overflow: TextOverflow.ellipsis,
       style: TextStyle(fontSize: 14, color: textColor),
-    );
-  }
-
-  Widget _iconText(IconData icon, String text) {
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: textColor),
-        const SizedBox(width: 4),
-        Text(
-          text,
-          style: TextStyle(fontSize: 14, color: textColor),
-        ),
-      ],
     );
   }
 }

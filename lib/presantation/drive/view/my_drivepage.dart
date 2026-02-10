@@ -144,8 +144,6 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
         return {'sortBy': 'modifiedByMe', 'order': 'desc'};
       case SortOption.dateOpenedByMe:
         return {'sortBy': 'openedByMe', 'order': 'desc'};
-      default:
-        return {'sortBy': 'updatedAt', 'order': 'desc'};
     }
   }
 
@@ -197,7 +195,7 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                                 FilePreviewScreen(fileUrl: file.preview ?? ""));
                       },
             child: Container(
-              color: isSelected ? chatColor.withOpacity(0.1) : null,
+              color: isSelected ? chatColor.withValues(alpha: 0.1) : null,
               child: ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 15),
                 leading: Stack(
@@ -461,13 +459,9 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                           );
                         }
                       : () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => FilePreviewScreen(
-                                  fileUrl: file.previewpath ?? ''),
-                            ),
-                          );
+                          MyRouter.push(
+                              screen: FilePreviewScreen(
+                                  fileUrl: file.preview ?? ""));
                         },
               behavior: HitTestBehavior.opaque,
               child: Container(
@@ -659,11 +653,6 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                                           icon: Icons.file_download_outlined,
                                           title: "Download",
                                           onTap: () async {
-                                            print(file.preview);
-                                            print(file.mimetype);
-                                            print(file.type);
-                                            print(file.name);
-
                                             log("Downloading: ${file.name}");
                                             log("File ID: ${file.id}");
                                             log("File Path: ${file.preview ?? ''}");
@@ -736,36 +725,42 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                                   child: getMimeTypeImage(file.mimetype ?? "")),
                     ),
                     ListTile(
-                      leading:
-                          file.profilePic != null && file.profilePic!.isNotEmpty
-                              ? CircleAvatar(
-                                  backgroundColor: Colors.transparent,
-                                  child: ClipOval(
-                                    child: CachedNetworkImage(
-                                      imageUrl: file.profilePic!,
-                                      width: 40,
-                                      height: 40,
-                                      memCacheWidth: 480,
-                                      memCacheHeight: 600,
-                                      fit: BoxFit.cover,
-                                      placeholder: (context, url) =>
-                                          const CircularProgressIndicator(),
-                                      errorWidget: (context, url, error) =>
-                                          CircleAvatar(
-                                        backgroundColor: AppColors.profile,
-                                        child: Text(file.name.isNotEmpty
-                                            ? file.name[0].toUpperCase()
-                                            : ""),
-                                      ),
-                                    ),
-                                  ),
-                                )
-                              : CircleAvatar(
-                                  backgroundColor: AppColors.profile,
-                                  child: Text(file.name.isNotEmpty
-                                      ? file.name[0].toUpperCase()
-                                      : ""),
+                      leading: file.profilePic != null &&
+                              file.profilePic!.isNotEmpty
+                          ? CircleAvatar(
+                              backgroundColor: Colors.transparent,
+                              child: ClipOval(
+                                child: CachedNetworkImage(
+                                  imageUrl: file.profilePic!,
+                                  width: 40,
+                                  height: 40,
+                                  memCacheWidth: 480,
+                                  memCacheHeight: 600,
+                                  fit: BoxFit.cover,
+                                  placeholder: (context, url) =>
+                                      const CircularProgressIndicator(),
+                                  errorWidget: (context, url, error) =>
+                                      CircleAvatar(
+                                          backgroundColor: AppColors.profile,
+                                          child: Text(
+                                            file.name.isNotEmpty
+                                                ? file.name[0].toUpperCase()
+                                                : "",
+                                            style: const TextStyle(
+                                                color: Colors.white),
+                                          )),
                                 ),
+                              ),
+                            )
+                          : CircleAvatar(
+                              backgroundColor: AppColors.profile,
+                              child: Text(
+                                file.name.isNotEmpty
+                                    ? file.name[0].toUpperCase()
+                                    : "",
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                            ),
                       title: const Text("You opened"),
                       subtitle: Text(
                         DateFormatted.formatToReadableDate(file.updatedAt),

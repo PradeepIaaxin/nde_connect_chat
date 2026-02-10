@@ -83,7 +83,6 @@ class MessageBubble extends StatefulWidget {
 }
 
 class _MessageBubbleState extends State<MessageBubble> {
-  List<String> _recentEmojis = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
   List<InlineSpan> _buildHighlightSpans(String text, TextStyle baseStyle) {
     final bool isDeleted = widget.message['is_deleted'] == true ||
         widget.message['messageStatus'] == 'deleted';
@@ -160,7 +159,6 @@ class _MessageBubbleState extends State<MessageBubble> {
     final String? displayImageUrl = originalUrl ??
         imageUrl ??
         ((isImage || (fileUrl != null && isImage)) ? fileUrl : null);
-    final String? userId = widget.message["sender"]?["_id"] ?? "";
     final bool? isForwarded = widget.message['isForwarded'] ?? false;
     final bool? isReplyMessage = widget.message['isReplyMessage'];
     final String messageStatus =
@@ -170,7 +168,6 @@ class _MessageBubbleState extends State<MessageBubble> {
     final replyId =
         widget.message['reply_message_id'] ?? widget.message['replyMessageId'];
     final replyContent = widget.message['replyContent'];
-    final screenWidth = MediaQuery.of(context).size.width;
     final bool isDeleted = widget.message['is_deleted'] == true ||
         widget.message['messageStatus'] == 'deleted';
 
@@ -994,7 +991,7 @@ log('isSentByMe ${widget.isSentByMe}');
                 borderRadius: BorderRadius.circular(10),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha:0.1),
                     blurRadius: 2,
                     offset: const Offset(0, 1),
                   ),
@@ -1014,7 +1011,7 @@ log('isSentByMe ${widget.isSentByMe}');
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.45),
+                color: Colors.black.withValues(alpha:0.45),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Row(
@@ -1226,7 +1223,7 @@ log('isSentByMe ${widget.isSentByMe}');
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha:0.05),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),
@@ -1574,29 +1571,6 @@ log('isSentByMe ${widget.isSentByMe}');
     return (text.length / maxCharsPerLine).ceil() > 9;
   }
 
-  Route _bottomToTopRoute(Widget page) {
-    return PageRouteBuilder(
-      transitionDuration: const Duration(milliseconds: 350),
-      reverseTransitionDuration: const Duration(milliseconds: 250),
-      pageBuilder: (context, animation, secondaryAnimation) => page,
-      transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        final curved = CurvedAnimation(
-          parent: animation,
-          curve: Curves.easeOutCubic,
-        );
-
-        final offsetAnimation = Tween<Offset>(
-          begin: const Offset(0, 1), // bottom
-          end: Offset.zero, // final position
-        ).animate(curved);
-
-        return SlideTransition(
-          position: offsetAnimation,
-          child: child,
-        );
-      },
-    );
-  }
 
   Widget _buildVideoPreviewTile(
     BuildContext context,
@@ -1677,7 +1651,7 @@ log('isSentByMe ${widget.isSentByMe}');
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.55),
+                  color: Colors.black.withValues(alpha:0.55),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Row(
@@ -1717,7 +1691,7 @@ log('isSentByMe ${widget.isSentByMe}');
                   padding:
                       const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.45),
+                    color: Colors.black.withValues(alpha:0.45),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Row(

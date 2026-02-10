@@ -23,6 +23,11 @@ class MailListState extends Equatable {
   final bool hasReachedEnd;
   final Map<String, int> unreadCountByMailbox;
   final int totalUnreadCount;
+  final Map<String, int> totalCountByMailbox;
+
+  /// Mailbox metadata
+  final String? specialUse;
+  final String? currentMailboxId;
 
   const MailListState({
     required this.status,
@@ -35,6 +40,9 @@ class MailListState extends Equatable {
     this.hasReachedEnd = false,
     this.unreadCountByMailbox = const {},
     this.totalUnreadCount = 0,
+    this.totalCountByMailbox = const {},
+    this.specialUse,
+    this.currentMailboxId,
   });
 
   factory MailListState.initial() {
@@ -46,7 +54,10 @@ class MailListState extends Equatable {
       isPaginating: false,
       unreadCountByMailbox: {},
       totalUnreadCount: 0,
+      totalCountByMailbox: {},
       hasReachedEnd: false,
+      specialUse: null,
+      currentMailboxId: null,
     );
   }
 
@@ -61,6 +72,11 @@ class MailListState extends Equatable {
     bool? hasReachedEnd,
     Map<String, int>? unreadCountByMailbox,
     int? totalUnreadCount,
+    Map<String, int>? totalCountByMailbox,
+
+    /// 🔥 Use nullable wrapper to detect pass / no-pass
+    Object? specialUse = _noChange,
+    String? currentMailboxId,
   }) {
     return MailListState(
       status: status ?? this.status,
@@ -73,6 +89,13 @@ class MailListState extends Equatable {
       hasReachedEnd: hasReachedEnd ?? this.hasReachedEnd,
       unreadCountByMailbox: unreadCountByMailbox ?? this.unreadCountByMailbox,
       totalUnreadCount: totalUnreadCount ?? this.totalUnreadCount,
+      totalCountByMailbox: totalCountByMailbox ?? this.totalCountByMailbox,
+
+      /// ✅ Correct metadata handling
+      specialUse:
+          specialUse == _noChange ? this.specialUse : specialUse as String?,
+
+      currentMailboxId: currentMailboxId ?? this.currentMailboxId,
     );
   }
 
@@ -86,5 +109,12 @@ class MailListState extends Equatable {
         isPaginating,
         snackbarMessage,
         hasReachedEnd,
+        unreadCountByMailbox,
+        totalUnreadCount,
+        totalCountByMailbox,
+        specialUse,
+        currentMailboxId,
       ];
 }
+
+const Object _noChange = Object();

@@ -62,7 +62,7 @@ class _BottomNavBarState extends State<BottomNavBar> {
                     boxShadow: [
                       BoxShadow(
                         color: const Color.fromARGB(255, 26, 25, 25)
-                            .withOpacity(0.1),
+                            .withValues(alpha:0.1),
                         spreadRadius: 2,
                         blurRadius: 6,
                         offset: const Offset(0, -2),
@@ -151,7 +151,10 @@ class _BottomNavBarState extends State<BottomNavBar> {
             iconPath,
             height: 25,
             width: 24,
-            color: selected ? AppColors.iconActive : AppColors.iconDefault,
+            colorFilter: ColorFilter.mode(
+              selected ? AppColors.iconActive : AppColors.iconDefault,
+              BlendMode.srcIn,
+            ),
           )
         : Image.asset(
             iconPath,

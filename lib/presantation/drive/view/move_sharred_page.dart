@@ -7,7 +7,7 @@ import 'package:nde_email/presantation/drive/Bloc/sharred_bloc/sharred_state.dar
 import 'package:nde_email/presantation/drive/data/sharred_repository.dart';
 import 'package:nde_email/presantation/drive/view/file_inside_sceen.dart';
 
-import 'package:nde_email/utils/datetime/dateFormatter.dart';
+import 'package:nde_email/utils/datetime/dateformatter.dart';
 import 'package:nde_email/utils/simmer_effect.dart/drive_simmer.dart';
 
 class MoveSharedPage extends StatefulWidget {
@@ -128,7 +128,7 @@ class _MoveSharedPageState extends State<MoveSharedPage> {
                                     const SizedBox(height: 4),
                                     if (folder.updatedAt != null)
                                       Text(
-                                        "Modified ${DateFormatter.formatToReadableDate(folder.updatedAt!)}",
+                                        "Modified ${DateFormatter.formatToReadableDate(folder.updatedAt)}",
                                         style: const TextStyle(fontSize: 12),
                                       ),
                                   ],
@@ -187,8 +187,8 @@ class _MoveSharedPageState extends State<MoveSharedPage> {
                                       ),
                                     Text(
                                       widget.currentSort == "Date Opened by Me"
-                                          ? 'Opened by Me ${DateFormatter.formatToReadableDate(folder.updatedAt!)}'
-                                          : 'Modified ${DateFormatter.formatToReadableDate(folder.updatedAt!)}',
+                                          ? 'Opened by Me ${DateFormatter.formatToReadableDate(folder.updatedAt)}'
+                                          : 'Modified ${DateFormatter.formatToReadableDate(folder.updatedAt)}',
                                       style: TextStyle(
                                           fontSize: 13,
                                           color: Colors.grey[600]),

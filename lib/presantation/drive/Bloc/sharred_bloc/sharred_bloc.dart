@@ -1,6 +1,5 @@
 import 'dart:developer';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nde_email/presantation/drive/Bloc/sharred_bloc/sharred_event.dart';
 import 'package:nde_email/presantation/drive/Bloc/sharred_bloc/sharred_local.dart';
@@ -15,7 +14,6 @@ class FolderBloc extends Bloc<FolderEvent, FolderState> {
   int _page = 1;
   final int _limit = 45;
   List<FolderItem> _allFolders = [];
-  String? _currentSort;
 
   FolderBloc(this.repository) : super(FolderInitial()) {
     on<FetchFolderData>(_onLoadStarredFolders);

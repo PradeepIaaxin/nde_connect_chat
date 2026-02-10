@@ -155,7 +155,7 @@ class MyDriveBloc extends Bloc<MyDriveEvent, MyDriveState> {
   Future<void> _onFavourite(
       StarredData event, Emitter<MyDriveState> emit) async {
     try {
-      final success = await repository.starred(fileIDs: event.fileID);
+      await repository.starred(fileIDs: event.fileID);
 
       for (var id in event.fileID) {
         final index = _allFolders.indexWhere((f) => f.id == id);
@@ -179,7 +179,7 @@ class MyDriveBloc extends Bloc<MyDriveEvent, MyDriveState> {
   Future<void> _onMoveToTrash(
       MoveToTrashEvent event, Emitter<MyDriveState> emit) async {
     try {
-      final success = await repository.moveToTrash(fileIDs: event.fileIDs);
+      await repository.moveToTrash(fileIDs: event.fileIDs);
 
       _allFolders.removeWhere((f) => event.fileIDs.contains(f.id));
 
@@ -213,8 +213,7 @@ class MyDriveBloc extends Bloc<MyDriveEvent, MyDriveState> {
   Future<void> _onDeleteAll(
       DeletePermanentlyEvent event, Emitter<MyDriveState> emit) async {
     try {
-      final success =
-          await repository.deletePermanently(fileIDs: event.fileIDs);
+      await repository.deletePermanently(fileIDs: event.fileIDs);
 
       /// Local folder is cleared on delete permanently
       _allFolders.removeWhere((f) => event.fileIDs.contains(f.id));
@@ -233,7 +232,7 @@ class MyDriveBloc extends Bloc<MyDriveEvent, MyDriveState> {
   Future<void> _onRestoreAll(
       RestoreEvent event, Emitter<MyDriveState> emit) async {
     try {
-      final success = await repository.restoreAll(fileIDs: event.fileIDs);
+      await repository.restoreAll(fileIDs: event.fileIDs);
       emit(MyDriveLoaded(List<Rows>.from(_allFolders), false, 'Restored'));
       add(FetchMyDriveFolders(forceRefresh: true));
     } catch (e) {

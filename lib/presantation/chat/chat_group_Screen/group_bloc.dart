@@ -49,7 +49,7 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
   Future<void> _onCrdtMessageReceived(Map<String, dynamic> payload) async {
     try {
       final convoId = payload['conversationId']?.toString();
-      print(convoId.toString());
+      log(convoId.toString());
       if (convoId == null) return;
 
       if (convoId != _activeConvoId) return;
@@ -367,7 +367,7 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
             return;
           }
 
-          final messageId = event.messageId ?? ObjectId().toString();
+          final messageId = event.messageId;
           final workspace = await UserPreferences.getDefaultWorkspace();
 
           // ✅ Correct mapping from backend response
@@ -392,10 +392,7 @@ class GroupChatBloc extends Bloc<GroupChatEvent, GroupChatState> {
             "originalKey": data["originalKey"] ?? "",
             "originalUrl": data["originalUrl"] ?? "",
           };
-
-          print("=== Sending Group Socket Message ===");
-          payload.forEach((key, value) => print("$key : $value"));
-          print("===================================");
+          log(payload.toString());
 
           grpSocket.sendMessage(
             isGroupMessage: event.isGroupMessage,

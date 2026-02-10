@@ -118,7 +118,7 @@ class StorageScreen extends StatelessWidget {
                               boxShadow: [
                                 BoxShadow(
                                   blurRadius: 6,
-                                  color: Colors.black.withOpacity(0.05),
+                                  color: Colors.black.withValues(alpha:0.05),
                                   offset: const Offset(0, 2),
                                 )
                               ],

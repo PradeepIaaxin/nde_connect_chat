@@ -184,7 +184,7 @@ class _WeeklyScheduleState extends State<WeeklySchedule> {
                                 child: Container(
                                   height: height,
                                   decoration: BoxDecoration(
-                                    color: eventColor.withOpacity(0.3),
+                                    color: eventColor.withValues(alpha:0.3),
                                     borderRadius: BorderRadius.circular(4),
                                     border: Border.all(color: eventColor),
                                   ),

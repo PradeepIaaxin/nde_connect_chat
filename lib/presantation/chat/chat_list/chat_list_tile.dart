@@ -7,8 +7,6 @@ import 'package:nde_email/presantation/chat/chat_list/chat_subtitle_widget.dart'
 import 'package:nde_email/presantation/chat/chat_list/chat_trailing_widget.dart';
 import 'package:nde_email/presantation/chat/widget/profile_avatar.dart';
 import 'package:nde_email/presantation/chat/widget/profile_dialog.dart';
-import 'package:nde_email/utils/datetime/text_utils.dart';
-
 import '../chat_ userprofile_screen/User_Profile_Screen.dart';
 import '../chat_private_screen/Private_Chat_Screen.dart';
 
@@ -39,7 +37,7 @@ class ChatListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: isSelected ? chatColor.withOpacity(0.3) : Colors.white,
+      color: isSelected ? chatColor.withValues(alpha:0.3) : Colors.white,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 4),

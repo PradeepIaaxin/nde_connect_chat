@@ -114,7 +114,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           onPressed: () => _updateFocusedDate(DateTime.now()),
           icon: CircleAvatar(
             radius: 18,
-            backgroundColor: chatColor.withOpacity(0.8),
+            backgroundColor: chatColor.withValues(alpha:0.8),
             child: Text(
               '${DateTime.now().day}',
               style: const TextStyle(

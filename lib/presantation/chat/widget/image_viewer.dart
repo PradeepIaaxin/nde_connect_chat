@@ -171,7 +171,7 @@ class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
       extendBodyBehindAppBar: true,
       appBar: _showUI
           ? AppBar(
-              backgroundColor: Colors.black.withOpacity(0.5),
+              backgroundColor: Colors.black.withValues(alpha:0.5),
               elevation: 0,
               iconTheme: const IconThemeData(color: Colors.white),
             )

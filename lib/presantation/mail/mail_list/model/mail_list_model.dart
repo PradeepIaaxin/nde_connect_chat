@@ -15,7 +15,6 @@ class GMMailModels {
   final bool attachments;
   final bool draft;
 
-
   GMMailModels({
     required this.id,
     required this.subject,
@@ -48,7 +47,7 @@ class GMMailModels {
     bool? seen,
     bool? flagged,
     bool? attachments,
-    bool? draft
+    bool? draft,
   }) {
     return GMMailModels(
       id: id ?? this.id,
@@ -65,7 +64,7 @@ class GMMailModels {
       mailboxId: mailboxId ?? this.mailboxId,
       flagged: flagged ?? this.flagged,
       attachments: attachments ?? this.attachments,
-      draft: draft ?? this.draft
+      draft: draft ?? this.draft,
     );
   }
 
@@ -86,8 +85,7 @@ class GMMailModels {
       to: toList.map((item) => Recipient.fromJson(item)).toList(),
       seen: json['seen'] ?? false,
       mailboxId: json['mailbox'],
-      draft: json["draft"] ?? false,
-
+      draft: json['draft'] ?? false,
       flagged: json['flagged'] ?? false,
       attachments: json['attachments'] ?? false,
     );
@@ -142,14 +140,16 @@ class FlagActionRequest {
   }
 }
 
-
 class MailListResponse {
   final List<GMMailModels> mails;
   final String? nextCursor;
 
+  final String? specialUse;
+
   MailListResponse({
     required this.mails,
     required this.nextCursor,
+    this.specialUse,
   });
 
   factory MailListResponse.fromJson(Map<String, dynamic> json) {
@@ -157,11 +157,11 @@ class MailListResponse {
       mails: (json['results'] as List)
           .map((e) => GMMailModels.fromJson(e))
           .toList(),
+
       nextCursor: json['nextCursor'] is String ? json['nextCursor'] : null,
+
+      /// ✅ MAP specialUse
+      specialUse: json['specialUse'],
     );
   }
 }
-
-
-
-

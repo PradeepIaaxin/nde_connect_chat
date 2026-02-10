@@ -20,7 +20,7 @@ import 'package:nde_email/presantation/drive/view/move_screen.dart';
 import 'package:nde_email/presantation/drive/view/send_screen.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/const/consts.dart';
-import 'package:nde_email/utils/datetime/dateFormatter.dart';
+import 'package:nde_email/utils/datetime/dateformatter.dart';
 import 'package:nde_email/utils/reusbale/dowloading_mime.dart';
 import 'package:nde_email/utils/router/router.dart';
 import 'package:nde_email/utils/simmer_effect.dart/drive_simmer.dart';
@@ -445,7 +445,10 @@ class _FolderGridItem extends StatelessWidget {
                 gridview: isGridView,
               ),
             );
-          } else {}
+          } else {
+            MyRouter.push(
+                screen: FilePreviewScreen(fileUrl: folder.preview ?? ""));
+          }
         }
       },
       child: Card(
@@ -601,7 +604,9 @@ class _FolderGridItem extends StatelessWidget {
                                             : '';
 
                                     if (textToShare.isNotEmpty) {
-                                      Share.share(textToShare);
+                                      await SharePlus.instance.share(
+                                        ShareParams(text: textToShare),
+                                      );
                                     } else {
                                       log("Nothing to share.");
                                     }
@@ -736,7 +741,7 @@ class _FolderListItem extends StatelessWidget {
         }
       },
       child: Container(
-        color: isSelected ? Colors.blue.withOpacity(0.1) : null,
+        color: isSelected ? Colors.blue.withValues(alpha: 0.1) : null,
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 4),
           leading: Stack(
@@ -907,7 +912,9 @@ class _FolderListItem extends StatelessWidget {
                               : '';
 
                       if (textToShare.isNotEmpty) {
-                        Share.share(textToShare);
+                        await SharePlus.instance.share(
+                          ShareParams(text: textToShare),
+                        );
                       } else {
                         log("Nothing to share.");
                       }
@@ -973,7 +980,7 @@ Color _parseColor(String hexColor, StarredFolder folder) {
 Widget _buildMimeIcon(StarredFolder folder) {
   final type = folder.type.toLowerCase();
   final mimeType = folder.mimetype?.toLowerCase() ?? '';
-  final fileName = folder.name?.toLowerCase() ?? '';
+  final fileName = folder.name.toLowerCase();
 
   // If it's a folder
   if (type == 'folder') {

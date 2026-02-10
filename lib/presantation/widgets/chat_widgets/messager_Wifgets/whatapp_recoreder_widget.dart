@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart'
     as ja; // Alias to avoid conflicts if any
 import 'package:nde_email/utils/const/consts.dart';
+import 'package:nde_email/utils/snackbar/snackbar.dart';
 
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -158,10 +159,9 @@ class _WhatsAppRecorderWidgetState extends State<WhatsAppRecorderWidget> {
       if (mounted) {
         setState(() {
           isPaused = true;
-          isPlayerReady = true; // Allow interaction even if errored
+          isPlayerReady = true;
         });
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text("Error preparing audio: $e")));
+        Messenger.alertError("Error preparing audio: $e");
       }
     }
   }
@@ -201,8 +201,7 @@ class _WhatsAppRecorderWidgetState extends State<WhatsAppRecorderWidget> {
             final len = await file.length();
             if (len == 0) {
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Audio file is empty")));
+                Messenger.alertError("Audio file is empty");
               }
               return;
             }
@@ -217,8 +216,7 @@ class _WhatsAppRecorderWidgetState extends State<WhatsAppRecorderWidget> {
             setState(() => isPlayerReady = true);
           } else {
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Recording file not found")));
+              Messenger.alertError("Recording file not found");
             }
             return;
           }
@@ -235,8 +233,7 @@ class _WhatsAppRecorderWidgetState extends State<WhatsAppRecorderWidget> {
     } catch (e) {
       debugPrint("▶️ Error playing: $e");
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text("Playback error: $e")));
+        Messenger.alertError('Playback error: $e');
       }
     }
   }
@@ -248,17 +245,7 @@ class _WhatsAppRecorderWidgetState extends State<WhatsAppRecorderWidget> {
     });
   }
 
-  // void _stopAndSend() async {
-  //   _timer?.cancel();
-  //   // Stop player before sending to release file lock if any
-  //   await audioPlayer?.stop();
-  //
-  //   final path = await recorderController.stop();
-  //   // widget.onStop(); // Close the widget
-  //   if (path != null) {
-  //     widget.onSend(path, _recordDuration);
-  //   }
-  // }
+  
   void _showTooShortMessage() {
     if (!mounted) return;
 
@@ -393,7 +380,7 @@ class _WhatsAppRecorderWidgetState extends State<WhatsAppRecorderWidget> {
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.red.withOpacity(0.1),
+                  color: Colors.red.withValues(alpha :0.1),
                 ),
                 child: const Icon(
                   Icons.pause,

@@ -150,7 +150,6 @@ class MessageForwardedSuccess extends MessagerState {
 
   MessageForwardedSuccess(this.results);
 
-  @override
   List<Object?> get props => [results];
 }
 
@@ -163,7 +162,6 @@ class MessageForwardedPartialSuccess extends MessagerState {
     required this.failures,
   });
 
-  @override
   List<Object?> get props => [successes, failures];
 }
 

@@ -11,6 +11,7 @@ import 'package:nde_email/presantation/calender/bloc/event_bloc/event_all_event.
 import 'package:nde_email/presantation/calender/common/task_creating.dart';
 import 'package:nde_email/presantation/calender/model/event_data_model.dart';
 import 'package:nde_email/utils/const/consts.dart';
+import 'package:nde_email/utils/reusbale/common_import.dart';
 import 'package:nde_email/utils/router/router.dart';
 
 class CalendarEventDetailsSheet extends StatelessWidget {
@@ -239,14 +240,7 @@ class CalendarEventDetailsSheet extends StatelessWidget {
           tooltip: 'Copy Link',
           onPressed: () {
             Clipboard.setData(ClipboardData(text: url));
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text("Meet link copied"),
-                backgroundColor: Colors.blue,
-                behavior: SnackBarBehavior.floating,
-                duration: const Duration(seconds: 2),
-              ),
-            );
+            Messenger.alertSuccess("Meet link copied");
           },
         ),
       ),
@@ -263,7 +257,7 @@ class CalendarEventDetailsSheet extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha:0.03),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),

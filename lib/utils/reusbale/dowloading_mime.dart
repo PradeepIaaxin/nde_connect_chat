@@ -18,8 +18,7 @@ class FileDownloader {
     required String mimeType,
     required String filePath,
   }) async {
-    print(
-        'Downloading file: $fileId, Name: $fileName, Type: $mimeType at $filePath');
+    log('Downloading file: $fileId, Name: $fileName, Type: $mimeType at $filePath');
     bool permissionGranted = await checkStoragePermission();
     if (!permissionGranted) {
       log("  Storage permission not granted.");
@@ -93,9 +92,6 @@ class FileDownloader {
       log("Storage permission not granted.");
       return;
     }
-
-    print(url);
-    print("url --- $url");
 
     try {
       final tempPath = '/storage/emulated/0/Download/$fileName';

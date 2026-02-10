@@ -409,41 +409,9 @@ class TaskRepository {
     }
   }
 
-  // Future<List<TaskItem>> filteringData({
-  //   required String eventId,
-  //   required String filterType,
-  // }) async {
-  //   try {
-  //     log("calling $eventId");
-  //     log("calling $filterType");
-  //     final headers = await _getHeaders();
-
-  //     final response = await http.get(
-  //       Uri.parse(filterType == "myOrder"
-  //           ? 'https://api.nowdigitaleasy.com/calendar/v1/calendar/task-list-mobile/$eventId?sortByTitle=true'
-  //           : filterType == "myDate"
-  //               ? 'https://api.nowdigitaleasy.com/calendar/v1/calendar/task-list-mobile/$eventId?sortByDate=true'
-  //               : 'https://api.nowdigitaleasy.com/calendar/v1/calendar/task-list-mobile/$eventId?sortByArchive=true'),
-  //       headers: headers,
-  //     );
-
-  //     if (response.statusCode == 200 || response.statusCode == 201) {
-  //       final List<dynamic> jsonResponse = json.decode(response.body);
-
-  //       return jsonResponse.map((e) => TaskItem.fromJson(e)).toList();
-  //     } else {
-  //       throw Exception('Failed to load task details: ${response.statusCode}');
-  //     }
-  //   } catch (e) {
-  //     log('Error in getTaskDetails: $e');
-  //     log(e);
-  //     rethrow;
-  //   }
-  // }
-
   Future<List<TaskItem>> filteringData({
     required String eventId,
-    required String filterType, // 'myOrder', 'myDate', or 'starredRecent'
+    required String filterType,
   }) async {
     try {
       final headers = await _getHeaders();
@@ -462,19 +430,15 @@ class TaskRepository {
       );
 
       final response = await http.get(uri, headers: headers);
-      
 
       if (response.statusCode == 200) {
-       
         log(response.body.toString());
         final List<dynamic> jsonResponse = json.decode(response.body);
         return jsonResponse.map((e) => TaskItem.fromJson(e)).toList();
       } else {
-        
         throw Exception('Failed to load task details: ${response.statusCode}');
       }
     } catch (e) {
-      
       log('Error in filteringData: $e');
       rethrow;
     }

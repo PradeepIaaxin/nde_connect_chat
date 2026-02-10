@@ -1,9 +1,7 @@
-
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_data_model.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_list_event.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_list_state.dart';
@@ -118,12 +116,12 @@ class _ShareChatListState extends State<ShareChatList> {
     return RepaintBoundary(
       // 🚀 huge scroll performance boost
       child: Material(
-        color: isSelected ? chatColor.withOpacity(0.08) : Colors.transparent,
+        color: isSelected ? chatColor.withValues(alpha:0.08) : Colors.transparent,
         child: InkWell(
           onTap: () => _onUserTap(user),
           onLongPress: () => _onUserLongPress(user),
-          splashColor: chatColor.withOpacity(0.1),
-          highlightColor: chatColor.withOpacity(0.05),
+          splashColor: chatColor.withValues(alpha:0.1),
+          highlightColor: chatColor.withValues(alpha:0.05),
           borderRadius: BorderRadius.circular(12),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -210,7 +208,7 @@ class _ShareChatListState extends State<ShareChatList> {
                             border: Border.all(color: Colors.white, width: 2),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
+                                color: Colors.black.withValues(alpha:0.1),
                                 blurRadius: 4,
                                 offset: const Offset(0, 2),
                               ),
@@ -285,13 +283,13 @@ class _ShareChatListState extends State<ShareChatList> {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: _searchFocusNode.hasFocus
-              ? Colors.blue.withOpacity(0.5)
+              ? Colors.blue.withValues(alpha: 0.5)
               : Colors.grey.shade300,
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),

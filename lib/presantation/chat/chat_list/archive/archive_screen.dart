@@ -41,7 +41,6 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
   bool _hasMoreItems = true;
   // List<Datu> _allChats = [];
   final Map<String, String> _typingByConvo = {};
-  StreamSubscription? _typingSub;
   @override
   void initState() {
     super.initState();
@@ -49,23 +48,6 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
     _scrollController.addListener(_scrollListener);
 
     /// 🔤 Typing listener
-    _typingSub = SocketService().typingStream.listen((data) {
-      if (!mounted) return;
-
-      if (data.isEmpty) {
-        setState(() => _typingByConvo.clear());
-        return;
-      }
-
-      final convoId = data['convoId'];
-      final message = data['message'];
-
-      if (convoId != null && message != null) {
-        setState(() {
-          _typingByConvo[convoId] = message;
-        });
-      }
-    });
 
     // Load initial data
     // _allChats = ChatSessionStorage.getChatList();
@@ -75,7 +57,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
   }
 
   Future<void> handleArchiveChat(String convoId, bool newPinState) async {
-    print('Archiving chat: $convoId to state: $newPinState');
+    log('Archiving chat: $convoId to state: $newPinState');
     SocketService().archiveChat(
       conversationId: convoId,
       nextPinnedState: newPinState,
