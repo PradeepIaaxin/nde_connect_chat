@@ -7,6 +7,7 @@ import '../bloc/mail_list_state.dart';
 import '../../compose/bloc/send_mail_bloc/send_mail_bloc.dart';
 import '../../compose/bloc/send_mail_bloc/send_mail_state.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/error_display.dart';
+import 'package:nde_email/utils/custom/custom_alret_box.dart';
 
 class MailListScreen extends StatefulWidget {
   final String mailboxId;
@@ -32,46 +33,34 @@ class _MailListScreenState extends State<MailListScreen> {
   Future<void> _emptyBin() async {
     if (_isEmptyingBin) return;
 
-    final shouldContinue = await showDialog<bool>(
+    final result = await CustomConfirmationDialog.show(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Empty bin?'),
-          content: const Text('This will permanently remove the Trash mailbox.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Empty',style: TextStyle(color: Colors.red),),
-            ),
-          ],
-        );
+      title: 'Empty bin?',
+      message: 'This will permanently remove the Trash mailbox.',
+      confirmText: 'Empty',
+      onConfirm: () async {
+        setState(() => _isEmptyingBin = true);
+        try {
+          final message =
+              await FetchMailBoxesApi().deleteMailbox(widget.mailboxId);
+
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(message)),
+          );
+        } catch (e) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e.toString())),
+          );
+        } finally {
+          if (mounted) setState(() => _isEmptyingBin = false);
+        }
       },
     );
 
-    if (shouldContinue != true || !mounted) return;
-
-    setState(() => _isEmptyingBin = true);
-
-    try {
-      final message = await FetchMailBoxesApi().deleteMailbox(widget.mailboxId);
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
-
+    if (result == true && mounted) {
       MyRouter.pushNamedAndRemoveUntil('/home');
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
-    } finally {
-      if (mounted) setState(() => _isEmptyingBin = false);
     }
   }
 
@@ -394,8 +383,8 @@ class _MailListScreenState extends State<MailListScreen> {
                             mails: state.mails,
                             mailboxId: widget.mailboxId,
                             controller: _controller,
-                          itemCount:
-                              state.mails.length + (state.isPaginating ? 1 : 0),
+                            itemCount: state.mails.length +
+                                (state.isPaginating ? 1 : 0),
                             physics: const AlwaysScrollableScrollPhysics(),
                             isPaginating: state.isPaginating,
                           ),
