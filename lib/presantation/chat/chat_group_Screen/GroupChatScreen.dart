@@ -45,7 +45,7 @@ import '../../../data/respiratory.dart';
 import '../../../utils/simmer_effect.dart/chat_simmerefect.dart';
 import '../../widgets/chat_widgets/messager_Wifgets/ForwardMessageScreen_widget.dart';
 import '../../widgets/chat_widgets/messager_Wifgets/buildMessageInputField_widgets.dart';
-import '../Socket/socket_service.dart';
+import '../Socket/Socket_Service.dart';
 
 import '../chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
 // import 'package:nde_email/presantation/chat/widget/image_viewer.dart';
