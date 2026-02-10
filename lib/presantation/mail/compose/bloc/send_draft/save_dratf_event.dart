@@ -16,3 +16,11 @@ class SaveDraftEvent extends DraftEvent {
 }
 
 class ResetDraftEvent extends DraftEvent {}
+
+class InitializeDraftEvent extends DraftEvent {
+  final int? draftId;
+  InitializeDraftEvent(this.draftId);
+
+  @override
+  List<Object?> get props => [draftId];
+}
