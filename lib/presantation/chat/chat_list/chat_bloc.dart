@@ -5,7 +5,7 @@ import 'package:hive/hive.dart';
 import 'package:nde_email/bridge_generated.dart/api.dart';
 import 'package:nde_email/convo_list_crdt.dart';
 import 'package:nde_email/data/respiratory.dart';
-import 'package:nde_email/presantation/chat/Socket/socket_service.dart';
+import 'package:nde_email/presantation/chat/Socket/Socket_Service.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/localstorage/local_storage.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/local_strorage.dart';
 import 'chat_api.dart';

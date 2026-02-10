@@ -12,7 +12,7 @@ import 'package:nde_email/presantation/chat/chat_contact_list/local_strorage.dar
 import 'package:nde_email/presantation/chat/chat_private_screen/localstorage/local_storage.dart';
 import 'package:nde_email/presantation/drive/Bloc/file_bloc/drive_local_storage.dart'
     show LocalDriveStorage;
-import 'package:nde_email/presantation/chat/Socket/socket_service.dart';
+import 'package:nde_email/presantation/chat/Socket/Socket_Service.dart';
 import 'package:nde_email/presantation/drive/Bloc/sharred_bloc/sharred_local.dart';
 import 'package:nde_email/presantation/drive/Bloc/starred_bloc/stared_local.dart';
 import 'package:nde_email/presantation/login/login_api.dart';

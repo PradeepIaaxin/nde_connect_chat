@@ -6,7 +6,7 @@ import 'package:nde_email/data/respiratory.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/localstorage/local_storage.dart';
 import 'package:objectid/objectid.dart';
 
-import '../../Socket/socket_service.dart';
+import '../../Socket/Socket_Service.dart';
 import '../messager_api_service.dart';
 import '../messager_model.dart';
 import 'MessagerEvent.dart';
