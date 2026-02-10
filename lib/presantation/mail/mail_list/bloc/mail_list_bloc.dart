@@ -41,6 +41,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
     on<FetchFilteredMailEvent>(_onFetchFilteredMail);
     on<ToggleFlagEvent>(_onToggleFlagEvent);
     on<RevertArchiveEvent>(_onRevertArchive);
+    on<RemoveMailFromListEvent>(_onRemoveMailFromList);
 
     on<ResetMailListEvent>((event, emit) {
       // 🔥 Reset ONLY active mailbox, not everything
@@ -421,7 +422,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
                 unreadCountByMailbox: updatedUnreadMap,
                 totalUnreadCount: updatedUnreadMap.values.fold<int>(
                   0,
-                  (a, b) => a + (b ?? 0),
+                  (a, b) => a + b,
                 ),
                 totalCountByMailbox: updatedTotalMap,
               ));
@@ -506,7 +507,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
                 unreadCountByMailbox: updatedUnreadMap,
                 totalUnreadCount: updatedUnreadMap.values.fold<int>(
                   0,
-                  (a, b) => a + (b ?? 0),
+                  (a, b) => a + b,
                 ),
                 totalCountByMailbox: updatedTotalMap,
               ));
@@ -1363,5 +1364,37 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
     if (!isFromFlaggedScreen) {
       cachedMailLists[mailboxId] = originalMails;
     }
+  }
+
+  void _onRemoveMailFromList(
+    RemoveMailFromListEvent event,
+    Emitter<MailListState> emit,
+  ) {
+    log("🗑️ Removing mail local from UI: ${event.mailId}");
+
+    // 1️⃣ Remove from current list
+    final updatedMails =
+        state.mails.where((mail) => mail.id != event.mailId).toList();
+
+    // 2️⃣ Recalculate unread count
+    final unreadCount = updatedMails.where((mail) => !mail.seen).length;
+
+    final updatedUnreadMap = Map<String, int>.from(state.unreadCountByMailbox);
+    updatedUnreadMap[event.mailboxId] = unreadCount;
+
+    final updatedTotalMap = Map<String, int>.from(state.totalCountByMailbox);
+    updatedTotalMap[event.mailboxId] = updatedMails.length;
+
+    // 3️⃣ Emit updated state
+    emit(state.copyWith(
+      mails: updatedMails,
+      unreadCountByMailbox: updatedUnreadMap,
+      totalUnreadCount: updatedUnreadMap.values.fold<int>(0, (a, b) => a + b),
+      totalCountByMailbox: updatedTotalMap,
+      status: updatedMails.isEmpty ? MailListStatus.empty : state.status,
+    ));
+
+    // 4️⃣ Update cache
+    cachedMailLists[event.mailboxId] = updatedMails;
   }
 }

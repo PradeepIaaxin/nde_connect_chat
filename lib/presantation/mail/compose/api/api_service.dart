@@ -94,6 +94,8 @@ class ApiService {
     required List<String> attachmentIds,
     String? ccEmail,
     String? bccEmail,
+    int? draftId,
+    String? draftMailboxId,
   }) async {
     try {
       String? accessToken = await UserPreferences.getAccessToken();
@@ -104,16 +106,16 @@ class ApiService {
         return Future.error('Access token is missing, logging out...');
       }
 
-      String? mailboxId = await MailboxStorage.getDraftsMailboxId();
-      if (mailboxId == null || mailboxId.isEmpty) {
+      String? draftsMailboxId = await MailboxStorage.getDraftsMailboxId();
+      if (draftsMailboxId == null || draftsMailboxId.isEmpty) {
         return Future.error("Drafts mailbox ID is missing.");
       }
-      log("📩 Drafts Mailbox ID: $mailboxId");
+      log("📩 Drafts Mailbox ID: $draftsMailboxId");
 
       final currentDateTime = DateTime.now().toUtc().toIso8601String();
 
       final payload = {
-        "mailbox": mailboxId,
+        "mailbox": draftsMailboxId,
         "emailData": {
           "date": currentDateTime,
           "draft": true,
@@ -140,6 +142,11 @@ class ApiService {
           "subject": subject,
           "text": body,
           "html": "<p>${body.replaceAll('\n', '<br>')}</p>",
+          if (draftId != null && draftMailboxId != null)
+            "replacePrevious": {
+              "mailbox": draftMailboxId,
+              "id": draftId.toString(),
+            },
         }
       };
 
@@ -147,7 +154,7 @@ class ApiService {
       log("📎 Attachment IDs: $attachmentIds");
 
       final String apiUrl =
-          '$baseUrl/user/mail/submit/draft/$mailboxId?deleteFiles=true';
+          '$baseUrl/user/mail/submit/draft/$draftsMailboxId?deleteFiles=true';
       log("🌍 API URL: $apiUrl");
 
       final response = await http.post(
