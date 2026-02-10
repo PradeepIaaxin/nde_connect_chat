@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:nde_email/presantation/chat/chat_ userprofile_screen/user_profile_screen.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/ChateHomeMoreOptionsButton.dart';
-import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/SearchAppBar_Widget.dart'
+import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/search_appbar_widget.dart'
     show SearchAppBar;
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/longpressappbar_widget.dart';
 import 'package:nde_email/utils/reusbale/colour_utlis.dart';
@@ -111,14 +111,7 @@ class CommonAppBarBuilder {
 
                 if (textToCopy.trim().isNotEmpty) {
                   Clipboard.setData(ClipboardData(text: textToCopy)).then((_) {
-                    // if (context.mounted) {
-                    //   ScaffoldMessenger.of(context).showSnackBar(
-                    //     const SnackBar(
-                    //       content: Text('Message copied'),
-                    //       duration: Duration(seconds: 2),
-                    //     ),
-                    //   );
-                    // }
+                    
                   });
                 }
                 toggleSelectionMode();
@@ -196,6 +189,7 @@ class CommonAppBarBuilder {
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.white,
           shadowColor: Colors.white,
+          
           scrolledUnderElevation: 0.0,
           leadingWidth: 90,
           leading: Row(

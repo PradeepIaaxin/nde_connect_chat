@@ -117,7 +117,7 @@ class _SwipeToReplyState extends State<SwipeToReply>
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: _isThresholdReached
-                      ? widget.iconColor.withOpacity(0.1)
+                      ? widget.iconColor.withValues(alpha:0.1)
                       : Colors.transparent,
                   shape: BoxShape.circle,
                 ),
@@ -125,7 +125,7 @@ class _SwipeToReplyState extends State<SwipeToReply>
                   widget.icon,
                   color: _isThresholdReached
                       ? widget.iconColor
-                      : widget.iconColor.withOpacity(0.6),
+                      : widget.iconColor.withValues(alpha:0.6),
                   size: 24,
                 ),
               ),

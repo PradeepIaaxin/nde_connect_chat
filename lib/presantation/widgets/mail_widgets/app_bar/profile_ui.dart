@@ -6,6 +6,8 @@ import 'package:nde_email/presantation/chat/Socket/Socket_Service.dart';
 import 'package:nde_email/presantation/chat/chat_list/chat_session_storage/chat_session.dart';
 
 class ProfileDialog extends StatefulWidget {
+  const ProfileDialog({super.key});
+
   @override
   State<ProfileDialog> createState() => _ProfileDialogState();
 }

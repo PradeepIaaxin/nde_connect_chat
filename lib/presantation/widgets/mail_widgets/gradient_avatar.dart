@@ -5,10 +5,10 @@ class GradientAvatar extends StatelessWidget {
   final double radius;
 
   const GradientAvatar({
-    Key? key,
+    super.key,
     required this.name,
     this.radius = 28,
-  }) : super(key: key);
+  });
 
   List<Color> _generateAvatarColors(String name) {
     List<List<Color>> gradientColors = [
@@ -43,7 +43,7 @@ class GradientAvatar extends StatelessWidget {
           ),
           boxShadow: [
             BoxShadow(
-              color: colors.last.withOpacity(0.6),
+              color: colors.last.withValues(alpha:0.6),
               blurRadius: 15,
               spreadRadius: 3,
               offset: Offset(0, 6),
@@ -59,7 +59,7 @@ class GradientAvatar extends StatelessWidget {
             fontSize: radius * 0.8,
             shadows: [
               Shadow(
-                color: Colors.black.withOpacity(0.5),
+                color: Colors.black.withValues(alpha:0.5),
                 blurRadius: 2,
                 offset: Offset(0, 1),
               )

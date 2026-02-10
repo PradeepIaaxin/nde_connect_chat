@@ -250,11 +250,11 @@ class _ChatListScreenState extends State<ChatListScreen> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(40),
           color: isSelected
-              ? const Color(0xFF0011FF).withOpacity(0.1)
+              ? const Color(0xFF0011FF).withValues(alpha:0.1)
               : Colors.white,
           border: Border.all(
             color: isSelected
-                ? const Color(0xFF0011FF).withOpacity(0.1)
+                ? const Color(0xFF0011FF).withValues(alpha:0.1)
                 : Colors.grey.shade300,
           ),
         ),
@@ -763,7 +763,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                           horizontal: 14, vertical: 5),
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.circular(24),
-                                        color: Colors.black.withOpacity(0.08),
+                                        color: Colors.black.withValues(alpha:0.08),
                                       ),
                                       child: Row(
                                         children: [

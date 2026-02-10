@@ -21,9 +21,7 @@ class Auth {
       final statusCode = response.statusCode;
       final body = response.body;
 
-      Map<String, dynamic> data;
       try {
-        data = jsonDecode(body);
         // log(data.toString());
       } catch (e) {
         log(e.toString());

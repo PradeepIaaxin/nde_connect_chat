@@ -72,14 +72,24 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
     FetchMailListEvent event,
     Emitter<MailListState> emit,
   ) async {
-    // ✅ Prevent duplicate fetch for same mailbox
-    if (!event.isLoadMore &&
-        activeMailboxId == event.mailboxId &&
-        cachedMailLists.containsKey(event.mailboxId)) {
-      return;
+    /// 🔥 0️⃣ HARD RESET when mailbox changes
+    /// Prevents Junk/Trash/Sent leaking
+    if (state.currentMailboxId != event.mailboxId) {
+      emit(state.copyWith(
+        status: MailListStatus.loading,
+        mails: [],
+        nextCursor: null,
+        isPaginating: false,
+
+        /// Reset mailbox metadata
+        specialUse: null,
+
+        /// Track active mailbox
+        currentMailboxId: event.mailboxId,
+      ));
     }
 
-    // 1️⃣ Serve cache (only for first load, not pagination)
+    /// ✅ 1️⃣ Serve cache (fast UI rebuild)
     if (!event.isLoadMore && cachedMailLists.containsKey(event.mailboxId)) {
       final cachedMails = cachedMailLists[event.mailboxId]!;
 
@@ -89,11 +99,16 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
         mails: cachedMails,
         nextCursor: state.nextCursor,
         isPaginating: false,
+
+        /// Cache has NO metadata
+        specialUse: null,
+        currentMailboxId: event.mailboxId,
       ));
+
       return;
     }
 
-    // 2️⃣ Emit loading states
+    /// ✅ 2️⃣ Loading / Pagination state
     if (event.isLoadMore) {
       emit(state.copyWith(isPaginating: true));
     } else {
@@ -102,11 +117,13 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
         errorMessage: null,
         mails: [],
         nextCursor: null,
+        specialUse: null,
+        currentMailboxId: event.mailboxId,
       ));
     }
 
     try {
-      // 3️⃣ API call
+      /// ✅ 3️⃣ API call
       final response = await apiService.fetchMailList(
         event.mailboxId,
         cursor: event.cursor,
@@ -114,31 +131,35 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
 
       final List<GMMailModels> fetchedMails = response.mails;
 
-      // Normalize cursor
+      /// Normalize cursor safely
       final String? nextCursor =
           response.nextCursor is String ? response.nextCursor : null;
 
-      // 4️⃣ Empty inbox
+      /// ✅ 4️⃣ Handle empty mailbox
       if (fetchedMails.isEmpty) {
         emit(state.copyWith(
           status: MailListStatus.empty,
           mails: [],
           nextCursor: null,
           isPaginating: false,
+
+          /// Metadata from API
+          specialUse: response.specialUse,
+          currentMailboxId: event.mailboxId,
         ));
         return;
       }
 
-      // 5️⃣ Merge pagination FIRST
+      /// ✅ 5️⃣ Merge pagination
       final List<GMMailModels> updatedMails =
           event.isLoadMore ? [...state.mails, ...fetchedMails] : fetchedMails;
 
-      // 6️⃣ Cache only first page
+      /// ✅ 6️⃣ Cache first page only
       if (!event.isLoadMore) {
         cachedMailLists[event.mailboxId] = updatedMails;
       }
 
-      // 🔢 7️⃣ CALCULATE unread count (✅ CORRECT PLACE)
+      /// ✅ 7️⃣ Calculate unread counts
       final unreadCount =
           updatedMails.where((mail) => mail.seen == false).length;
 
@@ -146,31 +167,191 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
           Map<String, int>.from(state.unreadCountByMailbox);
 
       updatedUnreadMap[event.mailboxId] = unreadCount;
+
       final totalUnread = updatedUnreadMap.values.fold<int>(
         0,
-        (a, b) => a + (b ?? 0),
+        (a, b) => a + b,
       );
 
-      // 8️⃣ SUCCESS emit
+      /// ✅ Calculate total mail counts
+      final updatedTotalMap = Map<String, int>.from(state.totalCountByMailbox);
+
+      updatedTotalMap[event.mailboxId] = updatedMails.length;
+
+      /// ✅ 8️⃣ SUCCESS emit
       emit(state.copyWith(
         status: MailListStatus.loaded,
         mails: updatedMails,
         unreadCountByMailbox: updatedUnreadMap,
         totalUnreadCount: totalUnread,
+        totalCountByMailbox: updatedTotalMap,
         nextCursor: nextCursor,
         isPaginating: false,
+        specialUse: response.specialUse,
+        currentMailboxId: event.mailboxId,
       ));
-      activeMailboxId = event.mailboxId;
     } catch (e, stack) {
-      log("Mail list fetch error", error: e, stackTrace: stack);
+      log(
+        "Mail list fetch error",
+        error: e,
+        stackTrace: stack,
+      );
 
+      /// ❌ ERROR emit
       emit(state.copyWith(
         status: MailListStatus.error,
         errorMessage: "Failed to load mails",
         isPaginating: false,
+        specialUse: null,
+        currentMailboxId: event.mailboxId,
       ));
     }
   }
+
+  // Future<void> _onFetchMailList(
+  //   FetchMailListEvent event,
+  //   Emitter<MailListState> emit,
+  // ) async {
+  //   /// 🔥 0️⃣ HARD RESET mailbox metadata when mailbox changes
+  //   /// Prevents Junk/Trash/Sent leaking into Inbox UI
+  //   if (activeMailboxId != event.mailboxId) {
+  //     emit(state.copyWith(
+  //       specialUse: null,
+  //     ));
+  //   }
+
+  //   /// ✅ 1️⃣ Prevent duplicate fetch for same mailbox
+  //   /// BUT still serve cache to rebuild UI
+  //   if (!event.isLoadMore &&
+  //       activeMailboxId == event.mailboxId &&
+  //       cachedMailLists.containsKey(event.mailboxId)) {
+  //     final cachedMails = cachedMailLists[event.mailboxId]!;
+
+  //     emit(state.copyWith(
+  //       status:
+  //           cachedMails.isEmpty ? MailListStatus.empty : MailListStatus.loaded,
+  //       mails: cachedMails,
+  //       isPaginating: false,
+  //       nextCursor: state.nextCursor,
+
+  //       /// Always reset — cache has no mailbox metadata
+  //       specialUse: null,
+  //     ));
+
+  //     return;
+  //   }
+
+  //   /// ✅ 2️⃣ Serve cache (first load only, not pagination)
+  //   if (!event.isLoadMore && cachedMailLists.containsKey(event.mailboxId)) {
+  //     final cachedMails = cachedMailLists[event.mailboxId]!;
+
+  //     emit(state.copyWith(
+  //       status:
+  //           cachedMails.isEmpty ? MailListStatus.empty : MailListStatus.loaded,
+  //       mails: cachedMails,
+  //       nextCursor: state.nextCursor,
+  //       isPaginating: false,
+  //       specialUse: null,
+  //     ));
+
+  //     activeMailboxId = event.mailboxId;
+  //     return;
+  //   }
+
+  //   /// ✅ 3️⃣ Emit loading states
+  //   if (event.isLoadMore) {
+  //     emit(state.copyWith(isPaginating: true));
+  //   } else {
+  //     emit(state.copyWith(
+  //       status: MailListStatus.loading,
+  //       errorMessage: null,
+  //       mails: [],
+  //       nextCursor: null,
+  //       specialUse: null,
+  //     ));
+  //   }
+
+  //   try {
+  //     /// ✅ 4️⃣ API call
+  //     final response = await apiService.fetchMailList(
+  //       event.mailboxId,
+  //       cursor: event.cursor,
+  //     );
+
+  //     final List<GMMailModels> fetchedMails = response.mails;
+
+  //     /// Normalize cursor safely
+  //     final String? nextCursor =
+  //         response.nextCursor is String ? response.nextCursor : null;
+
+  //     /// ✅ 5️⃣ Handle empty mailbox
+  //     if (fetchedMails.isEmpty) {
+  //       emit(state.copyWith(
+  //         status: MailListStatus.empty,
+  //         mails: [],
+  //         nextCursor: null,
+  //         isPaginating: false,
+
+  //         /// Mailbox metadata from API
+  //         specialUse: response.specialUse,
+  //       ));
+
+  //       activeMailboxId = event.mailboxId;
+  //       return;
+  //     }
+
+  //     /// ✅ 6️⃣ Merge pagination
+  //     final List<GMMailModels> updatedMails =
+  //         event.isLoadMore ? [...state.mails, ...fetchedMails] : fetchedMails;
+
+  //     /// ✅ 7️⃣ Cache only first page
+  //     if (!event.isLoadMore) {
+  //       cachedMailLists[event.mailboxId] = updatedMails;
+  //     }
+
+  //     /// ✅ 8️⃣ Calculate unread counts
+  //     final unreadCount =
+  //         updatedMails.where((mail) => mail.seen == false).length;
+
+  //     final updatedUnreadMap =
+  //         Map<String, int>.from(state.unreadCountByMailbox);
+
+  //     updatedUnreadMap[event.mailboxId] = unreadCount;
+
+  //     final totalUnread = updatedUnreadMap.values.fold<int>(
+  //       0,
+  //       (a, b) => a + b,
+  //     );
+
+  //     /// ✅ 9️⃣ SUCCESS emit
+  //     emit(state.copyWith(
+  //       status: MailListStatus.loaded,
+  //       mails: updatedMails,
+  //       unreadCountByMailbox: updatedUnreadMap,
+  //       totalUnreadCount: totalUnread,
+  //       nextCursor: nextCursor,
+  //       isPaginating: false,
+  //       specialUse: response.specialUse,
+  //     ));
+
+  //     /// Update active mailbox tracker
+  //     activeMailboxId = event.mailboxId;
+  //   } catch (e, stack) {
+  //     log(
+  //       "Mail list fetch error",
+  //       error: e,
+  //       stackTrace: stack,
+  //     );
+
+  //     /// ✅ ERROR emit
+  //     emit(state.copyWith(
+  //       status: MailListStatus.error,
+  //       errorMessage: "Failed to load mails",
+  //       isPaginating: false,
+  //       specialUse: null,
+  //     ));
+  //   }
+  // }
 
   Future<void> _onRevertArchive(
     RevertArchiveEvent event,
@@ -207,6 +388,11 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
 
         updatedUnreadMap[event.mailboxId] = unreadCount;
 
+        // Recalculate total count
+        final updatedTotalMap =
+            Map<String, int>.from(state.totalCountByMailbox);
+        updatedTotalMap[event.mailboxId] = updatedMails.length;
+
         // 3️⃣ Emit updated state
         emit(updatedMails.isEmpty
             ? state.copyWith(
@@ -215,8 +401,9 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
                 unreadCountByMailbox: updatedUnreadMap,
                 totalUnreadCount: updatedUnreadMap.values.fold<int>(
                   0,
-                  (a, b) => a + (b ?? 0),
+                  (a, b) => a + (b),
                 ),
+                totalCountByMailbox: updatedTotalMap,
               )
             : state.copyWith(
                 status: MailListStatus.loaded,
@@ -226,6 +413,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
                   0,
                   (a, b) => a + (b ?? 0),
                 ),
+                totalCountByMailbox: updatedTotalMap,
               ));
 
         // 4️⃣ Update cache
@@ -285,6 +473,11 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
 
         updatedUnreadMap[event.fromMailboxId] = unreadCount;
 
+        // Recalculate total count
+        final updatedTotalMap =
+            Map<String, int>.from(state.totalCountByMailbox);
+        updatedTotalMap[event.fromMailboxId] = updatedMails.length;
+
         // 3️⃣ Emit updated state
         emit(updatedMails.isEmpty
             ? state.copyWith(
@@ -295,6 +488,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
                   0,
                   (a, b) => a + (b ?? 0),
                 ),
+                totalCountByMailbox: updatedTotalMap,
               )
             : state.copyWith(
                 status: MailListStatus.loaded,
@@ -304,6 +498,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
                   0,
                   (a, b) => a + (b ?? 0),
                 ),
+                totalCountByMailbox: updatedTotalMap,
               ));
 
         // 4️⃣ Update cache
@@ -466,6 +661,11 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
 
         updatedMap[event.mailboxId] = unreadCount;
 
+        // 🔢 Recalculate total count
+        final updatedTotalMap =
+            Map<String, int>.from(state.totalCountByMailbox);
+        updatedTotalMap[event.mailboxId] = updatedMails.length;
+
         emit(updatedMails.isEmpty
             ? state.copyWith(
                 status: MailListStatus.empty,
@@ -475,6 +675,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
                   0,
                   (a, b) => a + (b ?? 0),
                 ),
+                totalCountByMailbox: updatedTotalMap,
               )
             : state.copyWith(
                 status: MailListStatus.loaded,
@@ -484,6 +685,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
                   0,
                   (a, b) => a + (b ?? 0),
                 ),
+                totalCountByMailbox: updatedTotalMap,
               ));
 
         cachedMailLists[event.mailboxId] = updatedMails;
@@ -538,6 +740,11 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
 
         updatedUnreadMap[event.mailboxId] = unreadCount;
 
+        // 2️⃣ Recalculate total count
+        final updatedTotalMap =
+            Map<String, int>.from(state.totalCountByMailbox);
+        updatedTotalMap[event.mailboxId] = updatedMails.length;
+
         // 3️⃣ Emit updated state with unread counts
         emit(updatedMails.isEmpty
             ? state.copyWith(
@@ -548,6 +755,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
                   0,
                   (a, b) => a + (b ?? 0),
                 ),
+                totalCountByMailbox: updatedTotalMap,
               )
             : state.copyWith(
                 status: MailListStatus.loaded,
@@ -557,6 +765,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
                   0,
                   (a, b) => a + (b ?? 0),
                 ),
+                totalCountByMailbox: updatedTotalMap,
               ));
 
         // 4️⃣ Update cache
@@ -804,8 +1013,22 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
     ));
 
     // 4️⃣ Update cache optimistically (only if not flagged screen)
-    if (!event.isFromFlaggedScreen) {
-      cachedMailLists[event.mailboxId] = optimisticMails;
+    // if (!event.isFromFlaggedScreen) {
+    //   cachedMailLists[event.mailboxId] = optimisticMails;
+    // }
+
+    if (!event.isFromFlaggedScreen &&
+        cachedMailLists.containsKey(event.mailboxId)) {
+      final cached = cachedMailLists[event.mailboxId]!;
+
+      final updatedCache = cached.map((mail) {
+        if (event.ids.contains(mail.id)) {
+          return mail.copyWith(flagged: event.isFlagged);
+        }
+        return mail;
+      }).toList();
+
+      cachedMailLists[event.mailboxId] = updatedCache;
     }
 
     try {

@@ -2,10 +2,10 @@ import 'dart:developer';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:nde_email/utils/snackbar/snackbar.dart';
-import 'package:open_file/open_file.dart';
+
 import 'package:path/path.dart' as p;
 import 'package:permission_handler/permission_handler.dart';
-
+import 'package:open_filex/open_filex.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/bloc/profile_screen_bloc.dart';
@@ -285,14 +285,13 @@ class DocsTab extends StatelessWidget {
             : "Unknown.pdf");
   }
 
-  void _openFile(
+  void _OpenFilex(
       BuildContext context, String urlOrPath, String? fileType) async {
     // 1. If it's a local file, just open it
     if (!urlOrPath.startsWith('http')) {
-      final result = await OpenFile.open(urlOrPath);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Could not open local file.")),
-      );
+      await OpenFilex.open(urlOrPath);
+      Messenger.alertError("Could not open local file.");
+
       return;
     }
 
@@ -318,46 +317,49 @@ class DocsTab extends StatelessWidget {
       if (extension.isEmpty) {
         if (fileType != null) {
           final lowerType = fileType.toLowerCase();
-          if (lowerType.contains('pdf')){
-            extension = '.pdf';}
-          else if (lowerType.contains('word') ||
+          if (lowerType.contains('pdf')) {
+            extension = '.pdf';
+          } else if (lowerType.contains('word') ||
               lowerType.contains('doc') ||
-              lowerType.contains('msword')){
-            extension = '.docx';}
-          else if (lowerType.contains('excel') ||
+              lowerType.contains('msword')) {
+            extension = '.docx';
+          } else if (lowerType.contains('excel') ||
               lowerType.contains('sheet') ||
-              lowerType.contains('spreadsheet')){
-            extension = '.xlsx';}
-          else if (lowerType.contains('presentation') ||
-              lowerType.contains('powerpoint')){
-            extension = '.pptx';}
-          else if (lowerType.contains('image')){
-            extension = '.jpg';}
-          else if (lowerType.contains('video')){
-            extension = '.mp4';}
-          else if (lowerType.contains('text') || lowerType.contains('plain')){
-            extension = '.txt';}
-          else if (lowerType.contains('csv')){
-            extension = '.csv';}
-          else if (lowerType.contains('zip')){
-            extension = '.zip';}
-          else if (lowerType.contains('rar')){
-            extension = '.rar';}
-          else if (lowerType.contains('json')){
-            extension = '.json';}
-          else if (lowerType.contains('xml')) extension = '.xml';
+              lowerType.contains('spreadsheet')) {
+            extension = '.xlsx';
+          } else if (lowerType.contains('presentation') ||
+              lowerType.contains('powerpoint')) {
+            extension = '.pptx';
+          } else if (lowerType.contains('image')) {
+            extension = '.jpg';
+          } else if (lowerType.contains('video')) {
+            extension = '.mp4';
+          } else if (lowerType.contains('text') ||
+              lowerType.contains('plain')) {
+            extension = '.txt';
+          } else if (lowerType.contains('csv')) {
+            extension = '.csv';
+          } else if (lowerType.contains('zip')) {
+            extension = '.zip';
+          } else if (lowerType.contains('rar')) {
+            extension = '.rar';
+          } else if (lowerType.contains('json')) {
+            extension = '.json';
+          } else if (lowerType.contains('xml')) extension = '.xml';
         }
 
         // Fallback checks on filename/url matching common patterns if no type or type didn't match
         if (extension.isEmpty) {
           final lowerName = safeFileName.toLowerCase();
-          if (lowerName.contains('pdf')){
-            extension = '.pdf';}
-          else if (lowerName.contains('doc')){
-            extension = '.docx';}
-          else if (lowerName.contains('xls')){
-            extension = '.xlsx';}
-          else if (lowerName.contains('ppt')) {extension = '.pptx';}
+          if (lowerName.contains('pdf')) {
+            extension = '.pdf';
+          } else if (lowerName.contains('doc')) {
+            extension = '.docx';
+          } else if (lowerName.contains('xls')) {
+            extension = '.xlsx';
+          } else if (lowerName.contains('ppt')) {
+            extension = '.pptx';
+          }
         }
 
         if (extension.isNotEmpty) {
@@ -370,11 +372,9 @@ class DocsTab extends StatelessWidget {
 
       if (await targetFile.exists()) {
         // Open existing
-        final result = await OpenFile.open(finalPath);
+        final result = await OpenFilex.open(finalPath);
         if (result.type != ResultType.done) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Could not open file.")),
-          );
+          Messenger.alertError("Could not open file.");
         }
         return;
       }
@@ -394,17 +394,12 @@ class DocsTab extends StatelessWidget {
       Messenger.alertSuccess('Saved to NowDigitalEasy/Media');
 
       // 5. Open
-      final result = await OpenFile.open(finalPath);
+      final result = await OpenFilex.open(finalPath);
       if (result.type != ResultType.done) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Could not open downloaded file.")),
-        );
+        Messenger.alertError('Could not open downloaded file.');
       }
     } catch (e) {
-      print("Error downloading/opening file: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to open file.")),
-      );
+      Messenger.alertError('Failed to open file');
     }
   }
 
@@ -451,12 +446,10 @@ class DocsTab extends StatelessWidget {
                 ),
                 onTap: () {
                   if (item.originalUrl != null) {
-                    _openFile(context, item.originalUrl!, item.meta?.mimeType);
+                    _OpenFilex(context, item.originalUrl!, item.meta?.mimeType);
                   } else {
                     log("No URL available for this document");
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Document URL not found")),
-                    );
+                    Messenger.alertError("Document URL not found");
                   }
                 },
               );

@@ -30,8 +30,9 @@ class ShimmerListLoader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
-      physics: const NeverScrollableScrollPhysics(), // Disable scrolling
-      itemCount: itemCount > 12 ? 12 : itemCount, // Limit to max 8 items
+      shrinkWrap: true, 
+      physics: const NeverScrollableScrollPhysics(), 
+      itemCount: itemCount > 12 ? 12 : itemCount, 
       itemBuilder: (context, index) {
         return Padding(
           padding: padding,

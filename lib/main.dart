@@ -18,7 +18,6 @@ import 'package:nde_email/utils/appsharescreen/sharepreviewscreen.dart';
 import 'package:nde_email/utils/fcm_handler/awesome_notification_service.dart';
 import 'package:nde_email/utils/fcm_handler/fcm_handler.dart';
 import 'package:nde_email/utils/imports/common_imports.dart';
-import 'dart:io';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -60,19 +59,19 @@ void main() async {
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
   FirebaseMessaging.onMessage.listen((message) {
-    print("🔥 FCM DATA: ${message.data}");
+    log("🔥 FCM DATA: ${message.data}");
     AwesomeNotificationService.show(message);
   });
 
 // Notification click
   FirebaseMessaging.onMessageOpenedApp.listen((message) {
-    print("👆 Notification clicked: ${message.data}");
+    log("👆 Notification clicked: ${message.data}");
   });
 
 // Terminated launch
   FirebaseMessaging.instance.getInitialMessage().then((message) {
     if (message != null) {
-      print("🚀 Opened from killed state: ${message.data}");
+      log("🚀 Opened from killed state: ${message.data}");
     }
   });
 
@@ -145,11 +144,11 @@ Future<void> getFcmToken() async {
 
   // Get token
   String? token = await messaging.getToken();
-  print("🔥 FCM TOKEN: $token");
+  log("🔥 FCM TOKEN: $token");
 
   // Listen token refresh
   FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
-    print("🔄 NEW FCM TOKEN: $newToken");
+    log("🔄 NEW FCM TOKEN: $newToken");
   });
 }
 
@@ -198,7 +197,7 @@ class MyRootApp extends StatelessWidget {
             create: (context) => MailListBloc(apiService: FetchMailListapi())),
         BlocProvider(
             create: (context) =>
-                MailDetailBloc(apiService: fatchdetailmailapi())),
+                MailDetailBloc(apiService: Fatchdetailmailapi())),
         BlocProvider(create: (context) => FabBloc()),
         BlocProvider(
             create: (context) => FatchnameBloc(apiService: ApiService())),
@@ -327,7 +326,7 @@ class _MyAppState extends State<MyApp> {
         '/home': (_) => const HomeScreen(),
         '/Splachscreen': (_) => const SplashScreen(),
         '/CarouselScreen': (_) => const CarouselScreen(),
-        '/LoadingScreen': (_) => const loadingscreen(),
+        '/LoadingScreen': (_) => const Loadingscreen(),
         '/loginScreen': (_) => const LoginScreen(),
       },
     );

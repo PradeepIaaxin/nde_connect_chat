@@ -10,6 +10,7 @@ import 'package:nde_email/presantation/mail/common/mail_more_menu.dart';
 import 'package:nde_email/presantation/mail/common/menuaction/mail_menu_action.dart';
 import 'package:nde_email/presantation/mail/mail_list/bloc/mail_list_event.dart';
 import 'package:nde_email/presantation/meet/socket/test_socket.dart';
+import 'package:nde_email/presantation/meet/view/meeting_screen.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/bottam_nav/bottam_nav_bloc.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/drawer.dart';
@@ -19,6 +20,7 @@ import 'package:nde_email/presantation/chat/chat_list/chat_screen.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar_state.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar_bloc.dart';
+import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar_event.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/bottam_nav/bottom_nav_state.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/error_display.dart';
@@ -81,11 +83,31 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Only handle FAB visibility — no mail fetching here!
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (selectedMailboxId.isNotEmpty) {
+        MailboxStorage.saveMailboxId(selectedMailboxId);
+      }
+
+      if (widget.filter == null && widget.mailboxId.isEmpty) {
+        MailboxStorage.getInboxMailboxId().then((inboxId) {
+          if (!mounted) return;
+          if (inboxId == null || inboxId.isEmpty) return;
+          MailboxStorage.saveMailboxId(inboxId);
+          if (selectedMailboxId != inboxId) {
+            setState(() {
+              selectedMailboxId = inboxId;
+            });
+          }
+        });
+      }
+
       final selectedIndex =
           context.read<BottomNavigationBloc>().state.selectedIndex;
       context.read<FabBloc>().add(
             selectedIndex == 0 ? ShowFab() : HideFab(),
           );
+      if (widget.filter == null) {
+        context.read<AppBarBloc>().add(FetchMailboxesEvent());
+      }
     });
   }
 
@@ -133,14 +155,24 @@ class _HomeScreenState extends State<HomeScreen> {
       },
       child: BlocListener<AppBarBloc, AppBarState>(
         listener: (context, state) {
-          if (state is AppBarMailboxesLoaded && selectedMailboxId.isEmpty) {
-            setState(() {
-              selectedMailboxId = state.inbox.isNotEmpty
-                  ? state.inbox.first.id
-                  : state.other.isNotEmpty
-                      ? state.other.first.id
-                      : "";
-            });
+          if (state is AppBarMailboxesLoaded &&
+              widget.filter == null &&
+              widget.mailboxId.isEmpty) {
+            final mailboxId = state.inbox.isNotEmpty
+                ? state.inbox.first.id
+                : state.other.isNotEmpty
+                    ? state.other.first.id
+                    : "";
+
+            if (mailboxId.isNotEmpty) {
+              MailboxStorage.saveMailboxId(mailboxId);
+            }
+
+            if (selectedMailboxId != mailboxId) {
+              setState(() {
+                selectedMailboxId = mailboxId;
+              });
+            }
           }
         },
         child: BlocBuilder<BottomNavigationBloc, BottomNavigationState>(
@@ -149,7 +181,7 @@ class _HomeScreenState extends State<HomeScreen> {
               builder: (context, mailState) {
                 final isSelectionActive = mailState.selectedMailIds.isNotEmpty;
 
-                if (selectedMailboxId.isEmpty && widget.filter == null) {
+                if (widget.filter == null && selectedMailboxId.isEmpty) {
                   return _buildLoadingScaffold(
                       isSelectionActive, navState.selectedIndex);
                 }
@@ -217,15 +249,21 @@ class _HomeScreenState extends State<HomeScreen> {
           mailboxName: widget.mailboxName,
         );
       } else {
-        return FutureBuilder<String?>(
-          future: MailboxStorage.getInboxMailboxId(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
+        return BlocBuilder<AppBarBloc, AppBarState>(
+          builder: (context, state) {
+            if (state is AppBarLoading) {
               return const Center(child: CircularProgressIndicator());
-            } else if (snapshot.hasData && snapshot.data!.isNotEmpty) {
-              selectedMailboxId = snapshot.data!;
+            }
+
+            if (state is AppBarMailboxesLoaded) {
+              final mailboxId = state.inbox.isNotEmpty
+                  ? state.inbox.first.id
+                  : state.other.isNotEmpty
+                      ? state.other.first.id
+                      : "";
+
               return MailListScreen(
-                mailboxId: selectedMailboxId,
+                mailboxId: mailboxId,
                 mailboxName: widget.mailboxName,
               );
             } else {
@@ -235,7 +273,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     ErrorDisplay(
                       message: 'Something went wrong',
-                      type: ErrorType.Somethingwrong,
+                      type: ErrorType.somethingwrong,
                     ),
                     const SizedBox(height: 6),
                     const Text(
@@ -259,14 +297,10 @@ class _HomeScreenState extends State<HomeScreen> {
         return ChatListScreen();
       case 2:
         return LandingHome();
-
       case 3:
         return CalendarScreen();
       case 4:
-        return VideoCallPage(
-          roomId: "681b1c6b81f3e0714cbbb91e",
-        );
-
+        return MeetingScreen();
       default:
         return const SizedBox();
     }
@@ -304,9 +338,18 @@ class _HomeScreenState extends State<HomeScreen> {
       BuildContext context, MailListState state) {
     final bool hasUnreadSelected = _hasUnreadSelected(state);
 
-    /// ✅ ADD THIS
     final bool isArchiveMailbox =
         widget.mailboxName?.toLowerCase() == "archive";
+    final bool isjunkMailbox = widget.mailboxName?.toLowerCase() == "junk";
+    final bool isdeleteMailbox = widget.mailboxName?.toLowerCase() == "trash";
+    final bool isSentMailbox =
+        widget.mailboxName?.trim().toLowerCase() == "sent mail";
+
+    final bool isTrashMailbox =
+        widget.mailboxName?.trim().toLowerCase() == "trash";
+
+    print(widget.mailboxName);
+    log("name --- ${widget.mailboxName}");
 
     return AppBar(
       backgroundColor: Colors.white,
@@ -319,32 +362,37 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       title: Text("${state.selectedMailIds.length} selected"),
       actions: [
-        IconButton(
-          icon: Icon(
-            isArchiveMailbox ? Icons.unarchive : Icons.archive,
-          ),
-          onPressed: () {
-            if (isArchiveMailbox) {
-              /// 🔁 UNARCHIVE → Move back to Inbox
-              context.read<MailListBloc>().add(
-                    RevertArchiveEvent(
-                      mailIds: state.selectedMailIds.toList(),
-                      mailboxId: selectedMailboxId,
-                    ),
-                  );
-            } else {
-              /// 📦 NORMAL ARCHIVE
-              context.read<MailListBloc>().add(
-                    MoveToArchiveEvent(
-                      state.selectedMailIds.toList(),
-                      selectedMailboxId,
-                    ),
-                  );
-            }
+        isjunkMailbox || isdeleteMailbox || isSentMailbox || isTrashMailbox
+            ? SizedBox()
+            : IconButton(
+                icon: Icon(
+                  isArchiveMailbox ? Icons.unarchive : Icons.archive,
+                ),
+                onPressed: () {
+                  if (isArchiveMailbox) {
+                    /// 🔁 UNARCHIVE → Move back to Inbox
+                    context.read<MailListBloc>().add(
+                          RevertArchiveEvent(
+                            mailIds: state.selectedMailIds.toList(),
+                            mailboxId: selectedMailboxId,
+                          ),
+                        );
+                  } else {
+                    /// 📦 NORMAL ARCHIVE
+                    context.read<MailListBloc>().add(
+                          MoveToArchiveEvent(
+                            state.selectedMailIds.toList(),
+                            selectedMailboxId,
+                          ),
+                        );
+                  }
 
-            context.read<MailListBloc>().add(ClearSelectionEvent());
-          },
-        ),
+                  context.read<MailListBloc>().add(ClearSelectionEvent());
+                },
+              ),
+        // isjunkMailbox || isdeleteMailbox
+        //     ? SizedBox()
+        //     :
         IconButton(
           icon: const Icon(Icons.delete),
           onPressed: () {
@@ -356,33 +404,44 @@ class _HomeScreenState extends State<HomeScreen> {
             context.read<MailListBloc>().add(ClearSelectionEvent());
           },
         ),
-        IconButton(
-          icon: Icon(
-            hasUnreadSelected ? Icons.mark_email_read : Icons.mark_email_unread,
-          ),
-          onPressed: () {
-            if (hasUnreadSelected) {
-              //READ
-              context.read<MailListBloc>().add(
-                    MarkAsReadEvent(
-                      selectedMailboxId,
-                      state.selectedMailIds.map((e) => e.toString()).toList(),
-                    ),
-                  );
-            } else {
-              //UNREAD
-              context.read<MailListBloc>().add(
-                    MarkAsUnreadEvent(
-                      selectedMailboxId,
-                      state.selectedMailIds.map((e) => e.toString()).toList(),
-                    ),
-                  );
-            }
+        isTrashMailbox
+            ? SizedBox()
+            : IconButton(
+                icon: Icon(
+                  hasUnreadSelected
+                      ? Icons.mark_email_read
+                      : Icons.mark_email_unread,
+                ),
+                onPressed: () {
+                  if (hasUnreadSelected) {
+                    //READ
+                    context.read<MailListBloc>().add(
+                          MarkAsReadEvent(
+                            selectedMailboxId,
+                            state.selectedMailIds
+                                .map((e) => e.toString())
+                                .toList(),
+                          ),
+                        );
+                  } else {
+                    //UNREAD
+                    context.read<MailListBloc>().add(
+                          MarkAsUnreadEvent(
+                            selectedMailboxId,
+                            state.selectedMailIds
+                                .map((e) => e.toString())
+                                .toList(),
+                          ),
+                        );
+                  }
 
-            context.read<MailListBloc>().add(ClearSelectionEvent());
-          },
-        ),
+                  context.read<MailListBloc>().add(ClearSelectionEvent());
+                },
+              ),
 
+        // isjunkMailbox || isdeleteMailbox
+        //     ? SizedBox()
+        //     :
         MailMoreMenu(
           onSelected: (action) {
             switch (action) {

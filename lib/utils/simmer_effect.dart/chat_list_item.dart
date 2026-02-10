@@ -38,7 +38,8 @@ class ChatListItem extends StatelessWidget {
       onTap: onTap,
       onLongPress: onLongPress,
       child: Container(
-        color: isSelected ? chatColor.withOpacity(0.3) : Colors.transparent,
+        color:
+            isSelected ? chatColor.withValues(alpha: 0.3) : Colors.transparent,
         padding: const EdgeInsets.symmetric(horizontal: 8),
         child: Column(
           children: [

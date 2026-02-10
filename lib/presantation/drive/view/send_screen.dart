@@ -1,14 +1,11 @@
-import 'dart:developer';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:nde_email/presantation/drive/Bloc/send/send_bloc.dart';
 import 'package:nde_email/presantation/drive/Bloc/send/send_events.dart';
 import 'package:nde_email/presantation/drive/Bloc/send/send_state.dart';
-import 'package:nde_email/presantation/drive/data/common_repo.dart';
 import 'package:nde_email/presantation/drive/model/search_model/search_model.dart';
 import 'package:nde_email/presantation/drive/model/send/send_model.dart';
 import 'package:nde_email/presantation/drive/view/manage_acces_screen.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
+import 'package:nde_email/utils/imports/common_imports.dart';
 import 'package:nde_email/utils/simmer_effect.dart/drive_simmer.dart';
 
 class ShareScreen extends StatefulWidget {
@@ -129,15 +126,12 @@ class _ShareScreenState extends State<ShareScreen> {
         listener: (context, state) {
           if (state is ShareSuccess) {
             // Show success message (optional)
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("File shared successfully")),
-            );
+            Messenger.alertSuccess("File shared successfully");
+
             // Navigate back to previous screen
             Navigator.pop(context);
           } else if (state is ShareFailure) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text("Failed to share: ${state.error}")),
-            );
+            Messenger.alertError("Failed to share: ${state.error}");
           }
         },
         child: Scaffold(
@@ -156,10 +150,8 @@ class _ShareScreenState extends State<ShareScreen> {
                 icon: const Icon(Icons.send),
                 onPressed: () {
                   if (emailList.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text("Please add at least one email")),
-                    );
+                    Messenger.alertError("Please add at least one email");
+
                     return;
                   }
                   context.read<ShareBloc>().add(
@@ -249,7 +241,7 @@ class _ShareScreenState extends State<ShareScreen> {
                           deleteIcon: const Icon(Icons.close),
                           onDeleted: () => _removeEmail(email),
                         ))
-                    .toList(),
+                    ,
                 if (emailList.length > maxVisibleChips)
                   Chip(
                     label: Text('+$remainingCount more'),
@@ -288,7 +280,7 @@ class _ShareScreenState extends State<ShareScreen> {
                       color: Theme.of(context)
                           .colorScheme
                           .onSurface
-                          .withOpacity(0.6),
+                          .withValues(alpha:0.6),
                     ),
                   ],
                 ),
@@ -332,7 +324,7 @@ class _ShareScreenState extends State<ShareScreen> {
                           color: Theme.of(context)
                               .colorScheme
                               .onSurface
-                              .withOpacity(0.5),
+                              .withValues(alpha:0.5),
                           fontSize: 13,
                         ),
                         isDense: true,
@@ -379,7 +371,6 @@ class _ShareScreenState extends State<ShareScreen> {
                   return Center(child: Text("Error: ${snapshot.error}"));
                 }
 
-                final data = snapshot.data!;
                 return ListView(
                   children: [
                     if (isLoading)

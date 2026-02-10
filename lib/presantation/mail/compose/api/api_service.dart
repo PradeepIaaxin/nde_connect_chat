@@ -72,6 +72,7 @@ class ApiService {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = jsonDecode(response.body);
+        log(response.body.toString());
         if (responseData["success"] == true) {
           return responseData["message"]["id"];
         }

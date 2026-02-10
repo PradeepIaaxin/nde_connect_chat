@@ -49,8 +49,7 @@ class GroupOfflineMessageHandler {
   });
 
   Widget buildStatusIcon(String status, Map<String, dynamic> message) {
-    // Add tap handler for all unsent/pending messages
-    // Allow resend/delete for: failed, pending_offline, pending, sending
+  
     if (status == 'failed' ||
         status == 'pending_offline' ||
         status == 'pending' ||

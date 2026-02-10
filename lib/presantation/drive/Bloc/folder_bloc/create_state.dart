@@ -16,6 +16,5 @@ class CreateFolderConflict extends CreateFolderState {
   final String message;
   CreateFolderConflict(this.message);
 
-  @override
   List<Object?> get props => [message];
 }

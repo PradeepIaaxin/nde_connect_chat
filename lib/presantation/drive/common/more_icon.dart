@@ -14,6 +14,7 @@ import 'package:nde_email/presantation/drive/view/move_screen.dart';
 import 'package:nde_email/presantation/drive/view/send_screen.dart';
 import 'package:nde_email/utils/reusbale/mime.type.dart';
 import 'package:nde_email/utils/router/router.dart';
+import 'package:nde_email/utils/snackbar/snackbar.dart';
 import 'package:nde_email/utils/spacer/spacer.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -121,19 +122,9 @@ class FileOptionsContent extends StatelessWidget {
       listener: (context, state) {
         if (state is FileOperationSuccess) {
           Navigator.pop(context, true);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(state.message ?? 'Success'),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          Messenger.alertSuccess(state.message ?? 'Success');
         } else if (state is FileOperationError) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(state.message),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          Messenger.alertError(state.message);
         }
       },
       builder: (context, state) {

@@ -97,7 +97,7 @@ class _TaskTabScreenState extends State<TaskTabScreen>
             isScrollable: true,
             tabs: [
               const Tab(child: Icon(Icons.star, color: Colors.amber)),
-              ..._taskLists.map((list) => Tab(text: list.name)).toList(),
+              ..._taskLists.map((list) => Tab(text: list.name)),
             ],
           ),
         ),
@@ -135,7 +135,7 @@ class _TaskTabScreenState extends State<TaskTabScreen>
             task.subtasks.any((sub) => sub.events.any((e) => e.completed)))
         .toList();
 
-    final _subtaskcompleted = _tasks.where((task) {
+    _tasks.where((task) {
       return task.subtasks
           .any((subtask) => subtask.events.any((event) => event.completed));
     }).toList();

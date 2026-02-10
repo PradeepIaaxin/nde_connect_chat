@@ -1,6 +1,5 @@
 import 'dart:developer';
 
-import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import 'package:nde_email/data/respiratory.dart';
 

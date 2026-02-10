@@ -112,11 +112,10 @@ class _MoveDrivePageState extends State<MoveDrivePage> {
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                     const SizedBox(height: 4),
-                                    if (folder.updatedAt != null)
-                                      Text(
-                                        "Modified ${DateFormatter.formatToReadableDate(folder.updatedAt!)}",
-                                        style: const TextStyle(fontSize: 12),
-                                      ),
+                                    Text(
+                                      "Modified ${DateFormatter.formatToReadableDate(folder.updatedAt)}",
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -143,36 +142,18 @@ class _MoveDrivePageState extends State<MoveDrivePage> {
                                   child: _buildMimeIcon(folder),
                                 ),
                                 title: Text(folder.name),
-                                subtitle: folder.updatedAt != null
-                                    ? Row(
+                                subtitle: Row(
                                         children: [
                                           if (folder.starred == true)
                                             const Icon(Icons.star,
                                                 color: Colors.amber, size: 16),
                                           Text(
-                                            " Modified ${DateFormatter.formatToReadableDate(folder.updatedAt!)}",
+                                            " Modified ${DateFormatter.formatToReadableDate(folder.updatedAt)}",
                                             style:
                                                 const TextStyle(fontSize: 12),
                                           ),
                                         ],
-                                      )
-                                    : (folder.labels != null &&
-                                            folder.labels!.isNotEmpty)
-                                        ? Wrap(
-                                            spacing: 2,
-                                            children: folder.labels!
-                                                .map((label) => Chip(
-                                                      label: Text(label),
-                                                      backgroundColor:
-                                                          _parseColor(label),
-                                                      labelStyle:
-                                                          const TextStyle(
-                                                              color:
-                                                                  Colors.white),
-                                                    ))
-                                                .toList(),
-                                          )
-                                        : null,
+                                      ),
                                 onTap: isFolder
                                     ? () => _navigateToFolder(folder)
                                     : null,
@@ -267,15 +248,6 @@ class _MoveDrivePageState extends State<MoveDrivePage> {
     return Image.asset('assets/images/image.png', height: 24, width: 24);
   }
 
-  Color _parseColor(String hexColor) {
-    try {
-      hexColor = hexColor.toUpperCase().replaceAll('#', '');
-      if (hexColor.length == 6) hexColor = 'FF$hexColor';
-      return Color(int.parse(hexColor, radix: 16));
-    } catch (_) {
-      return Colors.blue;
-    }
-  }
 }
 
 class DateFormatter {

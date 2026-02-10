@@ -18,7 +18,7 @@ import 'package:nde_email/presantation/drive/view/manage_acces_screen.dart';
 import 'package:nde_email/presantation/drive/view/move_screen.dart';
 import 'package:nde_email/presantation/drive/view/send_screen.dart';
 import 'package:nde_email/utils/const/consts.dart';
-import 'package:nde_email/utils/datetime/dateFormatter.dart';
+import 'package:nde_email/utils/datetime/dateformatter.dart';
 import 'package:nde_email/utils/icons/reuable_icon.dart';
 import 'package:nde_email/utils/reusbale/dowloading_mime.dart';
 import 'package:nde_email/utils/router/router.dart';
@@ -723,7 +723,7 @@ class _SharedPageState extends State<SharedPage> {
                                             },
                                   child: Container(
                                     color: isSelected
-                                        ? chatColor.withOpacity(0.1)
+                                        ? chatColor.withValues(alpha:0.1)
                                         : null,
                                     child: ListTile(
                                       contentPadding:

@@ -12,6 +12,7 @@ import 'package:nde_email/presantation/drive/model/folderinside_model.dart';
 
 import 'package:nde_email/presantation/drive/data/common_repo.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
+import 'package:nde_email/utils/reusbale/common_import.dart';
 import 'package:nde_email/utils/router/router.dart';
 import 'package:nde_email/utils/simmer_effect.dart/drive_simmer.dart';
 
@@ -72,14 +73,11 @@ class _FileInsideSceenState extends State<FileInsideSceen> {
           BlocListener<MoveFileBloc, MoveFileState>(
             listener: (context, moveState) {
               if (moveState is MoveFileSuccess) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('File moved successfully')),
-                );
+                Messenger.alertSuccess("File moved successfully");
+
                 Navigator.popUntil(context, (route) => route.isFirst);
               } else if (moveState is MoveFileFailure) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Move failed: ${moveState.message}')),
-                );
+                Messenger.alertError('Move failed: ${moveState.message}');
               }
             },
           ),
@@ -291,10 +289,7 @@ class _FileInsideSceenState extends State<FileInsideSceen> {
         ),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text("Tapped on file: ${file.name} (ID: ${file.id})")),
-      );
+      Messenger.alertError("Tapped on file: ${file.name} (ID: ${file.id})");
     }
   }
 
