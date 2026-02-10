@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/privat_common_funtions/privat_chat_funtions.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/privat_common_funtions/privat_chat_funtions_5.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../../../../utils/imports/common_imports.dart';
@@ -82,7 +83,7 @@ void openFile({
 
   // If it's a local file, just open it
   if (!urlOrPath.startsWith('http')) {
-    final result = await OpenFile.open(urlOrPath);
+    final result = await OpenFilex.open(urlOrPath);
     if (result.type != ResultType.done) {
       Messenger.alertError("Could not open local file.");
     }
@@ -168,7 +169,7 @@ void openFile({
 
     if (await targetFile.exists()) {
       // Open existing
-      final result = await OpenFile.open(finalPath);
+      final result = await OpenFilex.open(finalPath);
       if (result.type != ResultType.done) {
         Messenger.alertError("Could not open file.");
       }
@@ -188,7 +189,7 @@ void openFile({
     Messenger.alertSuccess('Saved to NowDigitalEasy/Media');
 
     // Open
-    final result = await OpenFile.open(finalPath);
+    final result = await OpenFilex.open(finalPath);
     if (result.type != ResultType.done) {
       Messenger.alertError("Could not open downloaded file.");
     }
