@@ -370,8 +370,8 @@ class _ComposeScreenState extends State<ComposeScreen> {
       onWillPop: () async {
         MyRouter.pop();
         if (_hasUnsavedChanges()) {
-         // _saveDraft();
-         MyRouter.pop();
+          // _saveDraft();
+          MyRouter.pop();
           return false;
         }
         return true;
@@ -412,7 +412,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
                     cc: ccEmails.isNotEmpty ? ccEmails.join(',') : null,
                     bcc: bccEmails.isNotEmpty ? bccEmails.join(',') : null,
                     draftId: widget.draftId,
-                          draftMailboxId: widget.mailboxId,
+                    draftMailboxId: widget.mailboxId,
                   );
 
                   final draftData = <String, dynamic>{
@@ -441,6 +441,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
                           draftData: draftData,
                           initialAttachments: restoredAttachments,
                           mailboxId: widget.mailboxId,
+                          draftId: widget.draftId,
                         ),
                       );
                     },
