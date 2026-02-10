@@ -330,10 +330,11 @@ class _MailListScreenState extends State<MailListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<DraftBloc, DraftState>(
-      listener: (context, draftState) {
-        if (draftState is DraftSaved) {
-          debugPrint("✅ Draft saved! Refreshing list for $widget.mailboxId");
+    return BlocListener<SendMailBloc, SendMailState>(
+      listener: (context, sendState) {
+        if (sendState is MailSent) {
+          debugPrint(
+              "✅ Mail sent successfully! Refreshing list for $widget.mailboxId");
           _bloc.add(RefreshMailListEvent(widget.mailboxId));
         }
       },
