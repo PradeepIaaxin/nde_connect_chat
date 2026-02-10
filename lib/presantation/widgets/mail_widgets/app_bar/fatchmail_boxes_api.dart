@@ -80,6 +80,35 @@ class FetchMailBoxesApi {
           log("No inbox mailbox found!");
         }
 
+        Mailbox? sentMailbox;
+        try {
+          sentMailbox = mailboxes.firstWhere(
+            (mailbox) =>
+                mailbox.specialUse?.toLowerCase() == '\\sent' ||
+                mailbox.name.toLowerCase() == 'sent',
+          );
+        } catch (_) {}
+
+        if (sentMailbox != null && sentMailbox.id.isNotEmpty) {
+          await MailboxStorage.saveSentMailboxId(sentMailbox.id);
+          log("Saved Sent Mailbox ID: ${sentMailbox.id}");
+        }
+
+        Mailbox? trashMailbox;
+        try {
+          trashMailbox = mailboxes.firstWhere(
+            (mailbox) =>
+                mailbox.specialUse?.toLowerCase() == '\\trash' ||
+                mailbox.name.toLowerCase() == 'trash' ||
+                mailbox.name.toLowerCase() == 'bin',
+          );
+        } catch (_) {}
+
+        if (trashMailbox != null && trashMailbox.id.isNotEmpty) {
+          await MailboxStorage.saveTrashMailboxId(trashMailbox.id);
+          log("Saved Trash Mailbox ID: ${trashMailbox.id}");
+        }
+
         return mailboxes;
       } else if (response.statusCode == 401) {
         MyRouter.pushRemoveUntil(screen: LoginScreen());
