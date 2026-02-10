@@ -11,6 +11,10 @@ class DraftBloc extends Bloc<DraftEvent, DraftState> {
 
   DraftBloc({required this.apiService}) : super(DraftInitial()) {
     on<SaveDraftEvent>(_saveDraft);
+    on<ResetDraftEvent>((event, emit) {
+      lastDraftId = null;
+      emit(DraftInitial());
+    });
   }
 
   Future<void> _saveDraft(

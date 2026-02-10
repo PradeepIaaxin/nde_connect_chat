@@ -464,6 +464,8 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
 
     MyRouter.push(
       screen: ComposeScreen(
+        draftId: int.tryParse(widget.messageId),
+        mailboxId: widget.mailboxId,
         draftData: {
           'to': to.join(', '),
           'cc': '',

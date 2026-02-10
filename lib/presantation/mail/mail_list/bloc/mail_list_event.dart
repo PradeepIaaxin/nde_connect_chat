@@ -162,3 +162,13 @@ class ToggleFlagEvent extends MailListEvent {
     this.isFromFlaggedScreen = false,
   });
 }
+
+class RemoveMailFromListEvent extends MailListEvent {
+  final int mailId;
+  final String mailboxId;
+
+  const RemoveMailFromListEvent(this.mailId, this.mailboxId);
+
+  @override
+  List<Object> get props => [mailId, mailboxId];
+}

@@ -14,3 +14,5 @@ class SaveDraftEvent extends DraftEvent {
   @override
   List<Object?> get props => [mailboxId, draftData];
 }
+
+class ResetDraftEvent extends DraftEvent {}
