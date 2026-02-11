@@ -25,8 +25,6 @@ class RevertArchiveEvent extends MailListEvent {
   });
 }
 
-
-
 class FetchMailListEvent extends MailListEvent {
   final String mailboxId;
   final String? filter;
@@ -252,4 +250,24 @@ class RemoveMailFromListEvent extends MailListEvent {
 
   @override
   List<Object> get props => [mailId, mailboxId];
+}
+
+class UndoUnstarEvent extends MailListEvent {
+  final String pendingId;
+  final String mailboxId;
+  final List<int> ids;
+  final List<GMMailModels> restoredMails;
+  final bool isFromFlaggedScreen;
+
+  const UndoUnstarEvent({
+    required this.pendingId,
+    required this.mailboxId,
+    required this.ids,
+    required this.restoredMails,
+    required this.isFromFlaggedScreen,
+  });
+
+  @override
+  List<Object?> get props =>
+      [pendingId, mailboxId, ids, restoredMails, isFromFlaggedScreen];
 }
