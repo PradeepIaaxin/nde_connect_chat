@@ -205,9 +205,9 @@ List<String> getUnreadMessageIds(List<dynamic> msgs, String currentUserId) {
       .toList();
 }
 
-bool isNearBottom(ScrollController _scrollController) {
-  if (!_scrollController.hasClients) return true;
-  return _scrollController.offset < 80; // 👈 threshold
+bool isNearBottom(ScrollController scrollController) {
+  if (!scrollController.hasClients) return true;
+  return scrollController.offset < 80; // 👈 threshold
 }
 
 void sendAudioMessage(
@@ -226,7 +226,7 @@ void sendAudioMessage(
   messagerBloc.add(
     SendAudioMessageEvent(
         senderId: currentUserId,
-        receiverId:receiverId ?? '',
+        receiverId:receiverId,
         audioPath: path,
         duration: duration.toString(),
         convoId: convoId,

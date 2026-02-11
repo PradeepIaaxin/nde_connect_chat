@@ -62,8 +62,7 @@ class SuggestionsRepository {
   Future<List<FileModel>> fetchSuggestionsFolders({
     int page = 1,
     int limit = 30,
-  })
-  async {
+  }) async {
     try {
       final String? accessToken = await UserPreferences.getAccessToken();
       final String? defaultWorkspace =
@@ -81,16 +80,15 @@ class SuggestionsRepository {
       };
 
       log("📡 Calling suggestions folders API...");
-      https://api.nowdigitaleasy.com/drive/v1
-     // https://api.nowdigitaleasy.com/drive/v1/folders?limit=14&page=1&type=file&myfile=true&sortby=opencount&order=des&suggested=true
+
       final response = await dio.get(
-        '${DriveService.baseUrl}/folders?limit=$limit&page=$page&type=file&myfile=true&sortby=opencount&order=des&suggested=true',
+        '${DriveService.baseUrl}/folders?file=documents',
         options: Options(headers: headers),
-        // queryParameters: {
-        //   'page': page,
-        //   'limit': limit,
-        //   'sortBy': 'name',
-        // },
+        queryParameters: {
+          'page': page,
+          'limit': limit,
+          'sortBy': 'name',
+        },
       );
 
       if (response.statusCode != 200) {
@@ -101,7 +99,6 @@ class SuggestionsRepository {
       final List data = response.data['rows'] ?? [];
 
       log(' Suggestions folders fetched: ${data.length} items');
-      log(' Suggestions response.data: ${response.data['rows']} items');
       return data.map((e) => FileModel.fromJson(e)).toList();
     } on DioException catch (e) {
       log('  Dio error: ${e.response?.statusCode} - ${e.message}');
@@ -211,7 +208,10 @@ class SuggestionsRepository {
     }
   }
 
-  Future<void> starred({required List<String> fileIDs,required bool isStarred}) async {
+  Future<void> starred({
+    required List<String> fileIDs,
+    bool? isCurrentlyStarred,
+  }) async {
     try {
       final headers = await _getHeaders();
 
@@ -222,7 +222,16 @@ class SuggestionsRepository {
       );
 
       if (response.statusCode == 200) {
-        Messenger.alertSuccess(isStarred?'Starred Removed Successfully..!':'Starred Added Successfully..!');
+        // Dynamic message
+        if (isCurrentlyStarred != null) {
+          Messenger.alertSuccess(
+            isCurrentlyStarred
+                ? "Removed from starred"
+                : "Starred successfully",
+          );
+        } else {
+          Messenger.alertSuccess("Starred successfully!");
+        }
       } else {
         log('starred failed: Status ${response.statusCode}, Response: ${response.data}');
       }

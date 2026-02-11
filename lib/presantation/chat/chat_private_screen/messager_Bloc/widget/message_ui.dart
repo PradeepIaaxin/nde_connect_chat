@@ -12,7 +12,7 @@ import 'package:nde_email/utils/reusbale/common_import.dart';
 import 'package:nde_email/utils/reusbale/mime.type.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:linkify/linkify.dart';
-import 'VideoCacheService.dart';
+import 'videocacheservice.dart';
 
 class MessageBubble extends StatefulWidget {
   final Map<String, dynamic> message;

@@ -16,7 +16,8 @@ import 'package:nde_email/presantation/drive/view/file_deatilsScreen.dart';
 import 'package:nde_email/presantation/drive/view/file_deep_view.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/const/consts.dart';
-import 'package:nde_email/utils/datetime/dateformatter.dart';
+import 'package:nde_email/utils/datetime/date_formatter.dart';
+
 import 'package:nde_email/utils/reusbale/dowloading_mime.dart';
 import 'package:nde_email/utils/router/router.dart';
 import 'package:nde_email/utils/simmer_effect.dart/drive_simmer.dart';

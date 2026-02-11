@@ -244,7 +244,7 @@ class ListenToMessages extends MessagerEvent {
 
 class NewMessageReceived extends MessagerEvent {
   final Map<String, dynamic> message;
-  NewMessageReceived(this.message);
+  const NewMessageReceived(this.message);
 }
 
 /// SendImageMessageEvent.............................

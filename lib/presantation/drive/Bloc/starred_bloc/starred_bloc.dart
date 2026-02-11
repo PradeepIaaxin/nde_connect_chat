@@ -1,6 +1,5 @@
 import 'dart:developer';
 
-import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hive/hive.dart';
 import 'package:nde_email/presantation/drive/Bloc/starred_bloc/stared_local.dart';
@@ -36,7 +35,6 @@ class StarredBloc extends Bloc<StarredEvent, StarredState> {
   ) async {
     try {
       final isInitialLoad = !event.isLoadMore;
-      final isSortRequest = event.sortBy != null;
 
       if (isInitialLoad) {
         _page = 1;
