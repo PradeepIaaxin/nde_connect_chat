@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/mail_list_widget/mail_list_widget.dart';
@@ -311,14 +312,19 @@ class _MailListScreenState extends State<MailListScreen> {
 
     debugPrint("🔄 Pull-to-refresh triggered for ${widget.mailboxId}");
 
-    // Clear cache for current mailbox to force fresh API fetch
-    _bloc.add(ResetMailListEvent(widget.mailboxId));
+    final completer = Completer<void>();
 
-    // Small delay to allow reset state to emit
-    await Future.delayed(const Duration(milliseconds: 50));
+    if (_isFilteredView) {
+      _bloc.add(RefreshFilteredMailEvent(widget.mailboxId, completer: completer));
+    } else {
+      _bloc.add(RefreshMailListEvent(widget.mailboxId, completer: completer));
+    }
 
-    // Fetch fresh data from API
-    _fetch();
+    try {
+      await completer.future.timeout(const Duration(seconds: 15));
+    } on TimeoutException {
+      return;
+    }
   }
 
   @override

@@ -39,6 +39,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
     on<MarkAsUnreadEvent>(_onMarkAsUnread);
     on<RefreshMailListEvent>(_onRefreshMailListSilent);
     on<FetchFilteredMailEvent>(_onFetchFilteredMail);
+    on<RefreshFilteredMailEvent>(_onRefreshFilteredMail);
     on<ToggleFlagEvent>(_onToggleFlagEvent);
     on<RevertArchiveEvent>(_onRevertArchive);
     on<RemoveMailFromListEvent>(_onRemoveMailFromList);
@@ -540,38 +541,73 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
       final response = await apiService.fetchMailList(event.mailboxId);
       final List<GMMailModels> freshMails = response.mails;
 
-      if (freshMails.isNotEmpty) {
-        // Update cache
-        cachedMailLists[event.mailboxId] = freshMails;
+      cachedMailLists[event.mailboxId] = freshMails;
 
-        // Recalculate unread count
-        final unreadCount = freshMails.where((mail) => !mail.seen).length;
-        final updatedUnreadMap =
-            Map<String, int>.from(state.unreadCountByMailbox);
-        updatedUnreadMap[event.mailboxId] = unreadCount;
-        final totalUnread =
-            updatedUnreadMap.values.fold<int>(0, (a, b) => a + (b ?? 0));
+      final unreadCount = freshMails.where((mail) => mail.seen == false).length;
+      final updatedUnreadMap =
+          Map<String, int>.from(state.unreadCountByMailbox);
+      updatedUnreadMap[event.mailboxId] = unreadCount;
 
-        // Quietly update UI only if data actually changed
-        if (!_listsAreEqual(state.mails, freshMails)) {
-          emit(state.copyWith(
-            mails: freshMails,
-            unreadCountByMailbox: updatedUnreadMap,
-            totalUnreadCount: totalUnread,
-            nextCursor:
-                response.nextCursor is String ? response.nextCursor : null,
-            status: freshMails.isEmpty
-                ? MailListStatus.empty
-                : MailListStatus.loaded,
-          ));
-          log("Silent refresh updated UI with ${freshMails.length} mails");
-        } else {
-          log("Silent refresh – no changes detected");
-        }
+      final totalUnread = updatedUnreadMap.values.fold<int>(
+        0,
+        (a, b) => a + b,
+      );
+
+      final updatedTotalMap = Map<String, int>.from(state.totalCountByMailbox);
+      updatedTotalMap[event.mailboxId] = freshMails.length;
+
+      final String? nextCursor =
+          response.nextCursor is String ? response.nextCursor : null;
+
+      final nextStatus =
+          freshMails.isEmpty ? MailListStatus.empty : MailListStatus.loaded;
+
+      final shouldEmit = !_listsAreEqual(state.mails, freshMails) ||
+          state.status != nextStatus ||
+          state.nextCursor != nextCursor ||
+          state.specialUse != response.specialUse;
+
+      if (shouldEmit) {
+        emit(state.copyWith(
+          status: nextStatus,
+          mails: freshMails,
+          unreadCountByMailbox: updatedUnreadMap,
+          totalUnreadCount: totalUnread,
+          totalCountByMailbox: updatedTotalMap,
+          nextCursor: nextCursor,
+          specialUse: response.specialUse,
+          currentMailboxId: event.mailboxId,
+        ));
       }
     } catch (e) {
       // Silent fail – no UI change, no error shown
       log("Silent refresh failed quietly: $e");
+    } finally {
+      event.completer?.complete();
+    }
+  }
+
+  Future<void> _onRefreshFilteredMail(
+    RefreshFilteredMailEvent event,
+    Emitter<MailListState> emit,
+  ) async {
+    try {
+      final freshMails = await apiService.fetchFilteredMails(event.filterType);
+
+      if (_listsAreEqual(state.mails, freshMails) &&
+          state.status == MailListStatus.loaded) {
+        return;
+      }
+
+      emit(state.copyWith(
+        status:
+            freshMails.isEmpty ? MailListStatus.empty : MailListStatus.loaded,
+        mails: freshMails,
+      ));
+    } catch (e) {
+      log("Filtered mail refresh failed quietly: $e");
+    } finally {
+      event.completer?.complete();
     }
   }
 
@@ -662,8 +698,10 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
           .where((mail) => !event.mailIds.contains(mail.id))
           .toList();
 
-      final unreadCount = updatedMails.where((mail) => mail.seen == false).length;
-      final updatedUnreadMap = Map<String, int>.from(state.unreadCountByMailbox);
+      final unreadCount =
+          updatedMails.where((mail) => mail.seen == false).length;
+      final updatedUnreadMap =
+          Map<String, int>.from(state.unreadCountByMailbox);
       if (updatedUnreadMap.containsKey(event.mailboxId)) {
         updatedUnreadMap[event.mailboxId] = unreadCount;
       }
@@ -674,7 +712,8 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
       }
 
       emit(state.copyWith(
-        status: updatedMails.isEmpty ? MailListStatus.empty : MailListStatus.loaded,
+        status:
+            updatedMails.isEmpty ? MailListStatus.empty : MailListStatus.loaded,
         mails: updatedMails,
         unreadCountByMailbox: updatedUnreadMap,
         totalUnreadCount: updatedUnreadMap.values.fold<int>(
@@ -770,7 +809,8 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
       restoredMails.insert(index, mail);
     }
 
-    final unreadCount = restoredMails.where((mail) => mail.seen == false).length;
+    final unreadCount =
+        restoredMails.where((mail) => mail.seen == false).length;
     final updatedUnreadMap = Map<String, int>.from(state.unreadCountByMailbox);
     if (updatedUnreadMap.containsKey(event.mailboxId)) {
       updatedUnreadMap[event.mailboxId] = unreadCount;
@@ -782,7 +822,8 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
     }
 
     emit(state.copyWith(
-      status: restoredMails.isEmpty ? MailListStatus.empty : MailListStatus.loaded,
+      status:
+          restoredMails.isEmpty ? MailListStatus.empty : MailListStatus.loaded,
       mails: restoredMails,
       unreadCountByMailbox: updatedUnreadMap,
       totalUnreadCount: updatedUnreadMap.values.fold<int>(
@@ -839,8 +880,9 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
       }
 
       emit(state.copyWith(
-        status:
-            restoredMails.isEmpty ? MailListStatus.empty : MailListStatus.loaded,
+        status: restoredMails.isEmpty
+            ? MailListStatus.empty
+            : MailListStatus.loaded,
         mails: restoredMails,
         unreadCountByMailbox: updatedUnreadMap,
         totalUnreadCount: updatedUnreadMap.values.fold<int>(
@@ -889,8 +931,10 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
           .where((mail) => !event.mailIds.contains(mail.id))
           .toList();
 
-      final unreadCount = updatedMails.where((mail) => mail.seen == false).length;
-      final updatedUnreadMap = Map<String, int>.from(state.unreadCountByMailbox);
+      final unreadCount =
+          updatedMails.where((mail) => mail.seen == false).length;
+      final updatedUnreadMap =
+          Map<String, int>.from(state.unreadCountByMailbox);
       if (updatedUnreadMap.containsKey(event.mailboxId)) {
         updatedUnreadMap[event.mailboxId] = unreadCount;
       }
@@ -901,7 +945,8 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
       }
 
       emit(state.copyWith(
-        status: updatedMails.isEmpty ? MailListStatus.empty : MailListStatus.loaded,
+        status:
+            updatedMails.isEmpty ? MailListStatus.empty : MailListStatus.loaded,
         mails: updatedMails,
         unreadCountByMailbox: updatedUnreadMap,
         totalUnreadCount: updatedUnreadMap.values.fold<int>(
@@ -982,12 +1027,13 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
       });
 
     for (final mail in toInsert) {
-      final index =
-          (event.originalIndexById[mail.id] ?? 0).clamp(0, restoredMails.length);
+      final index = (event.originalIndexById[mail.id] ?? 0)
+          .clamp(0, restoredMails.length);
       restoredMails.insert(index, mail);
     }
 
-    final unreadCount = restoredMails.where((mail) => mail.seen == false).length;
+    final unreadCount =
+        restoredMails.where((mail) => mail.seen == false).length;
     final updatedUnreadMap = Map<String, int>.from(state.unreadCountByMailbox);
     if (updatedUnreadMap.containsKey(event.mailboxId)) {
       updatedUnreadMap[event.mailboxId] = unreadCount;
@@ -999,7 +1045,8 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
     }
 
     emit(state.copyWith(
-      status: restoredMails.isEmpty ? MailListStatus.empty : MailListStatus.loaded,
+      status:
+          restoredMails.isEmpty ? MailListStatus.empty : MailListStatus.loaded,
       mails: restoredMails,
       unreadCountByMailbox: updatedUnreadMap,
       totalUnreadCount: updatedUnreadMap.values.fold<int>(
@@ -1010,7 +1057,8 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
     ));
 
     cachedMailLists[event.mailboxId] = restoredMails;
-    Messenger.alertSuccess(event.mailIds.length == 1 ? "Email unarchived" : "Emails unarchived");
+    Messenger.alertSuccess(
+        event.mailIds.length == 1 ? "Email unarchived" : "Emails unarchived");
   }
 
   Future<void> _onCommitArchiveMail(
@@ -1020,7 +1068,8 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
     if (event.mailIds.isEmpty) return;
 
     try {
-      final success = await apiService.moveToArchive(event.mailIds, event.sourceMailboxId);
+      final success =
+          await apiService.moveToArchive(event.mailIds, event.sourceMailboxId);
       if (!success) {
         throw Exception("moveToArchive failed");
       }
@@ -1056,8 +1105,9 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
       }
 
       emit(state.copyWith(
-        status:
-            restoredMails.isEmpty ? MailListStatus.empty : MailListStatus.loaded,
+        status: restoredMails.isEmpty
+            ? MailListStatus.empty
+            : MailListStatus.loaded,
         mails: restoredMails,
         unreadCountByMailbox: updatedUnreadMap,
         totalUnreadCount: updatedUnreadMap.values.fold<int>(
