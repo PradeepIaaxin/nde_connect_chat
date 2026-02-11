@@ -73,7 +73,7 @@ class InsideBloc extends Bloc<InsideEvent, InsidefileState> {
     InStarredData event,
     Emitter<InsidefileState> emit,
   ) async {
-    await repository.starred(fileIDs: event.fileID);
+    await repository.starred(fileIDs: event.fileID, isCurrentlyStarred: event.isCurrentlyStarred);
     final updatedFolders = await repository.fetchingupdatedFolders(
         sortBy: 'updatedAt',
         page: _page,

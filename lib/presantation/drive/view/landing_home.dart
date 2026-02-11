@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_floating_bottom_bar/flutter_floating_bottom_bar.dart';
 import 'package:nde_email/data/respiratory.dart';
+import 'package:nde_email/presantation/drive/Bloc/folder_bloc/create_folder_bloc.dart';
+import 'package:nde_email/presantation/drive/Bloc/folder_bloc/create_state.dart';
 import 'package:nde_email/presantation/drive/common/drawer.dart';
 import 'package:nde_email/presantation/drive/common/search_bar.dart';
 import 'package:nde_email/presantation/drive/common/show_bottom_sheet.dart';
@@ -14,6 +16,7 @@ import 'package:nde_email/presantation/drive/view/my_drivepage.dart';
 import 'package:nde_email/presantation/drive/view/shared_screen.dart';
 import 'package:nde_email/presantation/drive/view/starred_screen.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
+import 'package:nde_email/utils/imports/common_imports.dart';
 import 'package:nde_email/utils/reusbale/endrawer.dart';
 
 class LandingHome extends StatefulWidget {
@@ -114,7 +117,25 @@ class _LandingHomeState extends State<LandingHome> {
             HomePage(scrollController: scrollController),
             StarredPage(scrollController: scrollController),
             SharedPage(scrollController: scrollController),
-            DrivePage(scrollController: scrollController),
+            BlocListener<CreateFolderBloc, CreateFolderState>(
+              listener: (context, state) {
+                if (state is CreateFolderSuccess) {
+                  // Refresh Drive after create/upload
+                  context.read<MyDriveBloc>().resetPagination();
+
+                  context.read<MyDriveBloc>().add(
+                        FetchMyDriveFolders(
+                          sortBy: 'name',
+                          order: 'asc',
+                          showLoading: true,
+                        ),
+                      );
+                }
+              },
+              child: DrivePage(scrollController: scrollController),
+            )
+
+            // DrivePage(scrollController: scrollController),
           ];
 
           return Column(
@@ -204,7 +225,7 @@ class _LandingHomeState extends State<LandingHome> {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: isSelected
-                  ? Colors.black.withValues(alpha :0.05)
+                  ? Colors.black.withValues(alpha: 0.05)
                   : Colors.transparent,
             ),
             child: Icon(

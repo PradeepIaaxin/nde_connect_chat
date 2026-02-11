@@ -54,7 +54,7 @@ class RecentBloc extends Bloc<RecentEvent, RecentState> {
     StarredData event,
     Emitter<RecentState> emit,
   ) async {
-    await repository.starred(fileIDs: event.fileID);
+    await repository.starred(fileIDs: event.fileID, isCurrentlyStarred: event.isCurrentlyStarred);
     final updatedFolders = await repository.fetchStarredFolders(
       sortBy: 'updatedAt',
       page: _page,

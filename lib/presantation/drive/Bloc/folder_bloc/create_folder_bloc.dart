@@ -59,10 +59,10 @@ class CreateFolderBloc extends Bloc<CreateFolderEvent, CreateFolderState> {
         log('📁 Folder Created: ${response.data}');
         if (!_snackbarShown) {
           Messenger.alertSuccess("Folder created successfully");
-          _snackbarShown = true;
         }
 
         emit(CreateFolderSuccess());
+        _snackbarShown = true;
       } else {
         emit(CreateFolderFailure(
             "  Failed: ${response.statusCode} ${response.statusMessage}"));
@@ -136,11 +136,12 @@ class CreateFolderBloc extends Bloc<CreateFolderEvent, CreateFolderState> {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         log('File uploaded successfully: ${response.data}');
-        uploadFileToS3PresignedUrl(
+        await uploadFileToS3PresignedUrl(
           presignedUrl: response.data['presignedurl'][0]['presignedUrl'],
           file: event.file!,
         );
         emit(CreateFolderSuccess());
+        _snackbarShown = true;
       } else if (response.statusCode == 409) {
         log('Conflict error: File with same name exists');
         emit(CreateFolderConflict("A file with the same name already exists."));
@@ -210,11 +211,12 @@ class CreateFolderBloc extends Bloc<CreateFolderEvent, CreateFolderState> {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         log('File uploaded successfully: ${response.data}');
-        uploadFileToS3PresignedUrl(
+        await uploadFileToS3PresignedUrl(
           presignedUrl: response.data['presignedurl'][0]['presignedUrl'],
           file: event.file!,
         );
         emit(CreateFolderSuccess());
+        _snackbarShown = true;
       } else {
         emit(CreateFolderFailure("Failed with status: ${response.statusCode}"));
       }

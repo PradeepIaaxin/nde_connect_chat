@@ -187,7 +187,9 @@ class _RecentScreenState extends State<RecentScreen> {
                             onTap: () {
                               context.read<RecentBloc>().add(
                                     StarredData(
-                                        fileID: selectedFolders.toList()),
+                                        fileID: selectedFolders.toList()
+                                        ,isCurrentlyStarred: selectedFolderModels.every((f) => f.starred)
+                                        ),
                                   );
                               _clearSelection();
                             },
@@ -427,7 +429,7 @@ class _FolderGridItem extends StatelessWidget {
                                     log('hii');
 
                                     context.read<RecentBloc>().add(
-                                          StarredData(fileID: [folder.id]),
+                                          StarredData(fileID: [folder.id], isCurrentlyStarred: folder.starred),
                                         );
                                   },
                                 ),
@@ -700,7 +702,7 @@ class _FolderListItem extends StatelessWidget {
                       log('hii');
 
                       context.read<RecentBloc>().add(
-                            StarredData(fileID: [folder.id]),
+                            StarredData(fileID: [folder.id], isCurrentlyStarred: folder.starred),
                           );
                     },
                   ),
