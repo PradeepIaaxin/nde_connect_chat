@@ -20,7 +20,8 @@ import 'package:nde_email/presantation/drive/view/move_screen.dart';
 import 'package:nde_email/presantation/drive/view/send_screen.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/const/consts.dart';
-import 'package:nde_email/utils/datetime/dateformatter.dart';
+import 'package:nde_email/utils/datetime/date_formatter.dart';
+
 import 'package:nde_email/utils/reusbale/dowloading_mime.dart';
 import 'package:nde_email/utils/router/router.dart';
 import 'package:nde_email/utils/simmer_effect.dart/drive_simmer.dart';
@@ -741,7 +742,7 @@ class _FolderListItem extends StatelessWidget {
             );
           } else {
             MyRouter.push(
-                screen: FilePreviewScreen(fileUrl: folder.preview ?? ""));
+                screen: FilePreviewScreen(fileUrl: folder.preview ?? "",  fileName: folder.name,));
           }
         }
       },

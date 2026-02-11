@@ -110,8 +110,7 @@ class SuggestionsBloc extends Bloc<SuggestionsEvent, SuggestionsState> {
     Emitter<SuggestionsState> emit,
   ) async {
     try {
-      await repository.starred(
-          fileIDs: event.fileID, isCurrentlyStarred: event.isCurrentlyStarred);
+      await repository.starred(fileIDs: event.fileID, isCurrentlyStarred: event.isCurrentlyStarred);
 
       final updatedFolders = await repository.fetchSuggestionsFolders(
         page: _page,

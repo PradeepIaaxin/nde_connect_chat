@@ -221,7 +221,7 @@ class GroupAddReaction extends GroupChatEvent {
   final String? firstName;
   final String? lastName;
 
-  GroupAddReaction({
+  const GroupAddReaction({
     required this.messageId,
     required this.conversationId,
     required this.emoji,
@@ -241,7 +241,7 @@ class GroupRemoveReaction extends GroupChatEvent {
   final String? firstName;
   final String? lastName;
 
-  GroupRemoveReaction({
+  const GroupRemoveReaction({
     required this.messageId,
     required this.conversationId,
     required this.emoji,

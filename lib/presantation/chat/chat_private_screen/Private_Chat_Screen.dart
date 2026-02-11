@@ -617,7 +617,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         if (id.isNotEmpty) _seenMessageIds.add(id);
       }
       _visibleCount = _allMessages.length;
-      log("messssssssssssssssssnormalized ${normalized}");
+      log("messssssssssssssssssnormalized $normalized");
       updateNotifierFromAll(
           allMessages: _allMessages, messagesNotifier: _messagesNotifier);
 
@@ -626,7 +626,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       // 2) cached local messages
 
       final loaded = LocalChatStorage.loadMessages(widget.convoId);
-      log("messssssssssssssssssloaded ${loaded}");
+      log("messssssssssssssssssloaded $loaded");
       final normalized = loaded
           .where((msg) => msg.isNotEmpty)
           .map((msg) => normalizeMessage(msg, text: "changesss"))
@@ -945,7 +945,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           completer.complete(state.sentMessage);
         }
       });
-      log(" _replyPreview ${_replyPreview}");
+      log(" _replyPreview $_replyPreview");
       _messagerBloc.add(
         SendMessageEvent(
             convoId: _currentConversationId,

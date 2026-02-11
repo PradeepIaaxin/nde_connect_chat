@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/VideoCacheService.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/videocacheservice.dart';
 
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/message_caption.dart';
 

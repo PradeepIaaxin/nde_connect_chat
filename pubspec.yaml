@@ -137,6 +137,7 @@ dependencies:
   open_filex: ^4.7.0
   image: ^4.7.2
   bloc: ^9.2.0
+  crypto: ^3.0.7
   
 
 dev_dependencies:

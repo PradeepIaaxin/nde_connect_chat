@@ -173,17 +173,17 @@ class _ComposeScreenState extends State<ComposeScreen> {
   }
 
   void _onTextChanged() {
-    _draftTimer?.cancel();
+    // _draftTimer?.cancel();
 
-    _draftTimer = Timer(
-      const Duration(seconds: 5),
-      () {
-        if (_hasUnsavedChanges()) {
-          log("⏳ Auto-saving draft...");
-          _saveDraft();
-        }
-      },
-    );
+    // _draftTimer = Timer(
+    //   const Duration(seconds: 5),
+    //   () {
+    //     if (_hasUnsavedChanges()) {
+    //       log("⏳ Auto-saving draft...");
+    //       _saveDraft();
+    //     }
+    //   },
+    // );
   }
 
   void _showPopupMenu() {

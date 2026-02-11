@@ -21,7 +21,7 @@ import '../../../../widgets/chat_widgets/messager_Wifgets/ForwardMessageScreen_w
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/VideoCacheService.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/videocacheservice.dart';
 import 'package:nde_email/utils/datetime/date_time_utils.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';

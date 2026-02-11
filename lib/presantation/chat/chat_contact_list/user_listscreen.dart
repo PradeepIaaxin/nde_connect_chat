@@ -1,6 +1,8 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:nde_email/presantation/chat/chat_contact_list/UserService.dart';
+import 'package:nde_email/presantation/chat/chat_contact_list/userservice.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_data_model.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_list_event.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_list_state.dart';
@@ -194,7 +196,7 @@ class _UserListScreenState extends State<UserListScreen> {
                         final user = filteredUsers[index];
                         return GestureDetector(
                           onTap: () {
-                            print(
+                            log(
                                 "Initializing chat for conversationId: ${user.conversationId}");
                             MyRouter.pushReplacement(
                               screen: PrivateChatScreen(

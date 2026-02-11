@@ -19,7 +19,7 @@ class InternetService {
     _connectivitySubscription =
         _connectivity.onConnectivityChanged.listen((result) async {
           // Handle both new (List<ConnectivityResult>) and old (ConnectivityResult)
-          final results = result is List<ConnectivityResult> ? result : [result];
+          final results = result;
 
           if (results.contains(ConnectivityResult.none)) {
             _controller.add(false);
@@ -40,7 +40,7 @@ class InternetService {
   static Future<bool> hasInternet() async {
     final results = await _connectivity.checkConnectivity();
     final list =
-    results is List<ConnectivityResult> ? results : [results];
+    results;
 
     if (list.contains(ConnectivityResult.none)) return false;
     return await InternetConnection().hasInternetAccess;

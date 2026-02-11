@@ -27,7 +27,7 @@ export 'package:nde_email/presantation/calender/data/task_event_repo.dart';
 // Chat
 export 'package:nde_email/presantation/chat/chat_list/chat_bloc.dart';
 export 'package:nde_email/presantation/chat/chat_list/chat_api.dart';
-export 'package:nde_email/presantation/chat/chat_contact_list/UserService.dart';
+export 'package:nde_email/presantation/chat/chat_contact_list/userservice.dart';
 export 'package:nde_email/presantation/chat/chat_contact_list/user_list_bloc.dart';
 export 'package:nde_email/presantation/chat/chat_contact_list/local_strorage.dart';
 export 'package:nde_email/presantation/chat/chat_group_Screen/api_servicer.dart';

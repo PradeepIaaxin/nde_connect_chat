@@ -8,7 +8,7 @@ import '../../../../../utils/datetime/date_time_utils.dart';
 import '../../../../../utils/router/router.dart';
 import '../../../../widgets/chat_widgets/Common/grouped_media_viewer.dart';
 import '../../../../widgets/chat_widgets/Common/whatsapp_swipe_to_reply.dart';
-import '../../../../widgets/chat_widgets/messager_Wifgets/ForwardMessageScreen_widget.dart';
+import '../../../../widgets/chat_widgets/messager_Wifgets/forwardmessagescreen_widget.dart';
 import '../../../widget/reation_bottom.dart';
 import 'MixedMediaViewer.dart';
 import 'commonfuntion.dart';

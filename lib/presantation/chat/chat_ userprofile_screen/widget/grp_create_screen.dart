@@ -77,7 +77,7 @@ class _GroupNameEditScreenState extends State<GroupNameEditScreen> {
       debugPrint("FILE NAME => ${file.value.filename}");
       debugPrint("FILE CONTENT TYPE => ${file.value.contentType}");
     }
-    print(widget.groupId);
+  
 
     final response = await Dio().put(
       "https://api.nowdigitaleasy.com/wschat/v1/group/profile/${widget.groupId}",

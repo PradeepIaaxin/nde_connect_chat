@@ -12,6 +12,9 @@ import 'package:nde_email/presantation/drive/Bloc/folder_bloc/create_state.dart'
 import 'package:nde_email/presantation/drive/common/alertbox.dart';
 import 'package:nde_email/utils/router/router.dart';
 
+import '../Bloc/home_bloc/sugesstion/sugesstion_bloc.dart';
+import '../Bloc/home_bloc/sugesstion/sugesstion_event.dart';
+
 class UploadToDriveScreen extends StatefulWidget {
   final List<PlatformFile>? selectedFiles;
   final String? parentId;
@@ -100,10 +103,18 @@ class _UploadToDriveScreenState extends State<UploadToDriveScreen> {
                           parentId: widget.parentId,
                         ),
                       );
+                  Future.delayed(Duration(seconds: 3),() {
+                    context.read<SuggestionsBloc>().add(FetchSuggestionsEvent());
+                    MyRouter.pop();
+                  },);
+
+
                 }
 
+              //  Future.delayed(Duration(seconds: 2));
+
                 // Close upload screen and refresh drive folders
-                MyRouter.pop();
+
                 context.read<MyDriveBloc>().add(FetchMyDriveFolders());
               } catch (e) {
                 log("Upload failed: $e");

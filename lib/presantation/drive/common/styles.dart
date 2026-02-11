@@ -63,7 +63,6 @@ TextStyle robotoBlack(BuildContext context) {
 TextStyle loginemail(BuildContext context) {
   final fontSizeExtraLarge = FontSizes.fontSizeExtraLarge(context);
   final theme = Theme.of(context);
-  final colorScheme = theme.cardColor;
   final textTheme = theme.textTheme.bodyLarge?.color;
   final isDark = theme.brightness == Brightness.dark;
   return TextStyle(
@@ -80,7 +79,6 @@ TextStyle loginemail(BuildContext context) {
 TextStyle email(BuildContext context) {
   final fontSizeDefault = FontSizes.fontSizeDefault(context);
   final theme = Theme.of(context);
-  final colorScheme = theme.cardColor;
   final textTheme = theme.textTheme.bodyLarge?.color;
   final isDark = theme.brightness == Brightness.dark;
   return TextStyle(
@@ -110,9 +108,8 @@ TextStyle forgettenmailid(BuildContext context) {
 // Next
 TextStyle next(BuildContext context) {
   final fontSizeLarge = FontSizes.fontSizeLarge(context);
-  final fontSizeDefault = FontSizes.fontSizeDefault(context);
+  FontSizes.fontSizeDefault(context);
   final theme = Theme.of(context);
-  final colorScheme = theme.cardColor;
   final textTheme = theme.textTheme.bodyLarge?.color;
   final isDark = theme.brightness == Brightness.dark;
   return TextStyle(
@@ -139,10 +136,9 @@ TextStyle change(BuildContext context) {
 
 TextStyle widgetemail(BuildContext context) {
   final fontSizeExtraLarge = FontSizes.fontSizeExtraLarge(context);
-  final fontSizeLarge = FontSizes.fontSizeLarge(context);
-  final fontSizeDefault = FontSizes.fontSizeDefault(context);
+  FontSizes.fontSizeLarge(context);
+  FontSizes.fontSizeDefault(context);
   final theme = Theme.of(context);
-  final colorScheme = theme.cardColor;
   final textTheme = theme.textTheme.bodyLarge?.color;
   final isDark = theme.brightness == Brightness.dark;
   return TextStyle(

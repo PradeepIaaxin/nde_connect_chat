@@ -307,6 +307,7 @@ class _TrashScreenState extends State<TrashScreen> {
                                                           fileUrl: folder
                                                                   .previewpath ??
                                                               "",
+                                                              fileName: folder.name,
                                                         ),
                                                       );
                                                     },
@@ -520,6 +521,7 @@ class _TrashScreenState extends State<TrashScreen> {
                                                       fileUrl:
                                                           folder.previewpath ??
                                                               "",
+                                                      fileName: folder.name,
                                                     ),
                                                   );
                                                 },

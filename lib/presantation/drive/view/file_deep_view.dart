@@ -19,7 +19,7 @@ import 'package:nde_email/presantation/drive/view/move_screen.dart';
 import 'package:nde_email/presantation/drive/view/send_screen.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/const/consts.dart';
-import 'package:nde_email/utils/datetime/dateformatter.dart';
+import 'package:nde_email/utils/datetime/date_formatter.dart';
 import 'package:nde_email/utils/reusbale/dowloading_mime.dart';
 import 'package:nde_email/utils/router/router.dart';
 import 'package:nde_email/utils/simmer_effect.dart/drive_simmer.dart';
@@ -44,16 +44,8 @@ class FileDeepView extends StatefulWidget {
 
 class _FileDeepViewState extends State<FileDeepView> {
   bool gridview = false;
-  String _currentSort = 'Name';
+  final String _currentSort = 'Name';
   final scrollController = ScrollController();
-  final List<String> _sortOptions = [
-    'Name',
-    'Date Modified',
-    'Date Modified by Me',
-    'Date Opened by Me',
-    'New to old',
-    'Old to new',
-  ];
 
   String? _currentId;
   bool selectAll = false;
@@ -79,7 +71,7 @@ class _FileDeepViewState extends State<FileDeepView> {
   }
 
   String? sortQuery;
-  bool _isFabVisible = true;
+  final bool _isFabVisible = true;
 
   void _loadStarredFolders({String? sortBy}) {
     context
@@ -290,7 +282,7 @@ class _FileDeepViewState extends State<FileDeepView> {
                                       selectedid: widget.fileId,
                                       sortBy: _currentSort,
                                       isCurrentlyStarred: selectedFolderModels
-                                          .every((f) => f.starred ?? false),
+                                          .every((f) => f.starred),
                                     ),
                                   );
                               _clearSelection();
@@ -577,8 +569,8 @@ class _FolderGridItem extends StatelessWidget {
                                           InStarredData(
                                               fileID: [folder.id],
                                               selectedid: currentId,
-                                              isCurrentlyStarred: folder.starred
-                                              ),
+                                              isCurrentlyStarred:
+                                                  folder.starred),
                                         );
                                   },
                                 ),
@@ -605,7 +597,7 @@ class _FolderGridItem extends StatelessWidget {
                                       onRename: (newName) {
                                         context.read<InsideBloc>().add(
                                               InRenameEvent(
-                                                  selectedid: currentId ?? "",
+                                                  selectedid: currentId,
                                                   fileIDs: [folder.id],
                                                   editedName: newName.trim()),
                                             );
@@ -828,7 +820,7 @@ class _FolderListItem extends StatelessWidget {
             );
           } else {
             MyRouter.push(
-                screen: FilePreviewScreen(fileUrl: folder.preview ?? ""));
+                screen: FilePreviewScreen(fileUrl: folder.preview ?? "",  fileName: folder.name,));
           }
         }
       },
@@ -916,9 +908,8 @@ class _FolderListItem extends StatelessWidget {
                       context.read<InsideBloc>().add(
                             InStarredData(
                                 fileID: [folder.id],
-                                selectedid: currentId, 
-                                isCurrentlyStarred: folder.starred
-                                ),
+                                selectedid: currentId,
+                                isCurrentlyStarred: folder.starred),
                           );
                     },
                   ),
@@ -971,7 +962,7 @@ class _FolderListItem extends StatelessWidget {
                                           InOrganizeEvent(
                                               fileIDs: [folder.id],
                                               pickedColor: hex,
-                                              selectedid: currentId ?? ""),
+                                              selectedid: currentId),
                                         );
                                   },
                                 );
@@ -1078,18 +1069,17 @@ Color _parseColor(String hexColor, FolderinsideModel folder) {
 }
 
 Widget _buildMimeIcon(FolderinsideModel folder) {
-  final type = folder.type?.toLowerCase();
+  final type = folder.type.toLowerCase();
 
   final typefolder = folder.extname?.toLowerCase().trim() ?? "";
 
-  final mimeType = folder.mimetype?.toLowerCase().trim() ?? '';
 
   if (type == 'folder') {
     return Image.asset(
       "assets/images/folder.png",
       height: 24,
       width: 24,
-      color: (folder.organize != null && folder.organize.isNotEmpty)
+      color: (folder.organize.isNotEmpty)
           ? ColorUtils.fromHex(folder.organize)
           : Colors.amber,
     );

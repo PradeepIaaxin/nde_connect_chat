@@ -284,9 +284,9 @@ Future<void> showReactionsBottomSheet({
                                   currentUserId: currentUserId,
                                   messagerBloc: messagerBloc,
                                   convoId:convoId,
-                                  receiverId:receiverId ?? "",
-                                  firstname: firstname ?? "",
-                                  lastname:lastname ?? "",
+                                  receiverId:receiverId,
+                                  firstname: firstname ,
+                                  lastname:lastname ,
                                   setState: setState,
                                   allMessages: allMessages,
                                   messagesNotifier:
@@ -357,35 +357,25 @@ Future<void> showReactionsBottomSheet({
                     itemBuilder: (c, i) {
                       final r = reactors[i];
                       final user = r['user'];
-                      String userId = '';
                       String firstName = '';
-                      String lastName = '';
                       String? avatarUrl;
 
                       if (user is Map) {
-                        userId =
-                            (user['_id'] ?? user['id'] ?? user['userId'] ?? '')
-                                .toString();
 
                         firstName =
                             (user['first_name'] ?? user['firstName'] ?? '')
                                 .toString();
 
-                        lastName = (user['last_name'] ?? user['lastName'] ?? '')
-                            .toString();
 
                         avatarUrl = user['avatar']?.toString();
                       } else {
-                        userId = (r['userId'] ?? '').toString();
                       }
 
-                      final displayName =
-                          firstName.isNotEmpty ? firstName : userId;
                       final normalized = normalizeReactionUser(
                         r,
                         currentUserId,
-                        firstname ?? '',
-                       lastname ?? '',
+                        firstname,
+                       lastname,
                       );
 
                       final isMe = normalized['id'] == currentUserId;
@@ -430,8 +420,8 @@ Future<void> showReactionsBottomSheet({
                                       targetMessageId: msgId,
                                       newEmoji: null,
                                       currentUserId: currentUserId,
-                                      firstname:firstname ?? "",
-                                      lastname:lastname ?? "",
+                                      firstname:firstname ,
+                                      lastname:lastname ,
                                       convoId:convoId,
                                       setState: setState,
                                       allMessages: allMessages,
@@ -446,9 +436,9 @@ Future<void> showReactionsBottomSheet({
                                     conversationId:convoId,
                                     emoji: selectedEmoji,
                                     userId: currentUserId,
-                                    receiverId:receiverId ?? "",
-                                    firstName:firstname ?? "",
-                                    lastName: lastname ?? "",
+                                    receiverId:receiverId ,
+                                    firstName:firstname,
+                                    lastName: lastname ,
                                   ));
                                 },
                                 child: const Text('Remove',

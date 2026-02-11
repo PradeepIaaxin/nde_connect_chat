@@ -10,7 +10,7 @@ import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/wi
 
 import '../../../../../../data/respiratory.dart';
 import '../../../../../../utils/router/router.dart';
-import '../../../../../widgets/chat_widgets/messager_Wifgets/ForwardMessageScreen_widget.dart';
+import '../../../../../widgets/chat_widgets/messager_Wifgets/forwardmessagescreen_widget.dart';
 
 
 import '../../MessagerBloc.dart';
@@ -246,7 +246,7 @@ void forwardSelectedMessages(
       messages: selectedMessages.toList(),
       currentUserId: currentUserId,
       conversionalid:convoId,
-      username: firstname ?? "",
+      username: firstname,
       isForward: isSentMe,
     ),
   );
@@ -329,7 +329,7 @@ Future<void> sendInitialReadReceiptsIfNeeded({
 
   // compute consistent roomId
   final computedRoomId =
-  socketService.generateRoomId(currentUserId, datumId ?? '');
+  socketService.generateRoomId(currentUserId, datumId);
   socketService.sendReadReceipts(
     messageIds: unread,
     conversationId: convoId,
@@ -525,7 +525,7 @@ Future<void> loadCurrentUserId(
 }
     ) async {
   final userId = await UserPreferences.getUserId() ?? '';
-  if (userId.isEmpty || (datumId?.isEmpty ?? true)) {
+  if (userId.isEmpty || (datumId.isEmpty)) {
     debugPrint('⚠️ _loadCurrentUserId: missing userId or datumId');
     return;
   }
@@ -625,10 +625,10 @@ void setupMessageListener({
   required  DateTime Function(dynamic) parseTime,
   required  bool Function(Map<String, dynamic>) hasReplyForMessage,
 }) {
-  if (currentUserId.isEmpty || datumId == null) return;
+  if (currentUserId.isEmpty) return;
 
   messagerBloc.add(ListenToMessages(
-      senderId: currentUserId, receiverId: receiverId ?? ""));
+      senderId: currentUserId, receiverId: receiverId));
   statusSubscription ??=
       socketService.statusUpdateStream.listen((statusUpdate) {
         if (!mounted) return;

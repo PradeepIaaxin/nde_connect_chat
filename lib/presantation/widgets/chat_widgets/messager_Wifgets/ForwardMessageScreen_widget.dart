@@ -5,7 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nde_email/data/respiratory.dart';
 import 'package:nde_email/presantation/chat/Socket/Socket_Service.dart';
 
-import 'package:nde_email/presantation/chat/chat_contact_list/UserService.dart';
+import 'package:nde_email/presantation/chat/chat_contact_list/userservice.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_data_model.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_list_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_list_event.dart';

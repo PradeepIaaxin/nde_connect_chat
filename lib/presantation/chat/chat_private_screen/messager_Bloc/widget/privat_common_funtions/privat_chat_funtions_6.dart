@@ -194,7 +194,7 @@ void openFile({
       Messenger.alertError("Could not open downloaded file.");
     }
   } catch (e) {
-    print("Error downloading/opening file: $e");
+    log("Error downloading/opening file: $e");
     Messenger.alertError("Failed to open file.");
   }
 }
@@ -235,8 +235,8 @@ void updateLocalReactions({
           'userId': currentUserId,
           'user': {
             '_id': currentUserId,
-            'first_name':firstname ?? "",
-            'last_name': lastname ?? "",
+            'first_name':firstname,
+            'last_name': lastname,
           },
           'reacted_at': DateTime.now().toIso8601String(),
         });
@@ -544,7 +544,7 @@ Future<void> handleReactionTap(
         messageId: apiMessageId,
         conversationId:convoId,
         emoji: oldEmoji ?? '',
-        userId: currentUserId!,
+        userId: currentUserId,
         receiverId:receiverId ,
         firstName:firstname ,
         lastName: lastname ,
@@ -618,8 +618,8 @@ void _updateLocalReactionss({
           'userId': currentUserId,
           'user': {
             '_id': currentUserId,
-            'first_name': firstname ?? "",
-            'last_name':lastname ?? "",
+            'first_name': firstname,
+            'last_name':lastname,
           },
           'reacted_at': DateTime.now().toIso8601String(),
         });
@@ -756,7 +756,7 @@ void onMessageTap({
   debugPrint('📌 extracted groupId: $groupId');
 
   if (replyId != null && replyId.isNotEmpty) {
-    final found = await scrollToMessageById(replyId!,
+    final found = await scrollToMessageById(replyId,
       fetchIfMissing: true,
       messageContexts: messageContexts,
       highlightAndScrollToContext: (ctx, messageId) {
