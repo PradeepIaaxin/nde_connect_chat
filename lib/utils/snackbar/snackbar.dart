@@ -7,10 +7,12 @@ import 'package:nde_email/utils/spacer/spacer.dart';
 class Messenger {
   static final rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
-  static dynamic alertError(String msg) => alert(msg: msg, color: Colors.red);
-  static dynamic alertSuccess(String msg) => alert(msg: msg, color: Colors.green);
+  static dynamic alertError(String msg, {Duration? duration}) =>
+      alert(msg: msg, color: Colors.red, duration: duration);
+  static dynamic alertSuccess(String msg, {Duration? duration}) =>
+      alert(msg: msg, color: Colors.green, duration: duration);
 
-  static void alert({required String msg, Color? color}) {
+  static void alert({required String msg, Color? color, Duration? duration}) {
     if (msg.trim().isEmpty) return;
     log(msg);
 
@@ -19,7 +21,7 @@ class Messenger {
       SnackBar(
         showCloseIcon: true,
         closeIconColor: Colors.white,
-        duration: const Duration(seconds: 5),
+        duration: duration ?? const Duration(seconds: 5),
         behavior: SnackBarBehavior.floating,
         backgroundColor: color,
         shape: const RoundedRectangleBorder(),
@@ -34,11 +36,13 @@ class Messenger {
     );
   }
 
-  static ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? alertAction({
+  static ScaffoldFeatureController<SnackBar, SnackBarClosedReason>?
+      alertAction({
     required String msg,
     required String actionLabel,
     required VoidCallback onAction,
     Color? color,
+    Duration? duration,
   }) {
     if (msg.trim().isEmpty) return null;
     log(msg);
@@ -48,7 +52,7 @@ class Messenger {
       SnackBar(
         showCloseIcon: true,
         closeIconColor: Colors.white,
-        duration: const Duration(seconds: 5),
+        duration: duration ?? const Duration(seconds: 5),
         behavior: SnackBarBehavior.floating,
         backgroundColor: color,
         shape: const RoundedRectangleBorder(),
