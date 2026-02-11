@@ -119,7 +119,9 @@ bool _hasValidReply(dynamic rawReply, dynamic rawReplyId, dynamic rawReplyConten
   if (rawReply is Map && rawReply.isNotEmpty) return true;
   if (rawReplyId != null && rawReplyId.toString().trim().isNotEmpty) return true;
   if (rawReplyContent != null &&
-      rawReplyContent.toString().trim().isNotEmpty) return true;
+      rawReplyContent.toString().trim().isNotEmpty) {
+    return true;
+  }
   return false;
 }
 
@@ -447,7 +449,7 @@ Map<String, dynamic> _normalizeStandardMessage(dynamic rawMsg) {
       'content': rawReply['replyContent'] ?? rawReply['content'] ?? '',
       'fileName': rawReply['fileName'],
       'fileType': rawReply['fileType'] ?? rawReply['ContentType'],
-      'group_message_id': rawReply['group_message_id']??rawReply['isGroupedMessageId']??null,
+      'group_message_id': rawReply['group_message_id']??rawReply['isGroupedMessageId'],
       'is_grouped_message':rawReply['is_grouped_message']?? rawReply['isGroupedMessage'] ??false,
       'originalUrl': rawReply['originalUrl'],
       'imageUrl': rawReply['imageUrl'],

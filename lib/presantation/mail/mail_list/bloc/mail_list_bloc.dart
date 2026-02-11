@@ -512,7 +512,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
                 unreadCountByMailbox: updatedUnreadMap,
                 totalUnreadCount: updatedUnreadMap.values.fold<int>(
                   0,
-                  (a, b) => a + (b ?? 0),
+                  (a, b) => a + (b),
                 ),
                 totalCountByMailbox: updatedTotalMap,
               )
@@ -661,7 +661,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
         unreadCountByMailbox: updatedMap,
         totalUnreadCount: updatedMap.values.fold<int>(
           0,
-          (a, b) => a + (b ?? 0),
+          (a, b) => a + (b),
         ),
       ));
 
@@ -732,7 +732,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
         unreadCountByMailbox: updatedUnreadMap,
         totalUnreadCount: updatedUnreadMap.values.fold<int>(
           0,
-          (a, b) => a + (b ?? 0),
+          (a, b) => a + (b),
         ),
         totalCountByMailbox: updatedTotalMap,
       ));
@@ -842,7 +842,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
       unreadCountByMailbox: updatedUnreadMap,
       totalUnreadCount: updatedUnreadMap.values.fold<int>(
         0,
-        (a, b) => a + (b ?? 0),
+        (a, b) => a + (b),
       ),
       totalCountByMailbox: updatedTotalMap,
     ));
@@ -901,7 +901,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
         unreadCountByMailbox: updatedUnreadMap,
         totalUnreadCount: updatedUnreadMap.values.fold<int>(
           0,
-          (a, b) => a + (b ?? 0),
+          (a, b) => a + (b),
         ),
         totalCountByMailbox: updatedTotalMap,
       ));
@@ -965,7 +965,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
         unreadCountByMailbox: updatedUnreadMap,
         totalUnreadCount: updatedUnreadMap.values.fold<int>(
           0,
-          (a, b) => a + (b ?? 0),
+          (a, b) => a + (b),
         ),
         totalCountByMailbox: updatedTotalMap,
       ));
@@ -1065,7 +1065,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
       unreadCountByMailbox: updatedUnreadMap,
       totalUnreadCount: updatedUnreadMap.values.fold<int>(
         0,
-        (a, b) => a + (b ?? 0),
+        (a, b) => a + (b),
       ),
       totalCountByMailbox: updatedTotalMap,
     ));
@@ -1126,7 +1126,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
         unreadCountByMailbox: updatedUnreadMap,
         totalUnreadCount: updatedUnreadMap.values.fold<int>(
           0,
-          (a, b) => a + (b ?? 0),
+          (a, b) => a + (b),
         ),
         totalCountByMailbox: updatedTotalMap,
       ));
@@ -1174,7 +1174,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
       unreadCountByMailbox: updatedUnreadMap,
       totalUnreadCount: updatedUnreadMap.values.fold<int>(
         0,
-        (a, b) => a + b,
+        (a, b) => a + (b),
       ),
       totalStarredUnreadCount:
           state.totalStarredUnreadCount + starredUnreadChange,
@@ -1215,7 +1215,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
         unreadCountByMailbox: rollbackMap,
         totalUnreadCount: rollbackMap.values.fold<int>(
           0,
-          (a, b) => a + (b ?? 0),
+          (a, b) => a + (b),
         ),
         totalStarredUnreadCount:
             state.totalStarredUnreadCount - starredUnreadChange,
@@ -1263,7 +1263,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
       unreadCountByMailbox: updatedUnreadMap,
       totalUnreadCount: updatedUnreadMap.values.fold<int>(
         0,
-        (a, b) => a + b,
+        (a, b) => a + (b),
       ),
       totalStarredUnreadCount:
           state.totalStarredUnreadCount + starredUnreadChange,
@@ -1304,7 +1304,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
         unreadCountByMailbox: rollbackMap,
         totalUnreadCount: rollbackMap.values.fold<int>(
           0,
-          (a, b) => a + (b ?? 0),
+          (a, b) => a + (b),
         ),
         totalStarredUnreadCount:
             state.totalStarredUnreadCount - starredUnreadChange,
@@ -1396,11 +1396,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
     final defaultWorkspace = await UserPreferences.getDefaultWorkspace();
 
     // Capture current snapshot of those specific mails for rollback
-    final originalMailsSnapshot = Map<int, GMMailModels>.fromIterable(
-      state.mails.where((m) => event.ids.contains(m.id)),
-      key: (m) => m.id,
-      value: (m) => m,
-    );
+    final originalMailsSnapshot = { for (var m in state.mails.where((m) => event.ids.contains(m.id))) m.id : m };
 
     // 2️⃣ IMMEDIATE OPTIMISTIC UPDATE (BEFORE ANY AWAIT THAT MIGHT BLOCK OTHER EVENTS)
     List<GMMailModels> currentMails = List<GMMailModels>.from(state.mails);

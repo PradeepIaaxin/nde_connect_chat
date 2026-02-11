@@ -18,6 +18,5 @@ class StarredLoaded extends StarredState {
 
   StarredLoaded(this.folders, this.hasMore, {this.errorMessage});
 
-  @override
   List<Object?> get props => [folders, hasMore, errorMessage];
 }

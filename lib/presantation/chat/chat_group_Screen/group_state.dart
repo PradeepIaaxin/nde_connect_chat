@@ -22,7 +22,7 @@ class GroupChatMessageDeletedSuccessfully extends GroupChatState {
 class PermissionState extends GroupChatState {
   final Map<String, dynamic>? response;
 
-  PermissionState(this.response);
+  const PermissionState(this.response);
 }
 
 class GroupChatMessagesDeleted extends GroupChatState {}

@@ -54,12 +54,6 @@ class _ConnectivityScope extends InheritedWidget {
     required super.child,
   });
 
-  static bool of(BuildContext context) {
-    return context
-            .dependOnInheritedWidgetOfExactType<_ConnectivityScope>()
-            ?.hasInternet ??
-        true;
-  }
 
   @override
   bool updateShouldNotify(_ConnectivityScope oldWidget) {

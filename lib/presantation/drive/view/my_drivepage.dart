@@ -192,7 +192,7 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                     : () {
                         MyRouter.push(
                             screen:
-                                FilePreviewScreen(fileUrl: file.preview ?? ""));
+                                FilePreviewScreen(fileUrl: file.preview ?? "",  fileName: file.name,));
                       },
             child: Container(
               color: isSelected ? chatColor.withValues(alpha: 0.1) : null,
@@ -468,7 +468,7 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                       : () {
                           MyRouter.push(
                               screen: FilePreviewScreen(
-                                  fileUrl: file.preview ?? ""));
+                                  fileUrl: file.preview ?? "",  fileName: file.name,));
                         },
               behavior: HitTestBehavior.opaque,
               child: Container(

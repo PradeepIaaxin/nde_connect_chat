@@ -9,7 +9,6 @@ import 'package:nde_email/presantation/mail/common/dialogs/move_to_dialog.dart';
 import 'package:nde_email/presantation/mail/common/mail_more_menu.dart';
 import 'package:nde_email/presantation/mail/common/menuaction/mail_menu_action.dart';
 import 'package:nde_email/presantation/mail/mail_list/bloc/mail_list_event.dart';
-import 'package:nde_email/presantation/meet/socket/test_socket.dart';
 import 'package:nde_email/presantation/meet/view/meeting_screen.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/bottam_nav/bottam_nav_bloc.dart';

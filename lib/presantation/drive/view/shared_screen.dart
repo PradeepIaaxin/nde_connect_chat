@@ -18,7 +18,8 @@ import 'package:nde_email/presantation/drive/view/manage_acces_screen.dart';
 import 'package:nde_email/presantation/drive/view/move_screen.dart';
 import 'package:nde_email/presantation/drive/view/send_screen.dart';
 import 'package:nde_email/utils/const/consts.dart';
-import 'package:nde_email/utils/datetime/dateformatter.dart';
+import 'package:nde_email/utils/datetime/date_formatter.dart';
+
 import 'package:nde_email/utils/icons/reuable_icon.dart';
 import 'package:nde_email/utils/reusbale/dowloading_mime.dart';
 import 'package:nde_email/utils/router/router.dart';
@@ -355,6 +356,7 @@ class _SharedPageState extends State<SharedPage> {
                                                 screen: FilePreviewScreen(
                                                   fileUrl:
                                                       folder.previewpath ?? "",
+                                                  fileName: folder.name,
                                                 ),
                                               );
                                             },

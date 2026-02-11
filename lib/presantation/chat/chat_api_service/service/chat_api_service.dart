@@ -58,7 +58,7 @@ class ChatApiService {
       return;
     }
 
-    print('''
+    log('''
 📩 MESSAGE DATA
 ────────────────────
 conversationId : $conversationId
@@ -71,13 +71,6 @@ grpid           : $grpId
 
     final roomId = generateRoomId(senderId, receiverId);
     log("ROOM ID = $roomId");
-
-    // final payload = {
-    //   "senderId": senderId,
-    //   "receiverId": receiverId,
-    //   "content": content,
-    //   "roomId": isGrpchat == true ? grpId : roomId,
-    // };
 
     // print('📦 PAYLOAD => $payload');
     log(isGrpchat.toString());

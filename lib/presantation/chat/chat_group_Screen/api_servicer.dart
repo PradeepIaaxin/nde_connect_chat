@@ -322,7 +322,7 @@ class GrpMessagerApiService {
       }
 
       final roomId = generateRoomId(userId, receiverId);
-      print("Room ID: $roomId");
+      log("Room ID: $roomId");
 
       // ⭐ Normalize the messageId here so we NEVER send "forward_..."
       final normalizedId = _normalizeMessageIdForApi(messageId);
@@ -337,7 +337,7 @@ class GrpMessagerApiService {
         "roomId": roomId,
       };
 
-      print("📤 sending payload $body");
+      log("📤 sending payload $body");
 
       final response = await http.post(
         uri,
@@ -368,7 +368,7 @@ class GrpMessagerApiService {
     try {
       final token = await UserPreferences.getAccessToken();
       final defaultWorkspace = await UserPreferences.getDefaultWorkspace();
-      print("printing removing ");
+      log("printing removing ");
 
       if (token == null || token.isEmpty) {
         throw Exception('Authentication token not found. Please log in again.');
@@ -380,7 +380,7 @@ class GrpMessagerApiService {
       }
 
       final roomId = generateRoomId(userId, receiverId);
-      print("Room ID: $roomId");
+      log("Room ID: $roomId");
 
       // ⭐ Normalize here as well
       final normalizedId = _normalizeMessageIdForApi(messageId);
@@ -395,7 +395,7 @@ class GrpMessagerApiService {
         "roomId": roomId,
       };
 
-      print("📤 sending payload (remove) $body");
+      log("📤 sending payload (remove) $body");
 
       final response = await http.post(
         uri,

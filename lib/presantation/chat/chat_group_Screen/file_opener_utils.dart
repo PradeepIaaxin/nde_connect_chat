@@ -108,13 +108,16 @@ class FileOpenerUtils {
       final lower = fileType.toLowerCase();
 
       if (lower.contains('pdf')) return '.pdf';
-      if (lower.contains('word') || lower.contains('doc'))
+      if (lower.contains('word') || lower.contains('doc')) {
         return '.docx';
-      if (lower.contains('excel') || lower.contains('sheet'))
+      }
+      if (lower.contains('excel') || lower.contains('sheet')) {
         return '.xlsx';
+      }
       if (lower.contains('presentation') ||
-          lower.contains('powerpoint'))
+          lower.contains('powerpoint')) {
         return '.pptx';
+      }
       if (lower.contains('image')) return '.jpg';
       if (lower.contains('video')) return '.mp4';
       if (lower.contains('text')) return '.txt';

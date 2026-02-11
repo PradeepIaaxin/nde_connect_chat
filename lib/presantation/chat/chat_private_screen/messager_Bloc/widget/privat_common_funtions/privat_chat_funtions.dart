@@ -1,9 +1,6 @@
 
-import 'dart:async';
 import 'dart:convert';
-import 'dart:developer';
 
-import 'package:flutter/material.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/MessagerBloc.dart';
 
 import '../../../../../../data/respiratory.dart';
@@ -96,9 +93,9 @@ async {
       messagerBloc.add(
         SendMessageEvent(
           convoId: convoId!,
-          message: text!,
-          senderId: currentUserId!,
-          receiverId: receiverId!,
+          message: text,
+          senderId: currentUserId,
+          receiverId: receiverId,
           replyTo: reply!,
           replyMessageId: replyMessageId!,
         ),
@@ -160,8 +157,6 @@ Future<void> initializeSocket() async {
 }
 
 bool hasReplyForMessage(Map<String, dynamic> message) {
-  if (message == null) return false;
-
   if (message['_localHasReply'] == true) return true;
 
   final replyRaw = message['reply'];
@@ -464,7 +459,7 @@ Future<void> openCamera(
           files: [file],
           conversationId: convoId,
           senderId: currentUserId,
-          receiverId: receiverId!,
+          receiverId: receiverId,
           isGroupChat: false,
         ),
       ),
