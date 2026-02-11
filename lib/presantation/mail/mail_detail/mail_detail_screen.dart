@@ -19,6 +19,7 @@ import 'mail_detail_model.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:nde_email/presantation/mail/compose/screen/compose_screen.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/attachment.dart';
+import 'package:nde_email/presantation/widgets/mail_widgets/collapsible_quoted_content.dart';
 import 'mail_detail_event.dart';
 import 'mail_detail_state.dart';
 import 'mail_detail_bloc.dart';
@@ -381,29 +382,7 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
                         if (mailDetail.html.isNotEmpty)
                           SizedBox(
                             width: double.infinity,
-                            child: HtmlWidget(
-                              mailDetail.html,
-                              renderMode: RenderMode.column,
-                              factoryBuilder: () =>
-                                  NoInlineImageWidgetFactory(),
-                              onTapUrl: (url) async {
-                                final uri = Uri.parse(url);
-                                if (await canLaunchUrl(uri)) {
-                                  await launchUrl(uri);
-                                }
-                                return true;
-                              },
-                              // Optional: helps tables render better
-                              customStylesBuilder: (element) {
-                                if (element.localName == 'table') {
-                                  return {
-                                    'width': '100%',
-                                    'table-layout': 'fixed'
-                                  };
-                                }
-                                return null;
-                              },
-                            ),
+                            child: _buildMailContent(mailDetail.html),
                           ),
 
                         const SizedBox(height: 20),
@@ -638,6 +617,63 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
       ),
       icon: Icon(icon, color: AppColors.secondaryText),
       label: Text(label),
+    );
+  }
+
+  Widget _buildMailContent(String html) {
+    final markers = [
+      '<div class="gmail_quote">',
+      '<blockquote',
+      '<div class="nde_quote">',
+    ];
+
+    String? marker;
+    int index = -1;
+
+    for (final m in markers) {
+      final i = html.indexOf(m);
+      if (i != -1 && (index == -1 || i < index)) {
+        index = i;
+        marker = m;
+      }
+    }
+
+    if (index != -1 && marker != null) {
+      final mainContent = html.substring(0, index);
+      final quotedContent = html.substring(index);
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildHtmlWidget(mainContent),
+          CollapsibleQuotedContent(
+            child: _buildHtmlWidget(quotedContent),
+          ),
+        ],
+      );
+    }
+
+    return _buildHtmlWidget(html);
+  }
+
+  Widget _buildHtmlWidget(String html) {
+    return HtmlWidget(
+      html,
+      renderMode: RenderMode.column,
+      factoryBuilder: () => NoInlineImageWidgetFactory(),
+      onTapUrl: (url) async {
+        final uri = Uri.parse(url);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri);
+        }
+        return true;
+      },
+      customStylesBuilder: (element) {
+        if (element.localName == 'table') {
+          return {'width': '100%', 'table-layout': 'fixed'};
+        }
+        return null;
+      },
     );
   }
 }

@@ -1,14 +1,13 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/mail_list_widget/mail_list_widget.dart';
 import 'package:nde_email/utils/imports/common_imports.dart';
 import '../bloc/mail_list_event.dart';
 import '../bloc/mail_list_state.dart';
+import '../../compose/bloc/send_mail_bloc/send_mail_bloc.dart';
 import '../../compose/bloc/send_mail_bloc/send_mail_state.dart';
-import '../../compose/bloc/send_draft/save_draft_bloc.dart';
-import '../../compose/bloc/send_draft/save_draft_state.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/error_display.dart';
-import 'package:nde_email/utils/custom/custom_alret_box.dart';
 
 class MailListScreen extends StatefulWidget {
   final String mailboxId;
@@ -34,34 +33,46 @@ class _MailListScreenState extends State<MailListScreen> {
   Future<void> _emptyBin() async {
     if (_isEmptyingBin) return;
 
-    final result = await CustomConfirmationDialog.show(
+    final shouldContinue = await showDialog<bool>(
       context: context,
-      title: 'Empty bin?',
-      message: 'This will permanently remove the Trash mailbox.',
-      confirmText: 'Empty',
-      onConfirm: () async {
-        setState(() => _isEmptyingBin = true);
-        try {
-          final message =
-              await FetchMailBoxesApi().deleteMailbox(widget.mailboxId);
-
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(message)),
-          );
-        } catch (e) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(e.toString())),
-          );
-        } finally {
-          if (mounted) setState(() => _isEmptyingBin = false);
-        }
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Empty bin?'),
+          content: const Text('This will permanently remove the Trash mailbox.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Empty',style: TextStyle(color: Colors.red),),
+            ),
+          ],
+        );
       },
     );
 
-    if (result == true && mounted) {
+    if (shouldContinue != true || !mounted) return;
+
+    setState(() => _isEmptyingBin = true);
+
+    try {
+      final message = await FetchMailBoxesApi().deleteMailbox(widget.mailboxId);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+
       MyRouter.pushNamedAndRemoveUntil('/home');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    } finally {
+      if (mounted) setState(() => _isEmptyingBin = false);
     }
   }
 
@@ -69,68 +80,20 @@ class _MailListScreenState extends State<MailListScreen> {
     if (!_isTrashMailbox || !show) return const SizedBox.shrink();
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Row(
         children: [
-          const Padding(
-            padding: EdgeInsets.only(bottom: 12),
-            child: Text(
-              "Bin",
-              style: TextStyle(
-                fontSize: 16,
-                color: AppColors.secondaryText,
-              ),
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F4F9),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(
-                      Icons.delete_outline,
-                      color: Color(0xFF0B57D0),
-                      size: 20,
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text(
-                        "Items that have been in the bin for more than 30 days will be automatically deleted.",
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppColors.secondaryText,
-                          height: 1.4,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(left: 32, top: 8),
-                  child: GestureDetector(
-                    onTap: _isEmptyingBin ? null : _emptyBin,
-                    child: Text(
-                      "Empty Bin now",
-                      style: TextStyle(
-                        color: _isEmptyingBin
-                            ? AppColors.secondaryText
-                            : AppColors.profile,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          const Spacer(),
+          TextButton.icon(
+            onPressed: _isEmptyingBin ? null : _emptyBin,
+            icon: _isEmptyingBin
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.delete_sweep,color: Colors.red,),
+            label: const Text('Empty bin',style: TextStyle(color: Colors.red),),
           ),
         ],
       ),
@@ -311,14 +274,19 @@ class _MailListScreenState extends State<MailListScreen> {
 
     debugPrint("🔄 Pull-to-refresh triggered for ${widget.mailboxId}");
 
-    // Clear cache for current mailbox to force fresh API fetch
-    _bloc.add(ResetMailListEvent(widget.mailboxId));
+    final completer = Completer<void>();
 
-    // Small delay to allow reset state to emit
-    await Future.delayed(const Duration(milliseconds: 50));
+    if (_isFilteredView) {
+      _bloc.add(RefreshFilteredMailEvent(widget.mailboxId, completer: completer));
+    } else {
+      _bloc.add(RefreshMailListEvent(widget.mailboxId, completer: completer));
+    }
 
-    // Fetch fresh data from API
-    _fetch();
+    try {
+      await completer.future.timeout(const Duration(seconds: 15));
+    } on TimeoutException {
+      return;
+    }
   }
 
   @override
@@ -330,148 +298,131 @@ class _MailListScreenState extends State<MailListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<DraftBloc, DraftState>(
-      listener: (context, draftState) {
-        if (draftState is DraftSaved) {
-          debugPrint("✅ Draft saved! Refreshing list for ${widget.mailboxId}");
+    return BlocListener<SendMailBloc, SendMailState>(
+      listener: (context, sendState) {
+        if (sendState is MailSent) {
+          debugPrint(
+              "✅ Mail sent successfully! Refreshing list for $widget.mailboxId");
+
+          // Trigger silent refresh to update UI without loading spinner
           _bloc.add(RefreshMailListEvent(widget.mailboxId));
         }
       },
-      child: BlocListener<SendMailBloc, SendMailState>(
-        listener: (context, sendState) {
-          if (sendState is MailSent) {
-            debugPrint(
-                "✅ Mail sent successfully! Refreshing list for ${widget.mailboxId}");
-
-            // 1️⃣ Local removal for immediate UI sync
-            if (sendState.draftId != null &&
-                sendState.mailboxId == widget.mailboxId) {
-              _bloc.add(RemoveMailFromListEvent(
-                sendState.draftId!,
-                sendState.mailboxId!,
-              ));
-            }
-
-            // 2️⃣ Trigger silent refresh to update UI without loading spinner
-            _bloc.add(RefreshMailListEvent(widget.mailboxId));
+      child: BlocBuilder<MailListBloc, MailListState>(
+        builder: (context, state) {
+          if (state.status == MailListStatus.loading) {
+            return const Center(child: CircularProgressIndicator());
           }
-        },
-        child: BlocBuilder<MailListBloc, MailListState>(
-          builder: (context, state) {
-            if (state.status == MailListStatus.loading) {
-              return const Center(child: CircularProgressIndicator());
-            }
 
-            if (state.status == MailListStatus.loaded ||
-                state.status == MailListStatus.refreshing) {
-              final bool isSelectionActive = state.selectedMailIds.isNotEmpty;
+        if (state.status == MailListStatus.loaded ||
+            state.status == MailListStatus.refreshing) {
+          final bool isSelectionActive = state.selectedMailIds.isNotEmpty;
 
-              return isSelectionActive
-                  // ❌ NO REFRESH WHEN SELECTING
-                  ? Column(
-                      children: [
-                        _SelectAllCheckbox(state: state),
-                        Expanded(
-                          child: MailListWidget(
-                            key: ValueKey(
-                                "${widget.mailboxId}-${state.mails.length}"),
-                            mails: state.mails,
-                            mailboxId: widget.mailboxId,
-                            controller: _controller,
-                            itemCount: state.mails.length +
-                                (state.isPaginating ? 1 : 0),
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            isPaginating: state.isPaginating,
-                          ),
+          return isSelectionActive
+              // ❌ NO REFRESH WHEN SELECTING
+              ? Column(
+                  children: [
+                    _SelectAllCheckbox(state: state),
+                    Expanded(
+                      child: MailListWidget(
+                        key: ValueKey(
+                            "${widget.mailboxId}-${state.mails.length}"),
+                        mails: state.mails,
+                        mailboxId: widget.mailboxId,
+                        controller: _controller,
+                        itemCount:
+                            state.mails.length + (state.isPaginating ? 1 : 0),
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        isPaginating: state.isPaginating,
+                      ),
+                    ),
+                  ],
+                )
+
+              // ✅ NORMAL MODE → REFRESH ENABLED
+              : RefreshIndicator(
+                  onRefresh: _onRefresh,
+                  child: Column(
+                    children: [
+                      _trashActions(show: state.mails.isNotEmpty),
+                      Expanded(
+                        child: MailListWidget(
+                          key: ValueKey(
+                              "${widget.mailboxId}-${state.mails.length}"),
+                          mails: state.mails,
+                          mailboxId: widget.mailboxId,
+                          controller: _controller,
+                          itemCount:
+                              state.mails.length + (state.isPaginating ? 1 : 0),
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          isPaginating: state.isPaginating,
                         ),
-                      ],
-                    )
-
-                  // ✅ NORMAL MODE → REFRESH ENABLED
-                  : RefreshIndicator(
-                      onRefresh: _onRefresh,
-                      child: Column(
-                        children: [
-                          _trashActions(show: state.mails.isNotEmpty),
-                          Expanded(
-                            child: MailListWidget(
-                              key: ValueKey(
-                                  "${widget.mailboxId}-${state.mails.length}"),
-                              mails: state.mails,
-                              mailboxId: widget.mailboxId,
-                              controller: _controller,
-                              itemCount: state.mails.length +
-                                  (state.isPaginating ? 1 : 0),
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              isPaginating: state.isPaginating,
-                            ),
-                          ),
-                        ],
                       ),
-                    );
-            }
+                    ],
+                  ),
+                );
+        }
 
-            if (state.status == MailListStatus.empty) {
-              return RefreshIndicator(
-                onRefresh: _onRefresh,
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  children: [
-                    SizedBox(
-                      height: MediaQuery.of(context).size.height * 0.7,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Image.asset(
-                            'assets/images/empty_mailbox.png',
-                            width: 300,
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            _emptyTitle(),
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            _emptySubtitle(),
-                            style: const TextStyle(
-                              fontSize: 16,
-                              color: AppColors.secondaryText,
-                            ),
-                          ),
-                        ],
+        if (state.status == MailListStatus.empty) {
+          return RefreshIndicator(
+            onRefresh: _onRefresh,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.7,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.asset(
+                        'assets/images/empty_mailbox.png',
+                        width: 300,
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 12),
+                      Text(
+                        _emptyTitle(),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _emptySubtitle(),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: AppColors.secondaryText,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              );
-            }
+              ],
+            ),
+          );
+        }
 
-            if (state.status == MailListStatus.error) {
-              return Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ErrorDisplay(
-                      message: state.errorMessage ?? 'Something went wrong',
-                      type: ErrorType.somethingwrong,
-                    ),
-                    const SizedBox(height: 12),
-                    ElevatedButton(
-                      onPressed: _load,
-                      child: const Text("Retry"),
-                    ),
-                  ],
+        if (state.status == MailListStatus.error) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ErrorDisplay(
+                  message: state.errorMessage ?? 'Something went wrong',
+                  type: ErrorType.somethingwrong,
                 ),
-              );
-            }
+                const SizedBox(height: 12),
+                ElevatedButton(
+                  onPressed: _load,
+                  child: const Text("Retry"),
+                ),
+              ],
+            ),
+          );
+        }
 
-            return const SizedBox.shrink();
-          },
-        ),
+          return const SizedBox.shrink();
+        },
       ),
     );
   }

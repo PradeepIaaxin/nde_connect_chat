@@ -26,6 +26,7 @@ import 'package:nde_email/presantation/mail/tosection/email_suggestions_event.da
 import 'package:nde_email/presantation/mail/tosection/email_suggestions_model.dart';
 import 'package:nde_email/presantation/mail/mail_detail/mail_detail_model.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/attachment.dart';
+import 'package:nde_email/presantation/widgets/mail_widgets/collapsible_quoted_content.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
@@ -634,9 +635,11 @@ class _ComposeScreenState extends State<ComposeScreen> {
                   _buildBodyField(),
                   if (widget.mailDetail != null &&
                       widget.mailDetail!.html.isNotEmpty)
-                    HtmlWidget(
-                      widget.mailDetail!.html,
-                      onTapUrl: (url) => launchUrl(Uri.parse(url)),
+                    CollapsibleQuotedContent(
+                      child: HtmlWidget(
+                        widget.mailDetail!.html,
+                        onTapUrl: (url) => launchUrl(Uri.parse(url)),
+                      ),
                     ),
                   if (widget.mailDetail != null &&
                       widget.mailDetail!.html.isNotEmpty)

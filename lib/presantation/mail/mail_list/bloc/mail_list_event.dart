@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:equatable/equatable.dart';
 import '../model/mail_list_model.dart';
 
@@ -65,10 +66,21 @@ class FetchFilteredMailEvent extends MailListEvent {
 class RefreshMailListEvent extends MailListEvent {
   final String mailboxId;
   final String? filter;
-  const RefreshMailListEvent(this.mailboxId, {this.filter});
+  final Completer<void>? completer;
+  const RefreshMailListEvent(this.mailboxId, {this.filter, this.completer});
 
   @override
   List<Object> get props => [mailboxId];
+}
+
+class RefreshFilteredMailEvent extends MailListEvent {
+  final String filterType;
+  final Completer<void>? completer;
+
+  const RefreshFilteredMailEvent(this.filterType, {this.completer});
+
+  @override
+  List<Object?> get props => [filterType];
 }
 
 class MarkMailAsSeenEvent extends MailListEvent {
