@@ -35,7 +35,7 @@ class DraftBloc extends Bloc<DraftEvent, DraftState> {
 
       if (draftId != null) {
         lastDraftId = draftId;
-        emit(DraftSaved());
+        emit(DraftSaved(event.mailboxId));
       } else {
         emit(DraftError("Failed to save draft"));
       }
