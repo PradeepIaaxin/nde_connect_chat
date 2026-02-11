@@ -355,6 +355,7 @@ class _SharedPageState extends State<SharedPage> {
                                                 screen: FilePreviewScreen(
                                                   fileUrl:
                                                       folder.previewpath ?? "",
+                                                  fileName: folder.name,
                                                 ),
                                               );
                                             },
