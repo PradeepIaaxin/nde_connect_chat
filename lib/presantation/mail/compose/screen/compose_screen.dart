@@ -570,6 +570,10 @@ class _ComposeScreenState extends State<ComposeScreen> {
                         .read<AppBarBloc>()
                         .add(FetchMailboxesEvent(force: true));
 
+                    // 🔥 Trigger instant refresh of draft list
+                    context.read<MailListBloc>().add(RefreshMailListEvent(
+                        state.mailboxId)); // Use mailboxId from state
+
                     Messenger.alertSuccess("Draft saved successfully");
                     MyRouter.pop();
                   } else if (state is DraftError) {
