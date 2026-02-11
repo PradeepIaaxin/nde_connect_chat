@@ -156,7 +156,10 @@ class DriveRepository {
     }
   }
 
-  Future<void> starred({required List<String> fileIDs}) async {
+  Future<void> starred({
+    required List<String> fileIDs,
+    bool? isCurrentlyStarred,
+  }) async {
     try {
       final headers = await _getHeaders();
 
@@ -167,7 +170,21 @@ class DriveRepository {
       );
 
       if (response.statusCode == 200) {
-        Messenger.alertSuccess('Starred successfully!');
+        if (isCurrentlyStarred == true) {
+          // Was starred → now unstarred
+          Messenger.alertSuccess(
+            fileIDs.length == 1
+                ? "Unstarred successfully"
+                : "${fileIDs.length} items unstarred successfully",
+          );
+        } else {
+          // Was not starred → now starred
+          Messenger.alertSuccess(
+            fileIDs.length == 1
+                ? "Starred successfully"
+                : "${fileIDs.length} items starred successfully",
+          );
+        }
       } else {
         log('starred failed: Status ${response.statusCode}, Response: ${response.data}');
       }

@@ -9,8 +9,14 @@ class FetchStarredFolders extends RecentEvent {
 
 class StarredData extends RecentEvent {
   final List<String> fileID;
-  StarredData({required this.fileID});
+  final bool isCurrentlyStarred;
+
+  StarredData({
+    required this.fileID,
+    required this.isCurrentlyStarred,
+  });
 }
+
 
 class MoveToTrashEvent extends RecentEvent {
   final List<String> fileIDs;

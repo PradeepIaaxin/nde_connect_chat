@@ -225,8 +225,16 @@ class _HomePageState extends State<HomePage>
 
                                 log(file.starred.toString());
                                 context.read<SuggestionsBloc>().add(
-                                      StarredData(fileID: [file.id]),
+                                      StarredData(
+                                        fileID: [file.id],
+                                        isCurrentlyStarred:
+                                            file.starred ?? false,
+                                      ),
                                     );
+
+                                // context.read<SuggestionsBloc>().add(
+                                //       StarredData(fileID: [file.id]),
+                                //     );
                               },
                             ),
                             BottomSheetOption(
@@ -476,12 +484,13 @@ class _HomePageState extends State<HomePage>
                                             onTap: () {
                                               log('hii');
 
-                                              context
-                                                  .read<SuggestionsBloc>()
-                                                  .add(
-                                                    StarredData(
-                                                        fileID: [file.id]),
-                                                  );
+                                              context.read<SuggestionsBloc>().add(
+  StarredData(
+    fileID: [file.id],
+    isCurrentlyStarred: file.starred ?? false,
+  ),
+);
+
                                             },
                                           ),
                                           BottomSheetOption(
@@ -744,8 +753,7 @@ class _HomePageState extends State<HomePage>
 
   Widget _buildMimeIcon(
     FileModel folder,
-  )
-  {
+  ) {
     final type = folder.type.toLowerCase();
     final mimeType = folder.mimetype.toLowerCase();
     final fileName = folder.name.toLowerCase();
@@ -958,7 +966,9 @@ class _HomePageState extends State<HomePage>
                                                         StarredData(
                                                             fileID:
                                                                 selectedFolders
-                                                                    .toList()),
+                                                                    .toList(),
+                                                            isCurrentlyStarred: selectedFolderModels
+                                                                .every((f) => f.starred)),
                                                       );
                                                   _clearSelection();
                                                 },

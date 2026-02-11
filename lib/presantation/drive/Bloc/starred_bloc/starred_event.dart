@@ -10,7 +10,12 @@ class FetchStarredFolders extends StarredEvent {
 
 class StarredData extends StarredEvent {
   final List<String> fileID;
-  StarredData({required this.fileID});
+  final bool isCurrentlyStarred;
+
+  StarredData({
+    required this.fileID,
+    required this.isCurrentlyStarred,
+  });
 }
 
 class MoveToTrashEvent extends StarredEvent {

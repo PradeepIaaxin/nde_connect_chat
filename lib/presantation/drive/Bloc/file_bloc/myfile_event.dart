@@ -30,10 +30,26 @@ class FetchMyDriveFolders extends MyDriveEvent {
       [page, limit, sortBy, order, isLoadMore, forceRefresh];
 }
 
+
+// class StarredData extends MyDriveEvent {
+//   final List<String> fileID;
+//   const StarredData({required this.fileID});
+// }
+
+
 class StarredData extends MyDriveEvent {
   final List<String> fileID;
-  const StarredData({required this.fileID});
+  final bool isCurrentlyStarred;
+
+  const StarredData({
+    required this.fileID,
+    required this.isCurrentlyStarred,
+  });
+
+  @override
+  List<Object?> get props => [fileID, isCurrentlyStarred];
 }
+
 
 class MoveToTrashEvent extends MyDriveEvent {
   final List<String> fileIDs;

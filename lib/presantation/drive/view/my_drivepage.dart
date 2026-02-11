@@ -268,8 +268,15 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
 
                             log(file.starred.toString());
                             context.read<MyDriveBloc>().add(
-                                  StarredData(fileID: [file.id]),
+                                  StarredData(
+                                    fileID: [file.id],
+                                    isCurrentlyStarred: file.starred ?? false,
+                                  ),
                                 );
+
+                            // context.read<MyDriveBloc>().add(
+                            //       StarredData(fileID: [file.id]),
+                            //     );
                           },
                         ),
                         BottomSheetOption(
@@ -530,9 +537,17 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                                             log('hii');
 
                                             log(file.starred.toString());
+                                            // context.read<MyDriveBloc>().add(
+                                            //       StarredData(
+                                            //           fileID: [file.id]),
+                                            //     );
                                             context.read<MyDriveBloc>().add(
                                                   StarredData(
-                                                      fileID: [file.id]),
+                                                    fileID: selectedFolders
+                                                        .toList(),
+                                                    isCurrentlyStarred:
+                                                        file.starred ?? false,
+                                                  ),
                                                 );
                                           },
                                         ),
@@ -899,14 +914,30 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                                                     ? "Remove from Starred"
                                                     : "Add to Starred",
                                                 onTap: () {
+                                                  // context
+                                                  //     .read<MyDriveBloc>()
+                                                  //     .add(
+                                                  //       StarredData(
+                                                  //           fileID:
+                                                  //               selectedFolders
+                                                  //                   .toList()),
+                                                  //     );
+
                                                   context
                                                       .read<MyDriveBloc>()
                                                       .add(
                                                         StarredData(
-                                                            fileID:
-                                                                selectedFolders
-                                                                    .toList()),
+                                                          fileID:
+                                                              selectedFolders
+                                                                  .toList(),
+                                                          isCurrentlyStarred:
+                                                              selectedFolderModels
+                                                                  .every((f) =>
+                                                                      f.starred ??
+                                                                      false),
+                                                        ),
                                                       );
+
                                                   _clearSelection();
                                                 },
                                               ),
