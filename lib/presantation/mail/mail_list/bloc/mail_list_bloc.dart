@@ -46,6 +46,17 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
     on<UndoUnstarEvent>(_onUndoUnstar);
     on<RevertArchiveEvent>(_onRevertArchive);
     on<RemoveMailFromListEvent>(_onRemoveMailFromList);
+    on<UpdateGlobalCountsEvent>((event, emit) {
+      log('📥 MailListBloc received UpdateGlobalCountsEvent: unread=${event.totalUnread}, all=${event.totalAll}, starredUnread=${event.totalStarredUnread}, starred=${event.totalStarred}');
+      emit(state.copyWith(
+        totalUnreadCount: event.totalUnread ?? state.totalUnreadCount,
+        totalStarredCount: event.totalStarred ?? state.totalStarredCount,
+        totalStarredUnreadCount:
+            event.totalStarredUnread ?? state.totalStarredUnreadCount,
+        totalAllCount: event.totalAll ?? state.totalAllCount,
+      ));
+      log('✅ MailListBloc state updated: totalStarredUnreadCount=${state.totalStarredUnreadCount}');
+    });
 
     on<ResetMailListEvent>((event, emit) {
       // 🔥 Reset ONLY active mailbox, not everything
@@ -1145,6 +1156,18 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
 
     updatedUnreadMap[event.mailboxId] = unreadCount;
 
+    // Calculate how many starred unread may have changed
+    int starredUnreadChange = 0;
+    for (var id in event.mailIds) {
+      final index = state.mails.indexWhere((m) => m.id.toString() == id);
+      if (index != -1) {
+        final originalMail = state.mails[index];
+        if (!originalMail.seen && originalMail.flagged == true) {
+          starredUnreadChange--;
+        }
+      }
+    }
+
     // 4️⃣ Emit updated state (UI updates immediately)
     emit(state.copyWith(
       mails: updatedMails,
@@ -1153,6 +1176,8 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
         0,
         (a, b) => a + (b),
       ),
+      totalStarredUnreadCount:
+          state.totalStarredUnreadCount + starredUnreadChange,
     ));
 
     // 5️⃣ Update cache
@@ -1192,6 +1217,8 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
           0,
           (a, b) => a + (b),
         ),
+        totalStarredUnreadCount:
+            state.totalStarredUnreadCount - starredUnreadChange,
       ));
 
       cachedMailLists[event.mailboxId] = rollbackMails;
@@ -1218,6 +1245,18 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
 
     updatedUnreadMap[event.mailboxId] = unreadCount;
 
+    // Calculate how many starred unread may have changed
+    int starredUnreadChange = 0;
+    for (var id in event.mailIds) {
+      final index = state.mails.indexWhere((m) => m.id.toString() == id);
+      if (index != -1) {
+        final originalMail = state.mails[index];
+        if (originalMail.seen && originalMail.flagged == true) {
+          starredUnreadChange++;
+        }
+      }
+    }
+
     // 4️⃣ Emit updated state
     emit(state.copyWith(
       mails: updatedMails,
@@ -1226,14 +1265,23 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
         0,
         (a, b) => a + (b),
       ),
+      totalStarredUnreadCount:
+          state.totalStarredUnreadCount + starredUnreadChange,
     ));
 
     // 5️⃣ Update cache
     cachedMailLists[event.mailboxId] = updatedMails;
 
     // 6️⃣ Call backend API
+    // Get the actual mailbox ID from mail data (not filter view ID)
+    final sourceMailboxId = _getSourceMailboxId(
+      event.mailIds.map(int.parse).toSet(),
+    );
+
+    log('📝 Mark as unread: event.mailboxId=${event.mailboxId}, sourceMailboxId=$sourceMailboxId');
+
     final bool success =
-        await _markMessage(event.mailboxId, event.mailIds, false);
+        await _markMessage(sourceMailboxId, event.mailIds, false);
 
     // 7️⃣ Rollback if API fails
     if (!success) {
@@ -1258,6 +1306,8 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
           0,
           (a, b) => a + (b),
         ),
+        totalStarredUnreadCount:
+            state.totalStarredUnreadCount - starredUnreadChange,
       ));
 
       cachedMailLists[event.mailboxId] = rollbackMails;
@@ -1366,10 +1416,28 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
       }).toList();
     }
 
+    // Calculate change in starred unread count
+    int starredUnreadChange = 0;
+    for (var id in event.ids) {
+      final index = currentMails.indexWhere((m) => m.id == id);
+      if (index != -1) {
+        final mail = currentMails[index];
+        if (!mail.seen) {
+          if (event.isFlagged && mail.flagged != true) {
+            starredUnreadChange++;
+          } else if (!event.isFlagged && mail.flagged == true) {
+            starredUnreadChange--;
+          }
+        }
+      }
+    }
+
     // UPDATE UI IMMEDIATELY
     emit(state.copyWith(
       mails: updatedMails,
       status: updatedMails.isEmpty ? MailListStatus.empty : state.status,
+      totalStarredUnreadCount:
+          state.totalStarredUnreadCount + starredUnreadChange,
     ));
 
     // UPDATE mailbox cache immediately

@@ -23,6 +23,9 @@ class MailListState extends Equatable {
   final bool hasReachedEnd;
   final Map<String, int> unreadCountByMailbox;
   final int totalUnreadCount;
+  final int totalStarredCount;
+  final int totalStarredUnreadCount;
+  final int totalAllCount;
   final Map<String, int> totalCountByMailbox;
 
   /// Mailbox metadata
@@ -40,6 +43,9 @@ class MailListState extends Equatable {
     this.hasReachedEnd = false,
     this.unreadCountByMailbox = const {},
     this.totalUnreadCount = 0,
+    this.totalStarredCount = 0,
+    this.totalStarredUnreadCount = 0,
+    this.totalAllCount = 0,
     this.totalCountByMailbox = const {},
     this.specialUse,
     this.currentMailboxId,
@@ -54,6 +60,9 @@ class MailListState extends Equatable {
       isPaginating: false,
       unreadCountByMailbox: {},
       totalUnreadCount: 0,
+      totalStarredCount: 0,
+      totalStarredUnreadCount: 0,
+      totalAllCount: 0,
       totalCountByMailbox: {},
       hasReachedEnd: false,
       specialUse: null,
@@ -72,6 +81,9 @@ class MailListState extends Equatable {
     bool? hasReachedEnd,
     Map<String, int>? unreadCountByMailbox,
     int? totalUnreadCount,
+    int? totalStarredCount,
+    int? totalStarredUnreadCount,
+    int? totalAllCount,
     Map<String, int>? totalCountByMailbox,
 
     /// 🔥 Use nullable wrapper to detect pass / no-pass
@@ -89,6 +101,10 @@ class MailListState extends Equatable {
       hasReachedEnd: hasReachedEnd ?? this.hasReachedEnd,
       unreadCountByMailbox: unreadCountByMailbox ?? this.unreadCountByMailbox,
       totalUnreadCount: totalUnreadCount ?? this.totalUnreadCount,
+      totalStarredCount: totalStarredCount ?? this.totalStarredCount,
+      totalStarredUnreadCount:
+          totalStarredUnreadCount ?? this.totalStarredUnreadCount,
+      totalAllCount: totalAllCount ?? this.totalAllCount,
       totalCountByMailbox: totalCountByMailbox ?? this.totalCountByMailbox,
 
       /// ✅ Correct metadata handling
@@ -111,6 +127,9 @@ class MailListState extends Equatable {
         hasReachedEnd,
         unreadCountByMailbox,
         totalUnreadCount,
+        totalStarredCount,
+        totalStarredUnreadCount,
+        totalAllCount,
         totalCountByMailbox,
         specialUse,
         currentMailboxId,

@@ -283,3 +283,21 @@ class UndoUnstarEvent extends MailListEvent {
   List<Object?> get props =>
       [pendingId, mailboxId, ids, restoredMails, isFromFlaggedScreen];
 }
+
+class UpdateGlobalCountsEvent extends MailListEvent {
+  final int? totalUnread;
+  final int? totalStarred;
+  final int? totalStarredUnread;
+  final int? totalAll;
+
+  const UpdateGlobalCountsEvent({
+    this.totalUnread,
+    this.totalStarred,
+    this.totalStarredUnread,
+    this.totalAll,
+  });
+
+  @override
+  List<Object?> get props =>
+      [totalUnread, totalStarred, totalStarredUnread, totalAll];
+}
