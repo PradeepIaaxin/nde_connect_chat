@@ -182,7 +182,7 @@ class _MailListWidgetState extends State<MailListWidget> {
                       color: isSelected ? AppColors.sectiontool : AppColors.bg,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
-                        vertical: 10,
+                        vertical: 7,
                       ),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -314,7 +314,9 @@ class _MailListWidgetState extends State<MailListWidget> {
                                           fontWeight: mail.seen
                                               ? FontWeight.w500
                                               : FontWeight.w700,
-                                          color: Colors.black,
+                                          color: mail.draft == true
+                                              ? Colors.red
+                                              : Colors.black,
                                         ),
                                       ),
                                     ),

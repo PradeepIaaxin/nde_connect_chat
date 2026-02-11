@@ -5,9 +5,9 @@ class CustomAppBarWidget extends StatelessWidget
   final String lastSendTime;
 
   const CustomAppBarWidget({
-    Key? key,
+    super.key,
     required this.lastSendTime,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

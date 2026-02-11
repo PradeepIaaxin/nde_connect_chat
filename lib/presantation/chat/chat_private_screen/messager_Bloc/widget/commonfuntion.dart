@@ -32,14 +32,12 @@ String? _extractSenderName(Map<String, dynamic> msg, String? currentUserId) {
   // Try senderName first
   if (msg['senderName'] != null && msg['senderName'].toString().isNotEmpty) {
     final name = msg['senderName'].toString();
-    print('   ✅ Found senderName: $name');
     return name;
   }
 
   // Try userName
   if (msg['userName'] != null && msg['userName'].toString().isNotEmpty) {
     final name = msg['userName'].toString();
-    print('   ✅ Found userName: $name');
     return name;
   }
 
@@ -52,16 +50,13 @@ String? _extractSenderName(Map<String, dynamic> msg, String? currentUserId) {
 
     if (firstName.isNotEmpty || lastName.isNotEmpty) {
       final fullName = '$firstName $lastName'.trim();
-      print('   ✅ Found from sender object: $fullName');
       return fullName;
     }
     if (name.isNotEmpty) {
-      print('   ✅ Found sender.name: $name');
       return name;
     }
   }
 
-  print('   ❌ No sender name found');
   return null;
 }
 
@@ -73,7 +68,6 @@ List<GroupMediaItem> buildConversationMedia(
 {
   final List<GroupMediaItem> media = [];
 
-  print('🎬 buildConversationMedia called with ${allMessages.length} messages');
 
   for (final msg in allMessages) {
     final String? originalUrl = msg['originalUrl']?.toString();
@@ -151,7 +145,7 @@ List<GroupMediaItem> buildConversationMedia(
     } else {
       // Check for Image
       final String? finalImageUrl =
-          originalUrl ?? imageUrl ?? (fileUrl != null ? fileUrl : null);
+          originalUrl ?? imageUrl ?? (fileUrl);
 
       if (finalImageUrl != null && finalImageUrl.isNotEmpty) {
         // Double check if it looks like an image
@@ -182,6 +176,5 @@ List<GroupMediaItem> buildConversationMedia(
     }
   }
 
-  print('✅ Built ${media.length} media items (Images/Videos Only)');
   return media;
 }

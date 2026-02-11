@@ -78,7 +78,7 @@ class FileOptionsContent extends StatelessWidget {
   });
 
   void _showRenameDialog(BuildContext context) {
-    final TextEditingController _nameController =
+    final TextEditingController nameController =
         TextEditingController(text: fileName);
 
     showDialog(
@@ -87,7 +87,7 @@ class FileOptionsContent extends StatelessWidget {
         return AlertDialog(
           title: const Text('Rename File'),
           content: TextField(
-            controller: _nameController,
+            controller: nameController,
             decoration: const InputDecoration(
               hintText: 'Enter new file name',
               border: OutlineInputBorder(),
@@ -100,7 +100,7 @@ class FileOptionsContent extends StatelessWidget {
             ),
             TextButton(
               onPressed: () {
-                final newName = _nameController.text.trim();
+                final newName = nameController.text.trim();
                 if (newName.isNotEmpty) {
                   context.read<FileOperationsBloc>().add(
                         RenameFileEvent(fileId: fileId, newName: newName),
@@ -302,10 +302,10 @@ class FileOptionsContent extends StatelessWidget {
                   await Future.delayed(const Duration(milliseconds: 300));
 
                   final name = fileName.trim();
-                  final Preview = preview?.toString().trim() ?? '';
+                  final preView = preview.toString().trim();
 
-                  final textToShare = (name.isNotEmpty || Preview.isNotEmpty)
-                      ? "$name\n\n$Preview"
+                  final textToShare = (name.isNotEmpty || preView.isNotEmpty)
+                      ? "$name\n\n$preView"
                       : '';
 
                   if (textToShare.isNotEmpty) {

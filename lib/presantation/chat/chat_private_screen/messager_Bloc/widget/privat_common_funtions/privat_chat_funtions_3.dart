@@ -167,7 +167,7 @@ log("correctIsSentByMe $bubbleSenderId");
       buildReactionsBar: (msg, sentByMe) => buildReactionsBar(msg, sentByMe),
       sentMessageColor: senderColor,
       receivedMessageColor: receiverColor,
-      selectedMessageColor: senderColor.withOpacity(0.2),
+      selectedMessageColor: senderColor.withValues( alpha:0.2),
       borderColor: Colors.blue,
       chatColor: chatColor,
       onReact: (msg, emoji) {
@@ -185,9 +185,9 @@ log("correctIsSentByMe $bubbleSenderId");
         reactions: message['reactions'] as List<Map<String, dynamic>>? ?? [],
         currentUserId: currentUserId,
         convoId:convoId,
-        receiverId:receiverId ?? "",
-        firstName: firstname ?? "",
-        lastName:lastname ?? "",
+        receiverId:receiverId,
+        firstName: firstname,
+        lastName:lastname,
       ),
       isReply: isReply,
       onReplyTap: () {
@@ -203,7 +203,7 @@ log("correctIsSentByMe $bubbleSenderId");
 
         if (replyId != null && replyId.isNotEmpty) {
           highlightMessage(replyId);
-          scrollToMessageById(replyId!,fetchIfMissing: true,messageContexts:messageContexts, highlightAndScrollToContext: highlightAndScrollToContext, messagesNotifier: messagesNotifier, scrollController: scrollController, estimateScrollOffset:   estimateScrollOffset, highlightMessage:  highlightMessage, fetchUntilMessageFound:  fetchUntilMessageFound, estimateMessageHeight: estimateMessageHeight).then((found) {
+          scrollToMessageById(replyId,fetchIfMissing: true,messageContexts:messageContexts, highlightAndScrollToContext: highlightAndScrollToContext, messagesNotifier: messagesNotifier, scrollController: scrollController, estimateScrollOffset:   estimateScrollOffset, highlightMessage:  highlightMessage, fetchUntilMessageFound:  fetchUntilMessageFound, estimateMessageHeight: estimateMessageHeight).then((found) {
             if (!found && mounted) {
               Messenger.alert(
                 msg:

@@ -13,8 +13,9 @@ class FetchSuggestionsEvent extends SuggestionsEvent {
 
 class StarredData extends SuggestionsEvent {
   final List<String> fileID;
-  final bool message;
-  StarredData({required this.fileID, required this.message});
+  final bool isCurrentlyStarred;
+
+  StarredData({required this.fileID, required this.isCurrentlyStarred});
 }
 
 

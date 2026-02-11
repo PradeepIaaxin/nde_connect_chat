@@ -345,6 +345,7 @@ class DocsTab extends StatelessWidget {
             extension = '.rar';
           } else if (lowerType.contains('json')) {
             extension = '.json';
+          // ignore: curly_braces_in_flow_control_structures
           } else if (lowerType.contains('xml')) extension = '.xml';
         }
 

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class DateSeparator extends StatelessWidget {
   final DateTime? dateTime;
 
-  const DateSeparator({Key? key, required this.dateTime}) : super(key: key);
+  const DateSeparator({super.key, required this.dateTime});
 
   String _formatDateTime(DateTime? dateTime) {
     if (dateTime == null) return '';

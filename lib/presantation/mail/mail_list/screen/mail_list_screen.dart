@@ -6,7 +6,6 @@ import 'package:nde_email/utils/custom/custom_alret_box.dart';
 import 'package:nde_email/utils/imports/common_imports.dart';
 import '../bloc/mail_list_event.dart';
 import '../bloc/mail_list_state.dart';
-import '../../compose/bloc/send_mail_bloc/send_mail_bloc.dart';
 import '../../compose/bloc/send_mail_bloc/send_mail_state.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/error_display.dart';
 

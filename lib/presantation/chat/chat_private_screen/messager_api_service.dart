@@ -297,7 +297,6 @@ class MessagerApiService {
         contentType: mediaType,
       ),
     });
-    print("formData ${formData}");
     try {
       final response = await dio.post(
         'https://api.nowdigitaleasy.com/wschat/v1/messages/upload/file',
@@ -311,7 +310,6 @@ class MessagerApiService {
           onProgress(progress);
         },
       );
-      print("formDatasss ${response}");
 
       if (response.statusCode == 200) {
         onSuccess(response.data);
@@ -320,7 +318,7 @@ class MessagerApiService {
       }
     } catch (e) {
       onError(e.toString());
-      print("erross :${e.toString()}");
+     
     }
   }
 }
