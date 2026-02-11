@@ -478,7 +478,7 @@ import 'app_bar_bloc.dart';
 import 'package:nde_email/presantation/home/home_screen.dart';
 import 'app_bar_state.dart';
 import 'package:nde_email/data/respiratory.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+
 import 'package:nde_email/presantation/widgets/mail_widgets/error_display.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
@@ -499,13 +499,14 @@ class _CustomDrawerState extends State<CustomDrawer> {
   static const String viewAll = 'view_all';
   static const String viewStarred = 'view_flagged';
 
-  final Map<String, String> mailboxIcons = {
-    'inbox': 'assets/images/inbox.svg',
-    'archive': 'assets/images/archive.svg',
-    'drafts': 'assets/images/Mail.svg',
-    'junk': 'assets/images/Spam.svg',
-    'sent': 'assets/images/sent.svg',
-    'trash': 'assets/images/Delete.svg',
+  final Map<String, IconData> mailboxIcons = {
+    'inbox': Icons.move_to_inbox_outlined,
+    'archive': Icons.archive_outlined,
+    'drafts': Icons.insert_drive_file_outlined,
+    'junk': Icons.report_outlined,
+    'sent': Icons.send_outlined,
+    'sent mail': Icons.send,
+    'trash': Icons.delete_outline,
   };
 
   @override
@@ -567,13 +568,15 @@ class _CustomDrawerState extends State<CustomDrawer> {
                       children: [
                         _sectionTitle("Folders"),
                         ...folders.map((m) => _buildMailboxTile(context, m)),
+                        _buildViewTile(context, "Unread", viewUnread, "unread",
+                            Icons.mark_as_unread_outlined),
+                        _buildViewTile(context, "All", viewAll, "all",
+                            Icons.mail_outlined),
+                        _buildViewTile(context, "Starred", viewStarred,
+                            "flagged", Icons.star_outline),
                         _sectionTitle("Labels"),
                         ...labels.map((m) => _buildLabelTile(context, m)),
-                        _sectionTitle("Views"),
-                        _buildViewTile(context, "Unread", viewUnread, "unread"),
-                        _buildViewTile(context, "All", viewAll, "all"),
-                        _buildViewTile(
-                            context, "Starred", viewStarred, "flagged"),
+                        // _sectionTitle("Views"),
                       ],
                     );
                   }
@@ -678,13 +681,10 @@ class _CustomDrawerState extends State<CustomDrawer> {
         trailing: mailbox.total > 0
             ? (mailbox.total > 99 ? "99+" : "${mailbox.total}")
             : null,
-        leading: SvgPicture.asset(
-          mailboxIcons[mailbox.name.toLowerCase()] ?? mailboxIcons['inbox']!,
-          height: 20,
-          colorFilter: ColorFilter.mode(
-            isSelected ? AppColors.iconActive : Colors.grey,
-            BlendMode.srcIn,
-          ),
+        leading: Icon(
+          mailboxIcons[mailbox.name.toLowerCase()] ?? Icons.folder_outlined,
+          size: 22,
+          color: isSelected ? AppColors.iconActive : Colors.grey[700],
         ),
         onTap: () async {
           Navigator.pop(context);
@@ -711,13 +711,10 @@ class _CustomDrawerState extends State<CustomDrawer> {
           isSelected: isSelected,
           title: mailbox.name,
           trailing: count > 0 ? (count > 99 ? "99+" : "$count") : null,
-          leading: SvgPicture.asset(
-            mailboxIcons[mailbox.name.toLowerCase()] ?? mailboxIcons['inbox']!,
-            height: 20,
-            colorFilter: ColorFilter.mode(
-              isSelected ? AppColors.iconActive : Colors.grey,
-              BlendMode.srcIn,
-            ),
+          leading: Icon(
+            mailboxIcons[mailbox.name.toLowerCase()] ?? Icons.folder_outlined,
+            size: 22,
+            color: isSelected ? AppColors.iconActive : Colors.grey[700],
           ),
           onTap: () async {
             Navigator.pop(context);
@@ -773,12 +770,19 @@ class _CustomDrawerState extends State<CustomDrawer> {
   }
 
   /// ---------------- VIEW TILE ----------------
-  Widget _buildViewTile(
-      BuildContext context, String title, String viewId, String filter) {
+  Widget _buildViewTile(BuildContext context, String title, String viewId,
+      String filter, IconData icon) {
+    final isSelected = viewId == selectedMailboxId;
+
     return _buildSelectableTile(
       key: ValueKey(viewId),
-      isSelected: viewId == selectedMailboxId,
+      isSelected: isSelected,
       title: title,
+      leading: Icon(
+        icon,
+        size: 22,
+        color: isSelected ? AppColors.iconActive : Colors.grey[700],
+      ),
       onTap: () async {
         Navigator.pop(context);
         await MailboxStorage.saveMailboxId(viewId);
