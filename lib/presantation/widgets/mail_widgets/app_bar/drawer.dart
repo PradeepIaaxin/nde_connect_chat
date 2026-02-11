@@ -666,6 +666,42 @@ class _CustomDrawerState extends State<CustomDrawer> {
   Widget _buildMailboxTile(BuildContext context, Mailbox mailbox) {
     final isSelected = mailbox.id == selectedMailboxId;
 
+    // For drafts, show total count; for others, show unread count
+    final isDrafts = mailbox.name.toLowerCase().contains('draft');
+
+    if (isDrafts) {
+      // Drafts: show total count directly from mailbox
+      return _buildSelectableTile(
+        key: ValueKey(mailbox.id),
+        isSelected: isSelected,
+        title: mailbox.name,
+        trailing: mailbox.total > 0
+            ? (mailbox.total > 99 ? "99+" : "${mailbox.total}")
+            : null,
+        leading: SvgPicture.asset(
+          mailboxIcons[mailbox.name.toLowerCase()] ?? mailboxIcons['inbox']!,
+          height: 20,
+          colorFilter: ColorFilter.mode(
+            isSelected ? AppColors.iconActive : Colors.grey,
+            BlendMode.srcIn,
+          ),
+        ),
+        onTap: () async {
+          Navigator.pop(context);
+          await MailboxStorage.saveMailboxId(mailbox.id);
+          setState(() => selectedMailboxId = mailbox.id);
+
+          MyRouter.pushReplace(
+            screen: HomeScreen(
+              mailboxId: mailbox.id,
+              mailboxName: mailbox.name,
+            ),
+          );
+        },
+      );
+    }
+
+    // Other mailboxes: show unread count from BlocSelector
     return BlocSelector<MailListBloc, MailListState, int>(
       selector: (state) =>
           state.unreadCountByMailbox[mailbox.id] ?? mailbox.unseen,

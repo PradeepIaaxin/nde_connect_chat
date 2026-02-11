@@ -33,6 +33,8 @@ import 'dart:io';
 import 'dart:async';
 import 'package:nde_email/presantation/mail/compose/api/upload_files_api.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
+import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar_bloc.dart';
+import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar_event.dart';
 
 class ComposeScreen extends StatefulWidget {
   final Map<String, dynamic>? draftData;
@@ -562,6 +564,11 @@ class _ComposeScreenState extends State<ComposeScreen> {
                     if (Navigator.canPop(context)) {
                       Navigator.pop(context);
                     }
+
+                    // Refresh mailboxes to update draft count in drawer
+                    context
+                        .read<AppBarBloc>()
+                        .add(FetchMailboxesEvent(force: true));
 
                     Messenger.alertSuccess("Draft saved successfully");
                     MyRouter.pop();
