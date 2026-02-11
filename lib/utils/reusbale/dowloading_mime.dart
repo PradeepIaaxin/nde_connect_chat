@@ -70,10 +70,12 @@ class FileDownloader {
           safeName,
         );
 
-        //  Important: Await the media scan
         await MediaScanner.loadMedia(path: filePath);
 
         log('📁 File saved at (visible to file manager): $filePath');
+        Messenger.alertSuccess(
+          'Downloaded successfully',
+        );
       } else {
         throw Exception('Download failed: ${response.statusCode}');
       }

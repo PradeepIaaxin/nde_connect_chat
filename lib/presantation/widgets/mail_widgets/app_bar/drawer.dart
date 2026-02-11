@@ -466,7 +466,6 @@
 //   }
 // }
 
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nde_email/data/mailboxid.dart';
@@ -476,10 +475,11 @@ import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_color
 import 'package:nde_email/utils/router/router.dart';
 import 'mailbox_model.dart';
 import 'app_bar_bloc.dart';
+import 'app_bar_event.dart';
 import 'package:nde_email/presantation/home/home_screen.dart';
 import 'app_bar_state.dart';
 import 'package:nde_email/data/respiratory.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+
 import 'package:nde_email/presantation/widgets/mail_widgets/error_display.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
@@ -500,13 +500,14 @@ class _CustomDrawerState extends State<CustomDrawer> {
   static const String viewAll = 'view_all';
   static const String viewStarred = 'view_flagged';
 
-  final Map<String, String> mailboxIcons = {
-    'inbox': 'assets/images/inbox.svg',
-    'archive': 'assets/images/archive.svg',
-    'drafts': 'assets/images/Mail.svg',
-    'junk': 'assets/images/Spam.svg',
-    'sent': 'assets/images/sent.svg',
-    'trash': 'assets/images/Delete.svg',
+  final Map<String, IconData> mailboxIcons = {
+    'inbox': Icons.move_to_inbox_outlined,
+    'archive': Icons.archive_outlined,
+    'drafts': Icons.insert_drive_file_outlined,
+    'junk': Icons.report_outlined,
+    'sent': Icons.send_outlined,
+    'sent mail': Icons.send,
+    'trash': Icons.delete_outline,
   };
 
   @override
@@ -514,6 +515,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
     super.initState();
     _loadUserData();
     _loadSelectedMailbox();
+    context.read<AppBarBloc>().add(FetchMailboxesEvent(force: true));
   }
 
   Future<void> _loadSelectedMailbox() async {
@@ -545,18 +547,14 @@ class _CustomDrawerState extends State<CustomDrawer> {
         child: Column(
           children: [
             _buildProfileHeader(),
-
             Expanded(
               child: BlocBuilder<AppBarBloc, AppBarState>(
                 builder: (context, state) {
                   if (state is AppBarLoading) {
-                    return const Center(
-                        child:
-                            CircularProgressIndicator());
+                    return const Center(child: CircularProgressIndicator());
                   }
 
-                  if (state
-                      is AppBarMailboxesLoaded) {
+                  if (state is AppBarMailboxesLoaded) {
                     final folders = [
                       ...state.inbox,
                       ...state.archive,
@@ -566,37 +564,21 @@ class _CustomDrawerState extends State<CustomDrawer> {
                       ...state.trash,
                     ];
 
-                    final labels =
-                        state.other;
+                    final labels = state.other;
 
                     return ListView(
                       children: [
                         _sectionTitle("Folders"),
-                        ...folders.map((m) =>
-                            _buildMailboxTile(
-                                context, m)),
-
+                        ...folders.map((m) => _buildMailboxTile(context, m)),
+                        _buildViewTile(context, "Unread", viewUnread, "unread",
+                            Icons.mark_as_unread_outlined),
+                        _buildViewTile(context, "All", viewAll, "all",
+                            Icons.mail_outlined),
+                        _buildViewTile(context, "Starred", viewStarred,
+                            "flagged", Icons.star_outline),
                         _sectionTitle("Labels"),
-                        ...labels.map((m) =>
-                            _buildLabelTile(
-                                context, m)),
-
-                        _sectionTitle("Views"),
-                        _buildViewTile(
-                            context,
-                            "Unread",
-                            viewUnread,
-                            "unread"),
-                        _buildViewTile(
-                            context,
-                            "All",
-                            viewAll,
-                            "all"),
-                        _buildViewTile(
-                            context,
-                            "Starred",
-                            viewStarred,
-                            "flagged"),
+                        ...labels.map((m) => _buildLabelTile(context, m)),
+                        // _sectionTitle("Views"),
                       ],
                     );
                   }
@@ -604,8 +586,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                   if (state is AppBarError) {
                     return ErrorDisplay(
                       message: state.message,
-                      type: ErrorType
-                          .somethingwrong,
+                      type: ErrorType.somethingwrong,
                     );
                   }
 
@@ -622,39 +603,23 @@ class _CustomDrawerState extends State<CustomDrawer> {
   /// ---------------- PROFILE HEADER ----------------
   Widget _buildProfileHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          16, 20, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
       child: Row(
         children: [
           CircleAvatar(
             radius: 22,
-            backgroundColor:
-                AppColors.iconActive,
-            backgroundImage:
-                profilePicUrl != null &&
-                        profilePicUrl!
-                            .isNotEmpty
-                    ? CachedNetworkImageProvider(
-                        profilePicUrl!)
-                    : null,
-            child: profilePicUrl ==
-                        null ||
-                    profilePicUrl!
-                        .isEmpty
+            backgroundColor: AppColors.iconActive,
+            backgroundImage: profilePicUrl != null && profilePicUrl!.isNotEmpty
+                ? CachedNetworkImageProvider(profilePicUrl!)
+                : null,
+            child: profilePicUrl == null || profilePicUrl!.isEmpty
                 ? Text(
-                    userName != null &&
-                            userName!
-                                .isNotEmpty
-                        ? userName![0]
-                            .toUpperCase()
+                    userName != null && userName!.isNotEmpty
+                        ? userName![0].toUpperCase()
                         : "U",
-                    style:
-                        const TextStyle(
-                      color:
-                          Colors.white,
-                      fontWeight:
-                          FontWeight
-                              .w600,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
                     ),
                   )
                 : null,
@@ -662,27 +627,20 @@ class _CustomDrawerState extends State<CustomDrawer> {
           const SizedBox(width: 12),
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment
-                      .start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   userName ?? '',
-                  style:
-                      const TextStyle(
+                  style: const TextStyle(
                     fontSize: 15,
-                    fontWeight:
-                        FontWeight
-                            .w600,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 Text(
                   userEmail ?? '',
                   style: TextStyle(
                     fontSize: 13,
-                    color: Colors
-                        .grey
-                        .shade700,
+                    color: Colors.grey.shade700,
                   ),
                 ),
               ],
@@ -696,16 +654,13 @@ class _CustomDrawerState extends State<CustomDrawer> {
   /// ---------------- SECTION TITLE ----------------
   Widget _sectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          20, 16, 0, 6),
+      padding: const EdgeInsets.fromLTRB(20, 16, 0, 6),
       child: Text(
         title.toUpperCase(),
         style: TextStyle(
           fontSize: 12,
-          fontWeight:
-              FontWeight.w600,
-          color:
-              Colors.grey.shade600,
+          fontWeight: FontWeight.w600,
+          color: Colors.grey.shade600,
           letterSpacing: 0.6,
         ),
       ),
@@ -713,63 +668,65 @@ class _CustomDrawerState extends State<CustomDrawer> {
   }
 
   /// ---------------- MAILBOX TILE ----------------
-  Widget _buildMailboxTile(
-      BuildContext context,
-      Mailbox mailbox) {
-    final isSelected =
-        mailbox.id ==
-            selectedMailboxId;
+  Widget _buildMailboxTile(BuildContext context, Mailbox mailbox) {
+    final isSelected = mailbox.id == selectedMailboxId;
 
-    return BlocSelector<
-        MailListBloc,
-        MailListState,
-        int>(
+    // For drafts, show total count; for others, show unread count
+    final isDrafts = mailbox.name.toLowerCase().contains('draft');
+
+    if (isDrafts) {
+      // Drafts: show total count directly from mailbox
+      return _buildSelectableTile(
+        key: ValueKey(mailbox.id),
+        isSelected: isSelected,
+        title: mailbox.name,
+        trailing: mailbox.total > 0
+            ? (mailbox.total > 99 ? "99+" : "${mailbox.total}")
+            : null,
+        leading: Icon(
+          mailboxIcons[mailbox.name.toLowerCase()] ?? Icons.folder_outlined,
+          size: 22,
+          color: isSelected ? AppColors.iconActive : Colors.grey[700],
+        ),
+        onTap: () async {
+          Navigator.pop(context);
+          await MailboxStorage.saveMailboxId(mailbox.id);
+          setState(() => selectedMailboxId = mailbox.id);
+
+          MyRouter.pushReplace(
+            screen: HomeScreen(
+              mailboxId: mailbox.id,
+              mailboxName: mailbox.name,
+            ),
+          );
+        },
+      );
+    }
+
+    // Other mailboxes: show unread count from BlocSelector
+    return BlocSelector<MailListBloc, MailListState, int>(
       selector: (state) =>
-          state
-              .unreadCountByMailbox[
-                  mailbox.id] ??
-          mailbox.unseen,
+          state.unreadCountByMailbox[mailbox.id] ?? mailbox.unseen,
       builder: (context, count) {
         return _buildSelectableTile(
           key: ValueKey(mailbox.id),
           isSelected: isSelected,
           title: mailbox.name,
-          trailing: count > 0
-              ? (count > 99
-                  ? "99+"
-                  : "$count")
-              : null,
-          leading: SvgPicture.asset(
-            mailboxIcons[mailbox
-                    .name
-                    .toLowerCase()] ??
-                mailboxIcons[
-                    'inbox']!,
-            height: 20,
-            colorFilter:
-                ColorFilter.mode(
-              isSelected
-                  ? AppColors
-                      .iconActive
-                  : Colors.grey,
-              BlendMode.srcIn,
-            ),
+          trailing: count > 0 ? (count > 99 ? "99+" : "$count") : null,
+          leading: Icon(
+            mailboxIcons[mailbox.name.toLowerCase()] ?? Icons.folder_outlined,
+            size: 22,
+            color: isSelected ? AppColors.iconActive : Colors.grey[700],
           ),
           onTap: () async {
             Navigator.pop(context);
-            await MailboxStorage
-                .saveMailboxId(
-                    mailbox.id);
-            setState(() =>
-                selectedMailboxId =
-                    mailbox.id);
+            await MailboxStorage.saveMailboxId(mailbox.id);
+            setState(() => selectedMailboxId = mailbox.id);
 
             MyRouter.pushReplace(
               screen: HomeScreen(
-                mailboxId:
-                    mailbox.id,
-                mailboxName:
-                    mailbox.name,
+                mailboxId: mailbox.id,
+                mailboxName: mailbox.name,
               ),
             );
           },
@@ -779,25 +736,16 @@ class _CustomDrawerState extends State<CustomDrawer> {
   }
 
   /// ---------------- LABEL TILE ----------------
-  Widget _buildLabelTile(
-      BuildContext context,
-      Mailbox mailbox) {
-    Color labelColor =
-        Colors.grey;
+  Widget _buildLabelTile(BuildContext context, Mailbox mailbox) {
+    Color labelColor = Colors.grey;
 
-    if (mailbox.color
-        .startsWith('#')) {
-      labelColor = Color(int.parse(
-          mailbox.color
-              .replaceAll(
-                  '#', '0xff')));
+    if (mailbox.color.startsWith('#')) {
+      labelColor = Color(int.parse(mailbox.color.replaceAll('#', '0xff')));
     }
 
     return _buildSelectableTile(
       key: ValueKey(mailbox.id),
-      isSelected:
-          mailbox.id ==
-              selectedMailboxId,
+      isSelected: mailbox.id == selectedMailboxId,
       title: mailbox.name,
       leading: Container(
         width: 10,
@@ -807,24 +755,16 @@ class _CustomDrawerState extends State<CustomDrawer> {
           shape: BoxShape.circle,
         ),
       ),
-      trailing: mailbox.unseen > 0
-          ? "${mailbox.unseen}"
-          : null,
+      trailing: mailbox.unseen > 0 ? "${mailbox.unseen}" : null,
       onTap: () async {
         Navigator.pop(context);
-        await MailboxStorage
-            .saveMailboxId(
-                mailbox.id);
-        setState(() =>
-            selectedMailboxId =
-                mailbox.id);
+        await MailboxStorage.saveMailboxId(mailbox.id);
+        setState(() => selectedMailboxId = mailbox.id);
 
         MyRouter.pushReplace(
           screen: HomeScreen(
-            mailboxId:
-                mailbox.id,
-            mailboxName:
-                mailbox.name,
+            mailboxId: mailbox.id,
+            mailboxName: mailbox.name,
           ),
         );
       },
@@ -832,25 +772,23 @@ class _CustomDrawerState extends State<CustomDrawer> {
   }
 
   /// ---------------- VIEW TILE ----------------
-  Widget _buildViewTile(
-      BuildContext context,
-      String title,
-      String viewId,
-      String filter) {
+  Widget _buildViewTile(BuildContext context, String title, String viewId,
+      String filter, IconData icon) {
+    final isSelected = viewId == selectedMailboxId;
+
     return _buildSelectableTile(
       key: ValueKey(viewId),
-      isSelected:
-          viewId ==
-              selectedMailboxId,
+      isSelected: isSelected,
       title: title,
+      leading: Icon(
+        icon,
+        size: 22,
+        color: isSelected ? AppColors.iconActive : Colors.grey[700],
+      ),
       onTap: () async {
         Navigator.pop(context);
-        await MailboxStorage
-            .saveMailboxId(
-                viewId);
-        setState(() =>
-            selectedMailboxId =
-                viewId);
+        await MailboxStorage.saveMailboxId(viewId);
+        setState(() => selectedMailboxId = viewId);
 
         MyRouter.pushReplace(
           screen: HomeScreen(
@@ -873,19 +811,12 @@ class _CustomDrawerState extends State<CustomDrawer> {
     required VoidCallback onTap,
   }) {
     return Padding(
-      padding:
-          const EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       child: Material(
         color: isSelected
-            ? AppColors
-                .iconActive
-                .withOpacity(0.12)
+            ? AppColors.iconActive.withOpacity(0.12)
             : Colors.transparent,
-        borderRadius:
-            BorderRadius.circular(
-                24),
+        borderRadius: BorderRadius.circular(24),
         child: ListTile(
           key: key,
           dense: true,
@@ -894,13 +825,8 @@ class _CustomDrawerState extends State<CustomDrawer> {
             title,
             style: TextStyle(
               fontSize: 14.5,
-              fontWeight: isSelected
-                  ? FontWeight.w600
-                  : FontWeight.w500,
-              color: isSelected
-                  ? AppColors
-                      .iconActive
-                  : Colors.black87,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              color: isSelected ? AppColors.iconActive : Colors.black87,
             ),
           ),
           trailing: trailing != null
@@ -908,13 +834,8 @@ class _CustomDrawerState extends State<CustomDrawer> {
                   trailing,
                   style: TextStyle(
                     fontSize: 13,
-                    fontWeight:
-                        FontWeight
-                            .w600,
-                    color: isSelected
-                        ? AppColors
-                            .iconActive
-                        : Colors.grey,
+                    fontWeight: FontWeight.w600,
+                    color: isSelected ? AppColors.iconActive : Colors.grey,
                   ),
                 )
               : null,

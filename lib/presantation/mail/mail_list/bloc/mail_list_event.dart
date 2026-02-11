@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:equatable/equatable.dart';
 import '../model/mail_list_model.dart';
 
@@ -24,8 +25,6 @@ class RevertArchiveEvent extends MailListEvent {
     required this.mailboxId,
   });
 }
-
-
 
 class FetchMailListEvent extends MailListEvent {
   final String mailboxId;
@@ -67,10 +66,21 @@ class FetchFilteredMailEvent extends MailListEvent {
 class RefreshMailListEvent extends MailListEvent {
   final String mailboxId;
   final String? filter;
-  const RefreshMailListEvent(this.mailboxId, {this.filter});
+  final Completer<void>? completer;
+  const RefreshMailListEvent(this.mailboxId, {this.filter, this.completer});
 
   @override
   List<Object> get props => [mailboxId];
+}
+
+class RefreshFilteredMailEvent extends MailListEvent {
+  final String filterType;
+  final Completer<void>? completer;
+
+  const RefreshFilteredMailEvent(this.filterType, {this.completer});
+
+  @override
+  List<Object?> get props => [filterType];
 }
 
 class MarkMailAsSeenEvent extends MailListEvent {
@@ -252,4 +262,24 @@ class RemoveMailFromListEvent extends MailListEvent {
 
   @override
   List<Object> get props => [mailId, mailboxId];
+}
+
+class UndoUnstarEvent extends MailListEvent {
+  final String pendingId;
+  final String mailboxId;
+  final List<int> ids;
+  final List<GMMailModels> restoredMails;
+  final bool isFromFlaggedScreen;
+
+  const UndoUnstarEvent({
+    required this.pendingId,
+    required this.mailboxId,
+    required this.ids,
+    required this.restoredMails,
+    required this.isFromFlaggedScreen,
+  });
+
+  @override
+  List<Object?> get props =>
+      [pendingId, mailboxId, ids, restoredMails, isFromFlaggedScreen];
 }

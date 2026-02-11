@@ -27,8 +27,6 @@ class InsidefileRepo {
     };
   }
 
-  
-
   Future<List<FolderinsideModel>> fetchStarredFolders({
     int page = 1,
     int limit = 50,
@@ -222,7 +220,10 @@ class InsidefileRepo {
     }
   }
 
-  Future<void> starred({required List<String> fileIDs}) async {
+  Future<void> starred({
+    required List<String> fileIDs,
+    bool? isCurrentlyStarred,
+  }) async {
     final headers = await _getHeaders();
     if (headers == null) return;
 
@@ -234,11 +235,20 @@ class InsidefileRepo {
       );
 
       if (response.statusCode == 200) {
-        Messenger.alertSuccess(
-          fileIDs.length == 1
-              ? "Item starred successfully"
-              : "${fileIDs.length} items starred successfully",
-        );
+        // 🔁 Toggle-aware toast
+        if (isCurrentlyStarred == true) {
+          Messenger.alertSuccess(
+            fileIDs.length == 1
+                ? "Unstarred successfully"
+                : "${fileIDs.length} items unstarred successfully",
+          );
+        } else {
+          Messenger.alertSuccess(
+            fileIDs.length == 1
+                ? "Starred successfully"
+                : "${fileIDs.length} items starred successfully",
+          );
+        }
       } else {
         log('Failed to star folder(s): ${response.statusCode}');
       }

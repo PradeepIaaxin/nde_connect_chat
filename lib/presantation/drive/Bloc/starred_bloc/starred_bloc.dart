@@ -28,81 +28,7 @@ class StarredBloc extends Bloc<StarredEvent, StarredState> {
     // on<RenameFileEvent>(_onRenameFile);
   }
 
-  // Future<void> _onFetchStarredFolders(
-  //   FetchStarredFolders event,
-  //   Emitter<StarredState> emit,
-  // ) async {
-  //   try {
-  //     if (!event.isLoadMore) {
-  //       emit(StarredLoading());
-  //       _page = 1;
-  //       _hasMore = true;
-  //       _allFolders.clear();
-
-  //       final isSortRequest = event.sortBy != null;
-  //       log(isSortRequest);
-
-  //       if (!isSortRequest) {
-  //         try {
-  //           final localFolders = await LocalStarredStorage.loadMessages();
-  //           if (localFolders.isNotEmpty) {
-  //             final parsedFolders = localFolders
-  //                 .map((json) {
-  //                   try {
-  //                     // Ensure json is properly typed before parsing
-  //                     final typedJson = json.cast<String, dynamic>();
-  //                     return StarredFolder.fromJson(typedJson);
-  //                   } catch (e) {
-  //                     log(('Error parsing folder: $e');
-  //                     return null;
-  //                   }
-  //                 })
-  //                 .where((folder) => folder != null && folder.id.isNotEmpty)
-  //                 .cast<StarredFolder>()
-  //                 .toList();
-
-  //             if (parsedFolders.isNotEmpty) {
-  //               _allFolders.addAll(parsedFolders);
-  //               emit(StarredLoaded(_allFolders, true));
-  //             }
-  //           }
-  //         } catch (e) {
-  //           log(('Error loading from local storage: $e');
-  //         }
-  //       }
-  //     } else {
-  //       if (!_hasMore) return;
-  //       _page++;
-  //     }
-
-  //     // Rest of your method remains the same...
-  //     final folders = await repository.fetchStarredFolders(
-  //       page: _page,
-  //       limit: _limit,
-  //       sortBy: event.sortBy,
-  //     );
-
-  //     _allFolders.addAll(folders);
-  //     _hasMore = folders.length == _limit;
-
-  //     if (!event.isLoadMore && event.sortBy == null) {
-  //       try {
-  //         final foldersJson = folders.map((folder) => folder.toJson()).toList();
-  //         await LocalStarredStorage.saveMessages(foldersJson);
-  //       } catch (e) {
-  //         log(('Error saving to local storage: $e');
-  //       }
-  //     }
-
-  //     emit(StarredLoaded(_allFolders, _hasMore));
-  //   } catch (e) {
-  //     if (_allFolders.isNotEmpty) {
-  //       emit(StarredLoaded(_allFolders, false, errorMessage: e.toString()));
-  //     } else {
-  //       emit(StarredError(e.toString()));
-  //     }
-  //   }
-  // }
+  
 
   Future<void> _onFetchStarredFolders(
     FetchStarredFolders event,
@@ -216,7 +142,7 @@ class StarredBloc extends Bloc<StarredEvent, StarredState> {
     Emitter<StarredState> emit,
   ) async {
     try {
-      await repository.starred(fileIDs: event.fileID);
+      await repository.starred(fileIDs: event.fileID, isCurrentlyStarred: event.isCurrentlyStarred);
 
       final updatedFolders = await repository.fetchStarredFolders(
         sortBy: 'updatedAt',

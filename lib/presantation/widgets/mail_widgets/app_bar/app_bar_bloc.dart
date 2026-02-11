@@ -29,7 +29,9 @@ class AppBarBloc extends Bloc<AppBarEvent, AppBarState> {
       return;
     }
 
-    emit(AppBarLoading());
+    if (state is! AppBarMailboxesLoaded) {
+      emit(AppBarLoading());
+    }
 
     try {
       final List<Mailbox> mailboxes = await apiService.fetchMailboxes();

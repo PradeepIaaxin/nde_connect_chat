@@ -289,6 +289,8 @@ class _FileDeepViewState extends State<FileDeepView> {
                                       fileID: selectedFolders.toList(),
                                       selectedid: widget.fileId,
                                       sortBy: _currentSort,
+                                      isCurrentlyStarred: selectedFolderModels
+                                          .every((f) => f.starred ?? false),
                                     ),
                                   );
                               _clearSelection();
@@ -574,7 +576,9 @@ class _FolderGridItem extends StatelessWidget {
                                     context.read<InsideBloc>().add(
                                           InStarredData(
                                               fileID: [folder.id],
-                                              selectedid: currentId ?? ""),
+                                              selectedid: currentId,
+                                              isCurrentlyStarred: folder.starred
+                                              ),
                                         );
                                   },
                                 ),
@@ -632,8 +636,7 @@ class _FolderGridItem extends StatelessWidget {
                                                             ],
                                                             pickedColor: hex,
                                                             selectedid:
-                                                                currentId ??
-                                                                    ""),
+                                                                currentId),
                                                       );
                                                 },
                                               );
@@ -830,7 +833,7 @@ class _FolderListItem extends StatelessWidget {
         }
       },
       child: Container(
-        color: isSelected ? Colors.blue.withValues(alpha:0.1) : null,
+        color: isSelected ? Colors.blue.withValues(alpha: 0.1) : null,
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 4),
           leading: Stack(
@@ -913,7 +916,9 @@ class _FolderListItem extends StatelessWidget {
                       context.read<InsideBloc>().add(
                             InStarredData(
                                 fileID: [folder.id],
-                                selectedid: currentId ?? ""),
+                                selectedid: currentId, 
+                                isCurrentlyStarred: folder.starred
+                                ),
                           );
                     },
                   ),
@@ -940,7 +945,7 @@ class _FolderListItem extends StatelessWidget {
                         onRename: (newName) {
                           context.read<InsideBloc>().add(
                                 InRenameEvent(
-                                    selectedid: currentId ?? "",
+                                    selectedid: currentId,
                                     fileIDs: [folder.id],
                                     editedName: newName.trim()),
                               );
