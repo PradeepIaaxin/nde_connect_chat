@@ -466,10 +466,15 @@
 //   }
 // }
 
+import 'dart:developer';
+
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nde_email/data/mailboxid.dart';
 import 'package:nde_email/presantation/mail/mail_list/bloc/mail_list_bloc.dart';
+import 'package:nde_email/presantation/mail/mail_list/bloc/mail_list_event.dart';
 import 'package:nde_email/presantation/mail/mail_list/bloc/mail_list_state.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/router/router.dart';
@@ -539,6 +544,58 @@ class _CustomDrawerState extends State<CustomDrawer> {
     }
   }
 
+  void _syncGlobalCounts(AppBarMailboxesLoaded state) async {
+    final allMailboxes = [
+      ...state.inbox,
+      ...state.archive,
+      ...state.drafts,
+      ...state.junk,
+      ...state.sent,
+      ...state.trash,
+      ...state.other,
+    ];
+
+    int totalUnread = 0;
+    int totalAll = 0;
+
+    for (var m in allMailboxes) {
+      if (m.name.toLowerCase() != 'junk' && m.name.toLowerCase() != 'trash') {
+        totalUnread += m.unseen;
+        totalAll += m.total;
+      }
+    }
+
+    // Fetch starred mails to calculate starred unread count
+    int totalStarredUnread = 0;
+    int totalStarred = 0;
+    try {
+      if (!mounted) return;
+      final mailListBloc = context.read<MailListBloc>();
+      final starredMails =
+          await mailListBloc.apiService.fetchFilteredMails('flagged');
+      totalStarred = starredMails.length;
+      totalStarredUnread =
+          starredMails.where((mail) => mail.seen == false).length;
+      log('📊 Drawer sync - Total starred: $totalStarred, Unread starred: $totalStarredUnread');
+    } catch (e) {
+      log('❌ Error fetching starred mails in drawer: $e');
+      // If fetching fails, default to 0
+      totalStarredUnread = 0;
+      totalStarred = 0;
+    }
+
+    // Check if widget is still mounted before accessing context
+    if (!mounted) return;
+
+    log('📤 Dispatching UpdateGlobalCountsEvent: unread=$totalUnread, all=$totalAll, starredUnread=$totalStarredUnread, starred=$totalStarred');
+    context.read<MailListBloc>().add(UpdateGlobalCountsEvent(
+          totalUnread: totalUnread,
+          totalAll: totalAll,
+          totalStarredUnread: totalStarredUnread,
+          totalStarred: totalStarred,
+        ));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Drawer(
@@ -555,6 +612,11 @@ class _CustomDrawerState extends State<CustomDrawer> {
                   }
 
                   if (state is AppBarMailboxesLoaded) {
+                    // Sync counts to MailListBloc once when loaded
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      _syncGlobalCounts(state);
+                    });
+
                     final folders = [
                       ...state.inbox,
                       ...state.archive,
@@ -570,12 +632,40 @@ class _CustomDrawerState extends State<CustomDrawer> {
                       children: [
                         _sectionTitle("Folders"),
                         ...folders.map((m) => _buildMailboxTile(context, m)),
-                        _buildViewTile(context, "Unread", viewUnread, "unread",
-                            Icons.mark_as_unread_outlined),
-                        _buildViewTile(context, "All", viewAll, "all",
-                            Icons.mail_outlined),
-                        _buildViewTile(context, "Starred", viewStarred,
-                            "flagged", Icons.star_outline),
+                        _sectionTitle("Views"),
+                        BlocSelector<MailListBloc, MailListState, int>(
+                          selector: (state) => state.totalUnreadCount,
+                          builder: (context, count) => _buildViewTile(
+                            context,
+                            "Unread",
+                            viewUnread,
+                            "unread",
+                            Icons.mark_as_unread_outlined,
+                            count: count,
+                          ),
+                        ),
+                        BlocSelector<MailListBloc, MailListState, int>(
+                          selector: (state) => state.totalAllCount,
+                          builder: (context, count) => _buildViewTile(
+                            context,
+                            "All",
+                            viewAll,
+                            "all",
+                            Icons.mail_outlined,
+                            count: count,
+                          ),
+                        ),
+                        BlocSelector<MailListBloc, MailListState, int>(
+                          selector: (state) => state.totalStarredUnreadCount,
+                          builder: (context, count) => _buildViewTile(
+                            context,
+                            "Starred",
+                            viewStarred,
+                            "flagged",
+                            Icons.star_outline,
+                            count: count,
+                          ),
+                        ),
                         _sectionTitle("Labels"),
                         ...labels.map((m) => _buildLabelTile(context, m)),
                         // _sectionTitle("Views"),
@@ -773,13 +863,15 @@ class _CustomDrawerState extends State<CustomDrawer> {
 
   /// ---------------- VIEW TILE ----------------
   Widget _buildViewTile(BuildContext context, String title, String viewId,
-      String filter, IconData icon) {
+      String filter, IconData icon,
+      {int? count}) {
     final isSelected = viewId == selectedMailboxId;
 
     return _buildSelectableTile(
       key: ValueKey(viewId),
       isSelected: isSelected,
       title: title,
+      trailing: (count != null && count > 0) ? "$count" : null,
       leading: Icon(
         icon,
         size: 22,
