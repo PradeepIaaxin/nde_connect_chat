@@ -76,7 +76,8 @@ class CreateFolderBloc extends Bloc<CreateFolderEvent, CreateFolderState> {
   Future<void> _uploadFiles(
     UploadFiles event,
     Emitter<CreateFolderState> emit,
-  ) async {
+  )
+  async {
     emit(CreateFolderLoading());
 
     try {
@@ -140,7 +141,9 @@ class CreateFolderBloc extends Bloc<CreateFolderEvent, CreateFolderState> {
           presignedUrl: response.data['presignedurl'][0]['presignedUrl'],
           file: event.file!,
         );
+
         emit(CreateFolderSuccess());
+        Messenger.alertSuccess('File uploaded successfully!');
       } else if (response.statusCode == 409) {
         log('Conflict error: File with same name exists');
         emit(CreateFolderConflict("A file with the same name already exists."));
@@ -215,6 +218,7 @@ class CreateFolderBloc extends Bloc<CreateFolderEvent, CreateFolderState> {
           file: event.file!,
         );
         emit(CreateFolderSuccess());
+        Messenger.alertSuccess('File uploaded successfully!');
       } else {
         emit(CreateFolderFailure("Failed with status: ${response.statusCode}"));
       }
