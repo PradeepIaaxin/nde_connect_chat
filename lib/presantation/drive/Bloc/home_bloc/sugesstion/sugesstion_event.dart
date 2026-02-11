@@ -2,12 +2,14 @@ abstract class SuggestionsEvent {}
 
 class FetchSuggestionsEvent extends SuggestionsEvent {
   final bool isLoadMore;
+
   FetchSuggestionsEvent({this.isLoadMore = false});
 }
 
 class StarredData extends SuggestionsEvent {
   final List<String> fileID;
-  StarredData({required this.fileID});
+  final bool message;
+  StarredData({required this.fileID, required this.message});
 }
 
 class MoveToTrashEvent extends SuggestionsEvent {

@@ -16,6 +16,10 @@ import 'package:nde_email/presantation/drive/view/starred_screen.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/reusbale/endrawer.dart';
 
+import '../Bloc/home_bloc/sugesstion/sugesstion_bloc.dart';
+import '../Bloc/home_bloc/sugesstion/sugesstion_event.dart';
+import 'common_funtions.dart';
+
 class LandingHome extends StatefulWidget {
   const LandingHome({super.key});
 
@@ -30,7 +34,6 @@ class _LandingHomeState extends State<LandingHome> {
   String? profilePicUrl;
   String? gmail;
   bool _isFabVisible = true;
-
   Future<void> _loadUserData() async {
     final name = await UserPreferences.getUsername();
     final picUrl = await UserPreferences.getProfilePicKey();
@@ -77,6 +80,8 @@ class _LandingHomeState extends State<LandingHome> {
     super.initState();
     _loadUserData();
   }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -171,6 +176,7 @@ class _LandingHomeState extends State<LandingHome> {
                     mini: true,
                     backgroundColor: Colors.pink[100],
                     onPressed: () {
+                      openCamera(context);
                       log('camera');
                     },
                     child: const Icon(Icons.camera_alt, color: Colors.white54),

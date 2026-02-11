@@ -28,12 +28,21 @@ class _FilePreviewWidgetState extends State<FilePreviewWidget> {
   bool _controlsVisible = true;
   Duration _videoPosition = Duration.zero;
   Duration _videoDuration = Duration.zero;
+  late final WebViewController _officeController;
 
   late Future<void> _audioSetupFuture;
 
   @override
   void initState() {
     super.initState();
+    if (widget.fileUrl != null) {
+      final viewerUrl =
+          "https://view.officeapps.live.com/op/embed.aspx?src=${Uri.encodeComponent(widget.fileUrl!)}";
+
+      _officeController = WebViewController()
+        ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..loadRequest(Uri.parse(viewerUrl));
+    }
     _audioSetupFuture = _setupAudioPlayer();
     _setupVideoPlayer();
   }
@@ -191,9 +200,10 @@ class _FilePreviewWidgetState extends State<FilePreviewWidget> {
   // ================= PDF =================
 
   Widget _buildPdfPreview() {
-    return FutureBuilder<File>(
+    return  FutureBuilder<File>(
       future: _downloadFile(widget.fileUrl!, _getFileName(widget.fileUrl!)),
-      builder: (_, snapshot) {
+      builder: (context, snapshot) {
+
         if (snapshot.connectionState != ConnectionState.done) {
           return _buildLoading();
         }
@@ -202,12 +212,12 @@ class _FilePreviewWidgetState extends State<FilePreviewWidget> {
           return const Center(child: Text("Failed to load PDF"));
         }
 
+        final file = snapshot.data!;
+
         return PDFView(
-          filePath: snapshot.data!.path,
+          filePath: file.path,
           enableSwipe: true,
           swipeHorizontal: false,
-          autoSpacing: true,
-          pageFling: true,
         );
       },
     );
@@ -216,44 +226,62 @@ class _FilePreviewWidgetState extends State<FilePreviewWidget> {
   // ================= IMAGE =================
 
   Widget _buildImagePreview() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: CachedNetworkImage(
-          imageUrl: widget.fileUrl!,
-          fit: BoxFit.contain,
-          placeholder: (_, __) => _buildLoading(),
-          errorWidget: (_, __, ___) => const Icon(Icons.broken_image, size: 80),
+    return Container(
+      color: Colors.black, // Optional (nice preview look)
+      child: InteractiveViewer(
+        minScale: 0.5,     // ✅ Zoom out limit
+        maxScale: 5.0,     // ✅ Zoom in limit
+        child: Center(
+          child: CachedNetworkImage(
+            imageUrl: widget.fileUrl!,
+            fit: BoxFit.contain,
+            placeholder: (_, __) => _buildLoading(),
+            errorWidget: (_, __, ___) =>
+            const Icon(Icons.broken_image, color: Colors.white, size: 80),
+          ),
         ),
       ),
     );
   }
 
+
+
   // ================= OFFICE =================
 
+  // Widget _buildOfficePreview() {
+  //   final viewerUrl =
+  //       "https://docs.google.com/gview?embedded=true&url=${Uri.encodeFull(widget.fileUrl!)}";
+  //
+  //   _webViewController ??= WebViewController()
+  //     ..setJavaScriptMode(JavaScriptMode.unrestricted)
+  //     ..loadRequest(Uri.parse(viewerUrl));
+  //
+  //   return Stack(
+  //     children: [
+  //       WebViewWidget(controller: _webViewController!),
+  //       Positioned(
+  //         bottom: 12,
+  //         right: 12,
+  //         child: FloatingActionButton(
+  //           mini: true,
+  //           onPressed: _openExternally,
+  //           child: const Icon(Icons.open_in_new),
+  //         ),
+  //       )
+  //     ],
+  //   );
+  // }
   Widget _buildOfficePreview() {
     final viewerUrl =
-        "https://docs.google.com/gview?embedded=true&url=${Uri.encodeFull(widget.fileUrl!)}";
+        "https://view.officeapps.live.com/op/embed.aspx?src=${Uri.encodeComponent(widget.fileUrl!)}";
 
-    _webViewController ??= WebViewController()
+    final controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..loadRequest(Uri.parse(viewerUrl));
 
-    return Stack(
-      children: [
-        WebViewWidget(controller: _webViewController!),
-        Positioned(
-          bottom: 12,
-          right: 12,
-          child: FloatingActionButton(
-            mini: true,
-            onPressed: _openExternally,
-            child: const Icon(Icons.open_in_new),
-          ),
-        )
-      ],
-    );
+    return WebViewWidget(controller: controller);
   }
+
 
   // ================= EXTERNAL =================
 
@@ -270,6 +298,7 @@ class _FilePreviewWidgetState extends State<FilePreviewWidget> {
   Future<void> _openExternally() async {
     final file =
         await _downloadFile(widget.fileUrl!, _getFileName(widget.fileUrl!));
+
     await OpenFilex.open(file.path);
   }
 
@@ -311,9 +340,47 @@ class _FilePreviewWidgetState extends State<FilePreviewWidget> {
   bool _isAudio(String ext) => ['mp3', 'wav', 'aac', 'ogg'].contains(ext);
 
   bool _isOffice(String ext) =>
-      ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].contains(ext);
+      ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'csv', 'ods']
+          .contains(ext);
+  bool _isText(String ext) => ['txt', 'log', 'json', 'csv'].contains(ext);
+
 
   Widget _buildLoading() => const Center(child: CircularProgressIndicator());
+  Widget _buildTextPreview() {
+    return FutureBuilder<File>(
+      future: _downloadFile(widget.fileUrl!, _getFileName(widget.fileUrl!)),
+      builder: (context, snapshot) {
+
+        if (snapshot.connectionState != ConnectionState.done) {
+          return _buildLoading();
+        }
+
+        if (snapshot.hasError || snapshot.data == null) {
+          return const Center(child: Text("Failed to load text file"));
+        }
+
+        final file = snapshot.data!;
+
+        return FutureBuilder<String>(
+          future: file.readAsString(),
+          builder: (context, textSnapshot) {
+
+            if (!textSnapshot.hasData) {
+              return _buildLoading();
+            }
+
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: SelectableText(
+                textSnapshot.data!,
+                style: const TextStyle(fontSize: 16),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 
   // ================= BUILD =================
 
@@ -335,7 +402,10 @@ class _FilePreviewWidgetState extends State<FilePreviewWidget> {
       child = _buildVideoPlayer();
     } else if (_isAudio(ext)) {
       child = _buildAudioPlayer();
-    } else if (_isOffice(ext)) {
+    }else if (_isText(ext)) {          // ✅ ADD THIS
+      child = _buildTextPreview();
+    }
+    else if (_isOffice(ext)) {
       return _buildOfficePreview();
     } else {
       child = _buildExternalOpener();
@@ -352,8 +422,9 @@ class _FilePreviewWidgetState extends State<FilePreviewWidget> {
 
 class FilePreviewScreen extends StatelessWidget {
   final String fileUrl;
+  final String? fileName;
 
-  const FilePreviewScreen({super.key, required this.fileUrl});
+  const FilePreviewScreen({super.key, required this.fileUrl,this.fileName});
 
   @override
   Widget build(BuildContext context) {
@@ -361,7 +432,7 @@ class FilePreviewScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-          backgroundColor: Colors.white, title: const Text("File Preview")),
+          backgroundColor: Colors.white, title: Text(fileName!=null?fileName!:"File Preview")),
       body: FilePreviewWidget(fileUrl: fileUrl),
     );
   }

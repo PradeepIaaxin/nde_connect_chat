@@ -384,7 +384,7 @@ class _FolderGridItem extends StatelessWidget {
             );
           } else {
             MyRouter.push(
-                screen: FilePreviewScreen(fileUrl: folder.preview ?? ""));
+                screen: FilePreviewScreen(fileUrl: folder.preview ?? "",  fileName: folder.name,));
           }
         }
       },
@@ -631,7 +631,7 @@ class _FolderListItem extends StatelessWidget {
             );
           } else {
             MyRouter.push(
-                screen: FilePreviewScreen(fileUrl: folder.preview ?? ""));
+                screen: FilePreviewScreen(fileUrl: folder.preview ?? "",  fileName: folder.name,));
           }
         }
       },
