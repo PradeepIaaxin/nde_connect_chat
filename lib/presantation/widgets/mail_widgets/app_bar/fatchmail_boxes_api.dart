@@ -22,7 +22,7 @@ class FetchMailBoxesApi {
       }
 
       final url = Uri.parse(
-          '${ApiService.baseUrl}/user/mailboxes?specialuse=false&showhidden=false&counters=true&sizes=false');
+          '${ApiService.baseUrl}/user/mailboxes?specialuse=false&showhidden=false&counters=true&sizes=true');
 
       final response = await http.get(
         url,

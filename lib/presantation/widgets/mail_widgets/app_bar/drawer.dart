@@ -475,6 +475,7 @@ import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_color
 import 'package:nde_email/utils/router/router.dart';
 import 'mailbox_model.dart';
 import 'app_bar_bloc.dart';
+import 'app_bar_event.dart';
 import 'package:nde_email/presantation/home/home_screen.dart';
 import 'app_bar_state.dart';
 import 'package:nde_email/data/respiratory.dart';
@@ -513,6 +514,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
     super.initState();
     _loadUserData();
     _loadSelectedMailbox();
+    context.read<AppBarBloc>().add(FetchMailboxesEvent(force: true));
   }
 
   Future<void> _loadSelectedMailbox() async {
