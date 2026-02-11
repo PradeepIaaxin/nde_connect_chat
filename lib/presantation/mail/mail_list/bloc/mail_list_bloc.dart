@@ -41,6 +41,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
     on<MarkAsUnreadEvent>(_onMarkAsUnread);
     on<RefreshMailListEvent>(_onRefreshMailListSilent);
     on<FetchFilteredMailEvent>(_onFetchFilteredMail);
+    on<RefreshFilteredMailEvent>(_onRefreshFilteredMail);
     on<ToggleFlagEvent>(_onToggleFlagEvent);
     on<UndoUnstarEvent>(_onUndoUnstar);
     on<RevertArchiveEvent>(_onRevertArchive);
@@ -543,38 +544,73 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
       final response = await apiService.fetchMailList(event.mailboxId);
       final List<GMMailModels> freshMails = response.mails;
 
-      if (freshMails.isNotEmpty) {
-        // Update cache
-        cachedMailLists[event.mailboxId] = freshMails;
+      cachedMailLists[event.mailboxId] = freshMails;
 
-        // Recalculate unread count
-        final unreadCount = freshMails.where((mail) => !mail.seen).length;
-        final updatedUnreadMap =
-            Map<String, int>.from(state.unreadCountByMailbox);
-        updatedUnreadMap[event.mailboxId] = unreadCount;
-        final totalUnread =
-            updatedUnreadMap.values.fold<int>(0, (a, b) => a + (b ?? 0));
+      final unreadCount = freshMails.where((mail) => mail.seen == false).length;
+      final updatedUnreadMap =
+          Map<String, int>.from(state.unreadCountByMailbox);
+      updatedUnreadMap[event.mailboxId] = unreadCount;
 
-        // Quietly update UI only if data actually changed
-        if (!_listsAreEqual(state.mails, freshMails)) {
-          emit(state.copyWith(
-            mails: freshMails,
-            unreadCountByMailbox: updatedUnreadMap,
-            totalUnreadCount: totalUnread,
-            nextCursor:
-                response.nextCursor is String ? response.nextCursor : null,
-            status: freshMails.isEmpty
-                ? MailListStatus.empty
-                : MailListStatus.loaded,
-          ));
-          log("Silent refresh updated UI with ${freshMails.length} mails");
-        } else {
-          log("Silent refresh – no changes detected");
-        }
+      final totalUnread = updatedUnreadMap.values.fold<int>(
+        0,
+        (a, b) => a + b,
+      );
+
+      final updatedTotalMap = Map<String, int>.from(state.totalCountByMailbox);
+      updatedTotalMap[event.mailboxId] = freshMails.length;
+
+      final String? nextCursor =
+          response.nextCursor is String ? response.nextCursor : null;
+
+      final nextStatus =
+          freshMails.isEmpty ? MailListStatus.empty : MailListStatus.loaded;
+
+      final shouldEmit = !_listsAreEqual(state.mails, freshMails) ||
+          state.status != nextStatus ||
+          state.nextCursor != nextCursor ||
+          state.specialUse != response.specialUse;
+
+      if (shouldEmit) {
+        emit(state.copyWith(
+          status: nextStatus,
+          mails: freshMails,
+          unreadCountByMailbox: updatedUnreadMap,
+          totalUnreadCount: totalUnread,
+          totalCountByMailbox: updatedTotalMap,
+          nextCursor: nextCursor,
+          specialUse: response.specialUse,
+          currentMailboxId: event.mailboxId,
+        ));
       }
     } catch (e) {
       // Silent fail – no UI change, no error shown
       log("Silent refresh failed quietly: $e");
+    } finally {
+      event.completer?.complete();
+    }
+  }
+
+  Future<void> _onRefreshFilteredMail(
+    RefreshFilteredMailEvent event,
+    Emitter<MailListState> emit,
+  ) async {
+    try {
+      final freshMails = await apiService.fetchFilteredMails(event.filterType);
+
+      if (_listsAreEqual(state.mails, freshMails) &&
+          state.status == MailListStatus.loaded) {
+        return;
+      }
+
+      emit(state.copyWith(
+        status:
+            freshMails.isEmpty ? MailListStatus.empty : MailListStatus.loaded,
+        mails: freshMails,
+      ));
+    } catch (e) {
+      log("Filtered mail refresh failed quietly: $e");
+    } finally {
+      event.completer?.complete();
     }
   }
 
