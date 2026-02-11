@@ -155,7 +155,8 @@ class MyDriveBloc extends Bloc<MyDriveEvent, MyDriveState> {
   Future<void> _onFavourite(
       StarredData event, Emitter<MyDriveState> emit) async {
     try {
-      await repository.starred(fileIDs: event.fileID);
+      await repository.starred(
+          fileIDs: event.fileID, isCurrentlyStarred: event.isCurrentlyStarred);
 
       for (var id in event.fileID) {
         final index = _allFolders.indexWhere((f) => f.id == id);

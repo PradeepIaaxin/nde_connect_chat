@@ -6,11 +6,17 @@ class FetchSuggestionsEvent extends SuggestionsEvent {
   FetchSuggestionsEvent({this.isLoadMore = false});
 }
 
+// class StarredData extends SuggestionsEvent {
+//   final List<String> fileID;
+//   StarredData({required this.fileID});
+// }
+
 class StarredData extends SuggestionsEvent {
   final List<String> fileID;
   final bool message;
   StarredData({required this.fileID, required this.message});
 }
+
 
 class MoveToTrashEvent extends SuggestionsEvent {
   final List<String> fileIDs;

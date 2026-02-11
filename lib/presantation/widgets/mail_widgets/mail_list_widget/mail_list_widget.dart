@@ -213,13 +213,23 @@ class _MailListWidgetState extends State<MailListWidget> {
                                         widget.mailboxId == draftsId ||
                                             mail.draft == true;
 
+                                    // For drafts: show FROM address
                                     if (isDraftBox) {
+                                      if (mail.fromAddress.isNotEmpty) {
+                                        avatarName = mail.fromAddress;
+                                      } else if (mail.fromName.isNotEmpty) {
+                                        avatarName = mail.fromName;
+                                      } else {
+                                        showDefaultIcon = true;
+                                      }
+                                    }
+                                    // For sent mails: show TO address
+                                    else if (issentMailbox) {
                                       if (mail.to.isNotEmpty) {
-                                        if (mail.to[0].name.isNotEmpty) {
-                                          avatarName = mail.to[0].name;
-                                        } else if (mail
-                                            .to[0].address.isNotEmpty) {
+                                        if (mail.to[0].address.isNotEmpty) {
                                           avatarName = mail.to[0].address;
+                                        } else if (mail.to[0].name.isNotEmpty) {
+                                          avatarName = mail.to[0].name;
                                         } else {
                                           showDefaultIcon = true;
                                         }
@@ -227,6 +237,7 @@ class _MailListWidgetState extends State<MailListWidget> {
                                         showDefaultIcon = true;
                                       }
                                     }
+                                    // For other mailboxes: show FROM address (default behavior)
 
                                     if (showDefaultIcon) {
                                       return GmailAvatar(
@@ -307,18 +318,6 @@ class _MailListWidgetState extends State<MailListWidget> {
                                         ),
                                       ),
                                     ),
-
-                                    /// Time
-                                    Text(
-                                      _formatDate(mail.date),
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: mail.seen
-                                            ? FontWeight.w400
-                                            : FontWeight.w600,
-                                        color: Colors.grey.shade700,
-                                      ),
-                                    ),
                                   ],
                                 ),
 
@@ -376,34 +375,54 @@ class _MailListWidgetState extends State<MailListWidget> {
                           const SizedBox(width: 6),
 
                           /// ================= STAR =================
-                          IconButton(
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            icon: Icon(
-                              mail.flagged == true
-                                  ? Icons.star
-                                  : Icons.star_border,
-                              color: mail.flagged == true
-                                  ? Colors.amber
-                                  : isTrashMailbox
-                                      ? Colors.transparent
-                                      : Colors.grey,
-                              size: 20,
-                            ),
-                            onPressed: isJunkMailbox || isTrashMailbox
-                                ? null
-                                : () {
-                                    context.read<MailListBloc>().add(
-                                          ToggleFlagEvent(
-                                            mailboxId: mail.mailboxId ??
-                                                widget.mailboxId,
-                                            ids: [mail.id],
-                                            isFromFlaggedScreen:
-                                                isFlaggedScreen,
-                                            isFlagged: !(mail.flagged ?? false),
-                                          ),
-                                        );
-                                  },
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(right: 4),
+                                child: Text(
+                                  _formatDate(mail.date),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: mail.seen
+                                        ? FontWeight.w400
+                                        : FontWeight.w600,
+                                    color: Colors.grey.shade700,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 5),
+                              IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                icon: Icon(
+                                  mail.flagged == true
+                                      ? Icons.star
+                                      : Icons.star_border,
+                                  color: mail.flagged == true
+                                      ? Colors.amber
+                                      : isTrashMailbox
+                                          ? Colors.transparent
+                                          : Colors.grey,
+                                  size: 20,
+                                ),
+                                onPressed: isJunkMailbox || isTrashMailbox
+                                    ? null
+                                    : () {
+                                        context.read<MailListBloc>().add(
+                                              ToggleFlagEvent(
+                                                mailboxId: mail.mailboxId ??
+                                                    widget.mailboxId,
+                                                ids: [mail.id],
+                                                isFromFlaggedScreen:
+                                                    isFlaggedScreen,
+                                                isFlagged:
+                                                    !(mail.flagged ?? false),
+                                              ),
+                                            );
+                                      },
+                              ),
+                            ],
                           ),
                         ],
                       ),

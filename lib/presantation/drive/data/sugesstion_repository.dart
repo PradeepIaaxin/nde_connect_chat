@@ -284,7 +284,8 @@ class SuggestionsRepository {
       if (response.statusCode == 200) {
         Messenger.alertSuccess('Organize successfully!');
       } else {
-        print(' failed: Status ${response.statusCode}, Response: ${response.data}');
+        print(
+            ' failed: Status ${response.statusCode}, Response: ${response.data}');
       }
     } catch (e) {
       _handleError(e, 'organized');
@@ -303,7 +304,8 @@ class SuggestionsRepository {
       if (response.statusCode == 200) {
         Messenger.alertSuccess('Trashed successfully!');
       } else {
-        print('starred failed: Status ${response.statusCode}, Response: ${response.data}');
+        print(
+            'starred failed: Status ${response.statusCode}, Response: ${response.data}');
       }
     } catch (e) {
       _handleError(e, 'moveToTrash');
@@ -328,7 +330,8 @@ class SuggestionsRepository {
               '${fileIDs.length} files deleted permanently.');
         }
       } else {
-        print('deletePermanetly failed: Status ${response.statusCode}, Response: ${response.data}');
+        print(
+            'deletePermanetly failed: Status ${response.statusCode}, Response: ${response.data}');
       }
     } catch (e) {
       _handleError(e, 'deletePermanetly');
@@ -352,7 +355,8 @@ class SuggestionsRepository {
               '${fileIDs.length} files restored successfully.');
         }
       } else {
-        print('restoreAll failed: Status ${response.statusCode}, Response: ${response.data}');
+        print(
+            'restoreAll failed: Status ${response.statusCode}, Response: ${response.data}');
       }
     } catch (e) {
       _handleError(e, 'restoreAll');
@@ -372,7 +376,8 @@ class SuggestionsRepository {
       if (response.statusCode == 200) {
         Messenger.alertSuccess('Folder renamed successfully!');
       } else {
-        print('renameFolder failed: Status code ${response.statusCode}, Response: ${response.data}');
+        print(
+            'renameFolder failed: Status code ${response.statusCode}, Response: ${response.data}');
       }
     } catch (e, stackTrace) {
       print('renameFolder exception: $e\n$stackTrace');

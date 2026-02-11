@@ -13,9 +13,16 @@ class InStarredData extends InsideEvent {
   final List<String> fileID;
   final String selectedid;
   final String? sortBy;
+  final bool isCurrentlyStarred; 
 
-  InStarredData({required this.fileID, required this.selectedid, this.sortBy});
+  InStarredData({
+    required this.fileID,
+    required this.selectedid,
+    required this.isCurrentlyStarred, 
+    this.sortBy,
+  });
 }
+
 
 class InMoveToTrashEvent extends InsideEvent {
   final List<String> fileIDs;

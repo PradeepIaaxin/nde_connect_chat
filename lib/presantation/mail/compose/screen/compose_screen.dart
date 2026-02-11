@@ -26,12 +26,15 @@ import 'package:nde_email/presantation/mail/tosection/email_suggestions_event.da
 import 'package:nde_email/presantation/mail/tosection/email_suggestions_model.dart';
 import 'package:nde_email/presantation/mail/mail_detail/mail_detail_model.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/attachment.dart';
+import 'package:nde_email/presantation/widgets/mail_widgets/collapsible_quoted_content.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'dart:async';
 import 'package:nde_email/presantation/mail/compose/api/upload_files_api.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
+import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar_bloc.dart';
+import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar_event.dart';
 
 class ComposeScreen extends StatefulWidget {
   final Map<String, dynamic>? draftData;
@@ -170,17 +173,17 @@ class _ComposeScreenState extends State<ComposeScreen> {
   }
 
   void _onTextChanged() {
-    _draftTimer?.cancel();
+    // _draftTimer?.cancel();
 
-    _draftTimer = Timer(
-      const Duration(seconds: 5),
-      () {
-        if (_hasUnsavedChanges()) {
-          log("⏳ Auto-saving draft...");
-          _saveDraft();
-        }
-      },
-    );
+    // _draftTimer = Timer(
+    //   const Duration(seconds: 5),
+    //   () {
+    //     if (_hasUnsavedChanges()) {
+    //       log("⏳ Auto-saving draft...");
+    //       _saveDraft();
+    //     }
+    //   },
+    // );
   }
 
   void _showPopupMenu() {
@@ -370,8 +373,8 @@ class _ComposeScreenState extends State<ComposeScreen> {
       onWillPop: () async {
         MyRouter.pop();
         if (_hasUnsavedChanges()) {
-         // _saveDraft();
-         MyRouter.pop();
+          // _saveDraft();
+          MyRouter.pop();
           return false;
         }
         return true;
@@ -412,7 +415,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
                     cc: ccEmails.isNotEmpty ? ccEmails.join(',') : null,
                     bcc: bccEmails.isNotEmpty ? bccEmails.join(',') : null,
                     draftId: widget.draftId,
-                          draftMailboxId: widget.mailboxId,
+                    draftMailboxId: widget.mailboxId,
                   );
 
                   final draftData = <String, dynamic>{
@@ -441,6 +444,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
                           draftData: draftData,
                           initialAttachments: restoredAttachments,
                           mailboxId: widget.mailboxId,
+                          draftId: widget.draftId,
                         ),
                       );
                     },
@@ -561,6 +565,15 @@ class _ComposeScreenState extends State<ComposeScreen> {
                       Navigator.pop(context);
                     }
 
+                    // Refresh mailboxes to update draft count in drawer
+                    context
+                        .read<AppBarBloc>()
+                        .add(FetchMailboxesEvent(force: true));
+
+                    // 🔥 Trigger instant refresh of draft list
+                    context.read<MailListBloc>().add(RefreshMailListEvent(
+                        state.mailboxId)); // Use mailboxId from state
+
                     Messenger.alertSuccess("Draft saved successfully");
                     MyRouter.pop();
                   } else if (state is DraftError) {
@@ -626,9 +639,11 @@ class _ComposeScreenState extends State<ComposeScreen> {
                   _buildBodyField(),
                   if (widget.mailDetail != null &&
                       widget.mailDetail!.html.isNotEmpty)
-                    HtmlWidget(
-                      widget.mailDetail!.html,
-                      onTapUrl: (url) => launchUrl(Uri.parse(url)),
+                    CollapsibleQuotedContent(
+                      child: HtmlWidget(
+                        widget.mailDetail!.html,
+                        onTapUrl: (url) => launchUrl(Uri.parse(url)),
+                      ),
                     ),
                   if (widget.mailDetail != null &&
                       widget.mailDetail!.html.isNotEmpty)

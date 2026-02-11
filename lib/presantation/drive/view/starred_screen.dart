@@ -237,7 +237,9 @@ class _StarredPageState extends State<StarredPage> {
                             onTap: () {
                               context.read<StarredBloc>().add(
                                     StarredData(
-                                        fileID: selectedFolders.toList()),
+                                        fileID: selectedFolders.toList(),
+                                        isCurrentlyStarred: selectedFolderModels
+                                            .every((f) => f.starred)),
                                   );
                               _clearSelection();
                             },
@@ -513,7 +515,10 @@ class _FolderGridItem extends StatelessWidget {
                                     log('hii');
 
                                     context.read<StarredBloc>().add(
-                                          StarredData(fileID: [folder.id]),
+                                          StarredData(
+                                              fileID: [folder.id],
+                                              isCurrentlyStarred:
+                                                  folder.starred),
                                         );
                                   },
                                 ),
@@ -827,7 +832,9 @@ class _FolderListItem extends StatelessWidget {
 
                       log(folder.starred.toString());
                       context.read<StarredBloc>().add(
-                            StarredData(fileID: [folder.id]),
+                            StarredData(
+                                fileID: [folder.id],
+                                isCurrentlyStarred: folder.starred),
                           );
                     },
                   ),

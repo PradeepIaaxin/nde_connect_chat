@@ -19,11 +19,14 @@ import 'mail_detail_model.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:nde_email/presantation/mail/compose/screen/compose_screen.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/attachment.dart';
+import 'package:nde_email/presantation/widgets/mail_widgets/collapsible_quoted_content.dart';
 import 'mail_detail_event.dart';
 import 'mail_detail_state.dart';
 import 'mail_detail_bloc.dart';
 import 'package:nde_email/presantation/mail/mail_list/bloc/mail_list_event.dart';
 import 'package:nde_email/presantation/mail/mail_list/bloc/mail_list_bloc.dart';
+import 'package:nde_email/presantation/mail/compose/bloc/send_mail_bloc/send_mail_bloc.dart';
+import 'package:nde_email/presantation/mail/compose/bloc/send_mail_bloc/send_mail_state.dart';
 
 class MailDetailScreen extends StatefulWidget {
   final String mailboxId;
@@ -50,397 +53,392 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
   @override
   Widget build(BuildContext context) {
     print(widget.selectedTag);
-    return BlocProvider(
-      create: (context) => MailDetailBloc(apiService: Fatchdetailmailapi())
-        ..add(FetchMailDetailEvent(widget.mailboxId, widget.messageId)),
-      child: BlocBuilder<MailDetailBloc, MailDetailState>(
-        builder: (context, state) {
-          final width = MediaQuery.of(context).size.width;
-          final padding = width > 600
-              ? const EdgeInsets.symmetric(horizontal: 32)
-              : const EdgeInsets.symmetric(horizontal: 16);
+    return BlocListener<SendMailBloc, SendMailState>(
+      listener: (context, state) {
+        if (state is MailSent) {
+          if (state.draftId.toString() == widget.messageId) {
+            Navigator.pop(context);
+          }
+        }
+      },
+      child: BlocProvider(
+        create: (context) => MailDetailBloc(apiService: Fatchdetailmailapi())
+          ..add(FetchMailDetailEvent(widget.mailboxId, widget.messageId)),
+        child: BlocBuilder<MailDetailBloc, MailDetailState>(
+          builder: (context, state) {
+            final width = MediaQuery.of(context).size.width;
+            final padding = width > 600
+                ? const EdgeInsets.symmetric(horizontal: 32)
+                : const EdgeInsets.symmetric(horizontal: 16);
 
-          final mailDetail =
-              state is MailDetailLoaded ? state.mailDetail : null;
-          final showEdit = mailDetail != null &&
-              (widget.enableDraftEdit || mailDetail.draft);
+            final mailDetail =
+                state is MailDetailLoaded ? state.mailDetail : null;
+            final showEdit = mailDetail != null &&
+                (widget.enableDraftEdit || mailDetail.draft);
 
-          return Scaffold(
-            backgroundColor: Colors.white,
-            appBar: AppBar(
+            return Scaffold(
               backgroundColor: Colors.white,
-              surfaceTintColor: Colors.white,
-              actions: [
-                if (showEdit)
-                  IconButton(
-                    icon: const Icon(Icons.edit),
-                    onPressed: () => _openDraftEditor(mailDetail),
-                  ),
-                widget.enableDraftEdit || widget.selectedTag == "\\Trash"
-                    ? SizedBox()
-                    : IconButton(
-                        icon: const Icon(Icons.archive),
-                        onPressed: () {
-                          context.read<MailListBloc>().add(
-                                MoveToArchiveEvent(
-                                    [int.parse(widget.messageId)],
-                                    widget.mailboxId),
-                              );
-                          Navigator.pop(context);
-                        },
-                      ),
-                widget.enableDraftEdit || widget.selectedTag == "\\Trash"
-                    ? SizedBox()
-                    : IconButton(
-                        icon: const Icon(Icons.delete_outline),
-                        onPressed: () {
-                          context.read<MailListBloc>().add(DeleteMailEvent(
-                              widget.mailboxId, [int.parse(widget.messageId)]));
-                          MyRouter.pop();
-                        },
-                      ),
-                IconButton(
-                  icon: const Icon(Icons.mark_as_unread),
-                  onPressed: () {
-                    context.read<MailListBloc>().add(MarkAsUnreadEvent(
-                        widget.mailboxId, [widget.messageId]));
-                    MyRouter.pop();
-                  },
-                ),
-                MailMoreMenu(
-                  onSelected: (action) {
-                    switch (action) {
-                      case MailMenuAction.moveTo:
-                        final appBarState = context.read<AppBarBloc>().state;
-
-                        if (appBarState is AppBarMailboxesLoaded) {
-                          final folders = [
-                            ...appBarState.inbox,
-                            ...appBarState.archive,
-                            ...appBarState.drafts,
-                            ...appBarState.junk,
-                            ...appBarState.sent,
-                            ...appBarState.trash,
-                            ...appBarState.other,
-                          ];
-
-                          showMoveToMailboxDialog(
-                            context: context,
-                            mailboxes: folders,
-                            onSelected: (mailbox) {
-                              log("📁 Move mail to: ${mailbox.name}");
-                              log("📁 Target Mailbox ID: ${mailbox.id}");
-
-                              context.read<MailListBloc>().add(
-                                    MoveMailEvent(
-                                      mailIds: [int.parse(widget.messageId)],
-                                      fromMailboxId: widget.mailboxId,
-                                      toMailboxId: mailbox.id,
-                                    ),
-                                  );
-
-                              Navigator.pop(context);
-                            },
-                          );
-                        }
-                        break;
-
-                      case MailMenuAction.snooze:
-                        debugPrint('Snooze');
-                        break;
-
-                      case MailMenuAction.changeLabels:
-                        debugPrint('Change labels');
-                        break;
-
-                      case MailMenuAction.unsubscribe:
-                        debugPrint('Unsubscribe');
-                        break;
-
-                      case MailMenuAction.mute:
-                        debugPrint('Mute');
-                        break;
-
-                      case MailMenuAction.printMail:
-                        debugPrint('Print');
-                        break;
-
-                      case MailMenuAction.reportSpam:
-                        debugPrint('Report spam');
-                        break;
-
-                      case MailMenuAction.addToTasks:
-                        debugPrint('Add to Tasks');
-                        break;
-
-                      case MailMenuAction.help:
-                        debugPrint('Help & Feedback');
-                        break;
-                    }
-                  },
-                ),
-              ],
-            ),
-            body: () {
-              if (state is MailDetailLoading) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (state is MailDetailLoaded) {
-                final MailDetailModel mailDetail = state.mailDetail;
-
-                return SingleChildScrollView(
-                  padding: padding.copyWith(bottom: 16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        mailDetail.subject.isNotEmpty
-                            ? mailDetail.subject
-                            : "No Subject",
-                        style: const TextStyle(
-                          fontFamily: 'Roboto',
-                          fontSize: 19,
-                          fontWeight: FontWeight.bold,
+              appBar: AppBar(
+                backgroundColor: Colors.white,
+                surfaceTintColor: Colors.white,
+                actions: [
+                  if (showEdit)
+                    IconButton(
+                      icon: const Icon(Icons.edit),
+                      onPressed: () => _openDraftEditor(mailDetail),
+                    ),
+                  widget.enableDraftEdit || widget.selectedTag == "\\Trash"
+                      ? SizedBox()
+                      : IconButton(
+                          icon: const Icon(Icons.archive),
+                          onPressed: () {
+                            context.read<MailListBloc>().add(
+                                  MoveToArchiveEvent(
+                                      [int.parse(widget.messageId)],
+                                      widget.mailboxId),
+                                );
+                            Navigator.pop(context);
+                          },
                         ),
-                      ),
-                      const SizedBox(height: 10),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 2, vertical: 8),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            GmailAvatar(
-                              name: mailDetail.from.name.isNotEmpty
-                                  ? mailDetail.from.name
-                                  : mailDetail.from.address,
-                              radius: 24,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
+                  widget.enableDraftEdit || widget.selectedTag == "\\Trash"
+                      ? SizedBox()
+                      : IconButton(
+                          icon: const Icon(Icons.delete_outline),
+                          onPressed: () {
+                            context.read<MailListBloc>().add(DeleteMailEvent(
+                                widget.mailboxId,
+                                [int.parse(widget.messageId)]));
+                            MyRouter.pop();
+                          },
+                        ),
+                  IconButton(
+                    icon: const Icon(Icons.mark_as_unread),
+                    onPressed: () {
+                      context.read<MailListBloc>().add(MarkAsUnreadEvent(
+                          widget.mailboxId, [widget.messageId]));
+                      MyRouter.pop();
+                    },
+                  ),
+                  MailMoreMenu(
+                    onSelected: (action) {
+                      switch (action) {
+                        case MailMenuAction.moveTo:
+                          final appBarState = context.read<AppBarBloc>().state;
+
+                          if (appBarState is AppBarMailboxesLoaded) {
+                            final folders = [
+                              ...appBarState.inbox,
+                              ...appBarState.archive,
+                              ...appBarState.drafts,
+                              ...appBarState.junk,
+                              ...appBarState.sent,
+                              ...appBarState.trash,
+                              ...appBarState.other,
+                            ];
+
+                            showMoveToMailboxDialog(
+                              context: context,
+                              mailboxes: folders,
+                              onSelected: (mailbox) {
+                                log("📁 Move mail to: ${mailbox.name}");
+                                log("📁 Target Mailbox ID: ${mailbox.id}");
+
+                                context.read<MailListBloc>().add(
+                                      MoveMailEvent(
+                                        mailIds: [int.parse(widget.messageId)],
+                                        fromMailboxId: widget.mailboxId,
+                                        toMailboxId: mailbox.id,
+                                      ),
+                                    );
+
+                                Navigator.pop(context);
+                              },
+                            );
+                          }
+                          break;
+
+                        case MailMenuAction.snooze:
+                          debugPrint('Snooze');
+                          break;
+
+                        case MailMenuAction.changeLabels:
+                          debugPrint('Change labels');
+                          break;
+
+                        case MailMenuAction.unsubscribe:
+                          debugPrint('Unsubscribe');
+                          break;
+
+                        case MailMenuAction.mute:
+                          debugPrint('Mute');
+                          break;
+
+                        case MailMenuAction.printMail:
+                          debugPrint('Print');
+                          break;
+
+                        case MailMenuAction.reportSpam:
+                          debugPrint('Report spam');
+                          break;
+
+                        case MailMenuAction.addToTasks:
+                          debugPrint('Add to Tasks');
+                          break;
+
+                        case MailMenuAction.help:
+                          debugPrint('Help & Feedback');
+                          break;
+                      }
+                    },
+                  ),
+                ],
+              ),
+              body: () {
+                if (state is MailDetailLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (state is MailDetailLoaded) {
+                  final MailDetailModel mailDetail = state.mailDetail;
+
+                  return SingleChildScrollView(
+                    padding: padding.copyWith(bottom: 16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          mailDetail.subject.isNotEmpty
+                              ? mailDetail.subject
+                              : "No Subject",
+                          style: const TextStyle(
+                            fontFamily: 'Roboto',
+                            fontSize: 19,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 2, vertical: 8),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              GmailAvatar(
+                                name: mailDetail.from.name.isNotEmpty
+                                    ? mailDetail.from.name
+                                    : mailDetail.from.address,
+                                radius: 24,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      mailDetail.from.name.isNotEmpty
+                                          ? mailDetail.from.name
+                                          : mailDetail.from.address,
+                                      style: const TextStyle(
+                                        fontFamily: 'Roboto',
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.headingText,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    ),
+                                    const SizedBox(height: 0),
+                                    Row(
+                                      children: [
+                                        Text(
+                                          'to me',
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            color: AppColors.secondaryText,
+                                          ),
+                                        ),
+                                        IconButton(
+                                          constraints: const BoxConstraints(),
+                                          padding: EdgeInsets.zero,
+                                          icon: Icon(
+                                            isExpanded
+                                                ? Icons.expand_less
+                                                : Icons.expand_more,
+                                            size: 20,
+                                            color: AppColors.secondaryText,
+                                          ),
+                                          onPressed: () {
+                                            setState(() {
+                                              isExpanded = !isExpanded;
+                                            });
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    mailDetail.from.name.isNotEmpty
-                                        ? mailDetail.from.name
-                                        : mailDetail.from.address,
-                                    style: const TextStyle(
-                                      fontFamily: 'Roboto',
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.headingText,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1,
-                                  ),
-                                  const SizedBox(height: 0),
                                   Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
                                     children: [
                                       Text(
-                                        'to me',
+                                        _formatDate(
+                                            mailDetail.date.toUtc().toString()),
                                         style: const TextStyle(
+                                          fontFamily: 'Roboto',
                                           fontSize: 14,
                                           color: AppColors.secondaryText,
                                         ),
                                       ),
+                                      const SizedBox(width: 8),
                                       IconButton(
+                                        icon: const Icon(Icons.reply,
+                                            size: 23,
+                                            color: AppColors.iconDefault),
                                         constraints: const BoxConstraints(),
                                         padding: EdgeInsets.zero,
-                                        icon: Icon(
-                                          isExpanded
-                                              ? Icons.expand_less
-                                              : Icons.expand_more,
-                                          size: 20,
-                                          color: AppColors.secondaryText,
-                                        ),
                                         onPressed: () {
-                                          setState(() {
-                                            isExpanded = !isExpanded;
-                                          });
+                                          MyRouter.push(
+                                            screen: ComposeScreen(
+                                              mailDetail: mailDetail,
+                                              action: ComposeAction.reply,
+                                            ),
+                                          );
                                         },
                                       ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      _formatDate(
-                                          mailDetail.date.toUtc().toString()),
-                                      style: const TextStyle(
-                                        fontFamily: 'Roboto',
-                                        fontSize: 14,
-                                        color: AppColors.secondaryText,
+                                      IconButton(
+                                        icon: const Icon(Icons.more_vert,
+                                            size: 23,
+                                            color: AppColors.iconDefault),
+                                        key: _menuIconKey,
+                                        constraints: const BoxConstraints(),
+                                        padding: EdgeInsets.zero,
+                                        onPressed: () =>
+                                            _showMailActions(mailDetail),
                                       ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    IconButton(
-                                      icon: const Icon(Icons.reply,
-                                          size: 23,
-                                          color: AppColors.iconDefault),
-                                      constraints: const BoxConstraints(),
-                                      padding: EdgeInsets.zero,
-                                      onPressed: () {
-                                        MyRouter.push(
-                                          screen: ComposeScreen(
-                                            mailDetail: mailDetail,
-                                            action: ComposeAction.reply,
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.more_vert,
-                                          size: 23,
-                                          color: AppColors.iconDefault),
-                                      key: _menuIconKey,
-                                      constraints: const BoxConstraints(),
-                                      padding: EdgeInsets.zero,
-                                      onPressed: () =>
-                                          _showMailActions(mailDetail),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (isExpanded)
-                        Container(
-                          margin:
-                              const EdgeInsets.only(left: 5, right: 5, top: 10),
-                          padding: const EdgeInsets.all(10),
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppColors.secondaryText),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildDetailRow("From :", mailDetail.from.name,
-                                  mailDetail.from.address),
-                              const SizedBox(height: 10),
-                              _buildDetailRow(
-                                "To :",
-                                mailDetail.to.isNotEmpty
-                                    ? mailDetail.to.first.name
-                                    : "N/A",
-                                mailDetail.to.isNotEmpty
-                                    ? mailDetail.to.first.address
-                                    : "",
-                              ),
-                              const SizedBox(height: 10),
-                              _buildDetailRow(
-                                "Date    :",
-                                "${DateFormat('d MMM yyyy').format(mailDetail.date.toLocal())} , ${DateFormat('hh:mm a').format(mailDetail.date.toLocal())}",
-                                "",
-                              ),
-                              const SizedBox(height: 10),
-                              Row(
-                                children: const [
-                                  Icon(Icons.lock,
-                                      size: 14, color: AppColors.iconActive),
-                                  SizedBox(width: 4),
-                                  Text(
-                                    ":  Standard encryption (TLS)",
-                                    style: TextStyle(
-                                        fontSize: 14,
-                                        color: AppColors.secondaryText),
+                                    ],
                                   ),
                                 ],
                               ),
                             ],
                           ),
                         ),
-                      const SizedBox(height: 15),
-                      // Replace your existing HtmlWidget with this:
-
-                      if (mailDetail.html.isNotEmpty)
-                        SizedBox(
-                          width: double.infinity,
-                          child: HtmlWidget(
-                            mailDetail.html,
-                            renderMode: RenderMode.column,
-                            factoryBuilder: () => NoInlineImageWidgetFactory(),
-                            onTapUrl: (url) async {
-                              final uri = Uri.parse(url);
-                              if (await canLaunchUrl(uri)) {
-                                await launchUrl(uri);
-                              }
-                              return true;
-                            },
-                            // Optional: helps tables render better
-                            customStylesBuilder: (element) {
-                              if (element.localName == 'table') {
-                                return {
-                                  'width': '100%',
-                                  'table-layout': 'fixed'
-                                };
-                              }
-                              return null;
-                            },
+                        if (isExpanded)
+                          Container(
+                            margin: const EdgeInsets.only(
+                                left: 5, right: 5, top: 10),
+                            padding: const EdgeInsets.all(10),
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              border:
+                                  Border.all(color: AppColors.secondaryText),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildDetailRow("From :", mailDetail.from.name,
+                                    mailDetail.from.address),
+                                const SizedBox(height: 10),
+                                _buildDetailRow(
+                                  "To :",
+                                  mailDetail.to.isNotEmpty
+                                      ? mailDetail.to.first.name
+                                      : "N/A",
+                                  mailDetail.to.isNotEmpty
+                                      ? mailDetail.to.first.address
+                                      : "",
+                                ),
+                                const SizedBox(height: 10),
+                                _buildDetailRow(
+                                  "Date    :",
+                                  "${DateFormat('d MMM yyyy').format(mailDetail.date.toLocal())} , ${DateFormat('hh:mm a').format(mailDetail.date.toLocal())}",
+                                  "",
+                                ),
+                                const SizedBox(height: 10),
+                                Row(
+                                  children: const [
+                                    Icon(Icons.lock,
+                                        size: 14, color: AppColors.iconActive),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      ":  Standard encryption (TLS)",
+                                      style: TextStyle(
+                                          fontSize: 14,
+                                          color: AppColors.secondaryText),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
+                        const SizedBox(height: 15),
+                        // Replace your existing HtmlWidget with this:
 
-                      const SizedBox(height: 20),
-                      if (mailDetail.attachments.isNotEmpty)
-                        Wrap(
-                          spacing: 10,
-                          runSpacing: 10,
-                          children: mailDetail.attachments.map((attachment) {
-                            return AttachmentWidget(
-                              attachment: attachment,
-                              mailboxId: widget.mailboxId,
-                              messageId: widget.messageId,
-                            );
-                          }).toList(),
+                        if (mailDetail.html.isNotEmpty)
+                          SizedBox(
+                            width: double.infinity,
+                            child: _buildMailContent(mailDetail.html),
+                          ),
+
+                        const SizedBox(height: 20),
+                        if (mailDetail.attachments.isNotEmpty)
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: mailDetail.attachments.map((attachment) {
+                              return AttachmentWidget(
+                                attachment: attachment,
+                                mailboxId: widget.mailboxId,
+                                messageId: widget.messageId,
+                              );
+                            }).toList(),
+                          ),
+                        ListTile(),
+                        const SizedBox(height: 20),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            _buildBorderedButton(context, Icons.reply, "Reply",
+                                mailDetail, ComposeAction.reply),
+                            _buildBorderedButton(
+                                context,
+                                Icons.reply_all,
+                                "Reply all",
+                                mailDetail,
+                                ComposeAction.replyAll),
+                            _buildBorderedButton(context, Icons.forward,
+                                "Forward", mailDetail, ComposeAction.forward),
+                          ],
                         ),
-                      ListTile(),
-                      const SizedBox(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          _buildBorderedButton(context, Icons.reply, "Reply",
-                              mailDetail, ComposeAction.reply),
-                          _buildBorderedButton(context, Icons.reply_all,
-                              "Reply all", mailDetail, ComposeAction.replyAll),
-                          _buildBorderedButton(context, Icons.forward,
-                              "Forward", mailDetail, ComposeAction.forward),
-                        ],
-                      ),
-                    ],
-                  ),
-                );
-              }
-              if (state is MailDetailError) {
-                ErrorType type;
-                if (state.message.contains('internet')) {
-                  type = ErrorType.noInternet;
-                } else if (state.message.contains('empty')) {
-                  type = ErrorType.emptymailbox;
-                } else {
-                  type = ErrorType.somethingwrong;
+                      ],
+                    ),
+                  );
                 }
+                if (state is MailDetailError) {
+                  ErrorType type;
+                  if (state.message.contains('internet')) {
+                    type = ErrorType.noInternet;
+                  } else if (state.message.contains('empty')) {
+                    type = ErrorType.emptymailbox;
+                  } else {
+                    type = ErrorType.somethingwrong;
+                  }
 
-                return ErrorDisplay(
-                  message: state.message,
-                  type: type,
-                );
-              }
-              return const Center(child: Text("No mail detail found"));
-            }(),
-          );
-        },
+                  return ErrorDisplay(
+                    message: state.message,
+                    type: type,
+                  );
+                }
+                return const Center(child: Text("No mail detail found"));
+              }(),
+            );
+          },
+        ),
       ),
     );
   }
@@ -619,6 +617,63 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
       ),
       icon: Icon(icon, color: AppColors.secondaryText),
       label: Text(label),
+    );
+  }
+
+  Widget _buildMailContent(String html) {
+    final markers = [
+      '<div class="gmail_quote">',
+      '<blockquote',
+      '<div class="nde_quote">',
+    ];
+
+    String? marker;
+    int index = -1;
+
+    for (final m in markers) {
+      final i = html.indexOf(m);
+      if (i != -1 && (index == -1 || i < index)) {
+        index = i;
+        marker = m;
+      }
+    }
+
+    if (index != -1 && marker != null) {
+      final mainContent = html.substring(0, index);
+      final quotedContent = html.substring(index);
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildHtmlWidget(mainContent),
+          CollapsibleQuotedContent(
+            child: _buildHtmlWidget(quotedContent),
+          ),
+        ],
+      );
+    }
+
+    return _buildHtmlWidget(html);
+  }
+
+  Widget _buildHtmlWidget(String html) {
+    return HtmlWidget(
+      html,
+      renderMode: RenderMode.column,
+      factoryBuilder: () => NoInlineImageWidgetFactory(),
+      onTapUrl: (url) async {
+        final uri = Uri.parse(url);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri);
+        }
+        return true;
+      },
+      customStylesBuilder: (element) {
+        if (element.localName == 'table') {
+          return {'width': '100%', 'table-layout': 'fixed'};
+        }
+        return null;
+      },
     );
   }
 }
