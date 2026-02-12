@@ -293,52 +293,51 @@ class MyDriveRepository {
   }
 
   Future<bool> starred({
-  required List<String> fileIDs,
-  bool? isCurrentlyStarred, 
-}) async {
-  final headers = await _getHeaders();
-  if (headers == null) return false;
+    required List<String> fileIDs,
+    bool? isCurrentlyStarred,
+  }) async {
+    final headers = await _getHeaders();
+    if (headers == null) return false;
 
-  try {
-    final response = await dio.put(
-      '$_baseUrl/star',
-      data: {'fileId': fileIDs},
-      options: Options(headers: headers),
-    );
+    try {
+      final response = await dio.put(
+        '$_baseUrl/star',
+        data: {'fileId': fileIDs},
+        options: Options(headers: headers),
+      );
 
-    if (response.statusCode == 200) {
-      String message;
+      if (response.statusCode == 200) {
+        String message;
 
-      // If state passed → use it
-      if (isCurrentlyStarred != null) {
-        if (fileIDs.length == 1) {
-          message = isCurrentlyStarred
-              ? "Unstarred successfully"
-              : "Starred successfully";
+        // If state passed → use it
+        if (isCurrentlyStarred != null) {
+          if (fileIDs.length == 1) {
+            message = isCurrentlyStarred
+                ? "Unstarred successfully"
+                : "Starred successfully";
+          } else {
+            message = isCurrentlyStarred
+                ? "${fileIDs.length} items removed from starred"
+                : "${fileIDs.length} items starred successfully";
+          }
         } else {
-          message = isCurrentlyStarred
-              ? "${fileIDs.length} items removed from starred"
-              : "${fileIDs.length} items starred successfully";
+          // Fallback message
+          message = fileIDs.length == 1
+              ? "Star status updated"
+              : "${fileIDs.length} items updated";
         }
-      } else {
-        // Fallback message
-        message = fileIDs.length == 1
-            ? "Star status updated"
-            : "${fileIDs.length} items updated";
-      }
 
-      Messenger.alertSuccess(message);
-      return true;
-    } else {
-      log('Failed to star folder(s): ${response.statusCode}');
+        Messenger.alertSuccess(message);
+        return true;
+      } else {
+        log('Failed to star folder(s): ${response.statusCode}');
+        return false;
+      }
+    } catch (e, stack) {
+      log('starred error: $e', stackTrace: stack);
       return false;
     }
-  } catch (e, stack) {
-    log('starred error: $e', stackTrace: stack);
-    return false;
   }
-}
-
 
   Future<bool> moveToTrash({required List<String> fileIDs}) async {
     final headers = await _getHeaders();
@@ -352,11 +351,6 @@ class MyDriveRepository {
       );
 
       if (response.statusCode == 200) {
-        Messenger.alertSuccess(
-          fileIDs.length == 1
-              ? "Item moved to trash"
-              : "${fileIDs.length} items moved to trash",
-        );
         return true;
       } else {
         log('Failed to move to trash: ${response.statusCode}');
