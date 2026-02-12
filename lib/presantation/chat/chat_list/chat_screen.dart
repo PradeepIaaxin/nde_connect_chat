@@ -9,8 +9,9 @@ import 'package:nde_email/presantation/chat/chat_list/chat_list_tile.dart';
 import 'package:nde_email/presantation/chat/chat_list/chat_response_model.dart';
 import 'package:nde_email/presantation/chat/chat_list/chat_session_storage/chat_session.dart';
 import 'package:nde_email/presantation/chat/chat_list/new_list_bottom_sheet.dart';
-import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/MessagerBloc.dart';
-import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/MessagerEvent.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/messager_bloc.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/messager_event.dart';
+
 import 'package:nde_email/presantation/chat/device/screen/device_screen.dart';
 import 'package:nde_email/presantation/drive/common/search_bar_chat.dart';
 import 'package:nde_email/presantation/network/connectivity_servicer.dart';

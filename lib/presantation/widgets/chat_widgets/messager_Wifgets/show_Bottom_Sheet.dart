@@ -3,12 +3,13 @@ import 'package:just_audio/just_audio.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_event.dart'
     as grp_event;
-import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/MessagerBloc.dart';
-import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/MessagerEvent.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/messager_bloc.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/messager_event.dart';
+
 import 'package:nde_email/utils/reusbale/common_import.dart';
 
 import '../../../chat/chat_private_screen/messager_Bloc/widget/MediaPreviewScreen.dart';
-import '../../../chat/chat_private_screen/messager_Bloc/widget/VideoPreviewScreen.dart';
+import '../../../chat/chat_private_screen/messager_Bloc/widget/video_preview_screen.dart';
 
 class ShowAltDialog {
   static void showOptionsDialog(

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/MessagerBloc.dart';
-import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/MessagerEvent.dart'
-    show RemoveReaction, AddReaction;
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/messager_bloc.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/messager_event.dart';
+
 
 class ReactionDialog
 {

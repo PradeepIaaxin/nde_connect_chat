@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/messager_event.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/messager_state.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/message_widgets.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/message_handler.dart';
@@ -9,8 +11,7 @@ import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/bui
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/show_Bottom_Sheet.dart';
 import 'package:nde_email/utils/imports/common_imports.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
-import 'messager_Bloc/MessagerEvent.dart';
-import 'messager_Bloc/MessagerState.dart';
+
 import 'messager_Bloc/widget/privat_common_funtions/privat_chat_funtions.dart';
 import 'messager_Bloc/widget/privat_common_funtions/privat_chat_funtions_2.dart';
 import 'messager_Bloc/widget/privat_common_funtions/privat_chat_funtions_3.dart';

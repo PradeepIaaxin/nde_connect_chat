@@ -14,7 +14,7 @@ import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/bloc/prof
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/bloc/profile_screen_state.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/data/view_deatilsrepo.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/model/doc_links_model.dart';
-import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/video_thumbutil.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/grouped_media_viewer.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/router/router.dart';

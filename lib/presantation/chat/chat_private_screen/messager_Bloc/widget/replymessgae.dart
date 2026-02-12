@@ -1,4 +1,4 @@
-import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/video_thumbutil.dart';
 import '../../../../../utils/reusbale/common_import.dart';
 
 class RepliedMessagePreview extends StatefulWidget {

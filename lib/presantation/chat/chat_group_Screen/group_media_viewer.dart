@@ -1,10 +1,11 @@
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/video_thumbutil.dart';
+
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
-import '../chat_private_screen/messager_Bloc/widget/VideoPlayerScreen.dart';
+import '../chat_private_screen/messager_Bloc/widget/video_player_screen.dart';
 
 class GroupedMediaViewer extends StatefulWidget {
   final List<String> mediaUrls;

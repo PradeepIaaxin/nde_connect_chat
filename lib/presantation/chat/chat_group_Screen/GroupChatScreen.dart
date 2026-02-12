@@ -25,6 +25,7 @@ import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/wi
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/audio_reuable.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/commonfuntion.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/mixed_media_viewer.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/video_thumbutil.dart';
 import 'package:nde_email/presantation/chat/widget/custom_appbar.dart';
 import 'package:nde_email/presantation/chat/widget/delete_dialogue.dart';
 import 'package:nde_email/presantation/chat/widget/scaffold.dart';
@@ -44,7 +45,6 @@ import '../../widgets/chat_widgets/messager_Wifgets/ForwardMessageScreen_widget.
 
 import '../Socket/Socket_Service.dart';
 
-import '../chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
 import '../chat_list/chat_session_storage/chat_session.dart';
 import '../chat_list/chat_bloc.dart';
 import '../chat_list/chat_event.dart';

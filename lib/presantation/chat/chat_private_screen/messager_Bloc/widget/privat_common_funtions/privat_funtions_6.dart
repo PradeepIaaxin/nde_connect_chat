@@ -6,8 +6,8 @@ import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/wi
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/privat_common_funtions/privat_chat_funtions_5.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/privat_common_funtions/privat_chat_funtions_6.dart';
 import '../../../../../../main.dart';
-import '../../MessagerBloc.dart';
-import '../../MessagerEvent.dart';
+import '../../messager_bloc.dart';
+import '../../messager_event.dart';
 import '../../message_handler.dart';
 
 Future<void> showReactionsBottomSheet({

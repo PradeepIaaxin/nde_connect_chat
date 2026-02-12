@@ -5,7 +5,7 @@ import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/wha
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart' hide Category;
 import 'package:flutter/foundation.dart' as foundation;
-import '../../../chat/chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
+import '../../../chat/chat_private_screen/messager_Bloc/widget/video_thumbutil.dart';
 
 class MessageInputField extends StatefulWidget {
   final TextEditingController messageController;

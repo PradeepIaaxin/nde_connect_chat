@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_editor_plus/options.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mime/mime.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/messager_event.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/imports/common_imports.dart';
 import 'package:objectid/objectid.dart';
@@ -12,10 +13,10 @@ import 'package:photo_view/photo_view_gallery.dart';
 import 'package:image_editor_plus/image_editor_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../../../widgets/chat_widgets/messager_Wifgets/show_Bottom_Sheet.dart';
-import '../MessagerEvent.dart';
+
 import 'package:image/image.dart' as img;
 
-import 'VideoPreviewScreen.dart';
+import 'video_preview_screen.dart';
 
 class MediaPreviewScreen extends StatefulWidget {
   final List<XFile> files;
