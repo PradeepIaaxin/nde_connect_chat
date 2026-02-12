@@ -170,17 +170,17 @@ class _DrawerMenuState extends State<DrawerMenu> {
           },
         ),
         _drawerItem(
-            icon: Icons.upload_file,
+            icon: Icons.upload_file_outlined,
             title: "Uploads",
             iconSize: iconSize,
             onTap: () {}),
         _drawerItem(
-            icon: Icons.offline_pin,
+            icon: Icons.offline_pin_outlined,
             title: "Offline",
             iconSize: iconSize,
             onTap: () {}),
         _drawerItem(
-          icon: Icons.delete,
+          icon: Icons.delete_outline,
           title: "Trash",
           iconSize: iconSize,
           onTap: () {
@@ -190,7 +190,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
           },
         ),
         _drawerItem(
-            icon: Icons.report_problem,
+            icon: Icons.report_problem_outlined,
             title: "Spam",
             iconSize: iconSize,
             onTap: () {}),
@@ -202,22 +202,22 @@ class _DrawerMenuState extends State<DrawerMenu> {
     return Column(
       children: [
         _drawerItem(
-            icon: Icons.backup,
+            icon: Icons.backup_outlined,
             title: "Backups",
             iconSize: iconSize,
             onTap: () {}),
         _drawerItem(
-            icon: Icons.settings,
+            icon: Icons.settings_outlined,
             title: "Settings",
             iconSize: iconSize,
             onTap: () {}),
         _drawerItem(
-            icon: Icons.help,
+            icon: Icons.help_outline_outlined,
             title: "Help & feedback",
             iconSize: iconSize,
             onTap: () {}),
         _drawerItem(
-          icon: Icons.cloud,
+          icon: Icons.cloud_outlined,
           title: "Storage",
           iconSize: iconSize,
           onTap: () {
