@@ -191,8 +191,10 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                       }
                     : () {
                         MyRouter.push(
-                            screen:
-                                FilePreviewScreen(fileUrl: file.preview ?? "",  fileName: file.name,));
+                            screen: FilePreviewScreen(
+                          fileUrl: file.preview ?? "",
+                          fileName: file.name,
+                        ));
                       },
             child: Container(
               color: isSelected ? chatColor.withValues(alpha: 0.1) : null,
@@ -399,9 +401,20 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                           icon: Icons.delete,
                           title: "Remove",
                           onTap: () {
+                            MyRouter.pop();
                             context.read<MyDriveBloc>().add(
                                   MoveToTrashEvent(fileIDs: [file.id]),
                                 );
+                            Messenger.alertAction(color: Colors.green,
+                              msg: "Item moved to trash",
+                              actionLabel: "Undo",
+                              duration: const Duration(seconds: 3),
+                              onAction: () {
+                                context.read<MyDriveBloc>().add(
+                                      RestoreEvent(fileIDs: [file.id]),
+                                    );
+                              },
+                            );
                           },
                         ),
                       ],
@@ -468,7 +481,9 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                       : () {
                           MyRouter.push(
                               screen: FilePreviewScreen(
-                                  fileUrl: file.preview ?? "",  fileName: file.name,));
+                            fileUrl: file.preview ?? "",
+                            fileName: file.name,
+                          ));
                         },
               behavior: HitTestBehavior.opaque,
               child: Container(
