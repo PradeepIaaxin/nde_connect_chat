@@ -143,24 +143,37 @@ class FlagActionRequest {
 class MailListResponse {
   final List<GMMailModels> mails;
   final String? nextCursor;
-
+  final bool hasMore; // 🔥 ADD THIS
   final String? specialUse;
 
   MailListResponse({
     required this.mails,
     required this.nextCursor,
+    required this.hasMore,
     this.specialUse,
   });
 
   factory MailListResponse.fromJson(Map<String, dynamic> json) {
+    /// 🔥 HANDLE CURSOR SAFELY
+    String? cursor;
+    bool hasMore = false;
+
+    final rawCursor = json['nextCursor'];
+
+    if (rawCursor is String && rawCursor.isNotEmpty) {
+      cursor = rawCursor;
+      hasMore = true;
+    } else {
+      cursor = null;
+      hasMore = false;
+    }
+
     return MailListResponse(
       mails: (json['results'] as List)
           .map((e) => GMMailModels.fromJson(e))
           .toList(),
-
-      nextCursor: json['nextCursor'] is String ? json['nextCursor'] : null,
-
-      /// ✅ MAP specialUse
+      nextCursor: cursor,
+      hasMore: hasMore,
       specialUse: json['specialUse'],
     );
   }
