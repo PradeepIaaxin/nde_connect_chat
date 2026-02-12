@@ -18,9 +18,9 @@ class SelectAllMailsEvent extends MailListEvent {}
 
 class RevertArchiveEvent extends MailListEvent {
   final List<int> mailIds;
-  final String mailboxId; // Archive mailbox
+  final String mailboxId; 
 
-  RevertArchiveEvent({
+  const RevertArchiveEvent({
     required this.mailIds,
     required this.mailboxId,
   });
