@@ -433,7 +433,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
 
                   MyRouter.pop();
 
-                  Messenger.alertAction(
+                  final controller = Messenger.alertAction(
                     msg: "Sending email",
                     color: Colors.green,
                     actionLabel: "UNDO",
@@ -448,10 +448,10 @@ class _ComposeScreenState extends State<ComposeScreen> {
                         ),
                       );
                     },
+                    duration: const Duration(seconds: 2),
                   );
 
-                  // MyRouter.pop(); // Removed early pop
-                  Future.delayed(const Duration(seconds: 5), () {
+                  controller?.closed.then((_) {
                     if (undone) return;
                     final ctx = MyRouter.navigatorKey.currentContext;
                     if (ctx == null) return;
