@@ -3,7 +3,8 @@ import 'package:nde_email/presantation/chat/chat_group_Screen/group_repliedmessa
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/message_caption.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/whatsapp_swipe_to_reply.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/ForwardMessageScreen_widget.dart';
-import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/AudioMessageWidget.dart';
+import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/audio_message_widget.dart';
+
 import 'package:nde_email/utils/reusbale/colour_utlis.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
 import 'package:nde_email/utils/reusbale/mime.type.dart';
@@ -48,7 +49,7 @@ class GroupMessageBubbleWidget extends StatelessWidget {
   final String Function(Map<String, dynamic>) generateMessageKey;
 
   const GroupMessageBubbleWidget({
-    Key? key,
+    super.key,
     required this.message,
     required this.isSentByMe,
     required this.currentUserId,
@@ -79,7 +80,7 @@ class GroupMessageBubbleWidget extends StatelessWidget {
     required this.buildReactionsBar,
     required this.buildAvatarWithInitial,
     required this.generateMessageKey,
-  }) : super(key: key);
+  });
 
   static const voidBox = SizedBox.shrink();
 

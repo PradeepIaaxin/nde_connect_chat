@@ -5,7 +5,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:mediasfu_mediasoup_client/mediasfu_mediasoup_client.dart';
 import 'package:nde_email/utils/imports/common_imports.dart';
-import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:socket_io_client/socket_io_client.dart' as io;
 
 class VideoCallPage extends StatefulWidget {
   final String roomId;
@@ -36,7 +36,7 @@ class StreamInfo {
 }
 
 class _VideoCallPageState extends State<VideoCallPage> {
-  IO.Socket? socket;
+  io.Socket? socket;
 
   MediaStream? localStream;
   final RTCVideoRenderer _localRenderer = RTCVideoRenderer();
@@ -195,9 +195,9 @@ class _VideoCallPageState extends State<VideoCallPage> {
     });
 
     try {
-      socket = IO.io(
+      socket = io.io(
         'https://api.nowdigitaleasy.com/meet',
-        IO.OptionBuilder()
+        io.OptionBuilder()
             // .setTransports(['websocket'])
             .setPath('/meet/socket.io')
             .setQuery({'token': '$token'})
@@ -714,57 +714,6 @@ class _VideoCallPageState extends State<VideoCallPage> {
     }
   }
 
-  Future<void> _addRemoteConsumer(Consumer consumer) async {
-    final producerId = consumer.producerId;
-
-    String? socketId;
-    for (final peerEntry in _peers.entries) {
-      if (peerEntry.value['userID'] == consumer.appData?['userID']) {
-        socketId = peerEntry.key;
-        break;
-      }
-    }
-
-    if (_remoteStreams.containsKey(producerId)) {
-      final streamInfo = _remoteStreams[producerId]!;
-      streamInfo.consumer?.close();
-      streamInfo.consumer = consumer;
-      if (!streamInfo.stream!.getTracks().contains(consumer.track)) {
-        streamInfo.stream!.addTrack(consumer.track);
-      }
-      _log('✅ Updated consumer for existing stream: $producerId');
-    } else {
-      final remoteRenderer = RTCVideoRenderer();
-      await remoteRenderer.initialize();
-
-      final remoteStream = await createLocalMediaStream(
-          math.Random().nextInt(1000000).toString());
-      remoteStream.addTrack(consumer.track);
-
-      _log(
-          '✅ Consumer created for producer: $producerId, kind: ${consumer.kind}');
-
-      if (!mounted) return;
-
-      if (consumer.kind == 'video') {
-        remoteRenderer.srcObject = remoteStream;
-      }
-
-      setState(() {
-        _remoteStreams[producerId] = StreamInfo(
-          producerId: producerId,
-          socketId: socketId ?? '',
-          renderer: consumer.kind == 'video' ? remoteRenderer : null,
-          stream: remoteStream,
-          audioTrack: consumer.kind == 'audio' ? consumer.track : null,
-          consumer: consumer,
-        );
-      });
-
-      // Resume the consumer to start receiving media
-      await socket!.emitWithAckAsync('resume', {'producerID': producerId});
-    }
-  }
 
   void _enqueueOrConsume(String producerId, String socketId) {
     if (_consumingOrConsumed.contains(producerId) ||
@@ -882,8 +831,7 @@ class _VideoCallPageState extends State<VideoCallPage> {
     }
 
     if (_remoteStreams.containsKey(producerId)) {
-      final streamInfo = _remoteStreams[producerId]!;
-      print(streamInfo);
+ 
       log("StreamInfo - $peerSocketId");
       log("StreamInfoStreamInfoStreamInfoStreamInfoStreamInfoStreamInfoStreamInfoStreamInfoStreamInfoStreamInfoStreamInfoStreamInfoStreamInfoStreamInfoStreamInfoStreamInfoStreamInfoStreamInfoStreamInfoStreamInfoStreamInfoStreamInfoStreamInfoStreamInfoStreamInfoStreamInfoStreamInfoStreamInfoStreamInfoStreamInfo - $producerId");
       // Optionally reinitialize if needed, but typically just resume or update
@@ -1193,7 +1141,7 @@ class _VideoCallPageState extends State<VideoCallPage> {
                           .map((e) => Padding(
                               padding: const EdgeInsets.symmetric(vertical: 2),
                               child: Text('${e.value['name']} (${e.key})')))
-                          .toList(),
+                          ,
                       const SizedBox(height: 8),
                       Text('Status: ${_getConnectionStatus()}',
                           style: TextStyle(

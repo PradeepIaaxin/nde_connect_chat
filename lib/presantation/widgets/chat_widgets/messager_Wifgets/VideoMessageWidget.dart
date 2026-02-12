@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:nde_email/utils/router/router.dart';
 import 'package:nde_email/utils/snackbar/snackbar.dart';
 import 'package:video_player/video_player.dart';
-import 'CustomAppBar_Widget.dart';
+import 'customappBar_widget.dart';
 import 'buttombarwigate.dart';
 
 class VideoMessageScreen extends StatefulWidget {

@@ -13,7 +13,6 @@ class UpdateScreen extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.cardColor;
     final textTheme = theme.textTheme.bodyLarge?.color;
-    final isDark = theme.brightness == Brightness.dark;
     return Scaffold(
       backgroundColor: colorScheme,
       body: Center(

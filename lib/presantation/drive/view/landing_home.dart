@@ -19,8 +19,6 @@ import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_color
 import 'package:nde_email/utils/imports/common_imports.dart';
 import 'package:nde_email/utils/reusbale/endrawer.dart';
 
-import '../Bloc/home_bloc/sugesstion/sugesstion_bloc.dart';
-import '../Bloc/home_bloc/sugesstion/sugesstion_event.dart';
 import 'common_funtions.dart';
 
 class LandingHome extends StatefulWidget {

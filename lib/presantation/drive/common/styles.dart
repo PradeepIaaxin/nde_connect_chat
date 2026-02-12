@@ -154,7 +154,6 @@ TextStyle widgetemail(BuildContext context) {
 TextStyle nodataavailable(BuildContext context) {
   final theme = Theme.of(context);
   final colorScheme = theme.cardColor;
-  final textTheme = theme.textTheme.bodyLarge?.color;
   final isDark = theme.brightness == Brightness.dark;
   return TextStyle(color: isDark?colorScheme:Colors.black, fontSize: 14);
 }

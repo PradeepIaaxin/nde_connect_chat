@@ -252,12 +252,12 @@ class EditTask extends TaskEvent {
 class Editname extends TaskEvent {
   final String reName;
   final String selectedId;
-  final String list_id;
+  final String listId;
 
-  const Editname(this.reName, this.selectedId, this.list_id);
+  const Editname(this.reName, this.selectedId, this.listId);
 
   @override
-  List<Object> get props => [reName, selectedId, list_id];
+  List<Object> get props => [reName, selectedId, listId];
 }
 
 class EditSubtask extends TaskEvent {

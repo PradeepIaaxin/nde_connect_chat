@@ -174,7 +174,7 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
 
   Future<void> _onEditListName(Editname event, Emitter<TaskState> emit) async {
     try {
-      await taskRepository.rename(event.list_id, event.reName);
+      await taskRepository.rename(event.listId, event.reName);
       add(LoadTaskLists());
     } catch (e) {
       emit(TaskError('Failed to rename task list: ${e.toString()}'));

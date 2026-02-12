@@ -168,7 +168,9 @@ class ShowAltDialog {
                             final result =
                                 await FilePicker.platform.pickFiles();
                             if (result == null ||
-                                result.files.single.path == null) return;
+                                result.files.single.path == null) {
+                              return;
+                            }
 
                             final xfile = XFile(result.files.single.path!);
 
@@ -241,7 +243,9 @@ class ShowAltDialog {
                             );
 
                             if (result == null ||
-                                result.files.single.path == null) return;
+                                result.files.single.path == null) {
+                              return;
+                            }
 
                             final path = result.files.single.path!;
                             final xfile = XFile(path);
@@ -517,10 +521,12 @@ class ShowAltDialog {
       final mimeType = lookupMimeType(file.path);
       final isImage = mimeType != null && mimeType.startsWith('image/');
       final isVideo = mimeType != null && mimeType.startsWith('video/');
-      const double maxVideoSizeMb = 10.0; // your limit
+      const double maxVideoSizeMb = 10.0; 
+      log(maxVideoSizeMb.toString());
       final int sizeInBytes = localFile.lengthSync();
 
       final double sizeInMb = sizeInBytes / (1024 * 1024);
+      log(sizeInMb.toString());
 
       // if (isVideo && sizeInMb > maxVideoSizeMb) {
       //   // show dialog and STOP sending

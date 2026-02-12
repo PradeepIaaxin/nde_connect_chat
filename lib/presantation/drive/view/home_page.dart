@@ -228,14 +228,9 @@ class _HomePageState extends State<HomePage>
                                 context.read<SuggestionsBloc>().add(
                                       StarredData(
                                         fileID: [file.id],
-                                        isCurrentlyStarred:
-                                            file.starred ?? false,
+                                        isCurrentlyStarred: file.starred,
                                       ),
                                     );
-
-                                // context.read<SuggestionsBloc>().add(
-                                //       StarredData(fileID: [file.id]),
-                                //     );
                               },
                             ),
                             BottomSheetOption(
@@ -485,13 +480,15 @@ class _HomePageState extends State<HomePage>
                                             onTap: () {
                                               log('hii');
 
-                                              context.read<SuggestionsBloc>().add(
-  StarredData(
-    fileID: [file.id],
-    isCurrentlyStarred: file.starred ?? false,
-  ),
-);
-
+                                              context
+                                                  .read<SuggestionsBloc>()
+                                                  .add(
+                                                    StarredData(
+                                                      fileID: [file.id],
+                                                      isCurrentlyStarred:
+                                                          file.starred,
+                                                    ),
+                                                  );
                                             },
                                           ),
                                           BottomSheetOption(
@@ -968,8 +965,10 @@ class _HomePageState extends State<HomePage>
                                                             fileID:
                                                                 selectedFolders
                                                                     .toList(),
-                                                            isCurrentlyStarred: selectedFolderModels
-                                                                .every((f) => f.starred)),
+                                                            isCurrentlyStarred:
+                                                                selectedFolderModels
+                                                                    .every((f) =>
+                                                                        f.starred)),
                                                       );
                                                   _clearSelection();
                                                 },

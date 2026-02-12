@@ -10,7 +10,7 @@ import '../../../../widgets/chat_widgets/Common/grouped_media_viewer.dart';
 import '../../../../widgets/chat_widgets/Common/whatsapp_swipe_to_reply.dart';
 import '../../../../widgets/chat_widgets/messager_Wifgets/forwardmessagescreen_widget.dart';
 import '../../../widget/reation_bottom.dart';
-import 'MixedMediaViewer.dart';
+import 'mixed_media_viewer.dart';
 import 'commonfuntion.dart';
 import 'date_separate.dart';
 import 'double_tick_ui.dart';

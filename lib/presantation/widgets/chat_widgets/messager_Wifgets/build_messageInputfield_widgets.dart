@@ -411,7 +411,6 @@ class _MessageInputFieldState extends State<MessageInputField> {
 
     // final bool isSendMe = widget.replyText?['isSendMe'];
     final String senderId = widget.replyText?['senderId']?.toString() ?? "";
-    final String userId = widget.replyText?['sender']?["_id"]?.toString() ?? "";
 
     log("sssssssss $senderId");
     log("sssssssss $senderId");

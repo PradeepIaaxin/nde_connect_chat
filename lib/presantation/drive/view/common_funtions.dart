@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -30,11 +31,11 @@ String getFileName(String url) =>
     Uri.parse(url).pathSegments.last.split("?").first;
 Future<void> openWithSystemApps(String fileUrl) async {
   final file =
-  await downloadFile(fileUrl!, getFileName(fileUrl));
+  await downloadFile(fileUrl, getFileName(fileUrl));
 
   final result = await OpenFilex.open(file.path);
 
-  print("OPEN RESULT = ${result.type}");
+  log("OPEN RESULT = ${result.type}");
 }
 
 Future<void> openCamera(BuildContext context) async {

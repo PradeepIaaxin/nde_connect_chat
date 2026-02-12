@@ -648,7 +648,7 @@ void sendReadReceipts({
   }
 
   final computedRoomId =
-      socketService.generateRoomId(currentUserId, datumId ?? '');
+      socketService.generateRoomId(currentUserId, datumId);
   socketService.sendReadReceipts(
     messageIds: unique,
     conversationId:convoId,

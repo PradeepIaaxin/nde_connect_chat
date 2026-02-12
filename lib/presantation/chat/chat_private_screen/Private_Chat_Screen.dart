@@ -4,7 +4,8 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/message_handler.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/audio_reuable.dart';
 import 'package:nde_email/presantation/chat/widget/delete_dialogue.dart';
-import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/buildMessageInputField_widgets.dart';
+import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/build_messageInputfield_widgets.dart';
+
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/show_Bottom_Sheet.dart';
 import 'package:nde_email/utils/imports/common_imports.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
@@ -745,7 +746,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   DateTime _parseTime(dynamic time) {
-    ensureMessageHandler(_messageHandler,currentUserId,widget.convoId);
+    ensureMessageHandler(_messageHandler, currentUserId, widget.convoId);
     return _messageHandler!.parseTime(time);
   }
 
@@ -800,10 +801,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     if (_messageController.text.trim().isEmpty || widget.datumId == null) {
       return;
     }
-    print('🔐 private chat screen : ${widget.convoId}');
+    log('🔐 private chat screen : ${widget.convoId}');
 
     final reply = _replyMessage;
-    log("reeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee $reply");
+
     final text = _messageController.text.trim();
 
     // ---------- READ RECEIPTS ----------
@@ -812,13 +813,13 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     if (unreadIds.isNotEmpty) {
       sendReadReceipts(
           messageIds: unreadIds,
-          dbMessages:dbMessages,
-          messages:messages,
-          socketMessages:socketMessages,
-          parseTime:_parseTime,
+          dbMessages: dbMessages,
+          messages: messages,
+          socketMessages: socketMessages,
+          parseTime: _parseTime,
           hasReplyForMessage: hasReplyForMessage,
           currentUserId: currentUserId,
-          datumId: widget.datumId??"",
+          datumId: widget.datumId ?? "",
           convoId: widget.convoId,
           updateNotifier: _updateNotifier,
           scheduleSaveMessages: _scheduleSaveMessages,
@@ -1185,8 +1186,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   void _replyToMessage(
     Map<String, dynamic> message, {
     bool isSendMe = false,
-  })
-  {
+  }) {
     if (message.isEmpty) return;
 
     log("Reply source (swiped) => $message");
@@ -1310,7 +1310,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                 isSelectionMode: _isSelectionMode,
                 selectedMessages: _selectedMessages,
                 generateMessageKey: (msg) {
-            generateMessageKey(msg: {}, messageHandler: _messageHandler, currentUserId:currentUserId, convoId: widget.convoId);
+                  generateMessageKey(
+                      msg: {},
+                      messageHandler: _messageHandler,
+                      currentUserId: currentUserId,
+                      convoId: widget.convoId);
                 },
                 scheduleSaveMessages: _scheduleSaveMessages,
                 markMessagesAsDeleted: (messageIds, {deleteFor = ''}) {
@@ -1340,7 +1344,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                 isSelectionMode: _isSelectionMode,
                 selectedMessages: _selectedMessages,
                 generateMessageKey: (msg) {
-                  generateMessageKey(msg: msg, messageHandler: _messageHandler, currentUserId:currentUserId, convoId: widget.convoId);
+                  generateMessageKey(
+                      msg: msg,
+                      messageHandler: _messageHandler,
+                      currentUserId: currentUserId,
+                      convoId: widget.convoId);
                 },
                 scheduleSaveMessages: _scheduleSaveMessages,
                 markMessagesAsDeleted: (messageId, {deleteFor = ""}) {
@@ -1414,7 +1422,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     );
   }
 
-
   void toggleSearchAppBar() =>
       setState(() => _showSearchAppBar = !_showSearchAppBar);
 
@@ -1448,37 +1455,38 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
               valueListenable: _messagesNotifier,
               builder: (context, combinedMessages, child) {
                 markVisibleMessagesAsRead(
-                    screenActive: _screenActive,
-                    messages: combinedMessages,
-                    alreadyRead: _alreadyRead,
-                    getUnreadMessageIds: (messages) {
-                      return getUnreadMessageIds(messages, currentUserId);
-                    },
-                    updateMessageStatus: (messageId, status) {
-                      updateMessageStatus(
-                          messageId: messageId,
-                          status: status,
-                          messages: messages,
-                          socketMessages: socketMessages,
-                          dbMessages: dbMessages,
-                          updateNotifier: _updateNotifier,
-                          scheduleSaveMessages: _scheduleSaveMessages);
-                    },
-                    sendReadReceipts: (messageIds) {
-                      sendReadReceipts(
-                          messageIds: messageIds,
-                          dbMessages:dbMessages,
-                          messages:messages,
-                          socketMessages:socketMessages,
-                          parseTime:_parseTime,
-                          hasReplyForMessage: hasReplyForMessage,
-                          currentUserId: currentUserId,
-                          datumId: widget.datumId??"",
-                          convoId: widget.convoId,
-                          updateNotifier: _updateNotifier,
-                          scheduleSaveMessages: _scheduleSaveMessages,
-                          alreadyRead: _alreadyRead);
-                    },);
+                  screenActive: _screenActive,
+                  messages: combinedMessages,
+                  alreadyRead: _alreadyRead,
+                  getUnreadMessageIds: (messages) {
+                    return getUnreadMessageIds(messages, currentUserId);
+                  },
+                  updateMessageStatus: (messageId, status) {
+                    updateMessageStatus(
+                        messageId: messageId,
+                        status: status,
+                        messages: messages,
+                        socketMessages: socketMessages,
+                        dbMessages: dbMessages,
+                        updateNotifier: _updateNotifier,
+                        scheduleSaveMessages: _scheduleSaveMessages);
+                  },
+                  sendReadReceipts: (messageIds) {
+                    sendReadReceipts(
+                        messageIds: messageIds,
+                        dbMessages: dbMessages,
+                        messages: messages,
+                        socketMessages: socketMessages,
+                        parseTime: _parseTime,
+                        hasReplyForMessage: hasReplyForMessage,
+                        currentUserId: currentUserId,
+                        datumId: widget.datumId ?? "",
+                        convoId: widget.convoId,
+                        updateNotifier: _updateNotifier,
+                        scheduleSaveMessages: _scheduleSaveMessages,
+                        alreadyRead: _alreadyRead);
+                  },
+                );
                 final groupedMessages =
                     buildGroupedMessages(combinedMessages, _parseTime);
 
@@ -1493,11 +1501,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                         // 🔥 FIRST MESSAGE ONLY
                         if (_currentConversationId.isEmpty) {
                           _currentConversationId = convoId;
-                          print("🔥 $_currentConversationId");
+                          log("🔥 $_currentConversationId");
 
                           socketService.setActiveConversation(convoId);
 
-                          debugPrint("✅ Conversation created: $convoId");
+                          log("✅ Conversation created: $convoId");
                         }
                       }
                     }
@@ -1946,205 +1954,223 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                     }
 
                     return MessageWidgets(
-                        isLoadingMore: _isLoadingMore,
-                        groupedMessages: groupedMessages,
-                        scrollController: _scrollController,
-                        highlightedMessageId: _highlightedMessageId,
-                        messageContexts: _messageContexts,
-                        currentUser: currentUserId,
-                        currentUserId: currentUserId,
-                        isSentMe: isSentMe,
-                        buildMessageBubble: ({
-                          required int length,
-                          required Map<String, dynamic> message,
-                          required bool isSentByMe,
-                          required bool isReply,
-                        }) {
-                          return buildMessageBubble(
-                            length: length,
-                            message: message,
-                            isSentByMe: isSentByMe,
-                            isReply: isReply,
-                            mounted: mounted,
-                            generateMessageKey: (msg) {
-                             return generateMessageKey(msg: msg, messageHandler: _messageHandler, currentUserId:currentUserId, convoId: widget.convoId);
-                            },
-                            currentUserId: currentUserId,
-                            allMessages: _allMessages,
-                            messageContexts: _messageContexts,
-                            isSelectionMode: _isSelectionMode,
-                            selectedMessageKeys: _selectedMessageKeys,
-                            showSearchAppBar: _showSearchAppBar,
-                            selectedMessages: _selectedMessages,
-                            convoId: widget.convoId,
-                            receiverId: widget.receiverId ?? "",
-                            firstname: widget.firstname ?? "",
-                            lastname: widget.lastname ?? "",
-                            searchController: _searchController,
-                            recentEmojis: recentEmojis,
-                            setState: setState,
-                            onMessageTap: (message) {
-                              onMessageTap(
-                                  message: message,
-                                  isSelectionMode: _isSelectionMode,
-                                  toggleMessageSelection: (msg) {
-                                    toggleMessageSelection(
-                                        msg: msg,
-                                        setState: setState,
-                                        selectedMessageKeys:
-                                            _selectedMessageKeys,
-                                        selectedMessageIds: _selectedMessageIds,
-                                        isSelectionMode: _isSelectionMode,
-                                        selectedMessages: _selectedMessages,
-                                        generateMessageKey:
-                                            (msg) {
-                                    return generateMessageKey(msg: msg, messageHandler: _messageHandler, currentUserId:currentUserId, convoId: widget.convoId);
-
-                                    },);
-                                  },
-                                  messagesNotifier: _messagesNotifier,
-                                  messageContexts: _messageContexts,
-                                  highlightMessage: _highlightMessage,
-                                  scrollController: _scrollController,
-                                  dbMessages: dbMessages,
-                                  messages: messages,
-                                  socketMessages: socketMessages,
-                                  parseTime: _parseTime,
-                                  hasReplyForMessage: hasReplyForMessage,
-                                  hasNextPage: _hasNextPage,
-                                  messagerBloc: _messagerBloc,
-                                  convoId: widget.convoId,
-                                  currentPage: _currentPage,
-                                  initialLimit: _initialLimit,
-                                  mounted: mounted,
-                                  isSameDay: isSameDay);
-                            },
-                            onMessageLongPress: (message) {
-                              onMessageLongPress(
+                      isLoadingMore: _isLoadingMore,
+                      groupedMessages: groupedMessages,
+                      scrollController: _scrollController,
+                      highlightedMessageId: _highlightedMessageId,
+                      messageContexts: _messageContexts,
+                      currentUser: currentUserId,
+                      currentUserId: currentUserId,
+                      isSentMe: isSentMe,
+                      buildMessageBubble: ({
+                        required int length,
+                        required Map<String, dynamic> message,
+                        required bool isSentByMe,
+                        required bool isReply,
+                      }) {
+                        return buildMessageBubble(
+                          length: length,
+                          message: message,
+                          isSentByMe: isSentByMe,
+                          isReply: isReply,
+                          mounted: mounted,
+                          generateMessageKey: (msg) {
+                            return generateMessageKey(
+                                msg: msg,
+                                messageHandler: _messageHandler,
+                                currentUserId: currentUserId,
+                                convoId: widget.convoId);
+                          },
+                          currentUserId: currentUserId,
+                          allMessages: _allMessages,
+                          messageContexts: _messageContexts,
+                          isSelectionMode: _isSelectionMode,
+                          selectedMessageKeys: _selectedMessageKeys,
+                          showSearchAppBar: _showSearchAppBar,
+                          selectedMessages: _selectedMessages,
+                          convoId: widget.convoId,
+                          receiverId: widget.receiverId ?? "",
+                          firstname: widget.firstname ?? "",
+                          lastname: widget.lastname ?? "",
+                          searchController: _searchController,
+                          recentEmojis: recentEmojis,
+                          setState: setState,
+                          onMessageTap: (message) {
+                            onMessageTap(
                                 message: message,
                                 isSelectionMode: _isSelectionMode,
-                                setState: setState,
                                 toggleMessageSelection: (msg) {
                                   toggleMessageSelection(
-                                      msg: msg,
-                                      setState: setState,
-                                      selectedMessageKeys: _selectedMessageKeys,
-                                      selectedMessageIds: _selectedMessageIds,
-                                      isSelectionMode: _isSelectionMode,
-                                      selectedMessages: _selectedMessages,
-                                      generateMessageKey: (msg) {
-                                  return generateMessageKey(msg: msg, messageHandler: _messageHandler, currentUserId:currentUserId, convoId: widget.convoId);
-
-                                  },);
+                                    msg: msg,
+                                    setState: setState,
+                                    selectedMessageKeys: _selectedMessageKeys,
+                                    selectedMessageIds: _selectedMessageIds,
+                                    isSelectionMode: _isSelectionMode,
+                                    selectedMessages: _selectedMessages,
+                                    generateMessageKey: (msg) {
+                                      return generateMessageKey(
+                                          msg: msg,
+                                          messageHandler: _messageHandler,
+                                          currentUserId: currentUserId,
+                                          convoId: widget.convoId);
+                                    },
+                                  );
                                 },
-                              );
-                            },
-                            replyToMessage: _replyToMessage,
-                            openFile: (url, type) {
-                              openFile(
-                                  urlOrPath: url,
-                                  fileType: type,
-                                  context: context,
-                                  currentUser: currentUserId,
-                                  convoId: widget.convoId,
-                                  userName: widget.userName);
-                            },
-                            buildReactionsBar: _buildReactionsBar,
-                            getCombinedMessages: () {
-                              return getCombinedMessages(
-                                  dbMessages: dbMessages,
-                                  messages: messages,
-                                  socketMessages: socketMessages,
-                                  parseTime: _parseTime,
-                                  hasReplyForMessage: hasReplyForMessage);
-                            },
-                            handleReactionTap: (msg, emoji) {
-                              handleReactionTap(
-                                  message: msg,
-                                  emoji: emoji,
-                                  currentUserId: currentUserId,
-                                  messagerBloc: _messagerBloc,
-                                  convoId: widget.convoId,
-                                  receiverId: widget.receiverId ?? "",
-                                  firstname: widget.firstname ?? "",
-                                  lastname: widget.lastname ?? "",
-                                  setState: setState,
-                                  allMessages: _allMessages,
-                                  messagesNotifier:
-                                      _messagesNotifier); // existing logic
-                            },
-                            highlightMessage: _highlightMessage,
-                            highlightAndScrollToContext: (ctx, messageId) {
-                              highlightAndScrollToContext(
-                                ctx,
-                                messageId,
-                                _highlightMessage,
-                              );
-                            },
-                            messagesNotifier: _messagesNotifier,
-                            scrollController: _scrollController,
-                            estimateScrollOffset: (listIndex, messageId) {
-                              return estimateScrollOffset(
-                                  listIndex, messageId, _parseTime, isSameDay);
-                            },
-                            fetchUntilMessageFound: (listIndex) {
-                              return fetchUntilMessageFound(
-                                  messageId: listIndex,
-                                  mounted: mounted,
-                                  dbMessages: dbMessages,
-                                  messages: messages,
-                                  socketMessages: socketMessages,
-                                  parseTime: _parseTime,
-                                  hasReplyForMessage: hasReplyForMessage,
-                                  hasNextPage: _hasNextPage,
-                                  messagerBloc: _messagerBloc,
-                                  convoId: widget.convoId,
-                                  currentPage: _currentPage,
-                                  initialLimit: _initialLimit);
-                            },
-                            estimateMessageHeight: (listIndex, messageId) {
-                              return estimateMessageHeight(
-                                  listIndex, messageId, _parseTime, isSameDay);
-                            }, getMessageSenderId: (Map<String, dynamic> p1) {  },
-                          );
-                        },
-                        parseTime: _parseTime,
-                        isSelectionMode: _isSelectionMode,
-                        searchController: _searchController,
-                        selectedMessageKeys: _selectedMessageKeys,
-                        recentEmojis: recentEmojis,
-                        showSearchAppBar: _showSearchAppBar,
-                        selectedMessages: _selectedMessages,
-                        convoId: widget.convoId,
-                        receiverId: widget.receiverId ?? "",
-                        firstname: widget.firstname ?? "",
-                        lastname: widget.lastname ?? "",
-                        selectGroupedMessages: (msg) {
-                          selectGroupedMessages(
-                              grouped: msg,
-                              generateMessageKey: (msg) {
-                          return generateMessageKey(msg: msg, messageHandler: _messageHandler, currentUserId:currentUserId, convoId: widget.convoId);
-
+                                messagesNotifier: _messagesNotifier,
+                                messageContexts: _messageContexts,
+                                highlightMessage: _highlightMessage,
+                                scrollController: _scrollController,
+                                dbMessages: dbMessages,
+                                messages: messages,
+                                socketMessages: socketMessages,
+                                parseTime: _parseTime,
+                                hasReplyForMessage: hasReplyForMessage,
+                                hasNextPage: _hasNextPage,
+                                messagerBloc: _messagerBloc,
+                                convoId: widget.convoId,
+                                currentPage: _currentPage,
+                                initialLimit: _initialLimit,
+                                mounted: mounted,
+                                isSameDay: isSameDay);
                           },
+                          onMessageLongPress: (message) {
+                            onMessageLongPress(
+                              message: message,
                               isSelectionMode: _isSelectionMode,
-                              selectedMessageIds: _selectedMessageIds,
-                              selectedMessageKeys: _selectedMessageKeys,
-                              selectedMessages: _selectedMessages,
-                              setState: setState);
-                        },
-                        setState: setState,
-                        buildReactionsBar: _buildReactionsBar,
-                        onMessageOwnerResolved: (senderId, isSentByMe) {
-
-                        },
-                        onRecentEmojisChanged: _onRecentEmojisChanged,
-                        onReactionSelected: _onReactionSelected,
-                        onReplySelected: _onReplySelected,
-                        buildReplyPreviewFromGroup: buildReplyPreviewFromGroup,
-                        onReplyRequested: _onReplyRequested, getMessageSenderId: (Map<String, dynamic> p1) {  }, generateMessageKey:(msg) {
-                    return generateMessageKey(msg: msg, messageHandler: _messageHandler, currentUserId:currentUserId, convoId: widget.convoId);
-
-                    },);
+                              setState: setState,
+                              toggleMessageSelection: (msg) {
+                                toggleMessageSelection(
+                                  msg: msg,
+                                  setState: setState,
+                                  selectedMessageKeys: _selectedMessageKeys,
+                                  selectedMessageIds: _selectedMessageIds,
+                                  isSelectionMode: _isSelectionMode,
+                                  selectedMessages: _selectedMessages,
+                                  generateMessageKey: (msg) {
+                                    return generateMessageKey(
+                                        msg: msg,
+                                        messageHandler: _messageHandler,
+                                        currentUserId: currentUserId,
+                                        convoId: widget.convoId);
+                                  },
+                                );
+                              },
+                            );
+                          },
+                          replyToMessage: _replyToMessage,
+                          openFile: (url, type) {
+                            openFile(
+                                urlOrPath: url,
+                                fileType: type,
+                                context: context,
+                                currentUser: currentUserId,
+                                convoId: widget.convoId,
+                                userName: widget.userName);
+                          },
+                          buildReactionsBar: _buildReactionsBar,
+                          getCombinedMessages: () {
+                            return getCombinedMessages(
+                                dbMessages: dbMessages,
+                                messages: messages,
+                                socketMessages: socketMessages,
+                                parseTime: _parseTime,
+                                hasReplyForMessage: hasReplyForMessage);
+                          },
+                          handleReactionTap: (msg, emoji) {
+                            handleReactionTap(
+                                message: msg,
+                                emoji: emoji,
+                                currentUserId: currentUserId,
+                                messagerBloc: _messagerBloc,
+                                convoId: widget.convoId,
+                                receiverId: widget.receiverId ?? "",
+                                firstname: widget.firstname ?? "",
+                                lastname: widget.lastname ?? "",
+                                setState: setState,
+                                allMessages: _allMessages,
+                                messagesNotifier:
+                                    _messagesNotifier); // existing logic
+                          },
+                          highlightMessage: _highlightMessage,
+                          highlightAndScrollToContext: (ctx, messageId) {
+                            highlightAndScrollToContext(
+                              ctx,
+                              messageId,
+                              _highlightMessage,
+                            );
+                          },
+                          messagesNotifier: _messagesNotifier,
+                          scrollController: _scrollController,
+                          estimateScrollOffset: (listIndex, messageId) {
+                            return estimateScrollOffset(
+                                listIndex, messageId, _parseTime, isSameDay);
+                          },
+                          fetchUntilMessageFound: (listIndex) {
+                            return fetchUntilMessageFound(
+                                messageId: listIndex,
+                                mounted: mounted,
+                                dbMessages: dbMessages,
+                                messages: messages,
+                                socketMessages: socketMessages,
+                                parseTime: _parseTime,
+                                hasReplyForMessage: hasReplyForMessage,
+                                hasNextPage: _hasNextPage,
+                                messagerBloc: _messagerBloc,
+                                convoId: widget.convoId,
+                                currentPage: _currentPage,
+                                initialLimit: _initialLimit);
+                          },
+                          estimateMessageHeight: (listIndex, messageId) {
+                            return estimateMessageHeight(
+                                listIndex, messageId, _parseTime, isSameDay);
+                          },
+                          getMessageSenderId: (Map<String, dynamic> p1) {},
+                        );
+                      },
+                      parseTime: _parseTime,
+                      isSelectionMode: _isSelectionMode,
+                      searchController: _searchController,
+                      selectedMessageKeys: _selectedMessageKeys,
+                      recentEmojis: recentEmojis,
+                      showSearchAppBar: _showSearchAppBar,
+                      selectedMessages: _selectedMessages,
+                      convoId: widget.convoId,
+                      receiverId: widget.receiverId ?? "",
+                      firstname: widget.firstname ?? "",
+                      lastname: widget.lastname ?? "",
+                      selectGroupedMessages: (msg) {
+                        selectGroupedMessages(
+                            grouped: msg,
+                            generateMessageKey: (msg) {
+                              return generateMessageKey(
+                                  msg: msg,
+                                  messageHandler: _messageHandler,
+                                  currentUserId: currentUserId,
+                                  convoId: widget.convoId);
+                            },
+                            isSelectionMode: _isSelectionMode,
+                            selectedMessageIds: _selectedMessageIds,
+                            selectedMessageKeys: _selectedMessageKeys,
+                            selectedMessages: _selectedMessages,
+                            setState: setState);
+                      },
+                      setState: setState,
+                      buildReactionsBar: _buildReactionsBar,
+                      onMessageOwnerResolved: (senderId, isSentByMe) {},
+                      onRecentEmojisChanged: _onRecentEmojisChanged,
+                      onReactionSelected: _onReactionSelected,
+                      onReplySelected: _onReplySelected,
+                      buildReplyPreviewFromGroup: buildReplyPreviewFromGroup,
+                      onReplyRequested: _onReplyRequested,
+                      getMessageSenderId: (Map<String, dynamic> p1) {},
+                      generateMessageKey: (msg) {
+                        return generateMessageKey(
+                            msg: msg,
+                            messageHandler: _messageHandler,
+                            currentUserId: currentUserId,
+                            convoId: widget.convoId);
+                      },
+                    );
                   },
                 );
               },
