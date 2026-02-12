@@ -6,7 +6,7 @@ import 'package:nde_email/utils/router/router.dart';
 class ErrorScreen extends StatelessWidget {
   final String errorMessage;
 
-  const ErrorScreen({Key? key, required this.errorMessage}) : super(key: key);
+  const ErrorScreen({super.key, required this.errorMessage});
 
   @override
   Widget build(BuildContext context) {

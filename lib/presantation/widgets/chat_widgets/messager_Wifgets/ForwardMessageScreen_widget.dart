@@ -71,17 +71,6 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
     super.dispose();
   }
 
-  bool _isUserSelected(ChatUserlist user) {
-    return selectedUsers.any((u) {
-      if (user.conversationId != null &&
-          user.conversationId!.isNotEmpty &&
-          u.conversationId != null &&
-          u.conversationId!.isNotEmpty) {
-        return u.conversationId == user.conversationId;
-      }
-      return u.userId == user.userId;
-    });
-  }
 
   // --- Helper: Save optimistic message into LocalChatStorage ---
   // Future<void> _saveOptimisticMessage(
@@ -94,23 +83,6 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
   //     log("Error saving optimistic message: $e");
   //   }
   // }
-  Future<void> _saveOptimisticMessage(
-    String convoId,
-    Map<String, dynamic> msg,
-  ) async {
-    final existing = LocalChatStorage.loadMessages(convoId) ?? [];
-
-    final exists = existing.any(
-      (m) =>
-          m['message_id'] == msg['message_id'] ||
-          (m['forwardFingerprint'] != null &&
-              m['forwardFingerprint'] == msg['forwardFingerprint']),
-    );
-
-    if (exists) return; // 🚫 prevent duplicate
-
-    LocalChatStorage.saveMessages(convoId, [...existing, msg]);
-  }
 
   // Replace optimistic message id with server message id (reconcile)
   Future<void> _replaceOptimisticWithServerId(
@@ -119,7 +91,7 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
     String serverMessageId,
   ) async {
     try {
-      final existing = LocalChatStorage.loadMessages(convoId) ?? [];
+      final existing = LocalChatStorage.loadMessages(convoId);
       bool replaced = false;
 
       final updated = existing.map<Map<String, dynamic>>((m) {
@@ -165,7 +137,7 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
   // Mark optimistic message as failed
   Future<void> _markOptimisticAsFailed(String convoId, String localId) async {
     try {
-      final existing = LocalChatStorage.loadMessages(convoId) ?? [];
+      final existing = LocalChatStorage.loadMessages(convoId);
       var changed = false;
       final updated = existing.map<Map<String, dynamic>>((m) {
         if ((m['message_id'] ?? '') == localId) {
@@ -396,10 +368,10 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
                         if (_searchQuery.isNotEmpty) {
                           usersToDisplay = usersToDisplay.where((user) {
                             final firstName =
-                                (user.firstName ?? "").toLowerCase();
+                                (user.firstName).toLowerCase();
                             final lastName =
-                                (user.lastName ?? "").toLowerCase();
-                            final email = (user.email ?? "").toLowerCase();
+                                (user.lastName).toLowerCase();
+                            final email = (user.email).toLowerCase();
                             final fullName =
                                 "$firstName $lastName".toLowerCase();
 

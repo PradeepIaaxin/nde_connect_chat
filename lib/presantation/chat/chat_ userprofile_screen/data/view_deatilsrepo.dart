@@ -199,8 +199,6 @@ class MediaRepository {
     required bool isFavourite,
   }) async {
     try {
-      print(targetId);
-      print(isFavourite);
       final accessToken = await UserPreferences.getAccessToken();
       final defaultWorkspace = await UserPreferences.getDefaultWorkspace();
 

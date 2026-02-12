@@ -5,7 +5,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:mediasfu_mediasoup_client/mediasfu_mediasoup_client.dart';
 import 'package:nde_email/utils/imports/common_imports.dart';
-import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:socket_io_client/socket_io_client.dart' as io;
 
 class VideoCallPage extends StatefulWidget {
   final String roomId;
@@ -36,7 +36,7 @@ class StreamInfo {
 }
 
 class _VideoCallPageState extends State<VideoCallPage> {
-  IO.Socket? socket;
+  io.Socket? socket;
 
   MediaStream? localStream;
   final RTCVideoRenderer _localRenderer = RTCVideoRenderer();
@@ -209,9 +209,9 @@ class _VideoCallPageState extends State<VideoCallPage> {
     setState(() => _isConnecting = true);
 
     try {
-      socket = IO.io(
+      socket = io.io(
         'https://api.nowdigitaleasy.com/meet',
-        IO.OptionBuilder()
+        io.OptionBuilder()
             .setPath('/meet/socket.io')
             .setQuery({'token': '$token'})
             .enableAutoConnect()
@@ -429,56 +429,6 @@ class _VideoCallPageState extends State<VideoCallPage> {
     }
   }
 
-  Future<void> _initializeMediasoupDevice() async {
-    _debugEventFlow('initializeMediasoupDevice');
-    if (!_socketConnected || !_isAuthenticated) {
-      _log(
-          '❌ Cannot initialize device: socket not connected or not authenticated');
-      return;
-    }
-    if (_isInitializingDevice || _deviceLoaded) {
-      _log('Device initialization already in progress or completed');
-      return;
-    }
-
-    setState(() => _isInitializingDevice = true);
-
-    try {
-      _log('🔧 Initializing MediaSoup device...');
-      final rtpCaps =
-          await socket!.emitWithAckAsync('getRouterRtpCapabilities', {});
-      _log('Router RTP capabilities response: $rtpCaps');
-      if (rtpCaps == null || rtpCaps is! Map || (rtpCaps['error'] != null)) {
-        _log('❌ Failed to get router capabilities: $rtpCaps');
-        _showError('Failed to get router capabilities');
-        if (mounted) setState(() => _isInitializingDevice = false);
-        return;
-      }
-
-      try {
-        _mediasoupDevice = Device();
-        await _mediasoupDevice!.load(
-            routerRtpCapabilities:
-                RtpCapabilities.fromMap(Map<String, dynamic>.from(rtpCaps)));
-        _log('✅ MediaSoup device loaded successfully');
-        if (mounted) {
-          setState(() {
-            _deviceLoaded = true;
-            _isInitializingDevice = false;
-          });
-        }
-        await _joinRoom();
-      } catch (e) {
-        _log('❌ Error loading MediaSoup device: $e');
-        _showError('Failed to initialize media device: $e');
-        if (mounted) setState(() => _isInitializingDevice = false);
-      }
-    } catch (e) {
-      _log('❌ Error initializing MediaSoup device: $e');
-      _showError('Failed to initialize media device: $e');
-      if (mounted) setState(() => _isInitializingDevice = false);
-    }
-  }
 
   Future<void> _joinRoom() async {
     _debugEventFlow('joinRoom');
@@ -1228,17 +1178,6 @@ class _VideoCallPageState extends State<VideoCallPage> {
     setState(() {});
   }
 
-  Future<void> _requestBluetoothRouting() async {
-    _debugEventFlow('requestBluetoothRouting');
-    _bluetoothRequested = !_bluetoothRequested;
-    if (_bluetoothRequested) {
-      _speakerOn = false;
-      _showError(
-          'Bluetooth routing requires platform implementation (not implemented here).');
-    }
-    await _applyAudioRoute();
-    setState(() {});
-  }
 
   Future<void> _hangUp() async {
     _debugEventFlow('hangUp');
@@ -1441,7 +1380,7 @@ class _VideoCallPageState extends State<VideoCallPage> {
                           .map((e) => Padding(
                               padding: const EdgeInsets.symmetric(vertical: 2),
                               child: Text('${e.value['name']} (${e.key})')))
-                          .toList(),
+                          ,
                       const SizedBox(height: 8),
                       Text('Status: ${_getConnectionStatus()}',
                           style: TextStyle(

@@ -1,9 +1,7 @@
 import 'dart:async';
-import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:nde_email/utils/audio/audio_utils.dart';
 import 'package:nde_email/utils/const/consts.dart';
 
 class AudioMessageWidget extends StatefulWidget {

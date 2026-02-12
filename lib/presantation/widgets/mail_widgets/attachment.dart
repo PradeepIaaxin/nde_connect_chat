@@ -155,14 +155,17 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
     final ext = p.extension(fileName).toLowerCase();
     final ct = contentType.toLowerCase();
 
-    if (ext == '.pdf' || ct.contains('application/pdf'))
+    if (ext == '.pdf' || ct.contains('application/pdf')) {
       return _looksLikePdf(data);
-    if (ext == '.jpg' || ext == '.jpeg' || ct.contains('image/jpeg'))
+    }
+    if (ext == '.jpg' || ext == '.jpeg' || ct.contains('image/jpeg')) {
       return _looksLikeJpeg(data);
+    }
     if (ext == '.png' || ct.contains('image/png')) return _looksLikePng(data);
     if (ext == '.gif' || ct.contains('image/gif')) return _looksLikeGif(data);
-    if (ext == '.webp' || ct.contains('image/webp'))
+    if (ext == '.webp' || ct.contains('image/webp')) {
       return _looksLikeWebp(data);
+    }
 
     return true;
   }
@@ -342,11 +345,9 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
             {ext = '.gif';}
           else if (_looksLikeWebp(bytes)) {ext = '.webp';}
 
-          if (ext == null) {
-            ext = _extensionFromContentType(responseContentType);
-          }
+          ext ??= _extensionFromContentType(responseContentType);
 
-          if (ext != null && ext.isNotEmpty) {
+          if (ext.isNotEmpty) {
             try {
               file = await file.rename('${file.path}$ext');
             } catch (_) {}
@@ -400,7 +401,7 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
     }
 
     if (result.type != ResultType.done) {
-      final msg = (result.message ?? '').toLowerCase();
+      final msg = (result.message).toLowerCase();
       if (msg.contains('permission denied') ||
           msg.contains('manage_external_storage')) {
         try {

@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
 
 class DeleteMessageDialog {

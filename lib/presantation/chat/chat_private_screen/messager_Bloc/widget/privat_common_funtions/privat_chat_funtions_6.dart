@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/mixed_media_viewer.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/privat_common_funtions/privat_chat_funtions.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/privat_common_funtions/privat_chat_funtions_5.dart';
 import 'package:open_filex/open_filex.dart';
@@ -9,7 +10,7 @@ import '../../../../../../utils/reusbale/common_import.dart';
 import '../../../../../widgets/chat_widgets/Common/grouped_media_viewer.dart';
 
 import '../../MessagerEvent.dart';
-import '../MixedMediaViewer.dart';
+
 import '../VideoPlayerScreen.dart';
 
 bool isValidUrl(String url) =>

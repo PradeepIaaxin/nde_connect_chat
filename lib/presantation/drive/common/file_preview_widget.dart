@@ -20,7 +20,6 @@ class FilePreviewWidget extends StatefulWidget {
 }
 
 class _FilePreviewWidgetState extends State<FilePreviewWidget> {
-  WebViewController? _webViewController;
   final AudioPlayer _audioPlayer = AudioPlayer();
   VideoPlayerController? _videoController;
 
@@ -28,7 +27,6 @@ class _FilePreviewWidgetState extends State<FilePreviewWidget> {
   bool _controlsVisible = true;
   Duration _videoPosition = Duration.zero;
   Duration _videoDuration = Duration.zero;
-  late final WebViewController _officeController;
 
   late Future<void> _audioSetupFuture;
 
@@ -36,12 +34,7 @@ class _FilePreviewWidgetState extends State<FilePreviewWidget> {
   void initState() {
     super.initState();
     if (widget.fileUrl != null) {
-      final viewerUrl =
-          "https://view.officeapps.live.com/op/embed.aspx?src=${Uri.encodeComponent(widget.fileUrl!)}";
 
-      _officeController = WebViewController()
-        ..setJavaScriptMode(JavaScriptMode.unrestricted)
-        ..loadRequest(Uri.parse(viewerUrl));
     }
     _audioSetupFuture = _setupAudioPlayer();
     _setupVideoPlayer();

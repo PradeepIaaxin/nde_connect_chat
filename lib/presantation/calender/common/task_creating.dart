@@ -277,7 +277,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                                   value: calendar['name'],
                                   child: Text(calendar['name'] ?? 'Calendar'),
                                 );
-                              }).toList(),
+                              }),
                             ];
 
                             return buildDropdownField(
