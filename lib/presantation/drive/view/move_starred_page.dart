@@ -54,11 +54,11 @@ class _DriveStarredPageState extends State<DriveStarredPage> {
               titleWidthFactor: 0.8,
               subtitleWidth: 100,
             );
-          } else if (state is StarredLoaded) {
+          }
+          else if (state is StarredLoaded) {
             if (state.folders.isEmpty) {
               return const Center(child: Text("No starred folders found"));
             }
-
             return Column(
               children: [
                 Padding(
@@ -86,9 +86,11 @@ class _DriveStarredPageState extends State<DriveStarredPage> {
                 ),
               ],
             );
-          } else if (state is StarredError) {
+          }
+          else if (state is StarredError) {
             return Center(child: Text("Error: ${state.message}"));
-          } else {
+          }
+          else {
             return const SizedBox.shrink();
           }
         },

@@ -14,7 +14,6 @@ import 'package:nde_email/utils/reusbale/mime.type.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:linkify/linkify.dart';
 
-
 class MessageBubble extends StatefulWidget {
   final Map<String, dynamic> message;
   final bool isSentByMe;

@@ -54,7 +54,6 @@ class FileDownloader {
         log(' Downloaded successfully: $fileId');
         log(mimeType);
         log('File Name: $fileName');
-
         final safeName = fileName.replaceAll(RegExp(r'[^\w\s.-]'), '_');
 
         final dir = Directory('/storage/emulated/0/Download');
