@@ -285,42 +285,42 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                         ),
                       if(   file.type != "folder"
                           )  BottomSheetOption(
-                          icon: Icons.open_with,
-                          title: "Open with",
-                          onTap: () {
-                            openWithSystemApps(file.preview!);
-                            // Clipboard.setData(
-                            //   ClipboardData(text: file.preview.toString()),
-                            // );
-                            // Messenger.alertSuccess("Copied");
-                          },
-                        ),
+                            icon: Icons.open_with,
+                            title: "Open with",
+                            onTap: () {
+                              openWithSystemApps(file.preview!);
+                              // Clipboard.setData(
+                              //   ClipboardData(text: file.preview.toString()),
+                              // );
+                              // Messenger.alertSuccess("Copied");
+                            },
+                          ),
                         if(   file.type != "folder"
                         )   BottomSheetOption(
-                          icon: Icons.ios_share_outlined,
-                          title: "Send a copy",
-                          onTap: () async {
-                            await Future.delayed(
-                                const Duration(milliseconds: 300));
+                            icon: Icons.ios_share_outlined,
+                            title: "Send a copy",
+                            onTap: () async {
+                              await Future.delayed(
+                                  const Duration(milliseconds: 300));
 
-                            final name = file.name.trim();
-                            final preview =
-                                file.preview?.toString().trim() ?? '';
+                              final name = file.name.trim();
+                              final preview =
+                                  file.preview?.toString().trim() ?? '';
 
-                            final textToShare =
-                            (name.isNotEmpty || preview.isNotEmpty)
-                                ? "$name\n\n$preview"
-                                : '';
+                              final textToShare =
+                                  (name.isNotEmpty || preview.isNotEmpty)
+                                      ? "$name\n\n$preview"
+                                      : '';
 
-                            if (textToShare.isNotEmpty) {
-                              await SharePlus.instance.share(
-                                ShareParams(text: textToShare),
-                              );
-                            } else {
-                              log("Nothing to share.");
-                            }
-                          },
-                        ),
+                              if (textToShare.isNotEmpty) {
+                                await SharePlus.instance.share(
+                                  ShareParams(text: textToShare),
+                                );
+                              } else {
+                                log("Nothing to share.");
+                              }
+                            },
+                          ),
                         BottomSheetOption(
                           icon: Icons.link,
                           title: "Copy link",
@@ -430,10 +430,20 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                           onTap: () {
                             showMoveToBinDialog(context,() {
                               context.read<MyDriveBloc>().add(
-                                MoveToTrashEvent(fileIDs: [file.id]),
+                                    MoveToTrashEvent(fileIDs: [file.id]),
+                                  );
+                              Messenger.alertAction(
+                                color: Colors.green,
+                                msg: "Item moved to trash",
+                                actionLabel: "Undo",
+                                duration: const Duration(seconds: 2),
+                                onAction: () {
+                                  context.read<MyDriveBloc>().add(
+                                        RestoreEvent(fileIDs: [file.id]),
+                                      );
+                                },
                               );
-                            },file.name);
-
+                            }, file.name);
                           },
                         ),
                       ],
@@ -859,8 +869,7 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                       titleWidthFactor: 0.8,
                       subtitleWidth: 100,
                     );
-                  }
-                  else if (state is MyDriveLoaded) {
+                  } else if (state is MyDriveLoaded) {
                     _currentFolders = state.folders;
                     return RefreshIndicator(
                       onRefresh: () async => _fetchFolders,
@@ -930,8 +939,9 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                                           onPressed: () {
                                             final selectedFolderModels =
                                                 _currentFolders
-                                                    .where((f) => selectedFolders
-                                                        .contains(f.id))
+                                                    .where((f) =>
+                                                        selectedFolders
+                                                            .contains(f.id))
                                                     .toList();
 
                                             if (selectedFolderModels.isEmpty)
@@ -994,7 +1004,8 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                                                           .downloadFile(
                                                         fileId: folder.id,
                                                         filePath:
-                                                            folder.preview ?? '',
+                                                            folder.preview ??
+                                                                '',
                                                         fileName: folder.name,
                                                         mimeType:
                                                             folder.mimetype ??
@@ -1008,12 +1019,17 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                                                   icon: Icons.delete,
                                                   title: "Move to bin",
                                                   onTap: () {
-                                                    showMoveToBinDialog(context,() {
-                                                      context.read<MyDriveBloc>().add(
-                                                        MoveToTrashEvent(fileIDs:  selectedFolders
-                                                            .toList()),
-                                                      );
-                                                    },"");
+                                                    showMoveToBinDialog(context,
+                                                        () {
+                                                      context
+                                                          .read<MyDriveBloc>()
+                                                          .add(
+                                                            MoveToTrashEvent(
+                                                                fileIDs:
+                                                                    selectedFolders
+                                                                        .toList()),
+                                                          );
+                                                    }, "");
                                                     _clearSelection();
                                                   },
                                                 ),
@@ -1052,12 +1068,12 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                           ),
                           _isGridView
                               ? _buildSliverGridView(state.folders, _isGridView)
-                              : _buildSliverFilesList(state.folders, _isGridView),
+                              : _buildSliverFilesList(
+                                  state.folders, _isGridView),
                         ],
                       ),
                     );
-                  }
-                  else if (state is MyDriveError) {
+                  } else if (state is MyDriveError) {
                     return Center(child: Text("Error: ${state.message}"));
                   }
                   return const SizedBox();
@@ -1101,12 +1117,12 @@ class MyComputer extends StatelessWidget {
 
       context.read<MyDriveBloc>().resetPagination();
       context.read<MyDriveBloc>().add(
-        FetchMyDriveFolders(
-          sortBy: sort['sortBy']!,
-          order: sort['order']!,
-          showLoading: false,
-        ),
-      );
+            FetchMyDriveFolders(
+              sortBy: sort['sortBy']!,
+              order: sort['order']!,
+              showLoading: false,
+            ),
+          );
     }
 
     return RefreshIndicator(
