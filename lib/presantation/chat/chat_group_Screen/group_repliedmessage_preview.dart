@@ -1,5 +1,7 @@
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/video_thumbutil.dart';
+
 import '../../../../../utils/reusbale/common_import.dart';
-import '../chat_private_screen/messager_Bloc/widget/VideoThumbUtil.dart';
+
 
 class GroupRepliedMessagePreview extends StatefulWidget {
   final Map<String, dynamic> replied;

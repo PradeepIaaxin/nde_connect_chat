@@ -4,13 +4,14 @@ import 'dart:io' as io;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nde_email/data/respiratory.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/localstorage/local_storage.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/messager_state.dart';
 import 'package:objectid/objectid.dart';
 
 import '../../Socket/Socket_Service.dart';
 import '../messager_api_service.dart';
 import '../messager_model.dart';
-import 'MessagerEvent.dart';
-import 'MessagerState.dart';
+import 'messager_event.dart';
+
 
 class MessagerBloc extends Bloc<MessagerEvent, MessagerState> {
   final MessagerApiService apiService;

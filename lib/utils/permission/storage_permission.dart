@@ -2,6 +2,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 Future<bool> checkStoragePermission() async {
   final isAndroid11OrAbove =
+      // ignore: unnecessary_null_comparison
       await Permission.manageExternalStorage.status != null;
 
   var storageStatus = isAndroid11OrAbove

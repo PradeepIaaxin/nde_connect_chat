@@ -1,7 +1,9 @@
 
 import 'dart:convert';
 
-import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/MessagerBloc.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/messager_bloc.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/messager_event.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/messager_state.dart';
 
 import '../../../../../../data/respiratory.dart';
 import '../../../../../../utils/reusbale/common_import.dart';
@@ -10,8 +12,7 @@ import '../../../../chat_list/chat_event.dart';
 import '../../../../chat_list/chat_session_storage/chat_session.dart';
 import '../../../localstorage/local_storage.dart';
 import '../../../messager_model.dart';
-import '../../MessagerState.dart';
-import '../../MessagerEvent.dart';
+
 import '../MediaPreviewScreen.dart';
 
 

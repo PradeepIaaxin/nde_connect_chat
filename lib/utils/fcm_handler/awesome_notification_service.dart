@@ -1,9 +1,11 @@
+// ignore_for_file: unnecessary_null_comparison
+
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:nde_email/data/respiratory.dart';
 import 'package:nde_email/presantation/chat/chat_api_service/service/chat_api_service.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
-import '../../presantation/chat/chat_private_screen/Private_Chat_Screen.dart';
+import '../../presantation/chat/chat_private_screen/private_chat_screen.dart';
 
 class AwesomeNotificationService {
   static final Set<String> _handledMessages = {};
@@ -43,7 +45,7 @@ class AwesomeNotificationService {
     final buttonKey = action.buttonKeyPressed;
 
     if (buttonKey == "REPLY") {
-      final replyText = action.buttonKeyInput?.trim() ?? '';
+      final replyText = action.buttonKeyInput.trim();
       final convoId = payload["convoId"];
       final otherUserId = payload["senderId"];
       final myUserId = payload["receiverId"];

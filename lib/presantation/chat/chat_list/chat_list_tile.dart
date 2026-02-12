@@ -8,7 +8,7 @@ import 'package:nde_email/presantation/chat/chat_list/chat_trailing_widget.dart'
 import 'package:nde_email/presantation/chat/widget/profile_avatar.dart';
 import 'package:nde_email/presantation/chat/widget/profile_dialog.dart';
 import '../chat_ userprofile_screen/User_Profile_Screen.dart';
-import '../chat_private_screen/Private_Chat_Screen.dart';
+import '../chat_private_screen/private_chat_screen.dart';
 
 class ChatListTile extends StatelessWidget {
   final Datu chat;

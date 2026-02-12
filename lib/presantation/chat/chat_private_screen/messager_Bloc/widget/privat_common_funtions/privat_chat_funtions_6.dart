@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/messager_event.dart' show AddReaction, RemoveReaction, DeleteMessagesEvent;
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/mixed_media_viewer.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/privat_common_funtions/privat_chat_funtions.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/privat_common_funtions/privat_chat_funtions_5.dart';
@@ -9,9 +10,8 @@ import '../../../../../../utils/imports/common_imports.dart';
 import '../../../../../../utils/reusbale/common_import.dart';
 import '../../../../../widgets/chat_widgets/Common/grouped_media_viewer.dart';
 
-import '../../MessagerEvent.dart';
 
-import '../VideoPlayerScreen.dart';
+import '../video_player_screen.dart';
 
 bool isValidUrl(String url) =>
     url.startsWith('http://') || url.startsWith('https://');

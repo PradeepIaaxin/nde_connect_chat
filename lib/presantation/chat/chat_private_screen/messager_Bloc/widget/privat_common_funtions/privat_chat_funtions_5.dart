@@ -5,6 +5,8 @@ import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:nde_email/presantation/chat/Socket/Socket_Service.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/messager_event.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/messager_state.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/privat_common_funtions/privat_chat_funtions_2.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/privat_common_funtions/privat_chat_funtions_4.dart';
 
@@ -13,9 +15,8 @@ import '../../../../../../utils/router/router.dart';
 import '../../../../../widgets/chat_widgets/messager_Wifgets/forwardmessagescreen_widget.dart';
 
 
-import '../../MessagerBloc.dart';
-import '../../MessagerEvent.dart';
-import '../../MessagerState.dart';
+import '../../messager_bloc.dart';
+
 import '../../message_handler.dart';
 
 Future<bool> fetchUntilMessageFound({

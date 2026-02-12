@@ -33,7 +33,7 @@ export 'package:nde_email/presantation/chat/chat_contact_list/local_strorage.dar
 export 'package:nde_email/presantation/chat/chat_group_Screen/api_servicer.dart';
 export 'package:nde_email/presantation/chat/chat_group_Screen/group_bloc.dart';
 export 'package:nde_email/presantation/chat/chat_private_screen/messager_api_service.dart';
-export 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/MessagerBloc.dart';
+export 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/messager_bloc.dart';
 export 'package:nde_email/presantation/chat/chat_private_screen/localstorage/local_storage.dart';
 export 'package:nde_email/presantation/chat/Socket/Socket_Service.dart';
 

@@ -5,9 +5,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/usermedia_screen.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_bloc.dart'
     as group_bloc;
-import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/MessagerBloc.dart'
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/messager_bloc.dart'
     as private;
-import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/MessagerEvent.dart'
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/messager_event.dart'
     as private_event;
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_event.dart'
     as group_event;
