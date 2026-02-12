@@ -254,7 +254,8 @@ class _TrashScreenState extends State<TrashScreen> {
                     titleWidthFactor: 0.8,
                     subtitleWidth: 100,
                   );
-                } else if (state is TrashLoaded) {
+                }
+                else if (state is TrashLoaded) {
                   final folders = state.trashResponse.rows;
 
                   return folders.isEmpty
@@ -669,7 +670,8 @@ class _TrashScreenState extends State<TrashScreen> {
                             ),
                           ],
                         );
-                } else if (state is FolderError) {
+                }
+                else if (state is FolderError) {
                   return Center(child: Text('something Went wrong!'));
                 }
                 return const SizedBox.shrink();

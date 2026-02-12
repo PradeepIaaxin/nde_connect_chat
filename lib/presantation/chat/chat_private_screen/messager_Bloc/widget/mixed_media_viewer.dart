@@ -11,6 +11,7 @@ import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/me
     as private_event;
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_event.dart'
     as group_event;
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/video_cache_service.dart';
 import 'package:nde_email/presantation/chat/widget/delete_dialogue.dart';
 import 'package:nde_email/utils/snackbar/snackbar.dart';
 import 'package:share_plus/share_plus.dart';
@@ -21,7 +22,6 @@ import '../../../../widgets/chat_widgets/messager_Wifgets/ForwardMessageScreen_w
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/videocacheservice.dart';
 import 'package:nde_email/utils/datetime/date_time_utils.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
