@@ -1,4 +1,5 @@
 import 'dart:developer';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
@@ -6,6 +7,8 @@ import 'package:nde_email/utils/spacer/spacer.dart';
 
 class Messenger {
   static final rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+  static Timer? _autoHideTimer;
+  static int _autoHideToken = 0;
 
   static dynamic alertError(String msg, {Duration? duration}) =>
       alert(msg: msg, color: Colors.red, duration: duration);
@@ -16,6 +19,7 @@ class Messenger {
     if (msg.trim().isEmpty) return;
     log(msg);
 
+    _autoHideTimer?.cancel();
     rootScaffoldMessengerKey.currentState?.hideCurrentSnackBar();
     rootScaffoldMessengerKey.currentState?.showSnackBar(
       SnackBar(
@@ -47,19 +51,27 @@ class Messenger {
     if (msg.trim().isEmpty) return null;
     log(msg);
 
+    _autoHideTimer?.cancel();
+    final int token = ++_autoHideToken;
+    final Duration autoCloseAfter = duration ?? const Duration(seconds: 2);
+
     rootScaffoldMessengerKey.currentState?.hideCurrentSnackBar();
-    return rootScaffoldMessengerKey.currentState?.showSnackBar(
+    final controller = rootScaffoldMessengerKey.currentState?.showSnackBar(
       SnackBar(
         showCloseIcon: true,
         closeIconColor: Colors.white,
-        duration: duration ?? const Duration(seconds: 5),
+        duration: autoCloseAfter,
         behavior: SnackBarBehavior.floating,
         backgroundColor: color,
         shape: const RoundedRectangleBorder(),
         action: SnackBarAction(
           label: actionLabel,
           textColor: Colors.white,
-          onPressed: onAction,
+          onPressed: () {
+            _autoHideTimer?.cancel();
+            onAction();
+            rootScaffoldMessengerKey.currentState?.hideCurrentSnackBar();
+          },
         ),
         content: Text(
           msg,
@@ -70,6 +82,19 @@ class Messenger {
         ),
       ),
     );
+
+    _autoHideTimer = Timer(autoCloseAfter, () {
+      if (token != _autoHideToken) return;
+      rootScaffoldMessengerKey.currentState?.hideCurrentSnackBar();
+    });
+
+    controller?.closed.whenComplete(() {
+      if (token == _autoHideToken) {
+        _autoHideTimer?.cancel();
+      }
+    });
+
+    return controller;
   }
 
   static void pop(BuildContext context) {
@@ -97,6 +122,7 @@ class Messenger {
     if (msg.trim().isEmpty) return;
     log(msg);
 
+    _autoHideTimer?.cancel();
     rootScaffoldMessengerKey.currentState?.hideCurrentSnackBar();
     rootScaffoldMessengerKey.currentState?.showSnackBar(
       SnackBar(
