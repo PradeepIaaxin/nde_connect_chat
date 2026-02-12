@@ -1,8 +1,10 @@
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/video_cache_service.dart';
+
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/message_caption.dart';
+
+import '../../../chat/chat_private_screen/messager_Bloc/widget/video_cache_service.dart';
 
 class GroupedMediaWidget extends StatelessWidget {
   final List<String> mediaUrls;

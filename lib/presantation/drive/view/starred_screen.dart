@@ -29,6 +29,8 @@ import 'package:nde_email/utils/snackbar/snackbar.dart';
 import 'package:nde_email/utils/spacer/spacer.dart';
 import 'package:share_plus/share_plus.dart';
 
+import 'common_funtions.dart';
+
 class StarredPage extends StatefulWidget {
   final ScrollController scrollController;
 
@@ -111,68 +113,71 @@ class _StarredPageState extends State<StarredPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bg,
-      body: BlocConsumer<StarredBloc, StarredState>(
-        listener: (context, state) {
-          if (state is StarredError) {
-            log(state.message.toString());
-          }
-        },
-        builder: (context, state) {
-          if (state is StarredLoading) {
-            return ShimmerListLoader(
-              iconSize: 40,
-              titleHeight: 18,
-              subtitleHeight: 14,
-              trailingIconSize: 20,
-              padding: EdgeInsets.all(10),
-              baseColor: Colors.grey[200]!,
-              highlightColor: Colors.grey[50]!,
-              titleWidthFactor: 0.8,
-              subtitleWidth: 100,
-            );
-          }
-
-          if (state is StarredLoaded) {
-            final folders = state.folders;
-
-            if (folders.isEmpty) {
-              return const Center(
-                child: Text('No starred files found'),
+      body: RefreshIndicator(
+        onRefresh: () async => _handleSortChange,
+        child: BlocConsumer<StarredBloc, StarredState>(
+          listener: (context, state) {
+            if (state is StarredError) {
+              log(state.message.toString());
+            }
+          },
+          builder: (context, state) {
+            if (state is StarredLoading) {
+              return ShimmerListLoader(
+                iconSize: 40,
+                titleHeight: 18,
+                subtitleHeight: 14,
+                trailingIconSize: 20,
+                padding: EdgeInsets.all(10),
+                baseColor: Colors.grey[200]!,
+                highlightColor: Colors.grey[50]!,
+                titleWidthFactor: 0.8,
+                subtitleWidth: 100,
               );
             }
 
-            return Stack(
-              children: [
-                _buildDriveLayout(folders, state.hasMore),
-              ],
-            );
-          }
+            if (state is StarredLoaded) {
+              final folders = state.folders;
 
-          if (state is StarredError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+              if (folders.isEmpty) {
+                return const Center(
+                  child: Text('No starred files found'),
+                );
+              }
+
+              return Stack(
                 children: [
-                  const Text('Something went wrong!'),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () {
-                      context.read<StarredBloc>().add(
-                            FetchStarredFolders(
-                              sortBy: sortQuery ?? 'name',
-                              isLoadMore: false,
-                            ),
-                          );
-                    },
-                    child: const Text('Retry'),
-                  ),
+                  _buildDriveLayout(folders, state.hasMore),
                 ],
-              ),
-            );
-          }
+              );
+            }
 
-          return const SizedBox();
-        },
+            if (state is StarredError) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text('Something went wrong!'),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () {
+                        context.read<StarredBloc>().add(
+                              FetchStarredFolders(
+                                sortBy: sortQuery ?? 'name',
+                                isLoadMore: false,
+                              ),
+                            );
+                      },
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            return const SizedBox();
+          },
+        ),
       ),
     );
   }
@@ -368,6 +373,7 @@ class _StarredPageState extends State<StarredPage> {
 
   Widget _buildFolderList(List<StarredFolder> folders, bool ismore) {
     return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       controller: widget.scrollController,
       padding: const EdgeInsets.all(16),
       itemCount: folders.length,
@@ -387,6 +393,7 @@ class _StarredPageState extends State<StarredPage> {
 
   Widget _buildFolderGrid(List<StarredFolder> folders, bool ismore) {
     return GridView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       controller: widget.scrollController,
       padding: const EdgeInsets.all(8),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -839,6 +846,42 @@ class _FolderListItem extends StatelessWidget {
                           );
                     },
                   ),
+                  if(folder.type != "folder")BottomSheetOption(
+                    icon: Icons.open_with,
+                    title: "Open with",
+                    onTap: () {
+                      openWithSystemApps(folder.preview!);
+                      // Clipboard.setData(
+                      //   ClipboardData(text: file.preview.toString()),
+                      // );
+                      // Messenger.alertSuccess("Copied");
+                    },
+                  ),
+                  if(folder.type != "folder") BottomSheetOption(
+                    icon: Icons.ios_share_outlined,
+                    title: "Send a copy",
+                    onTap: () async {
+                      await Future.delayed(
+                          const Duration(milliseconds: 300));
+
+                      final name = folder.name.trim();
+                      final preview =
+                          folder.preview?.toString().trim() ?? '';
+
+                      final textToShare =
+                      (name.isNotEmpty || preview.isNotEmpty)
+                          ? "$name\n\n$preview"
+                          : '';
+
+                      if (textToShare.isNotEmpty) {
+                        await SharePlus.instance.share(
+                          ShareParams(text: textToShare),
+                        );
+                      } else {
+                        log("Nothing to share.");
+                      }
+                    },
+                  ),
                   BottomSheetOption(
                     icon: Icons.link,
                     title: "Copy link",
@@ -906,31 +949,18 @@ class _FolderListItem extends StatelessWidget {
                     },
                   ),
                   BottomSheetOption(
-                    icon: Icons.turn_right_outlined,
-                    title: "Send a copy",
-                    onTap: () async {
-                      await Future.delayed(const Duration(milliseconds: 300));
-
-                      final name = folder.name.trim();
-                      final preview = folder.preview?.toString().trim() ?? '';
-
-                      final textToShare =
-                          (name.isNotEmpty || preview.isNotEmpty)
-                              ? "$name\n\n$preview"
-                              : '';
-
-                      if (textToShare.isNotEmpty) {
-                        await SharePlus.instance.share(
-                          ShareParams(text: textToShare),
-                        );
-                      } else {
-                        log("Nothing to share.");
-                      }
+                    icon: Icons.info_outline,
+                    title: "View information",
+                    onTap: () {
+                      log("deatils");
+                      MyRouter.push(
+                        screen: FileDetailScreen(fileID: folder.id),
+                      );
                     },
                   ),
-                  BottomSheetOption(
-                    icon: Icons.info_outline,
-                    title: "Details & activity",
+                  if(folder.type != "folder") BottomSheetOption(
+                    icon: Icons.drive_file_move_rounded,
+                    title: "Show file location",
                     onTap: () {
                       log("deatils");
                       MyRouter.push(
@@ -952,11 +982,13 @@ class _FolderListItem extends StatelessWidget {
                   ),
                   BottomSheetOption(
                     icon: Icons.delete,
-                    title: "Remove",
+                    title:"Move to bin",
                     onTap: () {
-                      context.read<StarredBloc>().add(
-                            MoveToTrashEvent(fileIDs: [folder.id]),
-                          );
+                      showMoveToBinDialog(context,() {
+                        context.read<StarredBloc>().add(
+                          MoveToTrashEvent(fileIDs: [folder.id]),
+                        );
+                      },folder.name);
                     },
                   ),
                 ],
