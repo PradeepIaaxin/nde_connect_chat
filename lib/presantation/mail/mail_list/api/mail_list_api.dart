@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:developer';
 import 'package:http/http.dart' as http;
 import 'package:nde_email/data/respiratory.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
@@ -7,13 +6,16 @@ import '../model/mail_list_model.dart';
 import 'package:nde_email/data/mailboxid.dart';
 import 'package:nde_email/data/token.dart';
 import 'package:nde_email/data/base_url.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class FetchMailListapi {
-  Future<MailListResponse> fetchMailList(String mailboxId,
-      {String? cursor}) async {
+  Future<MailListResponse> fetchMailList(
+    String mailboxId, {
+    String? cursor,
+    int limit = 20, 
+  }) async {
     String? accessToken = await UserPreferences.getAccessToken();
     String? defaultWorkspace = await UserPreferences.getDefaultWorkspace();
+
     log("Mail ID inside the API: $mailboxId");
 
     if (accessToken == null || accessToken.isEmpty) {
@@ -22,9 +24,10 @@ class FetchMailListapi {
     }
 
     final baseUrl = '${ApiService.baseUrl}/user/mailboxes/$mailboxId';
+
     final queryParameters = [
       'order=desc',
-      'limit=50',
+      'limit=$limit', 
       'metaData=true',
       'threadCounters=true',
       'includeHeaders=message-id',
@@ -32,7 +35,8 @@ class FetchMailListapi {
     ].join('&');
 
     final url = '$baseUrl?$queryParameters';
-    print(url);
+
+    log("📡 API URL → $url");
 
     try {
       final response = await http.get(
@@ -47,7 +51,7 @@ class FetchMailListapi {
         final Map<String, dynamic> data = json.decode(response.body);
         final mailListResponse = MailListResponse.fromJson(data);
 
-       // log('Mail List Fetched: ${response.body}');
+        log('📥 Mail List Fetched');
         log('Next Cursor: ${mailListResponse.nextCursor}');
 
         return mailListResponse;
@@ -55,12 +59,66 @@ class FetchMailListapi {
         await _handleUnauthorized();
         throw Exception("Unauthorized access, logging out...");
       } else {
-        throw Exception('Failed to fetch mail list: ${response.reasonPhrase}');
+        throw Exception(
+          'Failed to fetch mail list: ${response.reasonPhrase}',
+        );
       }
     } catch (e) {
       throw Exception('Error fetching mail list: $e');
     }
   }
+
+  // Future<MailListResponse> fetchMailList(String mailboxId,
+  //     {String? cursor}) async {
+  //   String? accessToken = await UserPreferences.getAccessToken();
+  //   String? defaultWorkspace = await UserPreferences.getDefaultWorkspace();
+  //   log("Mail ID inside the API: $mailboxId");
+
+  //   if (accessToken == null || accessToken.isEmpty) {
+  //     await _handleUnauthorized();
+  //     throw Exception('Access token is missing or expired');
+  //   }
+
+  //   final baseUrl = '${ApiService.baseUrl}/user/mailboxes/$mailboxId';
+  //   final queryParameters = [
+  //     'order=desc',
+  //     'limit=50',
+  //     'metaData=true',
+  //     'threadCounters=true',
+  //     'includeHeaders=message-id',
+  //     if (cursor != null && cursor.isNotEmpty) 'next=$cursor',
+  //   ].join('&');
+
+  //   final url = '$baseUrl?$queryParameters';
+  //   log(url.toString());
+
+  //   try {
+  //     final response = await http.get(
+  //       Uri.parse(url),
+  //       headers: {
+  //         'Authorization': 'Bearer $accessToken',
+  //         'X-WorkSpace': defaultWorkspace ?? '',
+  //       },
+  //     );
+
+  //     if (response.statusCode == 200) {
+  //       final Map<String, dynamic> data = json.decode(response.body);
+  //       final mailListResponse = MailListResponse.fromJson(data);
+
+  //       log('Mail List Fetched: ${response.body}');
+  //       log('Next Cursor: ${mailListResponse.nextCursor}');
+
+  //       return mailListResponse;
+  //     } else if (response.statusCode == 401) {
+  //       await _handleUnauthorized();
+  //       throw Exception("Unauthorized access, logging out...");
+  //     } else {
+  //       throw Exception('Failed to fetch mail list: ${response.reasonPhrase}');
+  //     }
+  //   } catch (e) {
+  //     throw Exception('Error fetching mail list: $e');
+  //   }
+  // }
 
   Future<bool> moveMail({
     required List<int> mailIds,
@@ -277,7 +335,7 @@ class FetchMailListapi {
         final mails = items
             .map<GMMailModels>((item) => GMMailModels.fromJson(item))
             .toList();
-        log("Filtered mails count: ${mails.length}");
+        // log("Filtered mails count: ${mails.length}");
 
         return mails;
       } else {

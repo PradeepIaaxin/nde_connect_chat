@@ -21,6 +21,9 @@ class MailListScreen extends StatefulWidget {
 
 class _MailListScreenState extends State<MailListScreen> {
   late MailListBloc _bloc;
+
+  bool _paginationTriggered = false;
+
   bool _canLoad = true;
 
   final ScrollController _controller = ScrollController();
@@ -258,7 +261,7 @@ class _MailListScreenState extends State<MailListScreen> {
 
     final state = _bloc.state;
 
-    // 🚫 Do NOT fetch if app is logging out / bloc reset
+    /// 🚫 Skip if bloc resetting
     if (state.status == MailListStatus.loading &&
         state.mails.isEmpty &&
         state.nextCursor == null) {
@@ -266,11 +269,21 @@ class _MailListScreenState extends State<MailListScreen> {
       return;
     }
 
-    if (!_isFilteredView) {
-      _bloc.add(ResetMailListEvent(widget.mailboxId));
+    debugPrint("🔄 Loading mailbox/view → ${widget.mailboxId}");
+
+    /// 🔥 1️⃣ Clear filtered cache FIRST
+    if (_isFilteredView) {
+      _bloc.add(ClearMailCacheEvent());
     }
 
-    _fetch();
+    /// 🔥 2️⃣ Reset mailbox cache
+    _bloc.add(ResetMailListEvent(widget.mailboxId));
+
+    /// 🔥 3️⃣ Fetch AFTER reset queued
+    Future.microtask(() {
+      if (!mounted) return;
+      _fetch();
+    });
   }
 
   void _fetch() {
@@ -289,15 +302,39 @@ class _MailListScreenState extends State<MailListScreen> {
   }
 
   void _onScroll() {
+    if (!_controller.hasClients) return;
+
     final state = _bloc.state;
 
-    if (state.nextCursor == null || state.isPaginating) return;
+    /// 🚫 Stop if mailbox mismatch
+    if (state.currentMailboxId != widget.mailboxId) return;
+
+    /// 🚫 Stop if already triggered locally
+    if (_paginationTriggered) {
+      log("⛔ UI pagination lock active");
+      return;
+    }
+
+    /// 🚫 Stop if bloc already loading
+    if (state.isPaginating) return;
+
+    /// 🚫 STOP if pagination ended permanently ✅ NEW FIX
+    if (!state.hasMore) {
+      log("⛔ No more mails — pagination end");
+      return;
+    }
+
+    const threshold = 200.0;
 
     if (_controller.position.pixels >=
-        _controller.position.maxScrollExtent - 300) {
+        _controller.position.maxScrollExtent - threshold) {
+      _paginationTriggered = true;
+
+      log("📡 Pagination triggered → ${state.nextCursor}");
+
       _bloc.add(
         FetchMailListEvent(
-          widget.mailboxId,
+          state.currentMailboxId!,
           cursor: state.nextCursor,
           isLoadMore: true,
         ),
@@ -335,16 +372,29 @@ class _MailListScreenState extends State<MailListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<SendMailBloc, SendMailState>(
-      listener: (context, sendState) {
-        if (sendState is MailSent) {
-          debugPrint(
-              "✅ Mail sent successfully! Refreshing list for $widget.mailboxId");
+    return MultiBlocListener(
+      listeners: [
+        /// 🔓 Unlock pagination when pagination completes
+        BlocListener<MailListBloc, MailListState>(
+          listenWhen: (prev, curr) => prev.isPaginating && !curr.isPaginating,
+          listener: (context, state) {
+            log("🔓 Pagination UI lock released");
+            _paginationTriggered = false;
+          },
+        ),
 
-          // Trigger silent refresh to update UI without loading spinner
-          _bloc.add(RefreshMailListEvent(widget.mailboxId));
-        }
-      },
+        /// ✅ Mail sent refresh
+        BlocListener<SendMailBloc, SendMailState>(
+          listener: (context, sendState) {
+            if (sendState is MailSent) {
+              debugPrint(
+                  "✅ Mail sent successfully! Refreshing list for $widget.mailboxId");
+
+              _bloc.add(RefreshMailListEvent(widget.mailboxId));
+            }
+          },
+        ),
+      ],
       child: BlocBuilder<MailListBloc, MailListState>(
         builder: (context, state) {
           if (state.status == MailListStatus.loading) {

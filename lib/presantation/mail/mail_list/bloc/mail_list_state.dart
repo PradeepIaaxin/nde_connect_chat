@@ -19,8 +19,9 @@ class MailListState extends Equatable {
   final Set<int> selectedMailIds;
   final String? nextCursor;
   final bool isPaginating;
+  final bool hasMore;   // ✅ FIXED
   final String? snackbarMessage;
-  final bool hasReachedEnd;
+
   final Map<String, int> unreadCountByMailbox;
   final int totalUnreadCount;
   final int totalStarredCount;
@@ -28,7 +29,6 @@ class MailListState extends Equatable {
   final int totalAllCount;
   final Map<String, int> totalCountByMailbox;
 
-  /// Mailbox metadata
   final String? specialUse;
   final String? currentMailboxId;
 
@@ -39,8 +39,8 @@ class MailListState extends Equatable {
     this.selectedMailIds = const {},
     this.nextCursor,
     this.isPaginating = false,
+    this.hasMore = true,   
     this.snackbarMessage,
-    this.hasReachedEnd = false,
     this.unreadCountByMailbox = const {},
     this.totalUnreadCount = 0,
     this.totalStarredCount = 0,
@@ -58,13 +58,13 @@ class MailListState extends Equatable {
       selectedMailIds: {},
       nextCursor: null,
       isPaginating: false,
+      hasMore: true,
       unreadCountByMailbox: {},
       totalUnreadCount: 0,
       totalStarredCount: 0,
       totalStarredUnreadCount: 0,
       totalAllCount: 0,
       totalCountByMailbox: {},
-      hasReachedEnd: false,
       specialUse: null,
       currentMailboxId: null,
     );
@@ -77,16 +77,14 @@ class MailListState extends Equatable {
     Set<int>? selectedMailIds,
     String? nextCursor,
     bool? isPaginating,
+    bool? hasMore,  
     String? snackbarMessage,
-    bool? hasReachedEnd,
     Map<String, int>? unreadCountByMailbox,
     int? totalUnreadCount,
     int? totalStarredCount,
     int? totalStarredUnreadCount,
     int? totalAllCount,
     Map<String, int>? totalCountByMailbox,
-
-    /// 🔥 Use nullable wrapper to detect pass / no-pass
     Object? specialUse = _noChange,
     String? currentMailboxId,
   }) {
@@ -97,20 +95,19 @@ class MailListState extends Equatable {
       selectedMailIds: selectedMailIds ?? this.selectedMailIds,
       nextCursor: nextCursor ?? this.nextCursor,
       isPaginating: isPaginating ?? this.isPaginating,
+      hasMore: hasMore ?? this.hasMore,
       snackbarMessage: snackbarMessage ?? this.snackbarMessage,
-      hasReachedEnd: hasReachedEnd ?? this.hasReachedEnd,
-      unreadCountByMailbox: unreadCountByMailbox ?? this.unreadCountByMailbox,
+      unreadCountByMailbox:
+          unreadCountByMailbox ?? this.unreadCountByMailbox,
       totalUnreadCount: totalUnreadCount ?? this.totalUnreadCount,
       totalStarredCount: totalStarredCount ?? this.totalStarredCount,
       totalStarredUnreadCount:
           totalStarredUnreadCount ?? this.totalStarredUnreadCount,
       totalAllCount: totalAllCount ?? this.totalAllCount,
-      totalCountByMailbox: totalCountByMailbox ?? this.totalCountByMailbox,
-
-      /// ✅ Correct metadata handling
+      totalCountByMailbox:
+          totalCountByMailbox ?? this.totalCountByMailbox,
       specialUse:
           specialUse == _noChange ? this.specialUse : specialUse as String?,
-
       currentMailboxId: currentMailboxId ?? this.currentMailboxId,
     );
   }
@@ -123,8 +120,8 @@ class MailListState extends Equatable {
         selectedMailIds,
         nextCursor,
         isPaginating,
+        hasMore,   
         snackbarMessage,
-        hasReachedEnd,
         unreadCountByMailbox,
         totalUnreadCount,
         totalStarredCount,
