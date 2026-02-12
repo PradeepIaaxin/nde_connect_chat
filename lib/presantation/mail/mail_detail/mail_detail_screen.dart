@@ -249,11 +249,18 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
                                     const SizedBox(height: 0),
                                     Row(
                                       children: [
-                                        Text(
-                                          'to me',
-                                          style: const TextStyle(
-                                            fontSize: 14,
-                                            color: AppColors.secondaryText,
+                                        Flexible(
+                                          child: Text(
+                                            (widget.selectedTag == '\\Sent' &&
+                                                    mailDetail.to.isNotEmpty)
+                                                ? "to ${mailDetail.to.first.name.isNotEmpty ? mailDetail.to.first.name : mailDetail.to.first.address}"
+                                                : 'to me',
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              color: AppColors.secondaryText,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            maxLines: 1,
                                           ),
                                         ),
                                         IconButton(
