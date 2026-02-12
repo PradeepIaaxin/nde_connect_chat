@@ -5,6 +5,12 @@ import 'package:nde_email/presantation/drive/Bloc/file_bloc/myfile_state.dart';
 import 'package:nde_email/presantation/drive/data/my_drive_repository.dart';
 import 'package:nde_email/presantation/drive/model/mydrive_model.dart';
 
+class _TrashedEntry {
+  final Rows row;
+  final int index;
+  const _TrashedEntry({required this.row, required this.index});
+}
+
 class MyDriveBloc extends Bloc<MyDriveEvent, MyDriveState> {
   final MyDriveRepository repository;
   int _page = 1;
@@ -12,6 +18,7 @@ class MyDriveBloc extends Bloc<MyDriveEvent, MyDriveState> {
   bool _hasMore = true;
   bool _isFetching = false;
   final List<Rows> _allFolders = [];
+  final Map<String, _TrashedEntry> _recentlyTrashed = {};
   String _currentSortBy = 'name';
   String _currentOrder = 'desc';
 
@@ -182,6 +189,14 @@ class MyDriveBloc extends Bloc<MyDriveEvent, MyDriveState> {
     try {
       await repository.moveToTrash(fileIDs: event.fileIDs);
 
+      for (final id in event.fileIDs) {
+        final index = _allFolders.indexWhere((f) => f.id == id);
+        if (index != -1) {
+          _recentlyTrashed[id] =
+              _TrashedEntry(row: _allFolders[index], index: index);
+        }
+      }
+
       _allFolders.removeWhere((f) => event.fileIDs.contains(f.id));
 
       ///  Save local
@@ -233,8 +248,29 @@ class MyDriveBloc extends Bloc<MyDriveEvent, MyDriveState> {
   Future<void> _onRestoreAll(
       RestoreEvent event, Emitter<MyDriveState> emit) async {
     try {
+      final List<_TrashedEntry> toRestoreOptimistically = [];
+      for (final id in event.fileIDs) {
+        final entry = _recentlyTrashed.remove(id);
+        if (entry != null) {
+          toRestoreOptimistically.add(entry);
+        }
+      }
+
+      toRestoreOptimistically.sort((a, b) => a.index.compareTo(b.index));
+      for (final entry in toRestoreOptimistically) {
+        if (_allFolders.any((f) => f.id == entry.row.id)) continue;
+        final insertIndex = entry.index.clamp(0, _allFolders.length);
+        _allFolders.insert(insertIndex, entry.row);
+      }
+
+      if (toRestoreOptimistically.isNotEmpty) {
+        await LocalDriveStorage.saveFolders(
+          _allFolders.map((e) => e.toJson()).toList(),
+        );
+        emit(MyDriveLoaded(List<Rows>.from(_allFolders), _hasMore, 'Restored'));
+      }
+
       await repository.restoreAll(fileIDs: event.fileIDs);
-      emit(MyDriveLoaded(List<Rows>.from(_allFolders), false, 'Restored'));
       add(FetchMyDriveFolders(forceRefresh: true));
     } catch (e) {
       emit(MyDriveError(e.toString()));
