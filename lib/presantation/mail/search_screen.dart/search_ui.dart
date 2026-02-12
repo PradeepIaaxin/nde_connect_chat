@@ -67,12 +67,15 @@ class SearchMailHit {
 
     return SearchMailHit(
       id: (json['id'] ?? '').toString(),
-      mailboxId: (json['mailbox'] ?? json['mailboxId'] ?? json['mailbox_id'] ?? '')
-          .toString(),
+      mailboxId:
+          (json['mailbox'] ?? json['mailboxId'] ?? json['mailbox_id'] ?? '')
+              .toString(),
       path: (json['path'] ?? '').toString(),
       toAddress: toAddresses,
       toName: toNames,
-      dateMs: json['date'] is int ? json['date'] as int : int.tryParse('${json['date']}'),
+      dateMs: json['date'] is int
+          ? json['date'] as int
+          : int.tryParse('${json['date']}'),
       seen: json['seen'] is bool ? json['seen'] as bool : null,
       hasAttachments: json['hasAttachments'] is bool
           ? json['hasAttachments'] as bool
@@ -250,7 +253,8 @@ class _SearchScreenState extends State<SearchScreen> {
     required TextStyle normalStyle,
     required TextStyle highlightStyle,
   }) {
-    final text = (formatted == null || formatted.isEmpty) ? fallback : formatted;
+    final text =
+        (formatted == null || formatted.isEmpty) ? fallback : formatted;
     final matches = RegExp(r'<em[^>]*>(.*?)</em>').allMatches(text).toList();
     if (matches.isEmpty) {
       final stripped = text.replaceAll(RegExp(r'<[^>]*>'), '');
@@ -316,9 +320,11 @@ class _SearchScreenState extends State<SearchScreen> {
     var index = 0;
     for (final m in matches) {
       if (m.start > index) {
-        spans.add(TextSpan(text: text.substring(index, m.start), style: normalStyle));
+        spans.add(
+            TextSpan(text: text.substring(index, m.start), style: normalStyle));
       }
-      spans.add(TextSpan(text: text.substring(m.start, m.end), style: highlightStyle));
+      spans.add(TextSpan(
+          text: text.substring(m.start, m.end), style: highlightStyle));
       index = m.end;
     }
     if (index < text.length) {
@@ -331,14 +337,20 @@ class _SearchScreenState extends State<SearchScreen> {
     if (value == null) return null;
     if (value is String) return value;
     if (value is List) {
-      final parts = value.map((e) => e?.toString() ?? '').where((e) => e.trim().isNotEmpty).toList();
+      final parts = value
+          .map((e) => e?.toString() ?? '')
+          .where((e) => e.trim().isNotEmpty)
+          .toList();
       if (parts.isEmpty) return null;
       return parts.join(', ');
     }
     if (value is Map) {
       final address = value['address']?.toString();
       final name = value['name']?.toString();
-      if (name != null && name.trim().isNotEmpty && address != null && address.trim().isNotEmpty) {
+      if (name != null &&
+          name.trim().isNotEmpty &&
+          address != null &&
+          address.trim().isNotEmpty) {
         return '$name <$address>';
       }
       if (name != null && name.trim().isNotEmpty) return name;
@@ -366,12 +378,6 @@ class _SearchScreenState extends State<SearchScreen> {
                 padding: const EdgeInsets.only(top: 8.0),
                 child: Row(
                   children: [
-                    IconButton(
-                      icon: Icon(Icons.cancel, color: AppColors.iconDefault),
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
-                    ),
                     Expanded(
                       child: TextField(
                         controller: _searchController,
@@ -389,6 +395,12 @@ class _SearchScreenState extends State<SearchScreen> {
                         },
                         onChanged: _onQueryChanged,
                       ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.cancel, color: AppColors.iconDefault),
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
                     ),
                     IconButton(
                       icon: Icon(Icons.mic, color: AppColors.iconActive),
@@ -468,16 +480,20 @@ class _SearchScreenState extends State<SearchScreen> {
                                       final subjectFormatted =
                                           hit.formatted?['subject']?.toString();
                                       final fromNameFormatted =
-                                          _formattedToText(hit.formatted?['fromName']);
+                                          _formattedToText(
+                                              hit.formatted?['fromName']);
                                       final fromAddressFormatted =
-                                          _formattedToText(hit.formatted?['fromAddress']);
-                                      final toNameFormatted =
-                                          _formattedToText(hit.formatted?['toName']);
+                                          _formattedToText(
+                                              hit.formatted?['fromAddress']);
+                                      final toNameFormatted = _formattedToText(
+                                          hit.formatted?['toName']);
                                       final toAddressFormatted =
-                                          _formattedToText(hit.formatted?['toAddress']);
-                                      final introFormatted =
-                                          hit.formatted?['intro']?.toString() ??
-                                              hit.formatted?['content']?.toString();
+                                          _formattedToText(
+                                              hit.formatted?['toAddress']);
+                                      final introFormatted = hit
+                                              .formatted?['intro']
+                                              ?.toString() ??
+                                          hit.formatted?['content']?.toString();
 
                                       final titleStyle = const TextStyle(
                                         color: AppColors.headingText,
@@ -511,22 +527,27 @@ class _SearchScreenState extends State<SearchScreen> {
 
                                       final fromNameRaw = hit.fromName;
                                       final fromAddressRaw = hit.fromAddress;
-                                      final toNameRaw =
-                                          hit.toName.isNotEmpty ? hit.toName.first : '';
-                                      final toAddressRaw = hit.toAddress.isNotEmpty
-                                          ? hit.toAddress.first
+                                      final toNameRaw = hit.toName.isNotEmpty
+                                          ? hit.toName.first
                                           : '';
+                                      final toAddressRaw =
+                                          hit.toAddress.isNotEmpty
+                                              ? hit.toAddress.first
+                                              : '';
 
-                                      final anyToMatches = hit.toName.any(containsQuery) ||
-                                          hit.toAddress.any(containsQuery);
+                                      final anyToMatches =
+                                          hit.toName.any(containsQuery) ||
+                                              hit.toAddress.any(containsQuery);
 
-                                      final useFrom = hasEm(fromNameFormatted) ||
-                                          hasEm(fromAddressFormatted) ||
-                                          containsQuery(fromNameRaw) ||
-                                          containsQuery(fromAddressRaw) ||
-                                          (!anyToMatches &&
-                                              (fromNameRaw.isNotEmpty ||
-                                                  fromAddressRaw.isNotEmpty));
+                                      final useFrom =
+                                          hasEm(fromNameFormatted) ||
+                                              hasEm(fromAddressFormatted) ||
+                                              containsQuery(fromNameRaw) ||
+                                              containsQuery(fromAddressRaw) ||
+                                              (!anyToMatches &&
+                                                  (fromNameRaw.isNotEmpty ||
+                                                      fromAddressRaw
+                                                          .isNotEmpty));
 
                                       final showToPrefix = !useFrom &&
                                           (hasEm(toNameFormatted) ||
@@ -535,10 +556,12 @@ class _SearchScreenState extends State<SearchScreen> {
 
                                       final primaryName =
                                           useFrom ? fromNameRaw : toNameRaw;
-                                      final primaryAddress =
-                                          useFrom ? fromAddressRaw : toAddressRaw;
-                                      final primaryNameFormatted =
-                                          useFrom ? fromNameFormatted : toNameFormatted;
+                                      final primaryAddress = useFrom
+                                          ? fromAddressRaw
+                                          : toAddressRaw;
+                                      final primaryNameFormatted = useFrom
+                                          ? fromNameFormatted
+                                          : toNameFormatted;
                                       final primaryAddressFormatted = useFrom
                                           ? fromAddressFormatted
                                           : toAddressFormatted;
@@ -584,14 +607,16 @@ class _SearchScreenState extends State<SearchScreen> {
                                                 style: subtitleStyle,
                                                 children: [
                                                   if (showToPrefix)
-                                                    const TextSpan(text: 'To: '),
+                                                    const TextSpan(
+                                                        text: 'To: '),
                                                   if (primaryName.isNotEmpty)
                                                     _highlightedSpan(
                                                       formatted:
                                                           primaryNameFormatted,
                                                       query: query,
                                                       fallback: primaryName,
-                                                      normalStyle: subtitleStyle,
+                                                      normalStyle:
+                                                          subtitleStyle,
                                                       highlightStyle:
                                                           subtitleHighlightStyle,
                                                     ),
@@ -604,7 +629,8 @@ class _SearchScreenState extends State<SearchScreen> {
                                                           primaryAddressFormatted,
                                                       query: query,
                                                       fallback: primaryAddress,
-                                                      normalStyle: subtitleStyle,
+                                                      normalStyle:
+                                                          subtitleStyle,
                                                       highlightStyle:
                                                           subtitleHighlightStyle,
                                                     ),
