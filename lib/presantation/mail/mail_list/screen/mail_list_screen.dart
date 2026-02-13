@@ -28,6 +28,7 @@ class _MailListScreenState extends State<MailListScreen> {
 
   final ScrollController _controller = ScrollController();
   bool _isEmptyingBin = false;
+  Timer? _refreshTimer;
   bool get _isTrashMailbox {
     final name = widget.mailboxName?.trim().toLowerCase() ?? '';
     return name == 'trash' || name == 'bin';
@@ -241,6 +242,9 @@ class _MailListScreenState extends State<MailListScreen> {
     _controller.addListener(_onScroll);
 
     _load();
+
+    // Start background refresh for ALL views (including filtered)
+    _startBackgroundRefresh();
   }
 
   @override
@@ -250,6 +254,10 @@ class _MailListScreenState extends State<MailListScreen> {
     if (oldWidget.mailboxId != widget.mailboxId) {
       debugPrint("🔁 Mailbox changed → ${widget.mailboxId}");
       _load();
+
+      // Restart background refresh for new mailbox
+      _refreshTimer?.cancel();
+      _startBackgroundRefresh();
     }
   }
 
@@ -271,18 +279,28 @@ class _MailListScreenState extends State<MailListScreen> {
 
     debugPrint("🔄 Loading mailbox/view → ${widget.mailboxId}");
 
-    /// 🔥 1️⃣ Clear filtered cache FIRST
-    if (_isFilteredView) {
-      _bloc.add(ClearMailCacheEvent());
-    }
-
-    /// 🔥 2️⃣ Reset mailbox cache
-    _bloc.add(ResetMailListEvent(widget.mailboxId));
-
-    /// 🔥 3️⃣ Fetch AFTER reset queued
+    /// 🔥 Fetch (BLoC will serve from cache if available)
     Future.microtask(() {
       if (!mounted) return;
       _fetch();
+    });
+  }
+
+  void _startBackgroundRefresh() {
+    // Refresh every 60 seconds
+    _refreshTimer = Timer.periodic(const Duration(seconds: 60), (timer) {
+      if (!mounted || !_canLoad) {
+        timer.cancel();
+        return;
+      }
+
+      debugPrint("⏰ Background refresh triggered for ${widget.mailboxId}");
+
+      if (_isFilteredView) {
+        _bloc.add(RefreshFilteredMailEvent(widget.mailboxId));
+      } else {
+        _bloc.add(RefreshMailListEvent(widget.mailboxId));
+      }
     });
   }
 
@@ -366,6 +384,7 @@ class _MailListScreenState extends State<MailListScreen> {
   @override
   void dispose() {
     _canLoad = false;
+    _refreshTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }

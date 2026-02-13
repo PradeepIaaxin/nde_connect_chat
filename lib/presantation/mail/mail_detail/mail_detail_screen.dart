@@ -2,6 +2,7 @@ import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/mailbox_model.dart';
 import 'package:nde_email/presantation/mail/common/dialogs/move_to_dialog.dart';
 import 'package:nde_email/presantation/mail/common/mail_more_menu.dart';
 import 'package:nde_email/presantation/mail/common/menuaction/mail_menu_action.dart';

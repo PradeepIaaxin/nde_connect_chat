@@ -80,15 +80,9 @@ class SuggestionsRepository {
       };
 
       log("📡 Calling suggestions folders API...");
-
       final response = await dio.get(
-        '${DriveService.baseUrl}/folders?file=documents',
+        '${DriveService.baseUrl}/folders?limit=$limit&page=$page&type=file&myfile=true&sortby=opencount&order=des&suggested=true',
         options: Options(headers: headers),
-        queryParameters: {
-          'page': page,
-          'limit': limit,
-          'sortBy': 'name',
-        },
       );
 
       if (response.statusCode != 200) {
@@ -311,7 +305,7 @@ class SuggestionsRepository {
         options: Options(headers: headers),
       );
       if (response.statusCode == 200) {
-        Messenger.alertSuccess('Trashed successfully!');
+        //Messenger.alertSuccess('Trashed successfully!');
       } else {
         print(
             'starred failed: Status ${response.statusCode}, Response: ${response.data}');
