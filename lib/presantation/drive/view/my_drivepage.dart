@@ -283,8 +283,8 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                             //     );
                           },
                         ),
-                      if(   file.type != "folder"
-                          )  BottomSheetOption(
+                        if (file.type != "folder")
+                          BottomSheetOption(
                             icon: Icons.open_with,
                             title: "Open with",
                             onTap: () {
@@ -295,8 +295,8 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                               // Messenger.alertSuccess("Copied");
                             },
                           ),
-                        if(   file.type != "folder"
-                        )   BottomSheetOption(
+                        if (file.type != "folder")
+                          BottomSheetOption(
                             icon: Icons.ios_share_outlined,
                             title: "Send a copy",
                             onTap: () async {
@@ -428,7 +428,7 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                           icon: Icons.delete,
                           title: "Move to bin",
                           onTap: () {
-                            showMoveToBinDialog(context,() {
+                            showMoveToBinDialog(context, () {
                               context.read<MyDriveBloc>().add(
                                     MoveToTrashEvent(fileIDs: [file.id]),
                                   );
@@ -729,10 +729,27 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                                           icon: Icons.delete,
                                           title: "Remove",
                                           onTap: () {
-                                            context.read<MyDriveBloc>().add(
-                                                  MoveToTrashEvent(
-                                                      fileIDs: [file.id]),
-                                                );
+                                            showMoveToBinDialog(context, () {
+                                              context.read<MyDriveBloc>().add(
+                                                    MoveToTrashEvent(
+                                                        fileIDs: [file.id]),
+                                                  );
+                                              Messenger.alertAction(
+                                                color: Colors.green,
+                                                msg: "Item moved to trash",
+                                                actionLabel: "Undo",
+                                                duration:
+                                                    const Duration(seconds: 2),
+                                                onAction: () {
+                                                  context
+                                                      .read<MyDriveBloc>()
+                                                      .add(
+                                                        RestoreEvent(
+                                                            fileIDs: [file.id]),
+                                                      );
+                                                },
+                                              );
+                                            }, file.name);
                                           },
                                         ),
                                       ],
@@ -882,7 +899,8 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                               height: 50,
                               width: double.infinity,
                               color: Colors.transparent,
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 12),
                               child: isSelectionMode
                                   ? Row(
                                       children: [
@@ -958,7 +976,8 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                                                       : Icons.star_border,
                                                   title: selectedFolderModels
                                                           .every((f) =>
-                                                              f.starred ?? false)
+                                                              f.starred ??
+                                                              false)
                                                       ? "Remove from Starred"
                                                       : "Add to Starred",
                                                   onTap: () {
@@ -1029,6 +1048,26 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                                                                     selectedFolders
                                                                         .toList()),
                                                           );
+                                                      Messenger.alertAction(
+                                                        color: Colors.green,
+                                                        msg:
+                                                            "Item moved to trash",
+                                                        actionLabel: "Undo",
+                                                        duration:
+                                                            const Duration(
+                                                                seconds: 2),
+                                                        onAction: () {
+                                                          context
+                                                              .read<
+                                                                  MyDriveBloc>()
+                                                              .add(
+                                                                RestoreEvent(
+                                                                    fileIDs:
+                                                                        selectedFolders
+                                                                            .toList()),
+                                                              );
+                                                        },
+                                                      );
                                                     }, "");
                                                     _clearSelection();
                                                   },
@@ -1137,7 +1176,6 @@ class MyComputer extends StatelessWidget {
     );
   }
 }
-
 
 class DateFormatted {
   static String formatToReadableDate(DateTime date) {

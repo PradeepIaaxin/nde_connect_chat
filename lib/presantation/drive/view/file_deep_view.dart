@@ -27,6 +27,8 @@ import 'package:nde_email/utils/snackbar/snackbar.dart';
 import 'package:nde_email/utils/spacer/spacer.dart';
 import 'package:share_plus/share_plus.dart';
 
+import 'common_funtions.dart';
+
 class FileDeepView extends StatefulWidget {
   final String fileId;
   final String folderName;
@@ -312,12 +314,26 @@ class _FileDeepViewState extends State<FileDeepView> {
                             icon: Icons.delete,
                             title: "Delete",
                             onTap: () {
-                              context.read<InsideBloc>().add(
-                                    InMoveToTrashEvent(
-                                      fileIDs: selectedFolders.toList(),
-                                      selectedId: widget.fileId,
-                                    ),
-                                  );
+                              showMoveToBinDialog(context, () {
+                                final ids = selectedFolders.toList();
+                                context.read<InsideBloc>().add(
+                                      InMoveToTrashEvent(
+                                        fileIDs: ids,
+                                        selectedId: widget.fileId,
+                                      ),
+                                    );
+                                Messenger.alertAction(
+                                  color: Colors.green,
+                                  msg: "Item moved to trash",
+                                  actionLabel: "Undo",
+                                  duration: const Duration(seconds: 2),
+                                  onAction: () {
+                                    context.read<InsideBloc>().add(
+                                          InRestoreEvent(fileIDs: ids),
+                                        );
+                                  },
+                                );
+                              }, "");
                               _clearSelection();
                             },
                           ),
@@ -708,10 +724,24 @@ class _FolderGridItem extends StatelessWidget {
                                   icon: Icons.delete,
                                   title: "Remove",
                                   onTap: () {
-                                    context.read<InsideBloc>().add(
-                                        InMoveToTrashEvent(
-                                            fileIDs: [folder.id],
-                                            selectedId: currentId));
+                                    showMoveToBinDialog(context, () {
+                                      context.read<InsideBloc>().add(
+                                          InMoveToTrashEvent(
+                                              fileIDs: [folder.id],
+                                              selectedId: currentId));
+                                      Messenger.alertAction(
+                                        color: Colors.green,
+                                        msg: "Item moved to trash",
+                                        actionLabel: "Undo",
+                                        duration: const Duration(seconds: 2),
+                                        onAction: () {
+                                          context.read<InsideBloc>().add(
+                                                InRestoreEvent(
+                                                    fileIDs: [folder.id]),
+                                              );
+                                        },
+                                      );
+                                    }, folder.name);
                                   },
                                 ),
                               ],
