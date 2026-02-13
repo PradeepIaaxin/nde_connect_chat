@@ -183,15 +183,6 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
                                   ...appBarState.other,
                                 ];
                               }
-                              // final folders = [
-                              //   ...appBarState.inbox,
-                              //   ...appBarState.archive,
-                              //   ...appBarState.drafts,
-                              //   ...appBarState.junk,
-                              //   ...appBarState.sent,
-                              //   ...appBarState.trash,
-                              //   ...appBarState.other,
-                              // ];
 
                               showMoveToMailboxDialog(
                                 context: context,
@@ -465,6 +456,24 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
                                                 : "N/A",
                                             mailDetail.to.isNotEmpty
                                                 ? mailDetail.to.first.address
+                                                : "",
+                                          ),
+                                          _buildDetailRow(
+                                            "cc ",
+                                            mailDetail.cc.isNotEmpty
+                                                ? mailDetail.cc.first.name
+                                                : "N/A",
+                                            mailDetail.to.isNotEmpty
+                                                ? mailDetail.to.first.address
+                                                : "",
+                                          ),
+                                          _buildDetailRow(
+                                            "Bcc ",
+                                            mailDetail.bcc.isNotEmpty
+                                                ? mailDetail.bcc.first.name
+                                                : "N/A",
+                                            mailDetail.bcc.isNotEmpty
+                                                ? mailDetail.bcc.first.address
                                                 : "",
                                           ),
                                           const SizedBox(height: 7),
