@@ -109,6 +109,7 @@ void showMoveToBinDialog(BuildContext context, VoidCallback onTap,String Name) {
                     height: 1.4,
                   ),
                 ),
+
                 const SizedBox(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
