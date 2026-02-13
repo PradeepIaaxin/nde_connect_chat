@@ -5,8 +5,6 @@ import 'package:nde_email/presantation/drive/Bloc/file_bloc/myfile_state.dart';
 import 'package:nde_email/presantation/drive/data/my_drive_repository.dart';
 import 'package:nde_email/presantation/drive/model/mydrive_model.dart';
 
-import '../../../../utils/snackbar/snackbar.dart';
-
 class _TrashedEntry {
   final Rows row;
   final int index;
@@ -208,7 +206,6 @@ class MyDriveBloc extends Bloc<MyDriveEvent, MyDriveState> {
 
       emit(MyDriveLoaded(
           List<Rows>.from(_allFolders), _hasMore, 'Moved to Trash'));
-      Messenger.alertSuccess('Trashed successfully!');
     } catch (e) {
       emit(MyDriveError(e.toString()));
     }

@@ -1075,8 +1075,21 @@ class _FolderListItem extends StatelessWidget {
                     icon: Icons.delete,
                     title: "Remove",
                     onTap: () {
-                      context.read<InsideBloc>().add(InMoveToTrashEvent(
-                          fileIDs: [folder.id], selectedId: currentId));
+                      showMoveToBinDialog(context, () {
+                        context.read<InsideBloc>().add(InMoveToTrashEvent(
+                            fileIDs: [folder.id], selectedId: currentId));
+                        Messenger.alertAction(
+                          color: Colors.green,
+                          msg: "Item moved to trash",
+                          actionLabel: "Undo",
+                          duration: const Duration(seconds: 2),
+                          onAction: () {
+                            context.read<InsideBloc>().add(
+                                  InRestoreEvent(fileIDs: [folder.id]),
+                                );
+                          },
+                        );
+                      }, folder.name);
                     },
                   ),
                 ],
