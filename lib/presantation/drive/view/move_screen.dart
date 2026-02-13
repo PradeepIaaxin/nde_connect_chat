@@ -12,7 +12,11 @@ import 'package:nde_email/presantation/drive/view/move_drive_page.dart';
 import 'package:nde_email/presantation/drive/view/move_sharred_page.dart';
 import 'package:nde_email/presantation/drive/view/move_starred_page.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
+import 'package:nde_email/utils/imports/common_imports.dart';
 import 'package:nde_email/utils/snackbar/snackbar.dart';
+
+import '../Bloc/file_bloc/my_drive_bloc.dart';
+import '../Bloc/file_bloc/myfile_event.dart';
 
 class MoveFileScreen extends StatelessWidget {
   final String movingFileId;
@@ -66,10 +70,19 @@ class _MoveFileViewState extends State<MoveFileView> {
   Widget build(BuildContext context) {
     return BlocListener<MoveFileBloc, MoveFileState>(
       listener: (context, state) {
-        if (state is MoveFileSuccess) {
+        if (state is MoveFileSuccess) {  /// ✅ RESET PAGINATION
           Messenger.alertSuccess("File moved successfully");
+          context.read<MyDriveBloc>().resetPagination();
+          context.read<MyDriveBloc>().add(
+            FetchMyDriveFolders(
+              sortBy:"name",
+              order: "asc",
+              showLoading: false,
+            ),
+          );
+log("...................");
+          Navigator.of(context).pop(true);
 
-          Navigator.pop(context);
         } else if (state is MoveFileFailure) {
           Messenger.alertError(state.message);
         }

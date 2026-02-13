@@ -18,3 +18,5 @@ class CreateFolderConflict extends CreateFolderState {
 
   List<Object?> get props => [message];
 }
+class UploadFilesSuccess extends CreateFolderState {}
+class ReplaceFilesSuccess extends CreateFolderState {}
