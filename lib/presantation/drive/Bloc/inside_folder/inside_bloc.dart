@@ -11,7 +11,7 @@ class InsideBloc extends Bloc<InsideEvent, InsidefileState> {
   int _page = 1;
   final int _limit = 20;
   bool _hasMore = true;
-  List<FolderinsideModel> _allFolders = [];
+  final List<FolderinsideModel> _allFolders = [];
 
   InsideBloc({required this.repository}) : super(InsideLoading()) {
     on<InFetchStarredFolders>(_onFetchStarredFolders);

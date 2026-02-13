@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:file_picker/file_picker.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_bloc.dart';
@@ -5,10 +7,11 @@ import 'package:nde_email/presantation/chat/chat_group_Screen/group_event.dart'
     as grp_event;
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/messager_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/messager_event.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/media_preview_screen.dart';
 
 import 'package:nde_email/utils/reusbale/common_import.dart';
 
-import '../../../chat/chat_private_screen/messager_Bloc/widget/MediaPreviewScreen.dart';
+
 import '../../../chat/chat_private_screen/messager_Bloc/widget/video_preview_screen.dart';
 
 class ShowAltDialog {
@@ -606,7 +609,7 @@ class ShowAltDialog {
                 conversationId,
                 senderId,
                 receiverId: receiverId,
-                message: caption ?? null,
+                message: caption,
                 isGroupMessage: isGroupChat,
                 isGroupMessageChat: isGroupMessage,
                 groupMesageId: groupMessageId,

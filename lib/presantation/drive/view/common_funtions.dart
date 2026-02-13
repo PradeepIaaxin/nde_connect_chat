@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:developer';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
@@ -27,11 +29,11 @@ Future<File> downloadFile(String url, String name) async {
   await file.writeAsBytes(res.bodyBytes);
   return file;
 }
+
 String getFileName(String url) =>
     Uri.parse(url).pathSegments.last.split("?").first;
 Future<void> openWithSystemApps(String fileUrl) async {
-  final file =
-  await downloadFile(fileUrl, getFileName(fileUrl));
+  final file = await downloadFile(fileUrl, getFileName(fileUrl));
 
   final result = await OpenFilex.open(file.path);
 
@@ -43,13 +45,14 @@ Future<void> openCamera(BuildContext context) async {
 
   final XFile? photo = await picker.pickImage(
     source: ImageSource.camera,
-    imageQuality: 85,          // compress like Drive
+    imageQuality: 85, // compress like Drive
   );
 
   if (photo == null) return;
 
   _goToUploadScreen(context, photo);
 }
+
 Future<void> _goToUploadScreen(BuildContext context, XFile file) async {
   final bytes = await file.readAsBytes();
 
@@ -101,9 +104,9 @@ void showMoveToBinDialog(BuildContext context, VoidCallback onTap,String Name) {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  "‘${Name.isEmpty ? "File" : Name}’ will be deleted forever after 30 days Collaborators will lose access.",
-                  softWrap: true,
-                  overflow: TextOverflow.visible,
+                  "‘${Name.isEmpty?"File":Name}’ will be deleted forever after 30 days"
+                  "Collaborators will lose access.",
+                  maxLines: 2,
                   style: const TextStyle(
                     color: Colors.black87,
                     fontSize: 15,

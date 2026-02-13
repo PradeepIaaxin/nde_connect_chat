@@ -9,14 +9,14 @@ import 'package:nde_email/presantation/chat/model/emoj_model.dart';
 import 'package:nde_email/utils/device/device_keys.dart';
 import 'package:nde_email/utils/device_info/device_info.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
-import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:socket_io_client/socket_io_client.dart' as io;
 
 class SocketService {
   static final SocketService _instance = SocketService._internal();
   factory SocketService() => _instance;
   SocketService._internal();
 
-  IO.Socket? socket;
+  io.Socket? socket;
   Timer? _typingTimeout;
 
   String? roommId;
@@ -204,9 +204,9 @@ class SocketService {
     log("socket creating....");
     const String socketUrl = 'https://api.nowdigitaleasy.com/wschat';
 
-    socket = IO.io(
+    socket = io.io(
       socketUrl,
-      IO.OptionBuilder()
+      io.OptionBuilder()
           .setPath('/wschat/socket.io')
           .setQuery({
             'token': 'Bearer $token',

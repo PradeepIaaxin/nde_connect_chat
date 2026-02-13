@@ -15,7 +15,7 @@ import 'package:nde_email/presantation/drive/common/show_rename.dart';
 import 'package:nde_email/presantation/drive/model/mydrive_model.dart'
 as drive_model;
 import 'package:nde_email/presantation/drive/model/mydrive_model.dart';
-import 'package:nde_email/presantation/drive/view/file_deatilsScreen.dart';
+import 'package:nde_email/presantation/drive/view/file_deatils_screen.dart';
 import 'package:nde_email/presantation/drive/view/file_deep_view.dart';
 import 'package:nde_email/presantation/drive/view/manage_acces_screen.dart';
 import 'package:nde_email/presantation/drive/view/move_screen.dart';
@@ -433,7 +433,7 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                           icon: Icons.delete,
                           title: "Move to bin",
                           onTap: () {
-                            showMoveToBinDialog(context,() {
+                            showMoveToBinDialog(context, () {
                               context.read<MyDriveBloc>().add(
                                 MoveToTrashEvent(fileIDs: [file.id]),
                               );
@@ -885,7 +885,8 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                               height: 50,
                               width: double.infinity,
                               color: Colors.transparent,
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 12),
                               child: isSelectionMode
                                   ? Row(
                                 children: [
@@ -1133,7 +1134,6 @@ class MyComputer extends StatelessWidget {
     );
   }
 }
-
 
 class DateFormatted {
   static String formatToReadableDate(DateTime date) {

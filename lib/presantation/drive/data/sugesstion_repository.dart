@@ -288,7 +288,7 @@ class SuggestionsRepository {
       if (response.statusCode == 200) {
         Messenger.alertSuccess('Organize successfully!');
       } else {
-        print(
+        log(
             ' failed: Status ${response.statusCode}, Response: ${response.data}');
       }
     } catch (e) {
@@ -306,9 +306,9 @@ class SuggestionsRepository {
         options: Options(headers: headers),
       );
       if (response.statusCode == 200) {
-        Messenger.alertSuccess('Trashed successfully!');
+        //Messenger.alertSuccess('Trashed successfully!');
       } else {
-        print(
+        log(
             'starred failed: Status ${response.statusCode}, Response: ${response.data}');
       }
     } catch (e) {
@@ -334,7 +334,7 @@ class SuggestionsRepository {
               '${fileIDs.length} files deleted permanently.');
         }
       } else {
-        print(
+        log(
             'deletePermanetly failed: Status ${response.statusCode}, Response: ${response.data}');
       }
     } catch (e) {
@@ -359,7 +359,7 @@ class SuggestionsRepository {
               '${fileIDs.length} files restored successfully.');
         }
       } else {
-        print(
+        log(
             'restoreAll failed: Status ${response.statusCode}, Response: ${response.data}');
       }
     } catch (e) {
@@ -380,19 +380,19 @@ class SuggestionsRepository {
       if (response.statusCode == 200) {
         Messenger.alertSuccess('Folder renamed successfully!');
       } else {
-        print(
+        log(
             'renameFolder failed: Status code ${response.statusCode}, Response: ${response.data}');
       }
     } catch (e, stackTrace) {
-      print('renameFolder exception: $e\n$stackTrace');
+      log('renameFolder exception: $e\n$stackTrace');
     }
   }
 
   void _handleError(Object error, String context) {
     if (error is DioException) {
-      print(' DioException: ${error.response?.statusCode} - ${error.message}');
+      log(' DioException: ${error.response?.statusCode} - ${error.message}');
     } else {
-      print('[$context] Unexpected error: $error');
+      log('[$context] Unexpected error: $error');
     }
   }
 }

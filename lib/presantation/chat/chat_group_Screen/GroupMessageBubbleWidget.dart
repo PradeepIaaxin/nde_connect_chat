@@ -2,8 +2,9 @@
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_repliedmessage_preview.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/message_caption.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/whatsapp_swipe_to_reply.dart';
-import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/ForwardMessageScreen_widget.dart';
+
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/audio_message_widget.dart';
+import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/forward_messagescreen_widget.dart';
 
 import 'package:nde_email/utils/reusbale/colour_utlis.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
@@ -90,7 +91,7 @@ class GroupMessageBubbleWidget extends StatelessWidget {
     final String content = sanitizeString(message['content']?.toString() ?? '');
     final String? imageUrl = message['imageUrl'] ?? imageFile?.path;
     final String? fileUrlValue = message['fileUrl'] ?? fileUrl?.path;
-    final String? fileName = message['fileName']?.toString() ?? '';
+    final String fileName = message['fileName']?.toString() ?? '';
     final String? fileType = message['fileType'];
     final bool? isForwarded = message['isForwarded'] ?? false;
 
@@ -122,20 +123,17 @@ class GroupMessageBubbleWidget extends StatelessWidget {
 
     final bool isImage =
         (fileType != null && fileType.toLowerCase().startsWith("image")) ||
-            (fileName != null &&
-                RegExp(r'\.(jpg|jpeg|png|gif|webp|bmp)$', caseSensitive: false)
+            (RegExp(r'\.(jpg|jpeg|png|gif|webp|bmp)$', caseSensitive: false)
                     .hasMatch(fileName));
 
     final bool isVideo =
         (fileType != null && fileType.toLowerCase().startsWith("video")) ||
-            (fileName != null &&
-                RegExp(r'\.(mp4|mov|avi|mkv|webm)$', caseSensitive: false)
+            (RegExp(r'\.(mp4|mov|avi|mkv|webm)$', caseSensitive: false)
                     .hasMatch(fileName));
 
     final bool isAudio = (fileType != null &&
             fileType.toLowerCase().startsWith("audio")) ||
-        (fileName != null &&
-            RegExp(r'\.(mp3|wav|aac|m4a|flac|ogg|opus)$', caseSensitive: false)
+        (RegExp(r'\.(mp3|wav|aac|m4a|flac|ogg|opus)$', caseSensitive: false)
                 .hasMatch(fileName));
 
     final String messageStatus =

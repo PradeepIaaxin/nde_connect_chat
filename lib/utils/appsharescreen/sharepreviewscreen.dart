@@ -1,11 +1,14 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:nde_email/data/respiratory.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_data_model.dart';
-import 'package:nde_email/presantation/chat/chat_private_screen/Private_Chat_Screen.dart';
-import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/MediaPreviewScreen.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/private_chat_screen.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/media_preview_screen.dart';
+
 import 'package:nde_email/presantation/home/home_screen.dart';
 import 'package:nde_email/utils/appsharescreen/shared_widget.dart';
 import 'package:nde_email/utils/router/router.dart';

@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -199,7 +201,9 @@ class _ViewImageState extends State<ViewImage>
                           icon: const Icon(Icons.share, color: Colors.white),
                           onPressed: () {
                             if (widget.imageurl.isNotEmpty) {
-                              Share.share(widget.imageurl);
+                                SharePlus.instance.share(
+                                        ShareParams(text: widget.imageurl),
+                                      );
                             }
                           },
                         ),

@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously, deprecated_member_use
+
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
@@ -65,6 +67,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
   final TextEditingController bccCont = TextEditingController();
   final TextEditingController subjectCont = TextEditingController();
   final TextEditingController composeMailCont = TextEditingController();
+  final FocusNode _bodyFocusNode = FocusNode();
   Timer? _draftTimer;
 
   List<String> toEmails = [];
@@ -140,6 +143,13 @@ class _ComposeScreenState extends State<ComposeScreen> {
               "To: $toList\n";
           break;
       }
+
+      if (action == ComposeAction.reply || action == ComposeAction.replyAll) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _bodyFocusNode.requestFocus();
+          composeMailCont.selection = const TextSelection.collapsed(offset: 0);
+        });
+      }
     } else {
       _loadDraftData();
     }
@@ -159,6 +169,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
   @override
   void dispose() {
     _draftTimer?.cancel();
+    _bodyFocusNode.dispose();
     super.dispose();
   }
 
@@ -1146,6 +1157,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
   Widget _buildBodyField() {
     return TextFormField(
       controller: composeMailCont,
+      focusNode: _bodyFocusNode,
       minLines: 5,
       maxLines: 100,
       keyboardType: TextInputType.multiline,

@@ -1,13 +1,15 @@
-﻿import 'package:flutter/foundation.dart' as foundation;
+﻿// ignore_for_file: use_build_context_synchronously, deprecated_member_use
+
+import 'package:flutter/foundation.dart' as foundation;
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'dart:convert';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/gestures.dart';
+import 'package:nde_email/presantation/chat/socket/socket_service.dart' as socket_service;
 import 'package:nde_email/presantation/chat/chat_contact_list/local_strorage.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/GroupMessageBubbleWidget.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/file_opener_utils.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_offline_message_handling.dart';
-
 import 'package:nde_email/presantation/chat/chat_group_Screen/api_servicer.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_chat_media_grouping_utils.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_chat_message_utils.dart';
@@ -21,7 +23,7 @@ import 'package:nde_email/presantation/chat/chat_group_Screen/group_event.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_model.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_state.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/mention_text_editing_controller.dart';
-import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/MediaPreviewScreen.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/media_preview_screen.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/audio_reuable.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/commonfuntion.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/mixed_media_viewer.dart';
@@ -32,8 +34,7 @@ import 'package:nde_email/presantation/chat/widget/scaffold.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/grouped_media_viewer.dart'
     as viewer;
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/grouped_media_widget.dart';
-import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/build_messageInputfield_widgets.dart';
-
+import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/build_message_inputfield_widgets.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/show_Bottom_Sheet.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/reaction_bar.dart';
 import 'package:nde_email/utils/reusbale/colour_utlis.dart';
@@ -41,14 +42,10 @@ import 'package:nde_email/utils/reusbale/common_import.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/whatsapp_swipe_to_reply.dart';
 import '../../../data/respiratory.dart';
 import '../../../utils/simmer_effect.dart/chat_simmerefect.dart';
-import '../../widgets/chat_widgets/messager_Wifgets/ForwardMessageScreen_widget.dart';
-
-import '../Socket/Socket_Service.dart';
-
+import '../../widgets/chat_widgets/messager_Wifgets/forward_messagescreen_widget.dart';
 import '../chat_list/chat_session_storage/chat_session.dart';
 import '../chat_list/chat_bloc.dart';
 import '../chat_list/chat_event.dart';
-
 import '../model/emoj_model.dart';
 import 'package:nde_email/presantation/chat/chat_ userprofile_screen/bloc/profile_screen_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_ userprofile_screen/bloc/profile_screen_event.dart';
@@ -91,7 +88,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   final recorderHelper = AudioRecorderHelper();
   List<Map<String, dynamic>> messages = [];
   List<Map<String, dynamic>> socketMessages = [];
-  final SocketService socketService = SocketService();
+  final socket_service.SocketService socketService = socket_service.SocketService();
 
   StreamSubscription<String>? _messageDeletedSubscription;
 
@@ -113,7 +110,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   final int _limit = 40;
   Timer? _timer;
   bool _messagesFetched = false;
-
 
   // Locked Recording State
   bool _isRecordingLocked = false;
@@ -170,72 +166,43 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Timer? _readMarkDebounce;
   List<Map<String, dynamic>> _latestGroupedMessages = const [];
 
-@override
-void dispose() {
-  // 🔥 Immediate safe cancels (must run instantly)
-  _draftDebounce?.cancel();
-  _saveMessagesDebounce?.cancel();
-  _readMarkDebounce?.cancel();
+  @override
+  void dispose() {
+    // 🔥 Immediate safe cancels (must run instantly)
+    _draftDebounce?.cancel();
+    _saveMessagesDebounce?.cancel();
+    _readMarkDebounce?.cancel();
 
-  _messageDeletedSubscription?.cancel();
-  _reactionSubscription?.cancel();
-  _messageSubscription?.cancel();
-  _statusSubscription?.cancel();
-  _blocStateSubscription?.cancel();
-  _connSub?.cancel();
+    _messageDeletedSubscription?.cancel();
+    _reactionSubscription?.cancel();
+    _messageSubscription?.cancel();
+    _statusSubscription?.cancel();
+    _blocStateSubscription?.cancel();
+    _connSub?.cancel();
 
-  _timer?.cancel();
-  _recordingTimer?.cancel();
-  _recordTimer?.cancel();
-  _highlightTimer?.cancel();
+    _timer?.cancel();
+    _recordingTimer?.cancel();
+    _recordTimer?.cancel();
+    _highlightTimer?.cancel();
 
-  _scrollController.removeListener(_scrollListener);
-  _scrollController.dispose();
+    _scrollController.removeListener(_scrollListener);
+    _scrollController.dispose();
 
-  _messageController.dispose();
-  _focusNode.dispose();
-  _searchController.dispose();
+    _messageController.dispose();
+    _focusNode.dispose();
+    _searchController.dispose();
 
-  _messageContexts.clear();
+    _messageContexts.clear();
 
-  // 🕒 Delay heavy cleanup (0.1 sec)
-  Future.delayed(const Duration(milliseconds: 100), () {
-    SocketService().clearActiveConversation();
+    // 🕒 Delay heavy cleanup (0.1 sec)
+    Future.delayed(const Duration(milliseconds: 100), () {
+      socket_service.SocketService().clearActiveConversation();
 
-    _scheduleClearSessionImagePath();
-  });
+      _scheduleClearSessionImagePath();
+    });
 
-  super.dispose();
-}
-
-  // void dispose() {
-  //   _draftDebounce?.cancel();
-  //   _saveMessagesDebounce?.cancel();
-  //   _readMarkDebounce?.cancel();
-  //   SocketService().clearActiveConversation();
-  //   _messageDeletedSubscription?.cancel();
-  //   _messageController.text.trim();
-
-  //   _messageController.dispose();
-  //   _focusNode.dispose();
-  //   _scrollController.removeListener(_scrollListener);
-  //   _scrollController.dispose();
-
-  //   _timer?.cancel();
-  //   _recordingTimer?.cancel();
-  //   _recordTimer?.cancel();
-  //   _highlightTimer?.cancel();
-  //   _messageContexts.clear();
-  //   _reactionSubscription?.cancel();
-  //   _messageSubscription?.cancel();
-  //   _statusSubscription?.cancel();
-  //   _blocStateSubscription?.cancel();
-  //   _connSub?.cancel();
-  //   _searchController.dispose();
-
-  //   unawaited(_scheduleClearSessionImagePath());
-  //   super.dispose();
-  // }
+    super.dispose();
+  }
 
   Future<void> _scheduleClearSessionImagePath() {
     return Future<void>(() async {
@@ -530,7 +497,7 @@ void dispose() {
   void initState() {
     super.initState();
 
-    SocketService().setActiveConversation(widget.conversationId);
+    socket_service.SocketService().setActiveConversation(widget.conversationId);
     currentUserId = widget.currentUserId;
     _groupBloc = GroupChatBloc(socketService, GrpMessagerApiService());
     _chatListBloc = context.read<ChatListBloc>();
@@ -555,7 +522,7 @@ void dispose() {
       getCombinedMessages: _getCombinedMessages,
       updateMessageStatus: _updateMessageStatus,
     );
-    SocketService().joinChatRoom(
+  socket_service.SocketService().joinChatRoom(
       senderId: currentUserId,
       receiverId: widget.datumId,
       isGroupChat: true,
@@ -592,7 +559,7 @@ void dispose() {
     }
 
     _scrollController.addListener(_scrollListener);
- 
+
     _setupMessageListener();
 
     _messageController.addListener(() {
@@ -1349,53 +1316,53 @@ void dispose() {
       );
     }
   }
+
   Future<void> _initMessages() async {
-  if (_messagesFetched) return;   
-  _messagesFetched = true;
+    if (_messagesFetched) return;
+    _messagesFetched = true;
 
-  await Future.delayed(Duration.zero);
+    await Future.delayed(Duration.zero);
 
-  if (mounted) {
-    setState(() {
-      dbMessages.clear();
-      messages.clear();
-      socketMessages.clear();
-      _seenMessageIds.clear();
-    });
-  }
-
-  final savedMessages =
-      await GrpLocalChatStorage.loadMessages(widget.conversationId);
-
-  if (savedMessages.isNotEmpty) {
     if (mounted) {
       setState(() {
-        dbMessages = savedMessages
-            .map<Map<String, dynamic>>(
-                (msg) => GroupChatNormalizeUtils.normalizeMessage(msg))
-            .where((m) => m.isNotEmpty)
-            .toList();
-
-        for (var m in dbMessages) {
-          final id = (m['message_id'] ?? m['id'])?.toString();
-          if (id != null && id.isNotEmpty) _seenMessageIds.add(id);
-        }
+        dbMessages.clear();
+        messages.clear();
+        socketMessages.clear();
+        _seenMessageIds.clear();
       });
-
-      _updateNotifier();
     }
+
+    final savedMessages =
+        GrpLocalChatStorage.loadMessages(widget.conversationId);
+
+    if (savedMessages.isNotEmpty) {
+      if (mounted) {
+        setState(() {
+          dbMessages = savedMessages
+              .map<Map<String, dynamic>>(
+                  (msg) => GroupChatNormalizeUtils.normalizeMessage(msg))
+              .where((m) => m.isNotEmpty)
+              .toList();
+
+          for (var m in dbMessages) {
+            final id = (m['message_id'] ?? m['id'])?.toString();
+            if (id != null && id.isNotEmpty) _seenMessageIds.add(id);
+          }
+        });
+
+        _updateNotifier();
+      }
+    }
+
+    // 🔥 API CALL ONLY ONCE
+    _groupBloc.add(
+      FetchGroupMessages(
+        convoId: widget.conversationId,
+        page: 1,
+        limit: _limit,
+      ),
+    );
   }
-
-  // 🔥 API CALL ONLY ONCE
-  _groupBloc.add(
-    FetchGroupMessages(
-      convoId: widget.conversationId,
-      page: 1,
-      limit: _limit,
-    ),
-  );
-}
-
 
   // Future<void> _initMessages() async {
   //   // 🟢 OPTIMIZATION: Yield to event loop to allow navigation animation to finish smoothly
@@ -4087,8 +4054,7 @@ void dispose() {
   }
 
   void _openFullEmojiPicker(
-      BuildContext context, Map<String, dynamic> message)
-  {
+      BuildContext context, Map<String, dynamic> message) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -4331,8 +4297,7 @@ void dispose() {
   Future<void> _handleGroupReactionTap(
     Map<String, dynamic> message,
     String emoji,
-  )
-  async {
+  ) async {
     try {
       final rawId = (message['message_id'] ??
               message['messageId'] ??
@@ -4442,8 +4407,7 @@ void dispose() {
   }
 
   Future<void> _showReactionsBottomSheet(
-      Map<String, dynamic> message, String initialEmoji)
-  async {
+      Map<String, dynamic> message, String initialEmoji) async {
     // helper to build normalized reactions list for a message object
     List<Map<String, dynamic>> normalizeFromMap(Map<String, dynamic> msg) {
       final List<Map<String, dynamic>> out = [];

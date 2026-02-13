@@ -125,11 +125,10 @@ class _MoveSharedPageState extends State<MoveSharedPage> {
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                     const SizedBox(height: 4),
-                                    if (folder.updatedAt != null)
-                                      Text(
-                                        "Modified ${DateFormatter.formatToReadableDate(folder.updatedAt)}",
-                                        style: const TextStyle(fontSize: 12),
-                                      ),
+                                    Text(
+                                      "Modified ${DateFormatter.formatToReadableDate(folder.updatedAt)}",
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
                                   ],
                                 ),
                               ),

@@ -1,9 +1,11 @@
+// ignore_for_file: deprecated_member_use
+
 import 'dart:async';
 import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:nde_email/presantation/chat/Socket/Socket_Service.dart';
-import 'package:nde_email/presantation/chat/chat_group_Screen/GroupChatScreen.dart';
+                                                                                                             
+import 'package:nde_email/presantation/chat/chat_group_Screen/group_chat_screen.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_event.dart';
 import 'package:nde_email/presantation/chat/chat_list/chat_bloc.dart';
@@ -15,6 +17,7 @@ import 'package:nde_email/presantation/chat/chat_list/chat_state.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/messager_event.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/private_chat_screen.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/messager_bloc.dart';
+import 'package:nde_email/presantation/chat/socket/socket_service.dart';
 
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/const/consts.dart';

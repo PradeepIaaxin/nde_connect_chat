@@ -2,7 +2,7 @@ import 'dart:math';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:nde_email/data/respiratory.dart';
-import 'package:nde_email/presantation/drive/model/fileSize.dart';
+import 'package:nde_email/presantation/drive/model/file_size.dart';
 import 'package:nde_email/presantation/drive/view/recent_screen.dart';
 import 'package:nde_email/presantation/drive/view/storage_screen.dart';
 import 'package:nde_email/presantation/drive/view/trash_screen.dart';

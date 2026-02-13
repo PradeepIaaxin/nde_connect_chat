@@ -1,4 +1,3 @@
-
 import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -106,7 +105,6 @@ class _CustomDrawerState extends State<CustomDrawer> {
       totalStarred = starredMails.length;
       totalStarredUnread =
           starredMails.where((mail) => mail.seen == false).length;
-      //log('📊 Drawer sync - Total starred: $totalStarred, Unread starred: $totalStarredUnread');
     } catch (e) {
       log('❌ Error fetching starred mails in drawer: $e');
       // If fetching fails, default to 0
@@ -221,6 +219,8 @@ class _CustomDrawerState extends State<CustomDrawer> {
 
   /// ---------------- PROFILE HEADER ----------------
   Widget _buildProfileHeader() {
+    final hasImage = profilePicUrl != null && profilePicUrl!.isNotEmpty;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
       child: Row(
@@ -228,20 +228,19 @@ class _CustomDrawerState extends State<CustomDrawer> {
           CircleAvatar(
             radius: 22,
             backgroundColor: AppColors.iconActive,
-            backgroundImage: profilePicUrl != null && profilePicUrl!.isNotEmpty
-                ? CachedNetworkImageProvider(profilePicUrl!)
-                : null,
-            child: profilePicUrl == null || profilePicUrl!.isEmpty
-                ? Text(
-                    userName != null && userName!.isNotEmpty
-                        ? userName![0].toUpperCase()
-                        : "U",
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  )
-                : null,
+            child: ClipOval(
+              child: hasImage
+                  ? CachedNetworkImage(
+                      imageUrl: profilePicUrl!,
+                      width: 44,
+                      height: 44,
+                      fit: BoxFit.cover,
+                      placeholder: (_, __) =>
+                          const CircularProgressIndicator(strokeWidth: 2),
+                      errorWidget: (_, __, ___) => _buildInitialSmallAvatar(),
+                    )
+                  : _buildInitialSmallAvatar(),
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -256,7 +255,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                   ),
                 ),
                 Text(
-                  userEmail ?? '',
+                  "Nde Connect",
                   style: TextStyle(
                     fontSize: 13,
                     color: Colors.grey.shade700,
@@ -266,6 +265,22 @@ class _CustomDrawerState extends State<CustomDrawer> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildInitialSmallAvatar() {
+    return CircleAvatar(
+      radius: 22,
+      backgroundColor: AppColors.iconActive,
+      child: Text(
+        (userName != null && userName!.isNotEmpty)
+            ? userName![0].toUpperCase()
+            : "U",
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }

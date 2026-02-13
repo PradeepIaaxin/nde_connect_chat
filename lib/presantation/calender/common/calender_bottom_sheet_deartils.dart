@@ -1,18 +1,13 @@
 // ignore_for_file: deprecated_member_use
 
-import 'dart:developer';
 
-import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 import 'package:nde_email/presantation/calender/bloc/event_bloc/event_all_bloc.dart';
 import 'package:nde_email/presantation/calender/bloc/event_bloc/event_all_event.dart';
 import 'package:nde_email/presantation/calender/common/task_creating.dart';
 import 'package:nde_email/presantation/calender/model/event_data_model.dart';
-import 'package:nde_email/utils/const/consts.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
-import 'package:nde_email/utils/router/router.dart';
 
 class CalendarEventDetailsSheet extends StatelessWidget {
   final CalendarEvent calendarEvent;

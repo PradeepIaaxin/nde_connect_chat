@@ -74,8 +74,9 @@ class _VideoMessageWidgetState extends State<VideoMessageWidget> {
   }
 
   void _initializeVideo() {
-    _controller = VideoPlayerController.network(widget.videoUrl)
-      ..initialize().then((_) {
+    _controller = VideoPlayerController.networkUrl(
+      Uri.parse(widget.videoUrl),
+    )..initialize().then((_) {
         setState(() {
           _isLoading = false;
         });
@@ -161,6 +162,7 @@ class FullScreenVideoPlayer extends StatefulWidget {
   const FullScreenVideoPlayer({super.key, required this.videoUrl});
 
   @override
+  // ignore: library_private_types_in_public_api
   _FullScreenVideoPlayerState createState() => _FullScreenVideoPlayerState();
 }
 
@@ -175,8 +177,9 @@ class _FullScreenVideoPlayerState extends State<FullScreenVideoPlayer> {
   }
 
   void _initializeVideo() {
-    _controller = VideoPlayerController.network(widget.videoUrl)
-      ..initialize().then((_) {
+    _controller = VideoPlayerController.networkUrl(
+      Uri.parse(widget.videoUrl),
+    )..initialize().then((_) {
         setState(() {
           _controller.play();
           _isPlaying = true;
@@ -185,10 +188,6 @@ class _FullScreenVideoPlayerState extends State<FullScreenVideoPlayer> {
         log("Error loading video: $error");
       });
   }
-
-
-
-  
 
   @override
   void dispose() {

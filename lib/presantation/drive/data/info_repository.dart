@@ -54,10 +54,10 @@ class MyInfoRepository {
         return null;
       }
     } on DioException catch (e) {
-      print('  DioException: ${e.message}');
+      log('  DioException: ${e.message}');
       return null;
     } catch (e) {
-      print('  Unexpected error: $e');
+      log('  Unexpected error: $e');
       return null;
     }
   }

@@ -18,7 +18,7 @@ class CreateFolderBloc extends Bloc<CreateFolderEvent, CreateFolderState> {
         super(CreateFolderInitial()) {
     on<CreateFolderPressed>(_onCreateFolderPressed);
     on<UploadFiles>(_uploadFiles);
-    on<ReplaceFiles>(_ReplaceFiles);
+    on<ReplaceFiles>(_replaceFiles);
   }
 
   Future<void> _onCreateFolderPressed(
@@ -156,7 +156,7 @@ class CreateFolderBloc extends Bloc<CreateFolderEvent, CreateFolderState> {
     }
   }
 
-  Future<void> _ReplaceFiles(
+  Future<void> _replaceFiles(
     ReplaceFiles event,
     Emitter<CreateFolderState> emit,
   ) async {

@@ -926,6 +926,7 @@ class _VideoCallPageState extends State<VideoCallPage> {
         return;
       }
       final videoTracks = localStream!.getVideoTracks();
+      // ignore: deprecated_member_use
       await videoTracks.first.switchCamera();
       _isFrontCamera = !_isFrontCamera;
       setState(() {});

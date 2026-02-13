@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -68,7 +70,7 @@ Future<void> showAddTaskDialog({
                     const SizedBox(height: 16),
                     if (taskLists.isNotEmpty)
                       DropdownButtonFormField<String>(
-                        value: selectedId,
+                        initialValue: selectedId,
                         decoration: const InputDecoration(
                           labelText: 'Select List',
                           border: OutlineInputBorder(),

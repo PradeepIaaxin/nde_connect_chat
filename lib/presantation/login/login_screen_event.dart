@@ -53,5 +53,5 @@ class LoginRefresh extends LoginEvent {}
 
 class EmailSubmit extends LoginEvent {
   final String email;
-  EmailSubmit({required this.email});
+  const EmailSubmit({required this.email});
 }

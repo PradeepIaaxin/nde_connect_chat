@@ -61,7 +61,7 @@ class GMMailModels {
       text: text ?? this.text,
       to: to ?? this.to,
       seen: seen ?? this.seen,
-      mailboxId: mailboxId ?? this.mailboxId,
+      mailboxId: mailboxId ?? mailboxId,
       flagged: flagged ?? this.flagged,
       attachments: attachments ?? this.attachments,
       draft: draft ?? this.draft,

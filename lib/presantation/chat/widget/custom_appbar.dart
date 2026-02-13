@@ -139,7 +139,10 @@ class CommonAppBarBuilder {
               }).join('\n\n');
 
               if (textToShare.trim().isNotEmpty) {
-                Share.share(textToShare);
+                SharePlus.instance.share(
+  ShareParams(text: textToShare),
+);
+
               } else {
                 log("Nothing to share.");
               }

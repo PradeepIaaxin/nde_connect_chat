@@ -8,7 +8,7 @@ import 'package:nde_email/bridge_generated.dart/api.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_model.dart';
 import 'package:path/path.dart';
 import 'package:mime/mime.dart';
-import 'package:http_parser/http_parser.dart' as MediaType;
+import 'package:http_parser/http_parser.dart' as media_type;
 import 'dart:convert';
 import '../../../data/respiratory.dart';
 
@@ -170,7 +170,7 @@ class GrpMessagerApiService {
     final fileName = basename(file.path);
     final mimeType = lookupMimeType(file.path);
     final mediaType =
-        mimeType != null ? MediaType.MediaType.parse(mimeType) : null;
+        mimeType != null ? media_type.MediaType.parse(mimeType) : null;
 
     // Print MIME type separately
     log("🔍 Detected MIME type: $mimeType");

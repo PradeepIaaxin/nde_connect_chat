@@ -1,9 +1,9 @@
 // Bloc
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'MediaLinksDocsDataModel.dart';
-import 'MediaLinksDocsEvent.dart';
-import 'MediaLinksDocsState.dart';
+import 'media_links_docs_datamodel.dart';
+import 'media_links_docs_event.dart';
+import 'media_links_docsstate.dart';
 
 class MediaLinksDocsBloc extends Bloc<MediaLinksDocsEvent, MediaLinksDocsState> {
   MediaLinksDocsBloc() : super(MediaLinksDocsLoading()) {
