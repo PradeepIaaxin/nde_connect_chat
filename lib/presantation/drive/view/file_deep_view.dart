@@ -160,7 +160,7 @@ class _FileDeepViewState extends State<FileDeepView> {
                     child: FloatingActionButton(
                       heroTag: 'mainFAB',
                       onPressed: () {
-                        displayBottomSheet(context, widget.fileId);
+                        displayBottomSheet(context, widget.fileId,0);
                       },
                       backgroundColor: Colors.white,
                       child: const Icon(Icons.add, color: Colors.black),

@@ -3,13 +3,14 @@ import 'package:flutter/material.dart';
 class MyRouter {
   static final navigatorKey = GlobalKey<NavigatorState>();
 
-  static Future<dynamic>? push({required Widget screen}) {
-    return navigatorKey.currentState?.push(
+  static Future<T?> push<T>({required Widget screen}) {
+    return navigatorKey.currentState!.push<T>(
       MaterialPageRoute(
         builder: (context) => screen,
       ),
     );
   }
+
 
   static String? restorablePushNamed({required String screen, Object? arguments}) {
     return navigatorKey.currentState
@@ -21,7 +22,7 @@ class MyRouter {
     return canPop == true;
   }
 
-  static void pop<T extends Object?>([T? result]) {
+  static  void pop<T>([T? result]) {
     bool? canPop = navigatorKey.currentState?.canPop();
     if (canPop != true) return;
     navigatorKey.currentState?.pop(result);
