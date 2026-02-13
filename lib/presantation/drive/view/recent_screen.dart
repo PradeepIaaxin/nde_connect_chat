@@ -25,6 +25,8 @@ import 'package:nde_email/utils/snackbar/snackbar.dart';
 import 'package:nde_email/utils/spacer/spacer.dart';
 import 'package:share_plus/share_plus.dart';
 
+import 'common_funtions.dart';
+
 class RecentScreen extends StatefulWidget {
   const RecentScreen({super.key});
 
@@ -188,9 +190,9 @@ class _RecentScreenState extends State<RecentScreen> {
                             onTap: () {
                               context.read<RecentBloc>().add(
                                     StarredData(
-                                        fileID: selectedFolders.toList()
-                                        ,isCurrentlyStarred: selectedFolderModels.every((f) => f.starred)
-                                        ),
+                                        fileID: selectedFolders.toList(),
+                                        isCurrentlyStarred: selectedFolderModels
+                                            .every((f) => f.starred)),
                                   );
                               _clearSelection();
                             },
@@ -214,11 +216,25 @@ class _RecentScreenState extends State<RecentScreen> {
                             icon: Icons.delete,
                             title: "Delete",
                             onTap: () {
-                              context.read<RecentBloc>().add(
-                                    MoveToTrashEvent(
-                                      fileIDs: selectedFolders.toList(),
-                                    ),
-                                  );
+                              showMoveToBinDialog(context, () {
+                                final ids = selectedFolders.toList();
+                                context.read<RecentBloc>().add(
+                                      MoveToTrashEvent(
+                                        fileIDs: ids,
+                                      ),
+                                    );
+                                Messenger.alertAction(
+                                  color: Colors.green,
+                                  msg: "Item moved to trash",
+                                  actionLabel: "Undo",
+                                  duration: const Duration(seconds: 2),
+                                  onAction: () {
+                                    context.read<RecentBloc>().add(
+                                          RestoreEvent(fileIDs: ids),
+                                        );
+                                  },
+                                );
+                              }, "");
                               _clearSelection();
                             },
                           ),
@@ -387,7 +403,10 @@ class _FolderGridItem extends StatelessWidget {
             );
           } else {
             MyRouter.push(
-                screen: FilePreviewScreen(fileUrl: folder.preview ?? "",  fileName: folder.name,));
+                screen: FilePreviewScreen(
+              fileUrl: folder.preview ?? "",
+              fileName: folder.name,
+            ));
           }
         }
       },
@@ -430,7 +449,10 @@ class _FolderGridItem extends StatelessWidget {
                                     log('hii');
 
                                     context.read<RecentBloc>().add(
-                                          StarredData(fileID: [folder.id], isCurrentlyStarred: folder.starred),
+                                          StarredData(
+                                              fileID: [folder.id],
+                                              isCurrentlyStarred:
+                                                  folder.starred),
                                         );
                                   },
                                 ),
@@ -529,6 +551,18 @@ class _FolderGridItem extends StatelessWidget {
                                           MoveToTrashEvent(
                                               fileIDs: [folder.id]),
                                         );
+                                    Messenger.alertAction(
+                                      color: Colors.green,
+                                      msg: "Item moved to trash",
+                                      actionLabel: "Undo",
+                                      duration: const Duration(seconds: 2),
+                                      onAction: () {
+                                        context.read<RecentBloc>().add(
+                                              RestoreEvent(
+                                                  fileIDs: [folder.id]),
+                                            );
+                                      },
+                                    );
                                   },
                                 ),
                               ],
@@ -634,7 +668,10 @@ class _FolderListItem extends StatelessWidget {
             );
           } else {
             MyRouter.push(
-                screen: FilePreviewScreen(fileUrl: folder.preview ?? "",  fileName: folder.name,));
+                screen: FilePreviewScreen(
+              fileUrl: folder.preview ?? "",
+              fileName: folder.name,
+            ));
           }
         }
       },
@@ -703,7 +740,9 @@ class _FolderListItem extends StatelessWidget {
                       log('hii');
 
                       context.read<RecentBloc>().add(
-                            StarredData(fileID: [folder.id], isCurrentlyStarred: folder.starred),
+                            StarredData(
+                                fileID: [folder.id],
+                                isCurrentlyStarred: folder.starred),
                           );
                     },
                   ),
@@ -791,9 +830,22 @@ class _FolderListItem extends StatelessWidget {
                     icon: Icons.delete,
                     title: "Remove",
                     onTap: () {
-                      context.read<RecentBloc>().add(
-                            MoveToTrashEvent(fileIDs: [folder.id]),
-                          );
+                      showMoveToBinDialog(context, () {
+                        context.read<RecentBloc>().add(
+                              MoveToTrashEvent(fileIDs: [folder.id]),
+                            );
+                        Messenger.alertAction(
+                          color: Colors.green,
+                          msg: "Item moved to trash",
+                          actionLabel: "Undo",
+                          duration: const Duration(seconds: 2),
+                          onAction: () {
+                            context.read<RecentBloc>().add(
+                                  RestoreEvent(fileIDs: [folder.id]),
+                                );
+                          },
+                        );
+                      }, folder.name);
                     },
                   ),
                 ],
