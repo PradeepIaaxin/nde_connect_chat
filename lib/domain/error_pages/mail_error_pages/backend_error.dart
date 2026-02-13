@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:nde_email/presantation/login/login_screen.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';

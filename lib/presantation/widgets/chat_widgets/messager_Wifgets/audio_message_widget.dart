@@ -27,6 +27,7 @@ class AudioMessageWidget extends StatefulWidget {
   });
 
   @override
+  // ignore: library_private_types_in_public_api
   _AudioMessageWidgetState createState() => _AudioMessageWidgetState();
 }
 
@@ -35,7 +36,6 @@ class _AudioMessageWidgetState extends State<AudioMessageWidget> {
   bool _isPlaying = false;
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
-  bool _isPlayerInitialized = false;
 
   @override
   void initState() {
@@ -116,7 +116,6 @@ class _AudioMessageWidgetState extends State<AudioMessageWidget> {
 
       if (mounted) {
         setState(() {
-          _isPlayerInitialized = true;
         });
       }
     } catch (e) {
@@ -132,7 +131,6 @@ class _AudioMessageWidgetState extends State<AudioMessageWidget> {
       _audioPlayer?.dispose();
       _audioPlayer = null;
       setState(() {
-        _isPlayerInitialized = false;
         _isPlaying = false;
         _position = Duration.zero;
         _duration = Duration.zero;

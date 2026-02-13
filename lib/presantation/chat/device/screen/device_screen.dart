@@ -31,7 +31,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
       ),
       body: BlocBuilder<LinkedDeviceBloc, LinkedDeviceState>(
         builder: (context, state) {
-          print("DEVICE STATE = $state");
+          log("DEVICE STATE = $state");
 
           // ================= LOADING =================
           if (state is LinkedDeviceLoading) {

@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:developer';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -121,9 +123,9 @@ class _HomeScreenState extends State<HomeScreen> {
           PackageInfo.fromPlatform().then(
             (packageInfo) {
               int buildVersion = int.parse(packageInfo.buildNumber);
-              print("appVersion $appVersion");
-              print("appUpdateUrl $appUpdateUrl");
-              print("buildVersion $buildVersion");
+              log("appVersion $appVersion");
+              log("appUpdateUrl $appUpdateUrl");
+              log("buildVersion $buildVersion");
               if (appVersion != null) {
                 if (appVersion! < buildVersion) {
                   if (Platform.isAndroid) {
@@ -348,7 +350,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final bool isTrashMailbox =
         widget.mailboxName?.trim().toLowerCase() == "trash";
 
-    print(widget.mailboxName);
+    log(widget.mailboxName.toString());
     log("name --- ${widget.mailboxName}");
 
     return AppBar(

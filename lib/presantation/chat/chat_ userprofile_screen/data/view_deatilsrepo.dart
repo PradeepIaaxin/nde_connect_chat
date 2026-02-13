@@ -209,7 +209,7 @@ class MediaRepository {
         "isFavourite": isFavourite,
       });
 
-      print(body);
+      
 
       final headers = {
         'Authorization': 'Bearer $accessToken',

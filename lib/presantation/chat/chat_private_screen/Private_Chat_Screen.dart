@@ -1,16 +1,24 @@
-import 'dart:io';
+import 'package:nde_email/data/respiratory.dart';
+import 'package:nde_email/presantation/chat/chat_list/chat_bloc.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/localstorage/local_storage.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/messager_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/messager_event.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/messager_state.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/message_widgets.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/message_handler.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/audio_reuable.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/reaction_bar.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_model.dart';
+import 'package:nde_email/presantation/chat/model/emoj_model.dart';
+import 'package:nde_email/presantation/chat/socket/socket_service.dart' show SocketService;
+import 'package:nde_email/presantation/chat/widget/custom_appbar.dart';
 import 'package:nde_email/presantation/chat/widget/delete_dialogue.dart';
-import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/build_messageInputfield_widgets.dart';
-
+import 'package:nde_email/presantation/chat/widget/scaffold.dart';
+import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/build_message_inputfield_widgets.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/show_Bottom_Sheet.dart';
-import 'package:nde_email/utils/imports/common_imports.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
+import 'package:nde_email/utils/simmer_effect.dart/chat_simmerefect.dart';
 
 import 'messager_Bloc/widget/privat_common_funtions/privat_chat_funtions.dart';
 import 'messager_Bloc/widget/privat_common_funtions/privat_chat_funtions_2.dart';
@@ -150,9 +158,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     super.initState();
 
     _currentConversationId = widget.convoId;
-    print('🔐 private chat screen : $_currentConversationId');
+    log('🔐 private chat screen : $_currentConversationId');
     socketService.setActiveConversation(widget.convoId);
-    print('🔐 private chat screen : ${widget.convoId}');
+    log('🔐 private chat screen : ${widget.convoId}');
 
     _messagerBloc = context.read<MessagerBloc>();
     _chatListBloc = context.read<ChatListBloc>();
@@ -339,8 +347,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       // Skip media messages without meaningful text content
       if (hasImageUrl && contentText.isEmpty) continue; // Image without caption
       if (isVideo && contentText.isEmpty) continue; // Video without caption
-      if (isDocument && contentText.isEmpty)
+      if (isDocument && contentText.isEmpty) {
         continue; // Document without caption
+      }
       if (hasLink) continue; // Any message containing a URL
 
       // Only search in text content (not file names for media)
@@ -833,11 +842,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         : (reply['message_id'] ?? reply['messageId'] ?? reply['id'])
             ?.toString();
 
-    final String? replyGroupMessageId =
-        reply == null ? null : reply['group_message_id']?.toString();
 
-    final bool replyIsGroupMessage =
-        reply != null && reply['is_grouped_message'] == true;
 
     final replyPayload = reply == null
         ? null
@@ -1434,6 +1439,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ignore: deprecated_member_use
     return WillPopScope(
       onWillPop: () async {
         if (_isSelectionMode) {
@@ -2125,7 +2131,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                             return estimateMessageHeight(
                                 listIndex, messageId, _parseTime, isSameDay);
                           },
-                          getMessageSenderId: (Map<String, dynamic> p1) {},
+                          getMessageSenderId: (Map<String, dynamic> p1) {
+                            return null;
+                          },
                         );
                       },
                       parseTime: _parseTime,

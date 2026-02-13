@@ -1,7 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:nde_email/presantation/chat/chat_contact_list/userservice.dart';
+import 'package:nde_email/presantation/chat/chat_contact_list/user_service.dart';
+
 import 'package:nde_email/presantation/chat/chat_contact_list/user_data_model.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_list_event.dart'
     show FetchUserList, UserListEvent;

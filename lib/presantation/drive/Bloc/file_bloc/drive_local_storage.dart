@@ -27,7 +27,7 @@ class LocalDriveStorage {
       final stored = box.get(key, defaultValue: <Map>[]);
 
       return (stored as List)
-          .where((e) => e is Map)
+          .whereType<Map>()
           .map((e) => Map<String, dynamic>.from(e))
           .toList();
     } catch (e) {

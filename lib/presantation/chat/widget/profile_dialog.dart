@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/user_profile_image.dart';
 import 'package:nde_email/presantation/chat/widget/profile_avatar.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
@@ -137,7 +136,7 @@ class ProfileDialog extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 alignment: Alignment.centerLeft,
                 child: Text(
-                userName.isEmpty ? groupName ?? "" : userName+" "+ lastName!,
+                userName.isEmpty ? groupName ?? "" : "$userName ${lastName!}",
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,

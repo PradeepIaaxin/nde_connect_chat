@@ -15,7 +15,7 @@ import 'package:nde_email/presantation/drive/common/show_rename.dart';
 import 'package:nde_email/presantation/drive/model/mydrive_model.dart'
     as drive_model;
 import 'package:nde_email/presantation/drive/model/mydrive_model.dart';
-import 'package:nde_email/presantation/drive/view/file_deatilsScreen.dart';
+import 'package:nde_email/presantation/drive/view/file_deatils_screen.dart';
 import 'package:nde_email/presantation/drive/view/file_deep_view.dart';
 import 'package:nde_email/presantation/drive/view/manage_acces_screen.dart';
 import 'package:nde_email/presantation/drive/view/move_screen.dart';
@@ -691,7 +691,9 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                                                     : '';
 
                                             if (textToShare.isNotEmpty) {
-                                              Share.share(textToShare);
+                                              SharePlus.instance.share(
+                                                ShareParams(text: textToShare),
+                                              );
                                             } else {
                                               log("Nothing to share.");
                                             }
@@ -962,8 +964,9 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                                                             .contains(f.id))
                                                     .toList();
 
-                                            if (selectedFolderModels.isEmpty)
+                                            if (selectedFolderModels.isEmpty) {
                                               return;
+                                            }
 
                                             showReusableBottomSheet(
                                               context,

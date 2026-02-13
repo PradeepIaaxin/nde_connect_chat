@@ -10,7 +10,6 @@ import 'package:nde_email/presantation/mail/compose/model/composemodel.dart';
 import 'package:nde_email/presantation/mail/mail_detail/mail_detail_api.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar_bloc.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar_state.dart';
-import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/mailbox_model.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/error_display.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/gradient_avatar.dart';
@@ -890,8 +889,8 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
 
 class NoInlineImageWidgetFactory extends WidgetFactory {
   @override
-  Widget? buildImageWidget(BuildTree element, ImageSource src) {
-    final imageWidget = super.buildImageWidget(element, src);
+  Widget? buildImageWidget(BuildTree meta, ImageSource src) {
+    final imageWidget = super.buildImageWidget(meta, src);
     if (imageWidget == null) return null;
 
     return Container(

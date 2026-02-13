@@ -13,12 +13,12 @@ import 'package:nde_email/presantation/chat/chat_group_Screen/group_event.dart'
     as group_event;
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/video_cache_service.dart';
 import 'package:nde_email/presantation/chat/widget/delete_dialogue.dart';
+import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/forward_messagescreen_widget.dart';
 import 'package:nde_email/utils/snackbar/snackbar.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../../../../utils/router/router.dart';
-import '../../../../widgets/chat_widgets/messager_Wifgets/ForwardMessageScreen_widget.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -175,7 +175,7 @@ class _MixedMediaViewerState extends State<MixedMediaViewer> {
 
       Messenger.alertSuccess('Saved to NowDigitalEasy/Media');
     } catch (e) {
-      print("Error saving media: $e");
+      log("Error saving media: $e");
     }
   }
 
@@ -202,7 +202,7 @@ class _MixedMediaViewerState extends State<MixedMediaViewer> {
       extendBodyBehindAppBar: true,
       appBar: _showUI
           ? AppBar(
-              backgroundColor: Colors.black.withValues(alpha:0.4),
+              backgroundColor: Colors.black.withValues(alpha: 0.4),
               elevation: 0,
               iconTheme: const IconThemeData(color: Colors.white),
               titleSpacing: 0,
@@ -300,7 +300,9 @@ class _MixedMediaViewerState extends State<MixedMediaViewer> {
                         }
 
                         if (textToShare.trim().isNotEmpty) {
-                          Share.share(textToShare);
+                          SharePlus.instance.share(
+                            ShareParams(text: textToShare),
+                          );
                         } else {
                           log("Nothing to share.");
                         }

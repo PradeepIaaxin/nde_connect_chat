@@ -1,4 +1,4 @@
-// ignore_for_file: library_private_types_in_public_api
+// ignore_for_file: library_private_types_in_public_api, use_build_context_synchronously, deprecated_member_use
 
 import 'dart:convert';
 import 'dart:developer';
@@ -361,7 +361,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                                 }
                               });
                             },
-                            activeColor: _selectedColor,
+                            activeThumbColor: _selectedColor,
                           ),
                         ],
                       ),
@@ -592,7 +592,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
             isExpanded: true, // <-- very important
-            value: value,
+            initialValue: value,
             decoration: InputDecoration(
               filled: true,
               fillColor: Colors.grey[50],
@@ -632,7 +632,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          value: value,
+          initialValue: value,
           decoration: InputDecoration(
             filled: true,
             fillColor: Colors.grey[50],

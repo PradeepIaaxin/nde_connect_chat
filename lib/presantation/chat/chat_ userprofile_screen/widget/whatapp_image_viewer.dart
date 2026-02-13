@@ -1,15 +1,12 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:gallery_saver_plus/gallery_saver.dart';
-import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/datetime/date_formatter.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
 import 'package:open_filex/open_filex.dart';
-
 import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shimmer/shimmer.dart';
-
 
 class WhatsAppImageViewer extends StatefulWidget {
   final List<String> imageUrls;
@@ -193,9 +190,11 @@ class _WhatsAppImageViewerState extends State<WhatsAppImageViewer> {
       final file = await DefaultCacheManager().getSingleFile(imageUrl);
 
       // 2️⃣ Share the cached file
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        text: 'Check out this image!',
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          text: 'Check out this image!',
+        ),
       );
     } catch (e) {
       Messenger.alertError("Error sharing image: $e");
@@ -362,7 +361,7 @@ class _WhatsAppImageViewerState extends State<WhatsAppImageViewer> {
                     shape: BoxShape.circle,
                     color: _currentIndex == index
                         ? Colors.white
-                        : Colors.white.withValues(alpha:0.5),
+                        : Colors.white.withValues(alpha: 0.5),
                   ),
                 ),
               ),

@@ -9,7 +9,7 @@ class RecentBloc extends Bloc<RecentEvent, RecentState> {
   int _page = 1;
   final int _limit = 20;
   bool _hasMore = true;
-  List<RecentModel> _allFolders = [];
+  final List<RecentModel> _allFolders = [];
 
   RecentBloc({required this.repository}) : super(StarredLoading()) {
     on<FetchStarredFolders>(_onFetchStarredFolders);

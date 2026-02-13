@@ -7,8 +7,8 @@ import 'package:nde_email/utils/snackbar/snackbar.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 
-import 'imagemessagewidget.dart';
-import 'VideoMessageWidget.dart';
+import 'image_message_widget.dart';
+import 'video_message_widget.dart';
 import 'package:nde_email/utils/reusbale/mime.type.dart';
 
 Widget buildMessageContent(

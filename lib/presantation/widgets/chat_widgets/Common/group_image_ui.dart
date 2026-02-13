@@ -45,67 +45,63 @@ class GroupedImagesWidget extends StatelessWidget {
         ),
       );
     } else if (count == 3) {
-      return Container(
-        child: Column(
-          children: [
-            _buildSingleImage(context, 0, height: 120, width: double.infinity),
-            const SizedBox(height: 0),
-            Row(
-              children: [
-                Expanded(child: _buildSingleImage(context, 1, height: 100)),
-                const SizedBox(width: 0),
-                Expanded(child: _buildSingleImage(context, 2, height: 100)),
-              ],
-            ),
-          ],
-        ),
+      return Column(
+        children: [
+          _buildSingleImage(context, 0, height: 120, width: double.infinity),
+          const SizedBox(height: 0),
+          Row(
+            children: [
+              Expanded(child: _buildSingleImage(context, 1, height: 100)),
+              const SizedBox(width: 0),
+              Expanded(child: _buildSingleImage(context, 2, height: 100)),
+            ],
+          ),
+        ],
       );
     } else {
       // 4 or more images - 2x2 grid with overflow count
-      return Container(
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Expanded(child: _buildSingleImage(context, 0, height: 100)),
-                const SizedBox(width: 0),
-                Expanded(child: _buildSingleImage(context, 1, height: 100)),
-              ],
-            ),
-            const SizedBox(height: 0),
-            Row(
-              children: [
-                Expanded(child: _buildSingleImage(context, 2, height: 100)),
-                const SizedBox(width: 0),
-                Expanded(
-                  child: count > 4
-                      ? Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            _buildSingleImage(context, 3, height: 100),
-                            Positioned.fill(
-                              child: Container(
-                                color: Colors.black54,
-                                child: Center(
-                                  child: Text(
-                                    "+${count - 4}",
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+      return Column(
+        children: [
+          Row(
+            children: [
+              Expanded(child: _buildSingleImage(context, 0, height: 100)),
+              const SizedBox(width: 0),
+              Expanded(child: _buildSingleImage(context, 1, height: 100)),
+            ],
+          ),
+          const SizedBox(height: 0),
+          Row(
+            children: [
+              Expanded(child: _buildSingleImage(context, 2, height: 100)),
+              const SizedBox(width: 0),
+              Expanded(
+                child: count > 4
+                    ? Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          _buildSingleImage(context, 3, height: 100),
+                          Positioned.fill(
+                            child: Container(
+                              color: Colors.black54,
+                              child: Center(
+                                child: Text(
+                                  "+${count - 4}",
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ),
                             ),
-                          ],
-                        )
-                      : _buildSingleImage(context, 3, height: 100),
-                ),
-              ],
-            ),
-          ],
-        ),
+                          ),
+                        ],
+                      )
+                    : _buildSingleImage(context, 3, height: 100),
+              ),
+            ],
+          ),
+        ],
       );
     }
   }

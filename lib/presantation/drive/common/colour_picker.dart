@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 
 class ColorPickerDialog extends StatefulWidget {
   final Function(String hexCode) onColorSelected;
 
-  const ColorPickerDialog({Key? key, required this.onColorSelected})
-      : super(key: key);
+  const ColorPickerDialog({super.key, required this.onColorSelected});
 
   @override
   State<ColorPickerDialog> createState() => _ColorPickerDialogState();

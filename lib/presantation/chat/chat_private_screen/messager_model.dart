@@ -46,8 +46,8 @@ class AuthResponse {
   factory AuthResponse.fromJson(Map<String, dynamic> json) => AuthResponse(
         data: json["data"] != null && json["data"] is List
             ? (json["data"] as List)
-                .where((item) => item is Map<String, dynamic>)
-                .map((item) => Datum.fromJson(item as Map<String, dynamic>))
+                .whereType<Map<String, dynamic>>()
+                .map((item) => Datum.fromJson(item))
                 .toList()
             : [],
 
@@ -247,6 +247,7 @@ class Datum {
     this.reactions,
     this.isGroupMessage,
     this.groupMessageId,
+    // ignore: non_constant_identifier_names
     required this.created_at,
     this.duration, // Added
   });
@@ -297,7 +298,7 @@ class Datum {
           fileWithText: fileWithText ?? this.fileWithText,
           content: content ?? this.content,
           thumbNailKey: thumbNailKey ?? this.thumbNailKey,
-          ContentType: ContentType ?? this.ContentType,
+          ContentType: ContentType ?? ContentType,
           originalKey: originalKey ?? this.originalKey,
           originalUrl: originalUrl ?? this.originalUrl,
           thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
@@ -387,9 +388,9 @@ class Datum {
 
       reactions: (json["reactions"] is List)
           ? (json["reactions"] as List)
-              .where((x) => x is Map)
+              .whereType<Map>()
               .map(
-                  (x) => Reaction.fromJson(Map<String, dynamic>.from(x as Map)))
+                  (x) => Reaction.fromJson(Map<String, dynamic>.from(x)))
               .toList()
           : null,
       duration:

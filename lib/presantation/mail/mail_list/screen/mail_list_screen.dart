@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:nde_email/presantation/mail/mail_list/screen/trash_actions_widget.dart';
+import 'package:nde_email/presantation/mail/mail_list/widget/select_all_checkbox.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/mail_list_widget/mail_list_widget.dart';
 import 'package:nde_email/utils/custom/custom_alret_box.dart';
@@ -68,77 +70,6 @@ class _MailListScreenState extends State<MailListScreen> {
     }
   }
 
-  Widget _trashActions({required bool show}) {
-    if (!_isTrashMailbox || !show) return const SizedBox.shrink();
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.only(bottom: 12),
-            child: Text(
-              "Bin",
-              style: TextStyle(
-                fontSize: 16,
-                color: AppColors.secondaryText,
-              ),
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F4F9),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(
-                      Icons.delete_outline,
-                      color: Color(0xFF0B57D0),
-                      size: 20,
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text(
-                        "Items that have been in the bin for more than 30 days will be automatically deleted.",
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppColors.secondaryText,
-                          height: 1.4,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(left: 32, top: 8),
-                  child: GestureDetector(
-                    onTap: _isEmptyingBin ? null : _emptyBin,
-                    child: Text(
-                      "Empty Bin now",
-                      style: TextStyle(
-                        color: _isEmptyingBin
-                            ? AppColors.secondaryText
-                            : AppColors.profile,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   String _emptyTitle() {
     final name = widget.mailboxName?.toLowerCase() ?? '';
@@ -428,7 +359,7 @@ class _MailListScreenState extends State<MailListScreen> {
                 // ❌ NO REFRESH WHEN SELECTING
                 ? Column(
                     children: [
-                      _SelectAllCheckbox(state: state),
+                      SelectAllCheckbox(state: state),
                       Expanded(
                         child: MailListWidget(
                           key: ValueKey(
@@ -444,13 +375,18 @@ class _MailListScreenState extends State<MailListScreen> {
                       ),
                     ],
                   )
-
-                // ✅ NORMAL MODE → REFRESH ENABLED
                 : RefreshIndicator(
                     onRefresh: _onRefresh,
                     child: Column(
                       children: [
-                        _trashActions(show: state.mails.isNotEmpty),
+                        // _trashActions(show: state.mails.isNotEmpty),
+                        TrashActionsWidget(
+                          show: state.mails.isNotEmpty,
+                          isTrashMailbox: _isTrashMailbox,
+                          isEmptyingBin: _isEmptyingBin,
+                          onEmptyBin: _emptyBin,
+                        ),
+
                         Expanded(
                           child: MailListWidget(
                             key: ValueKey(
@@ -529,47 +465,6 @@ class _MailListScreenState extends State<MailListScreen> {
 
           return const SizedBox.shrink();
         },
-      ),
-    );
-  }
-}
-
-class _SelectAllCheckbox extends StatelessWidget {
-  final MailListState state;
-
-  const _SelectAllCheckbox({required this.state});
-
-  @override
-  Widget build(BuildContext context) {
-    final bool isAllSelected = state.mails.isNotEmpty &&
-        state.selectedMailIds.length == state.mails.length;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      color: AppColors.bg,
-      child: Row(
-        children: [
-          Checkbox(
-            value: isAllSelected,
-            activeColor: chatColor,
-            checkColor: Colors.white,
-            side: const BorderSide(
-              color: AppColors.secondaryText,
-              width: 1.5,
-            ),
-            onChanged: (_) {
-              if (isAllSelected) {
-                context.read<MailListBloc>().add(ClearSelectionEvent());
-              } else {
-                context.read<MailListBloc>().add(SelectAllMailsEvent());
-              }
-            },
-          ),
-          const Text(
-            "Select all",
-            style: TextStyle(fontSize: 16),
-          ),
-        ],
       ),
     );
   }

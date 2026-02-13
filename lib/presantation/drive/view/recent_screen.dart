@@ -12,7 +12,8 @@ import 'package:nde_email/presantation/drive/common/hexa_color.dart'
     show ColorUtils;
 import 'package:nde_email/presantation/drive/common/show_bottom_model_sheet.dart';
 import 'package:nde_email/presantation/drive/model/recent/recent_model.dart';
-import 'package:nde_email/presantation/drive/view/file_deatilsScreen.dart';
+import 'package:nde_email/presantation/drive/view/common_funtions.dart';
+import 'package:nde_email/presantation/drive/view/file_deatils_screen.dart';
 import 'package:nde_email/presantation/drive/view/file_deep_view.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/const/consts.dart';
@@ -25,7 +26,6 @@ import 'package:nde_email/utils/snackbar/snackbar.dart';
 import 'package:nde_email/utils/spacer/spacer.dart';
 import 'package:share_plus/share_plus.dart';
 
-import 'common_funtions.dart';
 
 class RecentScreen extends StatefulWidget {
   const RecentScreen({super.key});

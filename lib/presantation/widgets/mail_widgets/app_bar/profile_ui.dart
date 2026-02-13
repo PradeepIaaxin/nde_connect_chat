@@ -2,8 +2,9 @@ import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:nde_email/data/respiratory.dart';
-import 'package:nde_email/presantation/chat/Socket/Socket_Service.dart';
+                                                                                                             
 import 'package:nde_email/presantation/chat/chat_list/chat_session_storage/chat_session.dart';
+import 'package:nde_email/presantation/chat/socket/socket_service.dart';
 
 class ProfileDialog extends StatefulWidget {
   const ProfileDialog({super.key});

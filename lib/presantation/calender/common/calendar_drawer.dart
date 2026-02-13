@@ -186,12 +186,15 @@ class _CalendarDrawerState extends State<CalendarDrawer> {
 
   String _getCalendarName(dynamic calendar) {
     if (calendar is CalendarDataModel) return calendar.name;
-    if (calendar is GoogleModelCalendar)
+    if (calendar is GoogleModelCalendar) {
       return calendar.name ?? "Google Calendar";
-    if (calendar is SubscribedCalendarModel)
+    }
+    if (calendar is SubscribedCalendarModel) {
       return calendar.name ?? "Subscribed Calendar";
-    if (calendar is SidebarCalendarModel)
+    }
+    if (calendar is SidebarCalendarModel) {
       return calendar.name ?? "App Calendar";
+    }
     if (calendar is TaskModel) return calendar.name ?? "App Calendar";
     if (calendar is GroupModelcalendar) return calendar.name ?? "App Calendar";
     if (calendar is SharedCalendarModel) return calendar.name;
