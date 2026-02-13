@@ -269,11 +269,11 @@ class InsidefileRepo {
       );
 
       if (response.statusCode == 200) {
-        Messenger.alertSuccess(
-          fileIDs.length == 1
-              ? "Item moved to trash"
-              : "${fileIDs.length} items moved to trash",
-        );
+        // Messenger.alertSuccess(
+        //   fileIDs.length == 1
+        //       ? "Item moved to trash"
+        //       : "${fileIDs.length} items moved to trash",
+        // );
       } else {
         log('Failed to move to trash: ${response.statusCode}');
       }

@@ -269,11 +269,25 @@ class _StarredPageState extends State<StarredPage> {
                             icon: Icons.delete,
                             title: "Delete",
                             onTap: () {
-                              context.read<StarredBloc>().add(
-                                    MoveToTrashEvent(
-                                      fileIDs: selectedFolders.toList(),
-                                    ),
-                                  );
+                              showMoveToBinDialog(context, () {
+                                final ids = selectedFolders.toList();
+                                context.read<StarredBloc>().add(
+                                      MoveToTrashEvent(
+                                        fileIDs: ids,
+                                      ),
+                                    );
+                                Messenger.alertAction(
+                                  color: Colors.green,
+                                  msg: "Item moved to trash",
+                                  actionLabel: "Undo",
+                                  duration: const Duration(seconds: 2),
+                                  onAction: () {
+                                    context.read<StarredBloc>().add(
+                                          RestoreEvent(fileIDs: ids),
+                                        );
+                                  },
+                                );
+                              }, "");
                               _clearSelection();
                             },
                           ),
@@ -656,6 +670,18 @@ class _FolderGridItem extends StatelessWidget {
                                           MoveToTrashEvent(
                                               fileIDs: [folder.id]),
                                         );
+                                    Messenger.alertAction(
+                                      color: Colors.green,
+                                      msg: "Item moved to trash",
+                                      actionLabel: "Undo",
+                                      duration: const Duration(seconds: 2),
+                                      onAction: () {
+                                        context.read<StarredBloc>().add(
+                                              RestoreEvent(
+                                                  fileIDs: [folder.id]),
+                                            );
+                                      },
+                                    );
                                   },
                                 ),
                               ],
@@ -749,7 +775,10 @@ class _FolderListItem extends StatelessWidget {
             );
           } else {
             MyRouter.push(
-                screen: FilePreviewScreen(fileUrl: folder.preview ?? "",  fileName: folder.name,));
+                screen: FilePreviewScreen(
+              fileUrl: folder.preview ?? "",
+              fileName: folder.name,
+            ));
           }
         }
       },
@@ -846,42 +875,42 @@ class _FolderListItem extends StatelessWidget {
                           );
                     },
                   ),
-                  if(folder.type != "folder")BottomSheetOption(
-                    icon: Icons.open_with,
-                    title: "Open with",
-                    onTap: () {
-                      openWithSystemApps(folder.preview!);
-                      // Clipboard.setData(
-                      //   ClipboardData(text: file.preview.toString()),
-                      // );
-                      // Messenger.alertSuccess("Copied");
-                    },
-                  ),
-                  if(folder.type != "folder") BottomSheetOption(
-                    icon: Icons.ios_share_outlined,
-                    title: "Send a copy",
-                    onTap: () async {
-                      await Future.delayed(
-                          const Duration(milliseconds: 300));
+                  if (folder.type != "folder")
+                    BottomSheetOption(
+                      icon: Icons.open_with,
+                      title: "Open with",
+                      onTap: () {
+                        openWithSystemApps(folder.preview!);
+                        // Clipboard.setData(
+                        //   ClipboardData(text: file.preview.toString()),
+                        // );
+                        // Messenger.alertSuccess("Copied");
+                      },
+                    ),
+                  if (folder.type != "folder")
+                    BottomSheetOption(
+                      icon: Icons.ios_share_outlined,
+                      title: "Send a copy",
+                      onTap: () async {
+                        await Future.delayed(const Duration(milliseconds: 300));
 
-                      final name = folder.name.trim();
-                      final preview =
-                          folder.preview?.toString().trim() ?? '';
+                        final name = folder.name.trim();
+                        final preview = folder.preview?.toString().trim() ?? '';
 
-                      final textToShare =
-                      (name.isNotEmpty || preview.isNotEmpty)
-                          ? "$name\n\n$preview"
-                          : '';
+                        final textToShare =
+                            (name.isNotEmpty || preview.isNotEmpty)
+                                ? "$name\n\n$preview"
+                                : '';
 
-                      if (textToShare.isNotEmpty) {
-                        await SharePlus.instance.share(
-                          ShareParams(text: textToShare),
-                        );
-                      } else {
-                        log("Nothing to share.");
-                      }
-                    },
-                  ),
+                        if (textToShare.isNotEmpty) {
+                          await SharePlus.instance.share(
+                            ShareParams(text: textToShare),
+                          );
+                        } else {
+                          log("Nothing to share.");
+                        }
+                      },
+                    ),
                   BottomSheetOption(
                     icon: Icons.link,
                     title: "Copy link",
@@ -958,16 +987,17 @@ class _FolderListItem extends StatelessWidget {
                       );
                     },
                   ),
-                  if(folder.type != "folder") BottomSheetOption(
-                    icon: Icons.drive_file_move_rounded,
-                    title: "Show file location",
-                    onTap: () {
-                      log("deatils");
-                      MyRouter.push(
-                        screen: FileDetailScreen(fileID: folder.id),
-                      );
-                    },
-                  ),
+                  if (folder.type != "folder")
+                    BottomSheetOption(
+                      icon: Icons.drive_file_move_rounded,
+                      title: "Show file location",
+                      onTap: () {
+                        log("deatils");
+                        MyRouter.push(
+                          screen: FileDetailScreen(fileID: folder.id),
+                        );
+                      },
+                    ),
                   BottomSheetOption(
                     icon: Icons.file_download_outlined,
                     title: "Download",
@@ -982,13 +1012,24 @@ class _FolderListItem extends StatelessWidget {
                   ),
                   BottomSheetOption(
                     icon: Icons.delete,
-                    title:"Move to bin",
+                    title: "Move to bin",
                     onTap: () {
-                      showMoveToBinDialog(context,() {
+                      showMoveToBinDialog(context, () {
                         context.read<StarredBloc>().add(
-                          MoveToTrashEvent(fileIDs: [folder.id]),
+                              MoveToTrashEvent(fileIDs: [folder.id]),
+                            );
+                        Messenger.alertAction(
+                          color: Colors.green,
+                          msg: "Item moved to trash",
+                          actionLabel: "Undo",
+                          duration: const Duration(seconds: 2),
+                          onAction: () {
+                            context.read<StarredBloc>().add(
+                                  RestoreEvent(fileIDs: [folder.id]),
+                                );
+                          },
                         );
-                      },folder.name);
+                      }, folder.name);
                     },
                   ),
                 ],

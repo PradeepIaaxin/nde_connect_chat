@@ -30,8 +30,7 @@ Future<File> downloadFile(String url, String name) async {
 String getFileName(String url) =>
     Uri.parse(url).pathSegments.last.split("?").first;
 Future<void> openWithSystemApps(String fileUrl) async {
-  final file =
-  await downloadFile(fileUrl, getFileName(fileUrl));
+  final file = await downloadFile(fileUrl, getFileName(fileUrl));
 
   final result = await OpenFilex.open(file.path);
 
@@ -101,9 +100,9 @@ void showMoveToBinDialog(BuildContext context, VoidCallback onTap,String Name) {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  "‘${Name.isEmpty ? "File" : Name}’ will be deleted forever after 30 days Collaborators will lose access.",
-                  softWrap: true,
-                  overflow: TextOverflow.visible,
+                  "‘${Name.isEmpty?"File":Name}’ will be deleted forever after 30 days"
+                  "Collaborators will lose access.",
+                  maxLines: 2,
                   style: const TextStyle(
                     color: Colors.black87,
                     fontSize: 15,
