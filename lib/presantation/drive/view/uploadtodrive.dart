@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:developer';
 
 import 'package:file_picker/file_picker.dart';
@@ -238,7 +240,7 @@ class _UploadToDriveScreenState extends State<UploadToDriveScreen> {
                 ),
               const SizedBox(height: 20),
               DropdownButtonFormField<String>(
-                value: selectedLocation,
+                initialValue: selectedLocation,
                 dropdownColor: Colors.white,
                 items: ['My Drive', 'Shared Folder', 'Team Drive'].map(
                   (loc) {

@@ -1,6 +1,8 @@
+// ignore_for_file: use_build_context_synchronously, deprecated_member_use
+
 import 'package:flutter/services.dart';
 import 'package:nde_email/data/respiratory.dart';
-import 'package:nde_email/presantation/chat/Socket/Socket_Service.dart';
+                                                                                                             
 import 'package:nde_email/presantation/chat/chat_contact_list/user_listscreen.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_event.dart';
@@ -13,6 +15,7 @@ import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/me
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/messager_event.dart';
 
 import 'package:nde_email/presantation/chat/device/screen/device_screen.dart';
+import 'package:nde_email/presantation/chat/socket/socket_service.dart';
 import 'package:nde_email/presantation/drive/common/search_bar_chat.dart';
 import 'package:nde_email/presantation/network/connectivity_servicer.dart';
 import 'package:nde_email/utils/custom/custom_alret_box.dart';
@@ -22,7 +25,7 @@ import 'package:nde_email/utils/reusbale/reusable_popup_menu.dart';
 import 'package:nde_email/utils/reusbale/whatsapp_banner.dart';
 import 'package:nde_email/utils/reusbale/whatsapp_offline_banner.dart';
 import 'package:nde_email/utils/simmer_effect.dart/chat_list_item.dart';
-import '../chat_group_Screen/GroupChatScreen.dart';
+import '../chat_group_Screen/group_chat_screen.dart';
 import '../chat_private_screen/private_chat_screen.dart';
 import 'chat_bloc.dart';
 import 'chat_event.dart';
@@ -207,7 +210,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
   }
 
   Future<void> handleArchiveChat(String convoId, bool newPinState) async {
-    print('Archiving chat: $convoId to state: $newPinState');
+    log('Archiving chat: $convoId to state: $newPinState');
     SocketService().archiveChat(
       conversationId: convoId,
       nextPinnedState: newPinState,

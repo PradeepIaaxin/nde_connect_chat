@@ -17,7 +17,7 @@ class ShareDetails {
     );
   }
 
-  get users => null;
+  Null get users => null;
 }
 
 class ShareWorkspace {

@@ -1,7 +1,6 @@
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nde_email/presantation/drive/Bloc/sharred_bloc/sharred_bloc.dart';
 import 'package:nde_email/presantation/drive/Bloc/sharred_bloc/sharred_event.dart';
@@ -12,7 +11,7 @@ import 'package:nde_email/presantation/drive/common/file_preview_widget.dart'
 import 'package:nde_email/presantation/drive/common/pop.dart';
 import 'package:nde_email/presantation/drive/common/show_bottom_model_sheet.dart';
 import 'package:nde_email/presantation/drive/model/trash/trashfilemodel.dart';
-import 'package:nde_email/presantation/drive/view/file_deatilsScreen.dart';
+import 'package:nde_email/presantation/drive/view/file_deatils_screen.dart';
 import 'package:nde_email/presantation/drive/view/file_deep_view.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/const/consts.dart';
@@ -86,7 +85,7 @@ class _TrashScreenState extends State<TrashScreen> {
   }
 
   Set<String> selectedFolders = {};
-  List<TrashFileModel> _currentFolders = [];
+  final List<TrashFileModel> _currentFolders = [];
 
   bool isSelectionMode = false;
   bool isSelected = false;
@@ -308,7 +307,7 @@ class _TrashScreenState extends State<TrashScreen> {
                                                           fileUrl: folder
                                                                   .previewpath ??
                                                               "",
-                                                              fileName: folder.name,
+                                                          fileName: folder.name,
                                                         ),
                                                       );
                                                     },
@@ -528,7 +527,8 @@ class _TrashScreenState extends State<TrashScreen> {
                                                 },
                                           child: Container(
                                             color: isSelected
-                                                ? chatColor.withValues(alpha:0.1)
+                                                ? chatColor.withValues(
+                                                    alpha: 0.1)
                                                 : null,
                                             child: ListTile(
                                               contentPadding:

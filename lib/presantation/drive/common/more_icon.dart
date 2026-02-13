@@ -7,7 +7,7 @@ import 'package:nde_email/presantation/drive/Bloc/file_action/file_action_bloc.d
 import 'package:nde_email/presantation/drive/Bloc/file_action/file_action_event.dart';
 import 'package:nde_email/presantation/drive/Bloc/file_action/file_action_state.dart';
 import 'package:nde_email/presantation/drive/common/colour_picker.dart';
-import 'package:nde_email/presantation/drive/view/file_deatilsScreen.dart';
+import 'package:nde_email/presantation/drive/view/file_deatils_screen.dart';
 import 'package:nde_email/presantation/drive/view/manage_acces_screen.dart';
 import 'package:nde_email/presantation/drive/view/move_screen.dart';
 
@@ -309,7 +309,10 @@ class FileOptionsContent extends StatelessWidget {
                       : '';
 
                   if (textToShare.isNotEmpty) {
-                    Share.share(textToShare);
+                    SharePlus.instance.share(
+  ShareParams(text: textToShare),
+);
+
                   } else {
                     log("Nothing to share.");
                   }

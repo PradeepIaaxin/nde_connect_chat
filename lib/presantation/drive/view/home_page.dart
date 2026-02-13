@@ -15,7 +15,7 @@ import 'package:nde_email/presantation/drive/common/show_rename.dart';
 import 'package:nde_email/presantation/drive/model/home/suggestion/suggestion_model.dart'
     show FileModel;
 import 'package:nde_email/presantation/drive/view/activity_page.dart';
-import 'package:nde_email/presantation/drive/view/file_deatilsScreen.dart';
+import 'package:nde_email/presantation/drive/view/file_deatils_screen.dart';
 import 'package:nde_email/presantation/drive/view/file_deep_view.dart';
 import 'package:nde_email/presantation/drive/view/manage_acces_screen.dart';
 import 'package:nde_email/presantation/drive/view/move_screen.dart';

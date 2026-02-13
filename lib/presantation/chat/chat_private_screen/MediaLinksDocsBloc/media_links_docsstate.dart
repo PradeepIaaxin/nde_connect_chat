@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-import 'MediaLinksDocsDataModel.dart';
+import 'media_links_docs_datamodel.dart';
 
 abstract class MediaLinksDocsState extends Equatable {
   const MediaLinksDocsState();

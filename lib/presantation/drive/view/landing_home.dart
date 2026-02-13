@@ -1,16 +1,13 @@
-import 'dart:developer';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_floating_bottom_bar/flutter_floating_bottom_bar.dart';
-import 'package:nde_email/data/respiratory.dart';
-import 'package:nde_email/presantation/drive/Bloc/folder_bloc/create_folder_bloc.dart';
 import 'package:nde_email/presantation/drive/Bloc/folder_bloc/create_state.dart';
 import 'package:nde_email/presantation/drive/common/drawer.dart';
 import 'package:nde_email/presantation/drive/common/search_bar.dart';
 import 'package:nde_email/presantation/drive/common/show_bottom_sheet.dart';
-import 'package:nde_email/presantation/drive/model/fileSize.dart';
+import 'package:nde_email/presantation/drive/model/file_size.dart';
 import 'package:nde_email/presantation/drive/view/home_page.dart';
 import 'package:nde_email/presantation/drive/view/my_drivepage.dart';
 import 'package:nde_email/presantation/drive/view/shared_screen.dart';

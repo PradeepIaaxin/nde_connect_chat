@@ -72,7 +72,7 @@ class RestoreEvent extends MyDriveEvent {
 class OrganizeEvent extends MyDriveEvent {
   final List<String> fileIDs;
   final String pickedColor;
-  OrganizeEvent({required this.fileIDs, required this.pickedColor});
+  const OrganizeEvent({required this.fileIDs, required this.pickedColor});
 }
 
 class RenameEvent extends MyDriveEvent {

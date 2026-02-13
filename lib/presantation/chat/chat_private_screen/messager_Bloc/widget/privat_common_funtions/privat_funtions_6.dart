@@ -33,7 +33,7 @@ Future<void> showReactionsBottomSheet({
 
 
   // helper to build normalized reactions list for a message object
-  List<Map<String, dynamic>> _normalizeFromMap(Map<String, dynamic> msg) {
+  List<Map<String, dynamic>> normalizeFromMap(Map<String, dynamic> msg) {
     final List<Map<String, dynamic>> out = [];
     if (msg['reactions'] is! List) return out;
     for (final r in (msg['reactions'] as List)) {
@@ -72,7 +72,7 @@ Future<void> showReactionsBottomSheet({
   ];
 
   // first build the initial normalized list
-  List<Map<String, dynamic>> allReacts = _normalizeFromMap(message);
+  List<Map<String, dynamic>> allReacts = normalizeFromMap(message);
   if (allReacts.isEmpty) {
     // you might still want to show the sheet with just Add button. For now, return.
     return;
@@ -130,7 +130,7 @@ Future<void> showReactionsBottomSheet({
               return mid == id;
             }, orElse: () => message);
             // rebuild normalized list and grouped
-            allReacts = _normalizeFromMap(latest);
+            allReacts = normalizeFromMap(latest);
             grouped = buildGroupedFromList(allReacts);
             final newEmojis = grouped.keys.toList();
             if (!newEmojis.contains(selectedEmoji) && newEmojis.isNotEmpty) {
@@ -190,7 +190,7 @@ Future<void> showReactionsBottomSheet({
                               horizontal: 10, vertical: 8),
                           decoration: BoxDecoration(
                             color: showEmojiPicker
-                                ? Colors.green.withOpacity(0.12)
+                                ? Colors.green.withValues( alpha: 0.12)
                                 : Colors.grey.shade100,
                             borderRadius: BorderRadius.circular(14),
                             border: Border.all(color: Colors.grey.shade300),
@@ -232,7 +232,7 @@ Future<void> showReactionsBottomSheet({
                                       horizontal: 10, vertical: 8),
                                   decoration: BoxDecoration(
                                     color: isSelected
-                                        ? Colors.greenAccent.withOpacity(0.3)
+                                        ? Colors.greenAccent.withValues( alpha: 0.3)
                                         : Colors.grey.shade100,
                                     borderRadius: BorderRadius.circular(14),
                                     border: Border.all(
@@ -505,7 +505,6 @@ List<Map<String, dynamic>> mergeReactions({
   void addList(List<Map<String, dynamic>>? list) {
     if (list == null) return;
     for (final r in list) {
-      if (r == null || r is! Map) continue;
       final uid = (r['userId'] ?? r['user']?['_id'])?.toString() ?? '';
       final emoji = r['emoji']?.toString() ?? '';
       if (uid.isEmpty || emoji.isEmpty) continue;
@@ -565,7 +564,7 @@ void sendReadReceipts({
   //log("🟢 _sendReadReceipts called with: $messageIds");
 
   // helper: try to find message locally by id
-  Map<String, dynamic>? _findLocalMessageById(String id) {
+  Map<String, dynamic>? findLocalMessageById(String id) {
     if (id.trim().isEmpty) return null;
     final combined = getCombinedMessages(
         dbMessages: dbMessages,
@@ -594,7 +593,7 @@ void sendReadReceipts({
   // actually from the OTHER user (not messages sent by currentUser).
   final unique = <String>[];
   for (final id in uniqueAll) {
-    final msg = _findLocalMessageById(id);
+    final msg = findLocalMessageById(id);
     final senderId = (msg != null && msg.isNotEmpty)
         ? (msg['senderId'] ?? msg['sender']?['_id'] ?? msg['sender'])
             ?.toString()
@@ -625,7 +624,7 @@ void sendReadReceipts({
 
   // Locally mark read only for messages we can locate & that are NOT ours
   for (final id in unique) {
-    final msg = _findLocalMessageById(id);
+    final msg = findLocalMessageById(id);
     final senderId = (msg != null && msg.isNotEmpty)
         ? (msg['senderId'] ?? msg['sender']?['_id'] ?? msg['sender'])
             ?.toString()
@@ -688,7 +687,7 @@ Map<String, String?> normalizeReactionUser(
 
   // 🔥 CURRENT USER OVERRIDE (MOST IMPORTANT)
   if (userId == currentUserId) {
-    displayName = '${currentUserFirstName} ${currentUserLastName}'.trim();
+    displayName = '$currentUserFirstName $currentUserLastName'.trim();
   }
 
   final initial = displayName.isNotEmpty

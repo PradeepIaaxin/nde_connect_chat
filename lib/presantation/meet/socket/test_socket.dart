@@ -1,3 +1,5 @@
+// ignore_for_file: unrelated_type_equality_checks
+
 import 'dart:async';
 import 'dart:developer' as developer;
 import 'dart:math' as math;
@@ -428,7 +430,6 @@ class _VideoCallPageState extends State<VideoCallPage> {
       if (mounted) setState(() => _isInitializingDevice = false);
     }
   }
-
 
   Future<void> _joinRoom() async {
     _debugEventFlow('joinRoom');
@@ -1149,6 +1150,7 @@ class _VideoCallPageState extends State<VideoCallPage> {
         return;
       }
       final videoTracks = localStream!.getVideoTracks();
+      // ignore: deprecated_member_use
       await videoTracks.first.switchCamera();
       _isFrontCamera = !_isFrontCamera;
       setState(() {});
@@ -1177,7 +1179,6 @@ class _VideoCallPageState extends State<VideoCallPage> {
     await _applyAudioRoute();
     setState(() {});
   }
-
 
   Future<void> _hangUp() async {
     _debugEventFlow('hangUp');
@@ -1279,7 +1280,6 @@ class _VideoCallPageState extends State<VideoCallPage> {
     );
   }
 
-
   String _getPeerName(String producerId) {
     final streamInfo = _remoteStreams[producerId];
     if (streamInfo?.socketId != null &&
@@ -1376,11 +1376,9 @@ class _VideoCallPageState extends State<VideoCallPage> {
                       Text('You (${userId ?? 'Unknown'})',
                           style: const TextStyle(fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
-                      ..._peers.entries
-                          .map((e) => Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 2),
-                              child: Text('${e.value['name']} (${e.key})')))
-                          ,
+                      ..._peers.entries.map((e) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Text('${e.value['name']} (${e.key})'))),
                       const SizedBox(height: 8),
                       Text('Status: ${_getConnectionStatus()}',
                           style: TextStyle(

@@ -1,8 +1,8 @@
 import 'dart:developer';
-import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:socket_io_client/socket_io_client.dart' as io;
 
 class MeetSocket {
-  IO.Socket? _socket;
+  io.Socket? _socket;
   bool _isConnected = false;
 
   Future<void> connect({
@@ -11,9 +11,9 @@ class MeetSocket {
   }) async {
     if (_isConnected) return;
 
-    _socket = IO.io(
+    _socket = io.io(
       'https://api.nowdigitaleasy.com/meet',
-      IO.OptionBuilder()
+      io.OptionBuilder()
           .setTransports(['websocket'])
           .setPath('/meet/socket.io')
           .setQuery({
@@ -34,8 +34,8 @@ class MeetSocket {
     });
 
     _socket!.onDisconnect((_) => _isConnected = false);
-    _socket!.onConnectError((err) => print('Socket error: $err'));
-    _socket!.onError((err) => print('Socket error: $err'));
+    _socket!.onConnectError((err) => log('Socket error: $err'));
+    _socket!.onError((err) => log('Socket error: $err'));
 
     _socket!.connect();
   }

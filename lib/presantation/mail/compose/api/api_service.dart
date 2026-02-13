@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:developer';
 import 'package:http/http.dart' as http;
 import 'package:nde_email/data/respiratory.dart';
 import 'package:nde_email/data/mailboxid.dart';

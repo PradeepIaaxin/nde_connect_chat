@@ -78,7 +78,7 @@ class StorageScreen extends StatelessWidget {
                                 color: getColorByType(item.type),
                               ),
                             );
-                          }).toList(),
+                          }),
                           if (state.totalSize < maxSize)
                             Expanded(
                               flex: (maxSize - state.totalSize) > 0

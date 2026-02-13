@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
@@ -127,6 +129,7 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
     final bytes = await File(file.path).readAsBytes();
 
     final editedBytes = await Navigator.push<Uint8List?>(
+
       context,
       MaterialPageRoute(
         builder: (_) => ImageEditor(

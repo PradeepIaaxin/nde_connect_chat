@@ -8,7 +8,7 @@ import 'package:nde_email/presantation/calender/bloc/event_bloc/event_all_event.
 import 'package:nde_email/presantation/calender/common/task_creating.dart';
 import 'package:nde_email/presantation/calender/day/event_one_day_screen.dart';
 import 'package:nde_email/presantation/calender/month/month_view.dart';
-import 'package:nde_email/presantation/calender/schedule/Event_schdule_Screen.dart';
+import 'package:nde_email/presantation/calender/schedule/event_schdule_screen.dart';
 import 'package:nde_email/presantation/calender/schedule/event_planner_date_view.dart';
 import 'package:nde_email/presantation/calender/schedule/task_view_screen.dart';
 import 'package:nde_email/utils/const/consts.dart';

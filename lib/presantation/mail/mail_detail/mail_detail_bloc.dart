@@ -17,7 +17,7 @@ class MailDetailBloc extends Bloc<MailDetailEvent, MailDetailState> {
         final mailDetail = await apiService.fetchMailDetail(event.mailboxId, event.messageId);
         emit(MailDetailLoaded(mailDetail));
       } catch (e) {
-        emit(MailDetailError("${e.toString()}"));
+        emit(MailDetailError(e.toString()));
       }
     });
   }

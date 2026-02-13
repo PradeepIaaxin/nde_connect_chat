@@ -8,7 +8,7 @@ import '../../../../../utils/datetime/date_time_utils.dart';
 import '../../../../../utils/router/router.dart';
 import '../../../../widgets/chat_widgets/Common/grouped_media_viewer.dart';
 import '../../../../widgets/chat_widgets/Common/whatsapp_swipe_to_reply.dart';
-import '../../../../widgets/chat_widgets/messager_Wifgets/forwardmessagescreen_widget.dart';
+import '../../../../widgets/chat_widgets/messager_Wifgets/forward_messagescreen_widget.dart';
 import '../../../widget/reation_bottom.dart';
 import 'mixed_media_viewer.dart';
 import 'commonfuntion.dart';
@@ -355,7 +355,7 @@ class MessageWidgets extends StatelessWidget {
                                     final conversationMedia =
                                     buildConversationMedia(
                                         groupedMessages);
-                                    print(
+                                    log(
                                         "tappedIndex $tappedIndex");
                                     final tappedItem =
                                     groupMedia[tappedIndex];
@@ -397,20 +397,17 @@ class MessageWidgets extends StatelessWidget {
                                     );
                                   },
                                   onForwardTap: () {
-                                    print(
-                                        "realIndexss $realIndex");
+                                   
                                     log("combinedMessages ${groupedMessages.length}");
                                     final forwardMessages =
                                     getGroupedMessages(
                                         groupedMessages,
                                         realIndex);
 
-                                    print(
-                                        "forwardMessagessss ${forwardMessages.length}");
+                                   
                                     for (final m
                                     in forwardMessages) {
-                                      print(
-                                          "ITEM TYPE => ${m.runtimeType}");
+                                      
                                       log("ITEM VALUE => $m");
                                     }
 

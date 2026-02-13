@@ -12,5 +12,5 @@ class ShareFailure extends ShareState {
 
   ShareFailure(this.message);
 
-  get error => null;
+  Null get error => null;
 }

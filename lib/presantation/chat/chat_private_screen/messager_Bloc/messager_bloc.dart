@@ -7,7 +7,7 @@ import 'package:nde_email/presantation/chat/chat_private_screen/localstorage/loc
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/messager_state.dart';
 import 'package:objectid/objectid.dart';
 
-import '../../Socket/Socket_Service.dart';
+import '../../socket/socket_service.dart';
 import '../messager_api_service.dart';
 import '../messager_model.dart';
 import 'messager_event.dart';

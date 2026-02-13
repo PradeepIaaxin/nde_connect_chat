@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
@@ -8,7 +10,7 @@ import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/wi
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/grouped_media_viewer.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/Common/message_caption.dart';
 import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/audio_message_widget.dart';
-import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/ForwardMessageScreen_widget.dart';
+import 'package:nde_email/presantation/widgets/chat_widgets/messager_Wifgets/forward_messagescreen_widget.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
 import 'package:nde_email/utils/reusbale/mime.type.dart';
 import 'package:shimmer/shimmer.dart';
@@ -1535,7 +1537,7 @@ log('isSentByMe ${widget.isSentByMe}');
                         child: InkWell(
                           borderRadius: BorderRadius.circular(20),
                           onTap: () {
-                            print("Forwarding link: $content");
+                            
                             MyRouter.push(
                               screen: ForwardMessageScreen(
                                 messages: [widget.message],

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+// ignore: library_prefixes
 import 'package:http_parser/http_parser.dart' as MediaType;
 import 'package:mime/mime.dart';
 import 'package:nde_email/bridge_generated.dart/api.dart';

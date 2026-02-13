@@ -3,9 +3,8 @@ import 'package:flutter/material.dart';
 import 'dart:developer' show log;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nde_email/data/respiratory.dart';
-import 'package:nde_email/presantation/chat/Socket/Socket_Service.dart';
 
-import 'package:nde_email/presantation/chat/chat_contact_list/userservice.dart';
+import 'package:nde_email/presantation/chat/chat_contact_list/user_service.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_data_model.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_list_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_list_event.dart';
@@ -17,12 +16,13 @@ import 'package:nde_email/presantation/chat/chat_list/chat_session_storage/chat_
 
 import 'package:nde_email/presantation/chat/chat_list/chat_state.dart';
 import 'package:nde_email/presantation/chat/chat_list/chat_response_model.dart';
+import 'package:nde_email/presantation/chat/socket/socket_service.dart';
 import 'package:nde_email/utils/const/consts.dart';
 import 'package:nde_email/utils/reusbale/colour_utlis.dart';
 import 'package:nde_email/utils/router/router.dart';
 import 'package:nde_email/utils/snackbar/snackbar.dart';
 
-import '../../../chat/chat_private_screen/Private_Chat_Screen.dart';
+import '../../../chat/chat_private_screen/private_chat_screen.dart';
 
 import '../../../chat/chat_private_screen/localstorage/local_storage.dart';
 
@@ -70,7 +70,6 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
     _searchController.dispose();
     super.dispose();
   }
-
 
   // --- Helper: Save optimistic message into LocalChatStorage ---
   // Future<void> _saveOptimisticMessage(
@@ -367,10 +366,8 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
                         var usersToDisplay = List<ChatUserlist>.from(allUsers);
                         if (_searchQuery.isNotEmpty) {
                           usersToDisplay = usersToDisplay.where((user) {
-                            final firstName =
-                                (user.firstName).toLowerCase();
-                            final lastName =
-                                (user.lastName).toLowerCase();
+                            final firstName = (user.firstName).toLowerCase();
+                            final lastName = (user.lastName).toLowerCase();
                             final email = (user.email).toLowerCase();
                             final fullName =
                                 "$firstName $lastName".toLowerCase();
@@ -628,7 +625,6 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
                     log("Error forwarding messages from UI: $e");
 
                     Messenger.alertError("Error forwarding messages");
-                   
                   }
                 },
                 backgroundColor: chatColor,
@@ -664,7 +660,9 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
       },
       child: Container(
         decoration: BoxDecoration(
-          color: isSelected ? chatColor.withValues(alpha:0.2) : Colors.transparent,
+          color: isSelected
+              ? chatColor.withValues(alpha: 0.2)
+              : Colors.transparent,
         ),
         child: ListTile(
           leading: Stack(
