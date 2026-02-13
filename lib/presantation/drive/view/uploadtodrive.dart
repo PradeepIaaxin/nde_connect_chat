@@ -103,7 +103,7 @@ class _UploadToDriveScreenState extends State<UploadToDriveScreen> {
                           parentId: widget.parentId,
                         ),
                       );
-                  Future.delayed(Duration(seconds: 3),() {
+                  Future.delayed(Duration(seconds: 4),() {
                     context.read<SuggestionsBloc>().add(FetchSuggestionsEvent());
                     MyRouter.pop();
                   },);
