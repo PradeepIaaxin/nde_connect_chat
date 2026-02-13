@@ -13,7 +13,7 @@ import 'package:nde_email/presantation/drive/common/file_preview_widget.dart';
 import 'package:nde_email/presantation/drive/common/show_bottom_model_sheet.dart';
 import 'package:nde_email/presantation/drive/common/show_rename.dart';
 import 'package:nde_email/presantation/drive/model/mydrive_model.dart'
-    as drive_model;
+as drive_model;
 import 'package:nde_email/presantation/drive/model/mydrive_model.dart';
 import 'package:nde_email/presantation/drive/view/file_deatils_screen.dart';
 import 'package:nde_email/presantation/drive/view/file_deep_view.dart';
@@ -69,12 +69,12 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
     final sort = _getSortParams(_selectedSortOption);
     context.read<MyDriveBloc>().resetPagination();
     context.read<MyDriveBloc>().add(
-          FetchMyDriveFolders(
-            sortBy: sort['sortBy']!,
-            order: sort['order']!,
-            showLoading: false,
-          ),
-        );
+      FetchMyDriveFolders(
+        sortBy: sort['sortBy']!,
+        order: sort['order']!,
+        showLoading: false,
+      ),
+    );
   }
 
   void _onScroll() {
@@ -84,9 +84,9 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
         widget.scrollController.position.maxScrollExtent - 200) {
       final sort = _getSortParams(_selectedSortOption);
       context.read<MyDriveBloc>().add(FetchMyDriveFolders(
-            sortBy: sort['sortBy']!,
-            order: sort['order']!,
-          ));
+        sortBy: sort['sortBy']!,
+        order: sort['order']!,
+      ));
     }
   }
 
@@ -165,7 +165,7 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
 
     return SliverList(
       delegate: SliverChildBuilderDelegate(
-        (context, index) {
+            (context, index) {
           final file = suggestions[index];
 
           final isSelected = selectedFolders.contains(file.id);
@@ -176,28 +176,26 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
             },
             onTap: isSelectionMode
                 ? () {
-                    _handleTapSelect(file.id);
-                  }
+              _handleTapSelect(file.id);
+            }
                 : file.type == "folder"
-                    ? () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => FileDeepView(
-                              fileId: file.id,
-                              folderName: file.name,
-                              gridview: false,
-                            ),
-                          ),
-                        );
-                      }
-                    : () {
-                        MyRouter.push(
-                            screen: FilePreviewScreen(
-                          fileUrl: file.preview ?? "",
-                          fileName: file.name,
-                        ));
-                      },
+                ? () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => FileDeepView(
+                    fileId: file.id,
+                    folderName: file.name,
+                    gridview: false,
+                  ),
+                ),
+              );
+            }
+                : () {
+              MyRouter.push(
+                  screen:
+                  FilePreviewScreen(fileUrl: file.preview ?? "",  fileName: file.name,));
+            },
             child: Container(
               color: isSelected ? chatColor.withValues(alpha: 0.1) : null,
               child: ListTile(
@@ -272,55 +270,55 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
 
                             log(file.starred.toString());
                             context.read<MyDriveBloc>().add(
-                                  StarredData(
-                                    fileID: [file.id],
-                                    isCurrentlyStarred: file.starred ?? false,
-                                  ),
-                                );
+                              StarredData(
+                                fileID: [file.id],
+                                isCurrentlyStarred: file.starred ?? false,
+                              ),
+                            );
 
                             // context.read<MyDriveBloc>().add(
                             //       StarredData(fileID: [file.id]),
                             //     );
                           },
                         ),
-                        if (file.type != "folder")
-                          BottomSheetOption(
-                            icon: Icons.open_with,
-                            title: "Open with",
-                            onTap: () {
-                              openWithSystemApps(file.preview!);
-                              // Clipboard.setData(
-                              //   ClipboardData(text: file.preview.toString()),
-                              // );
-                              // Messenger.alertSuccess("Copied");
-                            },
-                          ),
-                        if (file.type != "folder")
-                          BottomSheetOption(
-                            icon: Icons.ios_share_outlined,
-                            title: "Send a copy",
-                            onTap: () async {
-                              await Future.delayed(
-                                  const Duration(milliseconds: 300));
+                        if(   file.type != "folder"
+                        )  BottomSheetOption(
+                          icon: Icons.open_with,
+                          title: "Open with",
+                          onTap: () {
+                            openWithSystemApps(file.preview!);
+                            // Clipboard.setData(
+                            //   ClipboardData(text: file.preview.toString()),
+                            // );
+                            // Messenger.alertSuccess("Copied");
+                          },
+                        ),
+                        if(   file.type != "folder"
+                        )   BottomSheetOption(
+                          icon: Icons.ios_share_outlined,
+                          title: "Send a copy",
+                          onTap: () async {
+                            await Future.delayed(
+                                const Duration(milliseconds: 300));
 
-                              final name = file.name.trim();
-                              final preview =
-                                  file.preview?.toString().trim() ?? '';
+                            final name = file.name.trim();
+                            final preview =
+                                file.preview?.toString().trim() ?? '';
 
-                              final textToShare =
-                                  (name.isNotEmpty || preview.isNotEmpty)
-                                      ? "$name\n\n$preview"
-                                      : '';
+                            final textToShare =
+                            (name.isNotEmpty || preview.isNotEmpty)
+                                ? "$name\n\n$preview"
+                                : '';
 
-                              if (textToShare.isNotEmpty) {
-                                await SharePlus.instance.share(
-                                  ShareParams(text: textToShare),
-                                );
-                              } else {
-                                log("Nothing to share.");
-                              }
-                            },
-                          ),
+                            if (textToShare.isNotEmpty) {
+                              await SharePlus.instance.share(
+                                ShareParams(text: textToShare),
+                              );
+                            } else {
+                              log("Nothing to share.");
+                            }
+                          },
+                        ),
                         BottomSheetOption(
                           icon: Icons.link,
                           title: "Copy link",
@@ -340,51 +338,58 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                               initialName: file.name,
                               onRename: (newName) {
                                 context.read<MyDriveBloc>().add(
-                                      RenameEvent(
-                                          fileIDs: [file.id],
-                                          editedName: newName.trim()),
-                                    );
+                                  RenameEvent(
+                                      fileIDs: [file.id],
+                                      editedName: newName.trim()),
+                                );
                               },
                             );
                           },
                         ),
                         file.type == "folder"
                             ? BottomSheetOption(
-                                icon: Icons.color_lens,
-                                title: "Change Color",
-                                onTap: () {
-                                  MyRouter.pop();
+                          icon: Icons.color_lens,
+                          title: "Change Color",
+                          onTap: () {
+                            MyRouter.pop();
 
-                                  showDialog(
-                                    context: context,
-                                    builder: (context) {
-                                      return ColorPickerDialog(
-                                        onColorSelected: (hex) {
-                                          log("Selected Color: $hex");
+                            showDialog(
+                              context: context,
+                              builder: (context) {
+                                return ColorPickerDialog(
+                                  onColorSelected: (hex) {
+                                    log("Selected Color: $hex");
 
-                                          context.read<MyDriveBloc>().add(
-                                                OrganizeEvent(fileIDs: [
-                                                  file.id,
-                                                ], pickedColor: hex),
-                                              );
-                                        },
-                                      );
-                                    },
-                                  );
-                                },
-                              )
+                                    context.read<MyDriveBloc>().add(
+                                      OrganizeEvent(fileIDs: [
+                                        file.id,
+                                      ], pickedColor: hex),
+                                    );
+                                  },
+                                );
+                              },
+                            );
+                          },
+                        )
                             : BottomSheetOption(
-                                icon: Icons.file_copy,
-                                title: "Make a copy ",
-                                onTap: () {},
-                              ),
+                          icon: Icons.file_copy,
+                          title: "Make a copy ",
+                          onTap: () {},
+                        ),
                         BottomSheetOption(
                           icon: Icons.drive_file_move,
                           title: "Move",
-                          onTap: () {
+                          onTap: () async {
                             MyRouter.pop();
-                            MyRouter.push(
-                                screen: MoveFileScreen(movingFileId: file.id));
+                            final moved = await Navigator.push(
+                             context,MaterialPageRoute(builder: (context) => MoveFileScreen(movingFileId: file.id),)
+                            );
+                            print("MOVE RESULT = $moved");
+                            if (mounted && (moved ?? false)) {
+                              print("heyyyyyyyyyy");
+                              _fetchFolders();   // ✅ ALWAYS correct bloc instance
+                            }
+
                           },
                         ),
                         BottomSheetOption(
@@ -430,20 +435,10 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                           onTap: () {
                             showMoveToBinDialog(context, () {
                               context.read<MyDriveBloc>().add(
-                                    MoveToTrashEvent(fileIDs: [file.id]),
-                                  );
-                              Messenger.alertAction(
-                                color: Colors.green,
-                                msg: "Item moved to trash",
-                                actionLabel: "Undo",
-                                duration: const Duration(seconds: 2),
-                                onAction: () {
-                                  context.read<MyDriveBloc>().add(
-                                        RestoreEvent(fileIDs: [file.id]),
-                                      );
-                                },
+                                MoveToTrashEvent(fileIDs: [file.id]),
                               );
-                            }, file.name);
+                            },file.name);
+
                           },
                         ),
                       ],
@@ -482,7 +477,7 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
           childAspectRatio: 1.4,
         ),
         delegate: SliverChildBuilderDelegate(
-          (context, index) {
+              (context, index) {
             final file = suggestions[index];
             isSelected = selectedFolders.contains(file.id);
             return GestureDetector(
@@ -492,28 +487,26 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
               },
               onTap: isSelectionMode
                   ? () {
-                      _handleTapSelect(file.id);
-                    }
+                _handleTapSelect(file.id);
+              }
                   : file.type == "folder"
-                      ? () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => FileDeepView(
-                                fileId: file.id,
-                                folderName: file.name,
-                                gridview: false,
-                              ),
-                            ),
-                          );
-                        }
-                      : () {
-                          MyRouter.push(
-                              screen: FilePreviewScreen(
-                            fileUrl: file.preview ?? "",
-                            fileName: file.name,
-                          ));
-                        },
+                  ? () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => FileDeepView(
+                      fileId: file.id,
+                      folderName: file.name,
+                      gridview: false,
+                    ),
+                  ),
+                );
+              }
+                  : () {
+                MyRouter.push(
+                    screen: FilePreviewScreen(
+                      fileUrl: file.preview ?? "",  fileName: file.name,));
+              },
               behavior: HitTestBehavior.opaque,
               child: Container(
                 decoration: BoxDecoration(
@@ -539,306 +532,293 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style:
-                                  const TextStyle(fontWeight: FontWeight.w600),
+                              const TextStyle(fontWeight: FontWeight.w600),
                             ),
                           ),
                           isSelected == false
                               ? IconButton(
-                                  icon: const Icon(Icons.more_vert),
-                                  onPressed: () {
-                                    showReusableBottomSheet(
-                                      context,
-                                      [
-                                        BottomSheetOption(
-                                          icon: Icons.person_add,
-                                          title: "Share",
-                                          onTap: () {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                  builder: (context) =>
-                                                      ShareScreen(file.id)),
-                                            );
-                                          },
-                                        ),
-                                        BottomSheetOption(
-                                          icon: Icons.manage_accounts,
-                                          title: "Manage access",
-                                          onTap: () {
-                                            MyRouter.push(
-                                                screen: ManageAccessScreenUI(
-                                                    fileId: file.id));
-                                          },
-                                        ),
-                                        BottomSheetOption(
-                                          icon: file.starred == true
-                                              ? Icons.star
-                                              : Icons.star_border,
-                                          title: file.starred == true
-                                              ? "Remove to Starred"
-                                              : "Add to Starred",
-                                          onTap: () {
-                                            log('hii');
+                              icon: const Icon(Icons.more_vert),
+                              onPressed: () {
+                                showReusableBottomSheet(
+                                  context,
+                                  [
+                                    BottomSheetOption(
+                                      icon: Icons.person_add,
+                                      title: "Share",
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                              builder: (context) =>
+                                                  ShareScreen(file.id)),
+                                        );
+                                      },
+                                    ),
+                                    BottomSheetOption(
+                                      icon: Icons.manage_accounts,
+                                      title: "Manage access",
+                                      onTap: () {
+                                        MyRouter.push(
+                                            screen: ManageAccessScreenUI(
+                                                fileId: file.id));
+                                      },
+                                    ),
+                                    BottomSheetOption(
+                                      icon: file.starred == true
+                                          ? Icons.star
+                                          : Icons.star_border,
+                                      title: file.starred == true
+                                          ? "Remove to Starred"
+                                          : "Add to Starred",
+                                      onTap: () {
+                                        log('hii');
 
-                                            log(file.starred.toString());
-                                            // context.read<MyDriveBloc>().add(
-                                            //       StarredData(
-                                            //           fileID: [file.id]),
-                                            //     );
+                                        log(file.starred.toString());
+                                        // context.read<MyDriveBloc>().add(
+                                        //       StarredData(
+                                        //           fileID: [file.id]),
+                                        //     );
+                                        context.read<MyDriveBloc>().add(
+                                          StarredData(
+                                            fileID: selectedFolders
+                                                .toList(),
+                                            isCurrentlyStarred:
+                                            file.starred ?? false,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                    BottomSheetOption(
+                                      icon: Icons.link,
+                                      title: "Copy link",
+                                      onTap: () {
+                                        Clipboard.setData(
+                                          ClipboardData(
+                                              text:
+                                              file.preview.toString()),
+                                        );
+                                        Messenger.alertSuccess("Copied");
+                                      },
+                                    ),
+                                    BottomSheetOption(
+                                      icon: Icons.drive_file_rename_outline,
+                                      title: "Rename",
+                                      onTap: () async {
+                                        await showRenameDialog(
+                                          context: context,
+                                          initialName: file.name,
+                                          onRename: (newName) {
                                             context.read<MyDriveBloc>().add(
-                                                  StarredData(
-                                                    fileID: selectedFolders
-                                                        .toList(),
-                                                    isCurrentlyStarred:
-                                                        file.starred ?? false,
-                                                  ),
-                                                );
-                                          },
-                                        ),
-                                        BottomSheetOption(
-                                          icon: Icons.link,
-                                          title: "Copy link",
-                                          onTap: () {
-                                            Clipboard.setData(
-                                              ClipboardData(
-                                                  text:
-                                                      file.preview.toString()),
+                                              RenameEvent(
+                                                  fileIDs: [file.id],
+                                                  editedName:
+                                                  newName.trim()),
                                             );
-                                            Messenger.alertSuccess("Copied");
                                           },
-                                        ),
-                                        BottomSheetOption(
-                                          icon: Icons.drive_file_rename_outline,
-                                          title: "Rename",
-                                          onTap: () async {
-                                            await showRenameDialog(
-                                              context: context,
-                                              initialName: file.name,
-                                              onRename: (newName) {
-                                                context.read<MyDriveBloc>().add(
-                                                      RenameEvent(
-                                                          fileIDs: [file.id],
-                                                          editedName:
-                                                              newName.trim()),
-                                                    );
+                                        );
+                                      },
+                                    ),
+                                    file.type == "folder"
+                                        ? BottomSheetOption(
+                                      icon: Icons.color_lens,
+                                      title: "Change Color",
+                                      onTap: () {
+                                        MyRouter.pop();
+
+                                        showDialog(
+                                          context: context,
+                                          builder: (context) {
+                                            return ColorPickerDialog(
+                                              onColorSelected: (hex) {
+                                                log("Selected Color: $hex");
+
+                                                context
+                                                    .read<
+                                                    MyDriveBloc>()
+                                                    .add(
+                                                  OrganizeEvent(
+                                                      fileIDs: [
+                                                        file.id,
+                                                      ],
+                                                      pickedColor:
+                                                      hex),
+                                                );
                                               },
                                             );
                                           },
-                                        ),
-                                        file.type == "folder"
-                                            ? BottomSheetOption(
-                                                icon: Icons.color_lens,
-                                                title: "Change Color",
-                                                onTap: () {
-                                                  MyRouter.pop();
+                                        );
+                                      },
+                                    )
+                                        : BottomSheetOption(
+                                      icon: Icons.file_copy,
+                                      title: "Make a copy ",
+                                      onTap: () {},
+                                    ),
+                                    BottomSheetOption(
+                                      icon: Icons.drive_file_move,
+                                      title: "Move",
+                                      onTap: () async {
+                                        MyRouter.pop();
+                                        final moved = await Navigator.push(
+                                            context,MaterialPageRoute(builder: (context) => MoveFileScreen(movingFileId: file.id),)
+                                        );
+                                        print("MOVE RESULT = $moved");
 
-                                                  showDialog(
-                                                    context: context,
-                                                    builder: (context) {
-                                                      return ColorPickerDialog(
-                                                        onColorSelected: (hex) {
-                                                          log("Selected Color: $hex");
+                                        if (mounted && (moved ?? false)) {
+                                          print("heyyyyyyyyyy");
+                                          _fetchFolders();
+                                        }
+                                      },
+                                    ),
+                                    BottomSheetOption(
+                                      icon: Icons.turn_right_outlined,
+                                      title: "Send a copy",
+                                      onTap: () async {
+                                        await Future.delayed(const Duration(
+                                            milliseconds: 300));
 
-                                                          context
-                                                              .read<
-                                                                  MyDriveBloc>()
-                                                              .add(
-                                                                OrganizeEvent(
-                                                                    fileIDs: [
-                                                                      file.id,
-                                                                    ],
-                                                                    pickedColor:
-                                                                        hex),
-                                                              );
-                                                        },
-                                                      );
-                                                    },
-                                                  );
-                                                },
-                                              )
-                                            : BottomSheetOption(
-                                                icon: Icons.file_copy,
-                                                title: "Make a copy ",
-                                                onTap: () {},
-                                              ),
-                                        BottomSheetOption(
-                                          icon: Icons.drive_file_move,
-                                          title: "Move",
-                                          onTap: () {
-                                            MyRouter.pop();
-                                            MyRouter.push(
-                                                screen: MoveFileScreen(
-                                                    movingFileId: file.id));
-                                          },
-                                        ),
-                                        BottomSheetOption(
-                                          icon: Icons.turn_right_outlined,
-                                          title: "Send a copy",
-                                          onTap: () async {
-                                            await Future.delayed(const Duration(
-                                                milliseconds: 300));
+                                        final name = file.name.trim();
+                                        final preview = file.preview
+                                            ?.toString()
+                                            .trim() ??
+                                            '';
 
-                                            final name = file.name.trim();
-                                            final preview = file.preview
-                                                    ?.toString()
-                                                    .trim() ??
-                                                '';
+                                        final textToShare =
+                                        (name.isNotEmpty ||
+                                            preview.isNotEmpty)
+                                            ? "$name\n\n$preview"
+                                            : '';
 
-                                            final textToShare =
-                                                (name.isNotEmpty ||
-                                                        preview.isNotEmpty)
-                                                    ? "$name\n\n$preview"
-                                                    : '';
-
-                                            if (textToShare.isNotEmpty) {
-                                              SharePlus.instance.share(
-                                                ShareParams(text: textToShare),
-                                              );
-                                            } else {
-                                              log("Nothing to share.");
-                                            }
-                                          },
-                                        ),
-                                        BottomSheetOption(
-                                          icon: Icons.info_outline,
-                                          title: "Details & activity",
-                                          onTap: () {
-                                            log("deatils");
-                                            MyRouter.push(
-                                              screen: FileDetailScreen(
-                                                  fileID: file.id),
-                                            );
-                                          },
-                                        ),
-                                        BottomSheetOption(
-                                          icon: Icons.file_download_outlined,
-                                          title: "Download",
-                                          onTap: () async {
-                                            log("Downloading: ${file.name}");
-                                            log("File ID: ${file.id}");
-                                            log("File Path: ${file.preview ?? ''}");
-                                            log("MIME Type: ${file.mimetype ?? file.type}");
-                                            await FileDownloader.downloadFile(
-                                              fileId: file.id,
-                                              fileName: file.name,
-                                              mimeType:
-                                                  file.mimetype ?? file.type,
-                                              filePath: file.preview ?? '',
-                                            );
-                                          },
-                                        ),
-                                        BottomSheetOption(
-                                          icon: Icons.delete,
-                                          title: "Remove",
-                                          onTap: () {
-                                            showMoveToBinDialog(context, () {
-                                              context.read<MyDriveBloc>().add(
-                                                    MoveToTrashEvent(
-                                                        fileIDs: [file.id]),
-                                                  );
-                                              Messenger.alertAction(
-                                                color: Colors.green,
-                                                msg: "Item moved to trash",
-                                                actionLabel: "Undo",
-                                                duration:
-                                                    const Duration(seconds: 2),
-                                                onAction: () {
-                                                  context
-                                                      .read<MyDriveBloc>()
-                                                      .add(
-                                                        RestoreEvent(
-                                                            fileIDs: [file.id]),
-                                                      );
-                                                },
-                                              );
-                                            }, file.name);
-                                          },
-                                        ),
-                                      ],
-                                      title: file.name,
-                                      foldertype: file.type,
-                                      mimetype: file.mimetype,
-                                    );
-                                  })
+                                        if (textToShare.isNotEmpty) {
+                                          Share.share(textToShare);
+                                        } else {
+                                          log("Nothing to share.");
+                                        }
+                                      },
+                                    ),
+                                    BottomSheetOption(
+                                      icon: Icons.info_outline,
+                                      title: "Details & activity",
+                                      onTap: () {
+                                        log("deatils");
+                                        MyRouter.push(
+                                          screen: FileDetailScreen(
+                                              fileID: file.id),
+                                        );
+                                      },
+                                    ),
+                                    BottomSheetOption(
+                                      icon: Icons.file_download_outlined,
+                                      title: "Download",
+                                      onTap: () async {
+                                        log("Downloading: ${file.name}");
+                                        log("File ID: ${file.id}");
+                                        log("File Path: ${file.preview ?? ''}");
+                                        log("MIME Type: ${file.mimetype ?? file.type}");
+                                        await FileDownloader.downloadFile(
+                                          fileId: file.id,
+                                          fileName: file.name,
+                                          mimeType:
+                                          file.mimetype ?? file.type,
+                                          filePath: file.preview ?? '',
+                                        );
+                                      },
+                                    ),
+                                    BottomSheetOption(
+                                      icon: Icons.delete,
+                                      title: "Remove",
+                                      onTap: () {
+                                        context.read<MyDriveBloc>().add(
+                                          MoveToTrashEvent(
+                                              fileIDs: [file.id]),
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                  title: file.name,
+                                  foldertype: file.type,
+                                  mimetype: file.mimetype,
+                                );
+                              })
                               : Icon(Icons.check_circle, color: chatColor),
                         ],
                       ),
                     ),
                     Expanded(
                       child:
-                          file.mimetype != 'application/vnd.google-apps.folder'
-                              ? Stack(
-                                  clipBehavior: Clip.none,
-                                  children: [
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: file.thumbnail != null &&
-                                              file.thumbnail!.isNotEmpty
-                                          ? Image.network(
-                                              file.thumbnail!,
-                                              width: double.infinity,
-                                              fit: BoxFit.cover,
-                                              errorBuilder:
-                                                  (context, error, stackTrace) {
-                                                return Center(
-                                                  child: getMimeTypeImage(
-                                                      file.mimetype ?? ""),
-                                                );
-                                              },
-                                            )
-                                          : Center(
-                                              child: getMimeTypeImage(
-                                                  file.mimetype ?? "")),
-                                    ),
-                                    if (file.starred == true)
-                                      const Positioned(
-                                        bottom: 10,
-                                        right: 8,
-                                        child: Icon(Icons.star,
-                                            size: 20, color: Colors.amber),
-                                      ),
-                                  ],
-                                )
-                              : Center(
-                                  child: getMimeTypeImage(file.mimetype ?? "")),
+                      file.mimetype != 'application/vnd.google-apps.folder'
+                          ? Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: file.thumbnail != null &&
+                                file.thumbnail!.isNotEmpty
+                                ? Image.network(
+                              file.thumbnail!,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder:
+                                  (context, error, stackTrace) {
+                                return Center(
+                                  child: getMimeTypeImage(
+                                      file.mimetype ?? ""),
+                                );
+                              },
+                            )
+                                : Center(
+                                child: getMimeTypeImage(
+                                    file.mimetype ?? "")),
+                          ),
+                          if (file.starred == true)
+                            const Positioned(
+                              bottom: 10,
+                              right: 8,
+                              child: Icon(Icons.star,
+                                  size: 20, color: Colors.amber),
+                            ),
+                        ],
+                      )
+                          : Center(
+                          child: getMimeTypeImage(file.mimetype ?? "")),
                     ),
                     ListTile(
                       leading: file.profilePic != null &&
-                              file.profilePic!.isNotEmpty
+                          file.profilePic!.isNotEmpty
                           ? CircleAvatar(
-                              backgroundColor: Colors.transparent,
-                              child: ClipOval(
-                                child: CachedNetworkImage(
-                                  imageUrl: file.profilePic!,
-                                  width: 40,
-                                  height: 40,
-                                  memCacheWidth: 480,
-                                  memCacheHeight: 600,
-                                  fit: BoxFit.cover,
-                                  placeholder: (context, url) =>
-                                      const CircularProgressIndicator(),
-                                  errorWidget: (context, url, error) =>
-                                      CircleAvatar(
-                                          backgroundColor: AppColors.profile,
-                                          child: Text(
-                                            file.name.isNotEmpty
-                                                ? file.name[0].toUpperCase()
-                                                : "",
-                                            style: const TextStyle(
-                                                color: Colors.white),
-                                          )),
-                                ),
-                              ),
-                            )
+                        backgroundColor: Colors.transparent,
+                        child: ClipOval(
+                          child: CachedNetworkImage(
+                            imageUrl: file.profilePic!,
+                            width: 40,
+                            height: 40,
+                            memCacheWidth: 480,
+                            memCacheHeight: 600,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) =>
+                            const CircularProgressIndicator(),
+                            errorWidget: (context, url, error) =>
+                                CircleAvatar(
+                                    backgroundColor: AppColors.profile,
+                                    child: Text(
+                                      file.name.isNotEmpty
+                                          ? file.name[0].toUpperCase()
+                                          : "",
+                                      style: const TextStyle(
+                                          color: Colors.white),
+                                    )),
+                          ),
+                        ),
+                      )
                           : CircleAvatar(
-                              backgroundColor: AppColors.profile,
-                              child: Text(
-                                file.name.isNotEmpty
-                                    ? file.name[0].toUpperCase()
-                                    : "",
-                                style: const TextStyle(color: Colors.white),
-                              ),
-                            ),
+                        backgroundColor: AppColors.profile,
+                        child: Text(
+                          file.name.isNotEmpty
+                              ? file.name[0].toUpperCase()
+                              : "",
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      ),
                       title: const Text("You opened"),
                       subtitle: Text(
                         DateFormatted.formatToReadableDate(file.updatedAt),
@@ -888,10 +868,14 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                       titleWidthFactor: 0.8,
                       subtitleWidth: 100,
                     );
-                  } else if (state is MyDriveLoaded) {
+                  }
+                  else if (state is MyDriveLoaded) {
                     _currentFolders = state.folders;
                     return RefreshIndicator(
-                      onRefresh: () async => _fetchFolders,
+                      onRefresh: () async {
+                        _fetchFolders();
+                      },
+
                       child: CustomScrollView(
                         physics: AlwaysScrollableScrollPhysics(),
                         controller: widget.scrollController,
@@ -905,217 +889,188 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                                   const EdgeInsets.symmetric(horizontal: 12),
                               child: isSelectionMode
                                   ? Row(
-                                      children: [
-                                        IconButton(
-                                          onPressed: () {
-                                            _clearSelection();
-                                          },
-                                          icon: Icon(Icons.clear),
-                                        ),
-                                        Text(
-                                          "${selectedFolders.length} selected",
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.bold),
-                                        ),
-                                        Spacer(),
-                                        IconButton(
-                                          constraints: const BoxConstraints(),
-                                          padding: EdgeInsets.zero,
-                                          onPressed: () {
-                                            setState(() {
-                                              if (selectAll) {
-                                                selectedFolders.clear();
-                                              } else {
-                                                // Select all
-                                                selectedFolders.addAll(
-                                                    _currentFolders
-                                                        .map((f) => f.id));
-                                              }
-                                              selectAll = !selectAll;
-                                            });
-                                          },
-                                          icon: Icon(
-                                            selectAll
-                                                ? Icons.check_box
-                                                : Icons.check_box_outline_blank,
-                                            color: chatColor,
-                                          ),
-                                        ),
-                                        IconButton(
-                                          constraints: const BoxConstraints(),
-                                          padding: EdgeInsets.zero,
-                                          icon: Icon(_isGridView
-                                              ? Icons.list
-                                              : Icons.grid_view),
-                                          onPressed: () {
-                                            setState(() {
-                                              _isGridView = !_isGridView;
-                                            });
-                                          },
-                                        ),
-                                        IconButton(
-                                          constraints: const BoxConstraints(),
-                                          padding: EdgeInsets.zero,
-                                          onPressed: () {
-                                            final selectedFolderModels =
-                                                _currentFolders
-                                                    .where((f) =>
-                                                        selectedFolders
-                                                            .contains(f.id))
-                                                    .toList();
-
-                                            if (selectedFolderModels.isEmpty) {
-                                              return;
-                                            }
-
-                                            showReusableBottomSheet(
-                                              context,
-                                              [
-                                                BottomSheetOption(
-                                                  icon: selectedFolderModels
-                                                          .every((f) =>
-                                                              f.starred ?? true)
-                                                      ? Icons.star
-                                                      : Icons.star_border,
-                                                  title: selectedFolderModels
-                                                          .every((f) =>
-                                                              f.starred ??
-                                                              false)
-                                                      ? "Remove from Starred"
-                                                      : "Add to Starred",
-                                                  onTap: () {
-                                                    // context
-                                                    //     .read<MyDriveBloc>()
-                                                    //     .add(
-                                                    //       StarredData(
-                                                    //           fileID:
-                                                    //               selectedFolders
-                                                    //                   .toList()),
-                                                    //     );
-
-                                                    context
-                                                        .read<MyDriveBloc>()
-                                                        .add(
-                                                          StarredData(
-                                                            fileID:
-                                                                selectedFolders
-                                                                    .toList(),
-                                                            isCurrentlyStarred:
-                                                                selectedFolderModels
-                                                                    .every((f) =>
-                                                                        f.starred ??
-                                                                        false),
-                                                          ),
-                                                        );
-
-                                                    _clearSelection();
-                                                  },
-                                                ),
-                                                BottomSheetOption(
-                                                  icon: Icons
-                                                      .file_download_outlined,
-                                                  title: "Download",
-                                                  onTap: () async {
-                                                    for (var folder
-                                                        in selectedFolderModels) {
-                                                      log("Downloading: ${folder.name}");
-                                                      log("File ID: ${folder.id}");
-                                                      log("File Path: ${folder.preview ?? ''}");
-                                                      log("MIME Type: ${folder.mimetype ?? folder.type}");
-                                                      await FileDownloader
-                                                          .downloadFile(
-                                                        fileId: folder.id,
-                                                        filePath:
-                                                            folder.preview ??
-                                                                '',
-                                                        fileName: folder.name,
-                                                        mimeType:
-                                                            folder.mimetype ??
-                                                                folder.type,
-                                                      );
-                                                    }
-                                                    _clearSelection();
-                                                  },
-                                                ),
-                                                BottomSheetOption(
-                                                  icon: Icons.delete,
-                                                  title: "Move to bin",
-                                                  onTap: () {
-                                                    showMoveToBinDialog(context,
-                                                        () {
-                                                      context
-                                                          .read<MyDriveBloc>()
-                                                          .add(
-                                                            MoveToTrashEvent(
-                                                                fileIDs:
-                                                                    selectedFolders
-                                                                        .toList()),
-                                                          );
-                                                      Messenger.alertAction(
-                                                        color: Colors.green,
-                                                        msg:
-                                                            "Item moved to trash",
-                                                        actionLabel: "Undo",
-                                                        duration:
-                                                            const Duration(
-                                                                seconds: 2),
-                                                        onAction: () {
-                                                          context
-                                                              .read<
-                                                                  MyDriveBloc>()
-                                                              .add(
-                                                                RestoreEvent(
-                                                                    fileIDs:
-                                                                        selectedFolders
-                                                                            .toList()),
-                                                              );
-                                                        },
-                                                      );
-                                                    }, "");
-                                                    _clearSelection();
-                                                  },
-                                                ),
-                                              ],
-                                            );
-                                          },
-                                          icon: const Icon(Icons.more_vert),
-                                        )
-                                      ],
-                                    )
-                                  : Row(
-                                      children: [
-                                        const Text(
-                                          "Files",
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w500,
-                                            fontSize: 18,
-                                          ),
-                                        ),
-                                        const Spacer(),
-                                        IconButton(
-                                          onPressed: () {
-                                            setState(() {
-                                              _isGridView = !_isGridView;
-                                            });
-                                          },
-                                          icon: Icon(
-                                            _isGridView
-                                                ? Icons.list
-                                                : Icons.grid_view,
-                                          ),
-                                        )
-                                      ],
+                                children: [
+                                  IconButton(
+                                    onPressed: () {
+                                      _clearSelection();
+                                    },
+                                    icon: Icon(Icons.clear),
+                                  ),
+                                  Text(
+                                    "${selectedFolders.length} selected",
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                  Spacer(),
+                                  IconButton(
+                                    constraints: const BoxConstraints(),
+                                    padding: EdgeInsets.zero,
+                                    onPressed: () {
+                                      setState(() {
+                                        if (selectAll) {
+                                          selectedFolders.clear();
+                                        } else {
+                                          // Select all
+                                          selectedFolders.addAll(
+                                              _currentFolders
+                                                  .map((f) => f.id));
+                                        }
+                                        selectAll = !selectAll;
+                                      });
+                                    },
+                                    icon: Icon(
+                                      selectAll
+                                          ? Icons.check_box
+                                          : Icons.check_box_outline_blank,
+                                      color: chatColor,
                                     ),
+                                  ),
+                                  IconButton(
+                                    constraints: const BoxConstraints(),
+                                    padding: EdgeInsets.zero,
+                                    icon: Icon(_isGridView
+                                        ? Icons.list
+                                        : Icons.grid_view),
+                                    onPressed: () {
+                                      setState(() {
+                                        _isGridView = !_isGridView;
+                                      });
+                                    },
+                                  ),
+                                  IconButton(
+                                    constraints: const BoxConstraints(),
+                                    padding: EdgeInsets.zero,
+                                    onPressed: () {
+                                      final selectedFolderModels =
+                                      _currentFolders
+                                          .where((f) => selectedFolders
+                                          .contains(f.id))
+                                          .toList();
+
+                                      if (selectedFolderModels.isEmpty)
+                                        return;
+
+                                      showReusableBottomSheet(
+                                        context,
+                                        [
+                                          BottomSheetOption(
+                                            icon: selectedFolderModels
+                                                .every((f) =>
+                                            f.starred ?? true)
+                                                ? Icons.star
+                                                : Icons.star_border,
+                                            title: selectedFolderModels
+                                                .every((f) =>
+                                            f.starred ?? false)
+                                                ? "Remove from Starred"
+                                                : "Add to Starred",
+                                            onTap: () {
+                                              // context
+                                              //     .read<MyDriveBloc>()
+                                              //     .add(
+                                              //       StarredData(
+                                              //           fileID:
+                                              //               selectedFolders
+                                              //                   .toList()),
+                                              //     );
+
+                                              context
+                                                  .read<MyDriveBloc>()
+                                                  .add(
+                                                StarredData(
+                                                  fileID:
+                                                  selectedFolders
+                                                      .toList(),
+                                                  isCurrentlyStarred:
+                                                  selectedFolderModels
+                                                      .every((f) =>
+                                                  f.starred ??
+                                                      false),
+                                                ),
+                                              );
+
+                                              _clearSelection();
+                                            },
+                                          ),
+                                          BottomSheetOption(
+                                            icon: Icons
+                                                .file_download_outlined,
+                                            title: "Download",
+                                            onTap: () async {
+                                              for (var folder
+                                              in selectedFolderModels) {
+                                                log("Downloading: ${folder.name}");
+                                                log("File ID: ${folder.id}");
+                                                log("File Path: ${folder.preview ?? ''}");
+                                                log("MIME Type: ${folder.mimetype ?? folder.type}");
+                                                await FileDownloader
+                                                    .downloadFile(
+                                                  fileId: folder.id,
+                                                  filePath:
+                                                  folder.preview ?? '',
+                                                  fileName: folder.name,
+                                                  mimeType:
+                                                  folder.mimetype ??
+                                                      folder.type,
+                                                );
+                                              }
+                                              _clearSelection();
+                                            },
+                                          ),
+                                          BottomSheetOption(
+                                            icon: Icons.delete,
+                                            title: "Move to bin",
+                                            onTap: () {
+                                              showMoveToBinDialog(context,() {
+                                                context.read<MyDriveBloc>().add(
+                                                  MoveToTrashEvent(fileIDs:  selectedFolders
+                                                      .toList()),
+                                                );
+                                              },"");
+                                              _clearSelection();
+                                            },
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                    icon: const Icon(Icons.more_vert),
+                                  )
+                                ],
+                              )
+                                  : Row(
+                                children: [
+                                  const Text(
+                                    "Files",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 18,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  IconButton(
+                                    onPressed: () {
+                                      setState(() {
+                                        _isGridView = !_isGridView;
+                                      });
+                                    },
+                                    icon: Icon(
+                                      _isGridView
+                                          ? Icons.list
+                                          : Icons.grid_view,
+                                    ),
+                                  )
+                                ],
+                              ),
                             ),
                           ),
                           _isGridView
                               ? _buildSliverGridView(state.folders, _isGridView)
-                              : _buildSliverFilesList(
-                                  state.folders, _isGridView),
+                              : _buildSliverFilesList(state.folders, _isGridView),
                         ],
                       ),
                     );
-                  } else if (state is MyDriveError) {
+                  }
+                  else if (state is MyDriveError) {
                     return Center(child: Text("Error: ${state.message}"));
                   }
                   return const SizedBox();
@@ -1159,12 +1114,12 @@ class MyComputer extends StatelessWidget {
 
       context.read<MyDriveBloc>().resetPagination();
       context.read<MyDriveBloc>().add(
-            FetchMyDriveFolders(
-              sortBy: sort['sortBy']!,
-              order: sort['order']!,
-              showLoading: false,
-            ),
-          );
+        FetchMyDriveFolders(
+          sortBy: sort['sortBy']!,
+          order: sort['order']!,
+          showLoading: false,
+        ),
+      );
     }
 
     return RefreshIndicator(

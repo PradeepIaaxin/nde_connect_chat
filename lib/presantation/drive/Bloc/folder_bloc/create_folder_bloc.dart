@@ -142,7 +142,7 @@ class CreateFolderBloc extends Bloc<CreateFolderEvent, CreateFolderState> {
           file: event.file!,
         );
 
-        emit(CreateFolderSuccess());
+        emit(UploadFilesSuccess());
         Messenger.alertSuccess('File uploaded successfully!');
       } else if (response.statusCode == 409) {
         log('Conflict error: File with same name exists');
@@ -217,7 +217,7 @@ class CreateFolderBloc extends Bloc<CreateFolderEvent, CreateFolderState> {
           presignedUrl: response.data['presignedurl'][0]['presignedUrl'],
           file: event.file!,
         );
-        emit(CreateFolderSuccess());
+        emit(ReplaceFilesSuccess());
         Messenger.alertSuccess('File uploaded successfully!');
       } else {
         emit(CreateFolderFailure("Failed with status: ${response.statusCode}"));
