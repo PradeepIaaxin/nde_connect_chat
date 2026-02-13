@@ -17,6 +17,7 @@ import 'package:nde_email/data/base_url.dart';
 class MailListBloc extends Bloc<MailListEvent, MailListState> {
   final FetchMailListapi apiService;
   final Map<String, List<GMMailModels>> cachedMailLists = {};
+  final Map<String, String?> cachedSpecialUses = {};
   String? activeMailboxId;
   int _pendingDeleteSequence = 0;
   final Map<String, bool> _pendingDeleteUndone = {};
@@ -77,6 +78,10 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
       cachedMailLists.remove("flagged");
       cachedMailLists.remove("all");
 
+      cachedSpecialUses.remove("unread");
+      cachedSpecialUses.remove("flagged");
+      cachedSpecialUses.remove("all");
+
       emit(state.copyWith(
         mails: [],
         status: MailListStatus.loading,
@@ -86,6 +91,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
     on<ResetAllMailState>((event, emit) {
       log("🔥 RESET ALL MAIL STATE HIT");
       cachedMailLists.clear();
+      cachedSpecialUses.clear();
       activeMailboxId = null;
 
       emit(MailListState.initial());
@@ -137,7 +143,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
         nextCursor: cachedCursors[event.mailboxId],
         hasMore: cachedCursors[event.mailboxId] != null, // ✅ RESTORE
         isPaginating: false,
-        specialUse: null,
+        specialUse: cachedSpecialUses[event.mailboxId],
         currentMailboxId: event.mailboxId,
       ));
 
@@ -181,6 +187,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
 
       /// ✅ 5️⃣ Empty mailbox
       if (fetchedMails.isEmpty && !event.isLoadMore) {
+        cachedSpecialUses[event.mailboxId] = response.specialUse;
         emit(state.copyWith(
           status: MailListStatus.empty,
           mails: [],
@@ -200,6 +207,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
       /// ✅ 7️⃣ Cache ALL loaded emails (including pagination)
       cachedMailLists[event.mailboxId] = updatedMails;
       cachedCursors[event.mailboxId] = nextCursor;
+      cachedSpecialUses[event.mailboxId] = response.specialUse;
 
       /// ✅ 8️⃣ Counts
       final unreadCount =

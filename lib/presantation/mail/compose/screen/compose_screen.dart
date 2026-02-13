@@ -583,6 +583,11 @@ class _ComposeScreenState extends State<ComposeScreen> {
                     context.read<MailListBloc>().add(RefreshMailListEvent(
                         state.mailboxId)); // Use mailboxId from state
 
+                    // 🔥 Also refresh 'all' filtered mails to update All Mails drawer
+                    context
+                        .read<MailListBloc>()
+                        .add(RefreshFilteredMailEvent('all'));
+
                     Messenger.alertSuccess("Draft saved successfully");
                     MyRouter.pop();
                   } else if (state is DraftError) {
