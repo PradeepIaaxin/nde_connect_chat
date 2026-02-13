@@ -62,7 +62,8 @@ class SuggestionsRepository {
   Future<List<FileModel>> fetchSuggestionsFolders({
     int page = 1,
     int limit = 30,
-  }) async {
+  })
+  async {
     try {
       final String? accessToken = await UserPreferences.getAccessToken();
       final String? defaultWorkspace =

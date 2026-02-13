@@ -20,8 +20,9 @@ import '../Bloc/home_bloc/sugesstion/sugesstion_event.dart';
 class UploadToDriveScreen extends StatefulWidget {
   final List<PlatformFile>? selectedFiles;
   final String? parentId;
+  final int? currentIndex;
 
-  const UploadToDriveScreen({super.key, this.selectedFiles, this.parentId});
+  const UploadToDriveScreen({super.key, this.selectedFiles, this.parentId, this.currentIndex});
 
   @override
   _UploadToDriveScreenState createState() => _UploadToDriveScreenState();
@@ -105,19 +106,13 @@ class _UploadToDriveScreenState extends State<UploadToDriveScreen> {
                           parentId: widget.parentId,
                         ),
                       );
-                  Future.delayed(Duration(seconds: 4),() {
-                    context.read<SuggestionsBloc>().add(FetchSuggestionsEvent());
-                    MyRouter.pop();
-                  },);
-
-
                 }
 
               //  Future.delayed(Duration(seconds: 2));
 
                 // Close upload screen and refresh drive folders
 
-                context.read<MyDriveBloc>().add(FetchMyDriveFolders());
+
               } catch (e) {
                 log("Upload failed: $e");
 
@@ -145,6 +140,13 @@ class _UploadToDriveScreenState extends State<UploadToDriveScreen> {
       ),
       body: BlocListener<CreateFolderBloc, CreateFolderState>(
         listener: (context, state) {
+          if (state is UploadFilesSuccess || state is ReplaceFilesSuccess) {
+            log(">>>>>>.");
+
+            context.read<MyDriveBloc>().add(FetchMyDriveFolders());
+            Navigator.pop(context,true);
+
+          }
           if (state is CreateFolderConflict) {
             showDialog(
               context: context,
