@@ -512,6 +512,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
   String? userName;
   String? profilePicUrl;
   String? selectedMailboxId;
+  bool _isNavigating = false;
 
   static const viewUnread = 'view_unread';
   static const viewAll = 'view_all';
@@ -753,6 +754,12 @@ class _CustomDrawerState extends State<CustomDrawer> {
         color: isSelected ? AppColors.iconActive : Colors.grey[700],
       ),
       onTap: () async {
+        if (_isNavigating) return;
+        _isNavigating = true;
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) _isNavigating = false;
+        });
+
         Navigator.pop(context);
         await MailboxStorage.saveMailboxId(mailbox.id);
 
@@ -790,6 +797,12 @@ class _CustomDrawerState extends State<CustomDrawer> {
         ),
       ),
       onTap: () async {
+        if (_isNavigating) return;
+        _isNavigating = true;
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) _isNavigating = false;
+        });
+
         Navigator.pop(context);
         await MailboxStorage.saveMailboxId(mailbox.id);
 
@@ -838,6 +851,12 @@ class _CustomDrawerState extends State<CustomDrawer> {
         color: isSelected ? AppColors.iconActive : Colors.grey[700],
       ),
       onTap: () async {
+        if (_isNavigating) return;
+        _isNavigating = true;
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) _isNavigating = false;
+        });
+
         Navigator.pop(context);
         await MailboxStorage.saveMailboxId(id);
 

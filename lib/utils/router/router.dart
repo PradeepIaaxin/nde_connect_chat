@@ -11,8 +11,8 @@ class MyRouter {
     );
   }
 
-
-  static String? restorablePushNamed({required String screen, Object? arguments}) {
+  static String? restorablePushNamed(
+      {required String screen, Object? arguments}) {
     return navigatorKey.currentState
         ?.restorablePushNamed(screen, arguments: arguments);
   }
@@ -29,11 +29,16 @@ class MyRouter {
   }
 
   static void pushReplace({required Widget screen}) {
-    navigatorKey.currentState?.pushReplacement(
-      MaterialPageRoute(
-        builder: (context) => screen,
-      ),
-    );
+    if (navigatorKey.currentState?.canPop() == true) {
+      navigatorKey.currentState?.pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => screen,
+        ),
+      );
+    } else {
+      // If we can't pop (no history), just push
+      push(screen: screen);
+    }
   }
 
   static void pushRemoveUntil({required Widget screen}) {
@@ -72,12 +77,10 @@ class MyRouter {
     navigatorKey.currentState?.pushNamedAndRemoveUntil(
       newRouteName,
       predicate ?? (route) => false,
-);
-}
+    );
+  }
+
   static dynamic pushReplacement({required Widget screen}) {
     return pushReplace(screen: screen);
   }
-
 }
-
-
