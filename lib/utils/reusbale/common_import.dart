@@ -17,6 +17,7 @@ export 'package:flutter_sound/public/flutter_sound_recorder.dart';
 export 'package:image_picker/image_picker.dart';
 export 'package:mime/mime.dart';
 
+export 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 export 'package:path_provider/path_provider.dart';
 export 'package:record/record.dart';
 export 'package:shared_preferences/shared_preferences.dart';

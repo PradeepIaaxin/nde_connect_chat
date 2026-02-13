@@ -1,4 +1,3 @@
-
 import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
@@ -29,17 +28,20 @@ class VideoCacheService {
   }
 
   /// Returns the local thumbnail File (or null if failed)
-  Future<File?> getThumbnailFuture(String videoUrl, {int maxHeight = 300, int quality = 75}) {
+  Future<File?> getThumbnailFuture(String videoUrl,
+      {int maxHeight = 300, int quality = 75}) {
     final key = _hash(videoUrl);
     if (_thumbTasks.containsKey(key)) return _thumbTasks[key]!;
-    final task = _generateThumbnail(videoUrl, key, maxHeight: maxHeight, quality: quality);
+    final task = _generateThumbnail(videoUrl, key,
+        maxHeight: maxHeight, quality: quality);
     _thumbTasks[key] = task;
     // when finished, keep result cached and remove from map only if failed? we leave it,
     // so further calls will return same Future (which completed).
     return task;
   }
 
-  Future<File?> _generateThumbnail(String videoUrl, String key, {int maxHeight = 300, int quality = 75}) async {
+  Future<File?> _generateThumbnail(String videoUrl, String key,
+      {int maxHeight = 300, int quality = 75}) async {
     try {
       final dir = await _cacheDir();
       final targetPath = p.join(dir.path, 'thumb_$key.png');
@@ -74,12 +76,15 @@ class VideoCacheService {
     return task;
   }
 
-  Future<String?> _generateDuration(String videoUrl, {bool isNetwork = true}) async {
+  Future<String?> _generateDuration(String videoUrl,
+      {bool isNetwork = true}) async {
     VideoPlayerController? controller;
     try {
       // note: for local files you might use VideoPlayerController.file
       if (isNetwork) {
-        controller = VideoPlayerController.network(videoUrl);
+        controller = VideoPlayerController.networkUrl(
+          Uri.parse(videoUrl),
+        );
       } else {
         controller = VideoPlayerController.file(File(videoUrl));
       }
@@ -104,12 +109,14 @@ class VideoCacheService {
     getThumbnailFuture(videoUrl);
     getDurationFuture(videoUrl, isNetwork: isNetwork);
   }
+
   void precacheForList(List<String> videoUrls) {
     for (final url in videoUrls) {
       getThumbnailFuture(url);
       getDurationFuture(url, isNetwork: url.startsWith('http'));
     }
   }
+
   /// Optional helper to clear cache (for debugging)
   Future<void> clearCache() async {
     try {

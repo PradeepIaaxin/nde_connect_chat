@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:nde_email/presantation/chat/Socket/Socket_Service.dart';
+import 'package:nde_email/presantation/chat/socket/socket_service.dart';
+                                                                                                             
 
 class AppLifecycleService with WidgetsBindingObserver {
   static final AppLifecycleService _instance = AppLifecycleService._internal();

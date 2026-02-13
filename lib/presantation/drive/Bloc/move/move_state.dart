@@ -21,5 +21,5 @@ class MoveFileFailure extends MoveFileState {
   final String message;
   MoveFileFailure(this.message);
 
-  get error => null;
+  Null get error => null;
 }

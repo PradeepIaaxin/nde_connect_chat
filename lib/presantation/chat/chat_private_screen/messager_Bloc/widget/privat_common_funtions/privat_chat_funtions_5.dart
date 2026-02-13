@@ -1,19 +1,16 @@
-
-
 import 'dart:async';
 import 'dart:developer';
-
 import 'package:flutter/material.dart';
-import 'package:nde_email/presantation/chat/Socket/Socket_Service.dart';
+                                                                                                             
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/messager_event.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/messager_state.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/privat_common_funtions/privat_chat_funtions_2.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/privat_common_funtions/privat_chat_funtions_4.dart';
+import 'package:nde_email/presantation/chat/socket/socket_service.dart';
 
 import '../../../../../../data/respiratory.dart';
 import '../../../../../../utils/router/router.dart';
-import '../../../../../widgets/chat_widgets/messager_Wifgets/forwardmessagescreen_widget.dart';
-
+import '../../../../../widgets/chat_widgets/messager_Wifgets/forward_messagescreen_widget.dart';
 
 import '../../messager_bloc.dart';
 
@@ -22,17 +19,16 @@ import '../../message_handler.dart';
 Future<bool> fetchUntilMessageFound({
   required String messageId,
   required bool mounted,
-  required  List<Map<String, dynamic>> dbMessages,
-  required  List<Map<String, dynamic>> messages,
-  required  List<Map<String, dynamic>> socketMessages,
+  required List<Map<String, dynamic>> dbMessages,
+  required List<Map<String, dynamic>> messages,
+  required List<Map<String, dynamic>> socketMessages,
   required DateTime Function(dynamic) parseTime,
-  required  bool Function(Map<String, dynamic>) hasReplyForMessage,
-  required  bool hasNextPage,
-  required  MessagerBloc messagerBloc,
-  required  String convoId,
-  required   int currentPage,
-  required   int initialLimit,
-
+  required bool Function(Map<String, dynamic>) hasReplyForMessage,
+  required bool hasNextPage,
+  required MessagerBloc messagerBloc,
+  required String convoId,
+  required int currentPage,
+  required int initialLimit,
 }) async {
   if (messageId.isEmpty) return false;
   int safety = 0;
@@ -40,10 +36,15 @@ Future<bool> fetchUntilMessageFound({
   while (safety < 10 && mounted) {
     safety++;
 
-    final combined = getCombinedMessages(dbMessages: dbMessages, messages: messages, socketMessages: socketMessages, parseTime: parseTime, hasReplyForMessage:hasReplyForMessage);
+    final combined = getCombinedMessages(
+        dbMessages: dbMessages,
+        messages: messages,
+        socketMessages: socketMessages,
+        parseTime: parseTime,
+        hasReplyForMessage: hasReplyForMessage);
     final exists = combined.any((m) {
       final mid =
-      (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '').toString();
+          (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '').toString();
       return mid == messageId;
     });
 
@@ -79,15 +80,23 @@ Future<bool> fetchUntilMessageFound({
     }
   }
 
-  final combined = getCombinedMessages(dbMessages: dbMessages, messages: messages, socketMessages: socketMessages, parseTime: parseTime, hasReplyForMessage:hasReplyForMessage);
+  final combined = getCombinedMessages(
+      dbMessages: dbMessages,
+      messages: messages,
+      socketMessages: socketMessages,
+      parseTime: parseTime,
+      hasReplyForMessage: hasReplyForMessage);
   return combined.any((m) {
-    final mid =
-    (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '').toString();
+    final mid = (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '').toString();
     return mid == messageId;
   });
 }
 
-void highlightAndScrollToContext(BuildContext ctx, String messageId,void Function(String) highlightMessage,) {
+void highlightAndScrollToContext(
+  BuildContext ctx,
+  String messageId,
+  void Function(String) highlightMessage,
+) {
   if (!ctx.mounted) return;
 
   highlightMessage(messageId);
@@ -101,21 +110,26 @@ void highlightAndScrollToContext(BuildContext ctx, String messageId,void Functio
 }
 
 double estimateScrollOffset(
-    int listIndex, List<Map<String, dynamic>> messages,DateTime Function(dynamic) parseTime,bool Function(DateTime?, DateTime?) isSameDay)
-{
+    int listIndex,
+    List<Map<String, dynamic>> messages,
+    DateTime Function(dynamic) parseTime,
+    bool Function(DateTime?, DateTime?) isSameDay) {
   double offset = 0.0;
   for (int i = 0; i < listIndex; i++) {
     final realIndex = messages.length - 1 - i;
     if (realIndex >= 0 && realIndex < messages.length) {
-      offset += estimateMessageHeight(realIndex, messages,parseTime,isSameDay);
+      offset +=
+          estimateMessageHeight(realIndex, messages, parseTime, isSameDay);
     }
   }
   return offset;
 }
 
 double estimateMessageHeight(
-    int index, List<Map<String, dynamic>> messages,DateTime Function(dynamic) parseTime,bool Function(DateTime?, DateTime?) isSameDay)
-{
+    int index,
+    List<Map<String, dynamic>> messages,
+    DateTime Function(dynamic) parseTime,
+    bool Function(DateTime?, DateTime?) isSameDay) {
   if (index < 0 || index >= messages.length) return 0.0;
   final message = messages[index];
 
@@ -123,8 +137,7 @@ double estimateMessageHeight(
   double separatorHeight = 0.0;
   try {
     final currentTime = parseTime(message['time']);
-    final prevTime =
-    index > 0 ? parseTime(messages[index - 1]['time']) : null;
+    final prevTime = index > 0 ? parseTime(messages[index - 1]['time']) : null;
     if (index == 0 || !isSameDay(currentTime, prevTime)) {
       separatorHeight = 40.0;
     }
@@ -156,7 +169,7 @@ double estimateMessageHeight(
 
   // Media
   if ((message['imageUrl'] != null &&
-      message['imageUrl'].toString().isNotEmpty) ||
+          message['imageUrl'].toString().isNotEmpty) ||
       (message['localImagePath'] != null &&
           message['localImagePath'].toString().isNotEmpty) ||
       (message['fileUrl'] != null &&
@@ -175,18 +188,18 @@ double estimateMessageHeight(
 
   return height + separatorHeight;
 }
+
 Map<String, dynamic> buildReplyPreviewFromGroup(
-    List<Map<String, dynamic>> messages,
-    bool isSendMe,
-    String currentUserId,
-    )
-{
+  List<Map<String, dynamic>> messages,
+  bool isSendMe,
+  String currentUserId,
+) {
   int imageCount = 0;
   int videoCount = 0;
 
   for (final m in messages) {
     final String fileType =
-    (m['fileType'] ?? m['mimeType'] ?? '').toString().toLowerCase();
+        (m['fileType'] ?? m['mimeType'] ?? '').toString().toLowerCase();
     final String? fileUrl = m['fileUrl']?.toString();
     final String? imageUrl = m['imageUrl']?.toString();
 
@@ -229,24 +242,22 @@ Map<String, dynamic> buildReplyPreviewFromGroup(
   };
 }
 
-void forwardSelectedMessages(
-{
-  required  List<Map<String, dynamic>> selectedMessages,
+void forwardSelectedMessages({
+  required List<Map<String, dynamic>> selectedMessages,
   required String currentUserId,
   required String convoId,
   required String firstname,
   required bool isSentMe,
   required void Function(void Function()) setState,
   required Set<String> selectedMessageKeys,
-  required  Set<String> selectedMessageIds,
-  required  bool isSelectionMode,
-}
-    ) {
+  required Set<String> selectedMessageIds,
+  required bool isSelectionMode,
+}) {
   MyRouter.pushReplace(
     screen: ForwardMessageScreen(
       messages: selectedMessages.toList(),
       currentUserId: currentUserId,
-      conversionalid:convoId,
+      conversionalid: convoId,
       username: firstname,
       isForward: isSentMe,
     ),
@@ -260,23 +271,20 @@ void forwardSelectedMessages(
   });
 }
 
-
-
-
 /// Call this after messages are loaded and socket is connected.
 Future<void> sendInitialReadReceiptsIfNeeded({
   required bool mounted,
   required SocketService socketService,
   required bool screenActive,
-  required  List<Map<String, dynamic>> dbMessages,
-  required  List<Map<String, dynamic>> messages,
-  required  List<Map<String, dynamic>> socketMessages,
-  required  String currentUserId,
-  required  String datumId,
-  required  String convoId,
-  required  DateTime Function(dynamic) parseTime,
-  required  bool Function(Map<String, dynamic>) hasReplyForMessage,
-  required  Set<String> alreadyRead,
+  required List<Map<String, dynamic>> dbMessages,
+  required List<Map<String, dynamic>> messages,
+  required List<Map<String, dynamic>> socketMessages,
+  required String currentUserId,
+  required String datumId,
+  required String convoId,
+  required DateTime Function(dynamic) parseTime,
+  required bool Function(Map<String, dynamic>) hasReplyForMessage,
+  required Set<String> alreadyRead,
   required void Function({bool isInitialLoad}) updateNotifier,
   required void Function() scheduleSaveMessages,
 }) async {
@@ -303,8 +311,13 @@ Future<void> sendInitialReadReceiptsIfNeeded({
   }
 
   // Build combined messages and collect unread ids (messages from other user)
-  final combined = getCombinedMessages(dbMessages: dbMessages, messages: messages, socketMessages: socketMessages, parseTime: parseTime, hasReplyForMessage:hasReplyForMessage);
-  final unread = getUnreadMessageIds(combined,currentUserId)
+  final combined = getCombinedMessages(
+      dbMessages: dbMessages,
+      messages: messages,
+      socketMessages: socketMessages,
+      parseTime: parseTime,
+      hasReplyForMessage: hasReplyForMessage);
+  final unread = getUnreadMessageIds(combined, currentUserId)
       .where((id) => id.trim().isNotEmpty && !alreadyRead.contains(id))
       .toList();
 
@@ -329,8 +342,7 @@ Future<void> sendInitialReadReceiptsIfNeeded({
   alreadyRead.addAll(unread);
 
   // compute consistent roomId
-  final computedRoomId =
-  socketService.generateRoomId(currentUserId, datumId);
+  final computedRoomId = socketService.generateRoomId(currentUserId, datumId);
   socketService.sendReadReceipts(
     messageIds: unread,
     conversationId: convoId,
@@ -340,7 +352,8 @@ Future<void> sendInitialReadReceiptsIfNeeded({
   //   log("✅ initial read receipts emitted: $unread (roomId=$computedRoomId)");
 }
 
-void scrollToBottom(ScrollController scrollController,void Function(void Function()) setState,  bool showScrollToBottomButton) {
+void scrollToBottom(ScrollController scrollController,
+    void Function(void Function()) setState, bool showScrollToBottomButton) {
   if (!scrollController.hasClients) return;
 
   scrollController.animateTo(
@@ -362,7 +375,7 @@ Map<String, dynamic> resolveReplySource(Map<String, dynamic> message) {
 
 void updateNotifierFromAll({
   required List<Map<String, dynamic>> allMessages,
-  required  ValueNotifier<List<Map<String, dynamic>>> messagesNotifier,
+  required ValueNotifier<List<Map<String, dynamic>>> messagesNotifier,
 }) {
   final int total = allMessages.length;
 
@@ -372,28 +385,27 @@ void updateNotifierFromAll({
   }
 
   final visibleSlice =
-  allMessages.map((msg) => Map<String, dynamic>.from(msg)).toList();
+      allMessages.map((msg) => Map<String, dynamic>.from(msg)).toList();
 
   // ✅ immutable list
   messagesNotifier.value =
-  List<Map<String, dynamic>>.unmodifiable(visibleSlice);
+      List<Map<String, dynamic>>.unmodifiable(visibleSlice);
 
   debugPrint('📊 UI now showing: ${messagesNotifier.value.length} messages');
 }
 
-void handleIncomingRawMessage({
-  String? event,
-  required Map<String, dynamic> raw,
-  required List<Map<String, dynamic>> allMessages,
-  required String currentUserId,
-  required DateTime Function(dynamic) parseTime,
-  required int visibleCount,
-  required void Function() updateNotifierFromAll,
-  required bool mounted,
-  required ScrollController scrollController,
-  required void Function(void Function()) setState,
-  required bool showScrollToBottomButton
-}) {
+void handleIncomingRawMessage(
+    {String? event,
+    required Map<String, dynamic> raw,
+    required List<Map<String, dynamic>> allMessages,
+    required String currentUserId,
+    required DateTime Function(dynamic) parseTime,
+    required int visibleCount,
+    required void Function() updateNotifierFromAll,
+    required bool mounted,
+    required ScrollController scrollController,
+    required void Function(void Function()) setState,
+    required bool showScrollToBottomButton}) {
   log("lllllllllllllllllllll: $raw");
   try {
     if (raw['isGroupChat'] == true) return;
@@ -418,7 +430,7 @@ void handleIncomingRawMessage({
     // Check if we already have this message
     final existingIndex = allMessages.indexWhere((m) {
       final mid =
-      (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '').toString();
+          (m['message_id'] ?? m['messageId'] ?? m['id'] ?? '').toString();
       return mid == realId;
     });
 
@@ -434,8 +446,7 @@ void handleIncomingRawMessage({
         final tempFileName = (m['fileName'] ?? '').toString();
 
         // 🆕 Enhanced matching: content for text, fileName for files
-        final bool contentMatch =
-            tempContent == content && content.isNotEmpty;
+        final bool contentMatch = tempContent == content && content.isNotEmpty;
         final bool fileMatch = tempFileName.isNotEmpty &&
             tempFileName == (normalized['fileName'] ?? '').toString();
 
@@ -498,12 +509,10 @@ void handleIncomingRawMessage({
     // Update the UI
     updateNotifierFromAll();
 
-
     // Scroll to bottom
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        scrollToBottom(scrollController,setState,showScrollToBottomButton);
-
+        scrollToBottom(scrollController, setState, showScrollToBottomButton);
       }
     });
   } catch (e, st) {
@@ -512,19 +521,16 @@ void handleIncomingRawMessage({
   }
 }
 
-Future<void> loadCurrentUserId(
-{
+Future<void> loadCurrentUserId({
   required String currentUserId,
-  required  MessageHandler? messageHandler,
+  required MessageHandler? messageHandler,
   required String datumId,
   required String convoId,
-  required  void Function() setupMessageListener,
-  required  void Function() setupReactionListener,
-  required  bool mounted,
-  required   void Function(void Function()) setState,
-
-}
-    ) async {
+  required void Function() setupMessageListener,
+  required void Function() setupReactionListener,
+  required bool mounted,
+  required void Function(void Function()) setState,
+}) async {
   final userId = await UserPreferences.getUserId() ?? '';
   if (userId.isEmpty || (datumId.isEmpty)) {
     debugPrint('⚠️ _loadCurrentUserId: missing userId or datumId');
@@ -542,15 +548,12 @@ Future<void> loadCurrentUserId(
 }
 
 /// Collect reactions for a message id from all local lists and merge them
-List<Map<String, dynamic>> collectMergedReactionsForMessage(
-{
+List<Map<String, dynamic>> collectMergedReactionsForMessage({
   required String messageId,
-  required  List<Map<String, dynamic>> dbMessages,
-  required  List<Map<String, dynamic>> messages,
-  required  List<Map<String, dynamic>> socketMessages,
-
-})
-{
+  required List<Map<String, dynamic>> dbMessages,
+  required List<Map<String, dynamic>> messages,
+  required List<Map<String, dynamic>> socketMessages,
+}) {
   final Map<String, Map<String, dynamic>> byUser = {};
 
   List<List<Map<String, dynamic>>> sources = [
@@ -561,8 +564,8 @@ List<Map<String, dynamic>> collectMergedReactionsForMessage(
 
   for (final list in sources) {
     for (final msg in list) {
-      final mid = (msg['message_id'] ?? msg['messageId'] ?? msg['id'] ?? '')
-          .toString();
+      final mid =
+          (msg['message_id'] ?? msg['messageId'] ?? msg['id'] ?? '').toString();
       if (mid != messageId) continue;
 
       final raw = msg['reactions'];
@@ -586,8 +589,8 @@ List<Map<String, dynamic>> collectMergedReactionsForMessage(
           'userId': userId,
           'user': user is Map ? Map<String, dynamic>.from(user) : null,
           'reacted_at': (r['reacted_at'] ??
-              r['createdAt'] ??
-              DateTime.now().toIso8601String())
+                  r['createdAt'] ??
+                  DateTime.now().toIso8601String())
               .toString(),
         };
       }
@@ -597,6 +600,7 @@ List<Map<String, dynamic>> collectMergedReactionsForMessage(
   // Return list of reactions
   return byUser.values.toList();
 }
+
 String normalizeMessageIdForApi(String messageId) {
   if (messageId.isEmpty) return messageId;
 
@@ -608,93 +612,101 @@ String normalizeMessageIdForApi(String messageId) {
   }
   return messageId;
 }
+
 void setupMessageListener({
   required String currentUserId,
   required String datumId,
   required String receiverId,
   required MessagerBloc messagerBloc,
-  required  List<Map<String, dynamic>> dbMessages,
-  required  List<Map<String, dynamic>> messages,
-  required  List<Map<String, dynamic>> socketMessages,
-  required  StreamSubscription<Map<String, dynamic>>? statusSubscription,
+  required List<Map<String, dynamic>> dbMessages,
+  required List<Map<String, dynamic>> messages,
+  required List<Map<String, dynamic>> socketMessages,
+  required StreamSubscription<Map<String, dynamic>>? statusSubscription,
   required SocketService socketService,
   required bool mounted,
-  required  void Function({bool isInitialLoad}) updateNotifier,
-  required   void Function() scheduleSaveMessages,
-  required   StreamSubscription<dynamic>? messageDeletedSubscription,
-  required  void Function(List<String>, {String deleteFor}) markMessagesAsDeleted,
-  required  DateTime Function(dynamic) parseTime,
-  required  bool Function(Map<String, dynamic>) hasReplyForMessage,
+  required void Function({bool isInitialLoad}) updateNotifier,
+  required void Function() scheduleSaveMessages,
+  required StreamSubscription<dynamic>? messageDeletedSubscription,
+  required void Function(List<String>, {String deleteFor})
+      markMessagesAsDeleted,
+  required DateTime Function(dynamic) parseTime,
+  required bool Function(Map<String, dynamic>) hasReplyForMessage,
 }) {
   if (currentUserId.isEmpty) return;
 
-  messagerBloc.add(ListenToMessages(
-      senderId: currentUserId, receiverId: receiverId));
+  messagerBloc
+      .add(ListenToMessages(senderId: currentUserId, receiverId: receiverId));
   statusSubscription ??=
       socketService.statusUpdateStream.listen((statusUpdate) {
-        if (!mounted) return;
+    if (!mounted) return;
 
-        final dynamic rawStatus =
-            statusUpdate['messageStatus'] ?? statusUpdate['status'];
-        final status = (rawStatus ?? '').toString().trim();
-        if (status.isEmpty) return;
+    final dynamic rawStatus =
+        statusUpdate['messageStatus'] ?? statusUpdate['status'];
+    final status = (rawStatus ?? '').toString().trim();
+    if (status.isEmpty) return;
 
-        final ids = statusUpdate['messageIds'] ??
-            statusUpdate['singleMessageId'] ??
-            statusUpdate['messageId'];
+    final ids = statusUpdate['messageIds'] ??
+        statusUpdate['singleMessageId'] ??
+        statusUpdate['messageId'];
 
-        debugPrint('📥 Status update received: $statusUpdate');
+    debugPrint('📥 Status update received: $statusUpdate');
 
-        // normalize to List<String>
-        final List<String> idList = [];
-        if (ids is List) {
-          for (final id in ids) {
-            if (id != null) idList.add(id.toString());
-          }
-        } else if (ids != null) {
-          idList.add(ids.toString());
-        }
+    // normalize to List<String>
+    final List<String> idList = [];
+    if (ids is List) {
+      for (final id in ids) {
+        if (id != null) idList.add(id.toString());
+      }
+    } else if (ids != null) {
+      idList.add(ids.toString());
+    }
 
-        for (final id in idList) {
-          // find local message
-          final local = getCombinedMessages(dbMessages: dbMessages, messages: messages, socketMessages: socketMessages, parseTime: parseTime, hasReplyForMessage:hasReplyForMessage).firstWhere(
-                (m) {
-              final mid = normalizeMessageIdForApi(
-                  (m['message_id'] ?? m['messageId'] ?? '').toString());
-              final incomingIdNormalized = normalizeMessageIdForApi(mid);
-              return mid == incomingIdNormalized;
-            },
-            orElse: () => {},
-          );
-
-          final senderId = (local.isNotEmpty)
-              ? (local['senderId'] ?? local['sender']?['_id'] ?? local['sender'])
-              ?.toString()
-              : null;
-
-          // If this status is about a message we sent, avoid treating it as a 'read' coming from remote.
-          if (senderId != null && senderId == currentUserId && status == 'read') {
-            log("⚠️ Ignoring server 'read' status for my own message id=$id");
-            continue;
-          }
-
-          // apply update normally
-
-          updateMessageStatus(
-              messageId: id,
-              status: status,
+    for (final id in idList) {
+      // find local message
+      final local = getCombinedMessages(
+              dbMessages: dbMessages,
               messages: messages,
               socketMessages: socketMessages,
-              updateNotifier: updateNotifier,
-              scheduleSaveMessages: scheduleSaveMessages,
-              dbMessages: dbMessages);
-        }
-      });
+              parseTime: parseTime,
+              hasReplyForMessage: hasReplyForMessage)
+          .firstWhere(
+        (m) {
+          final mid = normalizeMessageIdForApi(
+              (m['message_id'] ?? m['messageId'] ?? '').toString());
+          final incomingIdNormalized = normalizeMessageIdForApi(mid);
+          return mid == incomingIdNormalized;
+        },
+        orElse: () => {},
+      );
+
+      final senderId = (local.isNotEmpty)
+          ? (local['senderId'] ?? local['sender']?['_id'] ?? local['sender'])
+              ?.toString()
+          : null;
+
+      // If this status is about a message we sent, avoid treating it as a 'read' coming from remote.
+      if (senderId != null && senderId == currentUserId && status == 'read') {
+        log("⚠️ Ignoring server 'read' status for my own message id=$id");
+        continue;
+      }
+
+      // apply update normally
+
+      updateMessageStatus(
+          messageId: id,
+          status: status,
+          messages: messages,
+          socketMessages: socketMessages,
+          updateNotifier: updateNotifier,
+          scheduleSaveMessages: scheduleSaveMessages,
+          dbMessages: dbMessages);
+    }
+  });
 
   //messgae deleted listener
   messageDeletedSubscription =
       socketService.messageDeletedStream.listen((messageId) {
-        log("🗑️ Received message_deleted event for: $messageId");
-        markMessagesAsDeleted([messageId], deleteFor: 'everyone');
-      });
+    log("🗑️ Received message_deleted event for: $messageId");
+    markMessagesAsDeleted([messageId], deleteFor: 'everyone');
+  });
 }

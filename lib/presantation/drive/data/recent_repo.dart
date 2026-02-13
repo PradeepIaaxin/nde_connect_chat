@@ -200,49 +200,49 @@ class RecentRepo {
   }
 
   Future<void> starred({
-  required List<String> fileIDs,
-  bool? isCurrentlyStarred,
-}) async {
-  try {
-    final accessToken = await UserPreferences.getAccessToken();
-    final defaultWorkspace = await UserPreferences.getDefaultWorkspace();
+    required List<String> fileIDs,
+    bool? isCurrentlyStarred,
+  }) async {
+    try {
+      final accessToken = await UserPreferences.getAccessToken();
+      final defaultWorkspace = await UserPreferences.getDefaultWorkspace();
 
-    if (accessToken == null || defaultWorkspace == null) {
-      throw Exception('Missing authentication credentials');
-    }
-
-    final response = await dio.put(
-      '$_baseUrl/star',
-      data: {'fileId': fileIDs},
-      options: Options(headers: {
-        'Authorization': 'Bearer $accessToken',
-        'x-workspace': defaultWorkspace,
-        'Content-Type': 'application/json',
-      }),
-    );
-
-    if (response.statusCode == 200) {
-      // 🔁 Toggle-aware message
-      if (isCurrentlyStarred == true) {
-        Messenger.alertSuccess(
-          fileIDs.length == 1
-              ? 'Unstarred successfully'
-              : '${fileIDs.length} items unstarred successfully',
-        );
-      } else {
-        Messenger.alertSuccess(
-          fileIDs.length == 1
-              ? 'Starred successfully'
-              : '${fileIDs.length} items starred successfully',
-        );
+      if (accessToken == null || defaultWorkspace == null) {
+        throw Exception('Missing authentication credentials');
       }
-    } else {
-      throw Exception('Failed to star folder(s)');
+
+      final response = await dio.put(
+        '$_baseUrl/star',
+        data: {'fileId': fileIDs},
+        options: Options(headers: {
+          'Authorization': 'Bearer $accessToken',
+          'x-workspace': defaultWorkspace,
+          'Content-Type': 'application/json',
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        // 🔁 Toggle-aware message
+        if (isCurrentlyStarred == true) {
+          Messenger.alertSuccess(
+            fileIDs.length == 1
+                ? 'Unstarred successfully'
+                : '${fileIDs.length} items unstarred successfully',
+          );
+        } else {
+          Messenger.alertSuccess(
+            fileIDs.length == 1
+                ? 'Starred successfully'
+                : '${fileIDs.length} items starred successfully',
+          );
+        }
+      } else {
+        throw Exception('Failed to star folder(s)');
+      }
+    } catch (e, stack) {
+      log('starred error: $e', stackTrace: stack);
     }
-  } catch (e, stack) {
-    log('starred error: $e', stackTrace: stack);
   }
-}
 
   Future<void> moveToTrash({required List<String> fileIDs}) async {
     try {
@@ -264,9 +264,9 @@ class RecentRepo {
       );
 
       if (response.statusCode == 200) {
-        Messenger.alertSuccess(fileIDs.length == 1
-            ? 'Item moved to trash'
-            : '${fileIDs.length} items moved to trash');
+        // Messenger.alertSuccess(fileIDs.length == 1
+        //     ? 'Item moved to trash'
+        //     : '${fileIDs.length} items moved to trash');
       } else {
         throw Exception('Failed to move to trash');
       }

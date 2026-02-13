@@ -14,7 +14,7 @@ import 'package:nde_email/presantation/drive/common/show_bottom_sheet.dart';
 import 'package:nde_email/presantation/drive/common/show_rename.dart';
 import 'package:nde_email/presantation/drive/data/insidefile_repo.dart';
 import 'package:nde_email/presantation/drive/model/folderinside_model.dart';
-import 'package:nde_email/presantation/drive/view/file_deatilsScreen.dart';
+import 'package:nde_email/presantation/drive/view/file_deatils_screen.dart';
 import 'package:nde_email/presantation/drive/view/move_screen.dart';
 import 'package:nde_email/presantation/drive/view/send_screen.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
@@ -26,6 +26,8 @@ import 'package:nde_email/utils/simmer_effect.dart/drive_simmer.dart';
 import 'package:nde_email/utils/snackbar/snackbar.dart';
 import 'package:nde_email/utils/spacer/spacer.dart';
 import 'package:share_plus/share_plus.dart';
+
+import 'common_funtions.dart';
 
 class FileDeepView extends StatefulWidget {
   final String fileId;
@@ -312,12 +314,26 @@ class _FileDeepViewState extends State<FileDeepView> {
                             icon: Icons.delete,
                             title: "Delete",
                             onTap: () {
-                              context.read<InsideBloc>().add(
-                                    InMoveToTrashEvent(
-                                      fileIDs: selectedFolders.toList(),
-                                      selectedId: widget.fileId,
-                                    ),
-                                  );
+                              showMoveToBinDialog(context, () {
+                                final ids = selectedFolders.toList();
+                                context.read<InsideBloc>().add(
+                                      InMoveToTrashEvent(
+                                        fileIDs: ids,
+                                        selectedId: widget.fileId,
+                                      ),
+                                    );
+                                Messenger.alertAction(
+                                  color: Colors.green,
+                                  msg: "Item moved to trash",
+                                  actionLabel: "Undo",
+                                  duration: const Duration(seconds: 2),
+                                  onAction: () {
+                                    context.read<InsideBloc>().add(
+                                          InRestoreEvent(fileIDs: ids),
+                                        );
+                                  },
+                                );
+                              }, "");
                               _clearSelection();
                             },
                           ),
@@ -670,7 +686,9 @@ class _FolderGridItem extends StatelessWidget {
                                             : '';
 
                                     if (textToShare.isNotEmpty) {
-                                      Share.share(textToShare);
+                                      SharePlus.instance.share(
+                                        ShareParams(text: textToShare),
+                                      );
                                     } else {
                                       log("Nothing to share.");
                                     }
@@ -708,10 +726,24 @@ class _FolderGridItem extends StatelessWidget {
                                   icon: Icons.delete,
                                   title: "Remove",
                                   onTap: () {
-                                    context.read<InsideBloc>().add(
-                                        InMoveToTrashEvent(
-                                            fileIDs: [folder.id],
-                                            selectedId: currentId));
+                                    showMoveToBinDialog(context, () {
+                                      context.read<InsideBloc>().add(
+                                          InMoveToTrashEvent(
+                                              fileIDs: [folder.id],
+                                              selectedId: currentId));
+                                      Messenger.alertAction(
+                                        color: Colors.green,
+                                        msg: "Item moved to trash",
+                                        actionLabel: "Undo",
+                                        duration: const Duration(seconds: 2),
+                                        onAction: () {
+                                          context.read<InsideBloc>().add(
+                                                InRestoreEvent(
+                                                    fileIDs: [folder.id]),
+                                              );
+                                        },
+                                      );
+                                    }, folder.name);
                                   },
                                 ),
                               ],
@@ -820,7 +852,10 @@ class _FolderListItem extends StatelessWidget {
             );
           } else {
             MyRouter.push(
-                screen: FilePreviewScreen(fileUrl: folder.preview ?? "",  fileName: folder.name,));
+                screen: FilePreviewScreen(
+              fileUrl: folder.preview ?? "",
+              fileName: folder.name,
+            ));
           }
         }
       },
@@ -1001,7 +1036,9 @@ class _FolderListItem extends StatelessWidget {
                               : '';
 
                       if (textToShare.isNotEmpty) {
-                        Share.share(textToShare);
+                        SharePlus.instance.share(
+                          ShareParams(text: textToShare),
+                        );
                       } else {
                         log("Nothing to share.");
                       }
@@ -1072,7 +1109,6 @@ Widget _buildMimeIcon(FolderinsideModel folder) {
   final type = folder.type.toLowerCase();
 
   final typefolder = folder.extname?.toLowerCase().trim() ?? "";
-
 
   if (type == 'folder') {
     return Image.asset(

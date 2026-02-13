@@ -1,13 +1,14 @@
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
-import 'package:nde_email/presantation/chat/chat_group_Screen/GroupChatScreen.dart';
+import 'package:nde_email/presantation/chat/chat_group_Screen/group_chat_screen.dart';
+
 import 'package:nde_email/presantation/chat/chat_list/chat_response_model.dart';
 import 'package:nde_email/presantation/chat/chat_list/chat_subtitle_widget.dart';
 import 'package:nde_email/presantation/chat/chat_list/chat_trailing_widget.dart';
 import 'package:nde_email/presantation/chat/widget/profile_avatar.dart';
 import 'package:nde_email/presantation/chat/widget/profile_dialog.dart';
-import '../chat_ userprofile_screen/User_Profile_Screen.dart';
+import '../chat_ userprofile_screen/user_profile_screen.dart';
 import '../chat_private_screen/private_chat_screen.dart';
 
 class ChatListTile extends StatelessWidget {

@@ -12,7 +12,7 @@ import 'package:nde_email/presantation/drive/common/pop.dart';
 import 'package:nde_email/presantation/drive/common/show_bottom_model_sheet.dart';
 import 'package:nde_email/presantation/drive/common/show_rename.dart';
 import 'package:nde_email/presantation/drive/model/shared/sharred_model.dart';
-import 'package:nde_email/presantation/drive/view/file_deatilsScreen.dart';
+import 'package:nde_email/presantation/drive/view/file_deatils_screen.dart';
 import 'package:nde_email/presantation/drive/view/file_deep_view.dart';
 import 'package:nde_email/presantation/drive/view/manage_acces_screen.dart';
 import 'package:nde_email/presantation/drive/view/move_screen.dart';
@@ -155,13 +155,12 @@ class _SharedPageState extends State<SharedPage> {
     return RefreshIndicator(
       onRefresh: () async {
         context.read<FolderBloc>().add(
-          FetchFolderData(
-            sortBy: sortQuery ?? 'name',
-            isLoadMore: false,
-          ),
-        );
+              FetchFolderData(
+                sortBy: sortQuery ?? 'name',
+                isLoadMore: false,
+              ),
+            );
       },
-
       child: Column(
         children: [
           Padding(
@@ -204,8 +203,8 @@ class _SharedPageState extends State<SharedPage> {
                       IconButton(
                         constraints: const BoxConstraints(),
                         padding: EdgeInsets.zero,
-                        icon:
-                            Icon(_isGridView ? Icons.view_list : Icons.grid_view),
+                        icon: Icon(
+                            _isGridView ? Icons.view_list : Icons.grid_view),
                         onPressed: () {
                           setState(() {
                             _isGridView = !_isGridView;
@@ -226,9 +225,10 @@ class _SharedPageState extends State<SharedPage> {
                             context,
                             [
                               BottomSheetOption(
-                                icon: selectedFolderModels.every((f) => f.starred)
-                                    ? Icons.star
-                                    : Icons.star_border,
+                                icon:
+                                    selectedFolderModels.every((f) => f.starred)
+                                        ? Icons.star
+                                        : Icons.star_border,
                                 title:
                                     selectedFolderModels.every((f) => f.starred)
                                         ? "Remove from Starred"
@@ -260,10 +260,23 @@ class _SharedPageState extends State<SharedPage> {
                                 icon: Icons.delete,
                                 title: "Delete",
                                 onTap: () {
-                                  context.read<FolderBloc>().add(
-                                        MoveToTrashEvent(
-                                            fileIDs: selectedFolders.toList()),
-                                      );
+                                  showMoveToBinDialog(context, () {
+                                    final ids = selectedFolders.toList();
+                                    context.read<FolderBloc>().add(
+                                          MoveToTrashEvent(fileIDs: ids),
+                                        );
+                                    Messenger.alertAction(
+                                      color: Colors.green,
+                                      msg: "Item moved to trash",
+                                      actionLabel: "Undo",
+                                      duration: const Duration(seconds: 2),
+                                      onAction: () {
+                                        context.read<FolderBloc>().add(
+                                              RestoreEvent(fileIDs: ids),
+                                            );
+                                      },
+                                    );
+                                  }, "");
                                   _clearSelection();
                                 },
                               ),
@@ -287,8 +300,8 @@ class _SharedPageState extends State<SharedPage> {
                       ),
                       const Spacer(),
                       IconButton(
-                        icon:
-                            Icon(_isGridView ? Icons.view_list : Icons.grid_view),
+                        icon: Icon(
+                            _isGridView ? Icons.view_list : Icons.grid_view),
                         onPressed: () {
                           setState(() {
                             _isGridView = !_isGridView;
@@ -329,13 +342,12 @@ class _SharedPageState extends State<SharedPage> {
                     );
                   }
 
-
                   return Column(
                     children: [
                       Expanded(
                         child: _isGridView
                             ? GridView.builder(
-                          physics: AlwaysScrollableScrollPhysics(),
+                                physics: AlwaysScrollableScrollPhysics(),
                                 controller: widget.scrollController,
                                 padding: const EdgeInsets.all(10),
                                 itemCount: folders.length,
@@ -372,7 +384,8 @@ class _SharedPageState extends State<SharedPage> {
                                                 MyRouter.push(
                                                   screen: FilePreviewScreen(
                                                     fileUrl:
-                                                        folder.previewpath ?? "",
+                                                        folder.previewpath ??
+                                                            "",
                                                     fileName: folder.name,
                                                   ),
                                                 );
@@ -418,15 +431,15 @@ class _SharedPageState extends State<SharedPage> {
                                                               BottomSheetOption(
                                                                   icon: Icons
                                                                       .person_add,
-                                                                  title: "Share",
+                                                                  title:
+                                                                      "Share",
                                                                   onTap: () {
                                                                     Navigator
                                                                         .push(
                                                                       context,
                                                                       MaterialPageRoute(
-                                                                          builder:
-                                                                              (context) =>
-                                                                                  ShareScreen(folder.id)),
+                                                                          builder: (context) =>
+                                                                              ShareScreen(folder.id)),
                                                                     );
                                                                   }),
                                                               BottomSheetOption(
@@ -444,7 +457,8 @@ class _SharedPageState extends State<SharedPage> {
                                                               BottomSheetOption(
                                                                   icon: folder.starred ==
                                                                           true
-                                                                      ? Icons.star
+                                                                      ? Icons
+                                                                          .star
                                                                       : Icons
                                                                           .star_border,
                                                                   title: folder
@@ -466,10 +480,14 @@ class _SharedPageState extends State<SharedPage> {
                                                                         );
                                                                   }),
                                                               BottomSheetOption(
-                                                                icon: Icons.open_with,
-                                                                title: "Open with",
+                                                                icon: Icons
+                                                                    .open_with,
+                                                                title:
+                                                                    "Open with",
                                                                 onTap: () {
-                                                                  openWithSystemApps(folder.previewpath??"");
+                                                                  openWithSystemApps(
+                                                                      folder.previewpath ??
+                                                                          "");
                                                                   // Clipboard.setData(
                                                                   //   ClipboardData(text: file.preview.toString()),
                                                                   // );
@@ -477,24 +495,42 @@ class _SharedPageState extends State<SharedPage> {
                                                                 },
                                                               ),
                                                               BottomSheetOption(
-                                                                icon: Icons.ios_share_outlined,
-                                                                title: "Send a copy",
-                                                                onTap: () async {
+                                                                icon: Icons
+                                                                    .ios_share_outlined,
+                                                                title:
+                                                                    "Send a copy",
+                                                                onTap:
+                                                                    () async {
                                                                   await Future.delayed(
-                                                                      const Duration(milliseconds: 300));
+                                                                      const Duration(
+                                                                          milliseconds:
+                                                                              300));
 
-                                                                  final name = folder.name.trim();
-                                                                  final preview =
-                                                                      folder.previewpath?.toString().trim() ?? '';
+                                                                  final name =
+                                                                      folder
+                                                                          .name
+                                                                          .trim();
+                                                                  final preview = folder
+                                                                          .previewpath
+                                                                          ?.toString()
+                                                                          .trim() ??
+                                                                      '';
 
-                                                                  final textToShare =
-                                                                  (name.isNotEmpty || preview.isNotEmpty)
+                                                                  final textToShare = (name
+                                                                              .isNotEmpty ||
+                                                                          preview
+                                                                              .isNotEmpty)
                                                                       ? "$name\n\n$preview"
                                                                       : '';
 
-                                                                  if (textToShare.isNotEmpty) {
-                                                                    await SharePlus.instance.share(
-                                                                      ShareParams(text: textToShare),
+                                                                  if (textToShare
+                                                                      .isNotEmpty) {
+                                                                    await SharePlus
+                                                                        .instance
+                                                                        .share(
+                                                                      ShareParams(
+                                                                          text:
+                                                                              textToShare),
                                                                     );
                                                                   } else {
                                                                     log("Nothing to share.");
@@ -502,8 +538,8 @@ class _SharedPageState extends State<SharedPage> {
                                                                 },
                                                               ),
                                                               BottomSheetOption(
-                                                                  icon:
-                                                                      Icons.link,
+                                                                  icon: Icons
+                                                                      .link,
                                                                   title:
                                                                       "Copy link",
                                                                   onTap: () {
@@ -519,7 +555,8 @@ class _SharedPageState extends State<SharedPage> {
                                                                 icon: Icons
                                                                     .drive_file_rename_outline,
                                                                 title: "Rename",
-                                                                onTap: () async {
+                                                                onTap:
+                                                                    () async {
                                                                   await showRenameDialog(
                                                                     context:
                                                                         context,
@@ -532,11 +569,9 @@ class _SharedPageState extends State<SharedPage> {
                                                                           .read<
                                                                               FolderBloc>()
                                                                           .add(
-                                                                            RenameEvent(
-                                                                                fileIDs: [
-                                                                                  folder.id
-                                                                                ],
-                                                                                editedName: newName.trim()),
+                                                                            RenameEvent(fileIDs: [
+                                                                              folder.id
+                                                                            ], editedName: newName.trim()),
                                                                           );
                                                                     },
                                                                   );
@@ -549,7 +584,8 @@ class _SharedPageState extends State<SharedPage> {
                                                                           .color_lens,
                                                                       title:
                                                                           "Change Color",
-                                                                      onTap: () {
+                                                                      onTap:
+                                                                          () {
                                                                         MyRouter
                                                                             .pop();
 
@@ -559,8 +595,7 @@ class _SharedPageState extends State<SharedPage> {
                                                                           builder:
                                                                               (context) {
                                                                             return ColorPickerDialog(
-                                                                              onColorSelected:
-                                                                                  (hex) {
+                                                                              onColorSelected: (hex) {
                                                                                 log("Selected Color: $hex");
 
                                                                                 // context
@@ -601,14 +636,16 @@ class _SharedPageState extends State<SharedPage> {
                                                                     .turn_right_outlined,
                                                                 title:
                                                                     "Send a copy",
-                                                                onTap: () async {
+                                                                onTap:
+                                                                    () async {
                                                                   await Future.delayed(
                                                                       const Duration(
                                                                           milliseconds:
                                                                               300));
 
                                                                   final name =
-                                                                      folder.name
+                                                                      folder
+                                                                          .name
                                                                           .trim();
                                                                   final preview = folder
                                                                           .previewpath
@@ -623,285 +660,283 @@ class _SharedPageState extends State<SharedPage> {
                                                                       ? "$name\n\n$preview"
                                                                       : '';
 
-                                                                  if (textToShare
-                                                                      .isNotEmpty) {
-                                                                    Share.share(
-                                                                        textToShare);
-                                                                  } else {
-                                                                    log("Nothing to share.");
-                                                                  }
-                                                                },
-                                                              ),
-                                                              BottomSheetOption(
-                                                                  icon: Icons
-                                                                      .info_outline,
-                                                                  title:
-                                                                      "Details & activity",
-                                                                  onTap: () {
-                                                                    MyRouter.push(
-                                                                        screen:
-                                                                            FileDetailScreen(
-                                                                      fileID:
-                                                                          folder
-                                                                              .id,
-                                                                    ));
-                                                                  }),
-                                                              BottomSheetOption(
-                                                                  icon: Icons
-                                                                      .file_download_outlined,
-                                                                  title:
-                                                                      "Download",
-                                                                  onTap: () {}),
-                                                              BottomSheetOption(
-                                                                  icon: Icons
-                                                                      .delete,
-                                                                  title: "Remove",
-                                                                  onTap: () {
-                                                                    context
-                                                                        .read<
-                                                                            FolderBloc>()
-                                                                        .add(MoveToTrashEvent(
-                                                                            fileIDs: [
-                                                                              folder.id
-                                                                            ]));
-                                                                  }),
-                                                            ],
-                                                            title: folder.name,
-                                                            foldertype:
-                                                                folder.type,
-                                                            mimetype:
-                                                                folder.mimetype,
-                                                          );
-                                                        },
-                                                        constraints:
-                                                            const BoxConstraints(),
-                                                        padding: EdgeInsets.zero,
-                                                      )
-                                                    : Icon(Icons.check_circle,
-                                                        color: chatColor),
-                                              ],
-                                            ),
-                                          ),
-                                          Expanded(
-                                            child: folder.mimetype !=
-                                                    'application/vnd.google-apps.folder'
-                                                ? Stack(
-                                                    clipBehavior: Clip.none,
-                                                    children: [
-                                                      ClipRRect(
-                                                        borderRadius:
-                                                            BorderRadius.circular(
-                                                                8),
-                                                        child: folder.thumbnail !=
-                                                                    null &&
-                                                                folder.thumbnail!
-                                                                    .isNotEmpty
-                                                            ? Image.network(
-                                                                folder.thumbnail!,
-                                                                width: double
-                                                                    .infinity,
-                                                                fit: BoxFit.cover,
-                                                                errorBuilder:
-                                                                    (context,
-                                                                        error,
-                                                                        stackTrace) {
-                                                                  return Center(
-                                                                    child: getMimeTypeImage(
-                                                                        folder.mimetype ??
-                                                                            ""),
-                                                                  );
-                                                                },
-                                                              )
-                                                            : Center(
-                                                                child: getMimeTypeImage(
-                                                                    folder.mimetype ??
-                                                                        "")),
-                                                      ),
-                                                      folder.starred
-                                                          ? const Positioned(
-                                                              bottom: 10,
-                                                              right: 8,
-                                                              child: Icon(
-                                                                  Icons.star,
-                                                                  color: Colors
-                                                                      .amber),
-                                                            )
-                                                          : const SizedBox
-                                                              .shrink(),
-                                                    ],
-                                                  )
-                                                : Center(
-                                                    child: getMimeTypeImage(
-                                                        folder.mimetype ?? "")),
-                                          )
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                },
-                              )
-                            : ListView.builder(
-                          physics: AlwaysScrollableScrollPhysics(),
-
-                          controller: widget.scrollController,
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 2),
-                                itemCount: folders.length,
-                                itemBuilder: (context, index) {
-                                  final folder = folders[index];
-                                  final isSelected =
-                                      selectedFolders.contains(folder.id);
-                                  return GestureDetector(
-                                    onLongPress: () {
-                                      log("hii");
-                                      _handleLongPressStart(folder.id);
-                                    },
-                                    onTap: isSelectionMode
-                                        ? () {
-                                            _handleTapSelect(folder.id);
-                                          }
-                                        : folder.type == "folder"
-                                            ? () {
-                                                MyRouter.push(
-                                                    screen: FileDeepView(
-                                                  fileId: folder.id,
-                                                  folderName: folder.name,
-                                                  gridview: _isGridView,
-                                                ));
-                                              }
-                                            : () {
-                                                print(folder.previewpath);
-                                                MyRouter.push(
-                                                  screen: FilePreviewScreen(
-                                                    fileUrl:
-                                                        folder.previewpath ?? "",
-                                                  ),
-                                                );
-                                              },
-                                    child: Container(
-                                      color: isSelected
-                                          ? chatColor.withValues(alpha:0.1)
-                                          : null,
-                                      child: ListTile(
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                                vertical: 1, horizontal: 8),
-                                        leading: SizedBox(
-                                          width: 48,
-                                          height: 48,
-                                          child: Stack(
-                                            clipBehavior: Clip.none,
-                                            alignment: Alignment.center,
-                                            children: [
-                                              if (folder.profilePic.isNotEmpty)
-                                                CircleAvatar(
-                                                  radius: 30,
-                                                  backgroundColor:
-                                                      Colors.grey[200],
-                                                  child: folder
-                                                          .profilePic.isNotEmpty
-                                                      ? ClipOval(
-                                                          child: Image.network(
-                                                            folder.profilePic,
-                                                            width: 60,
-                                                            height: 60,
-                                                            fit: BoxFit.cover,
-                                                            errorBuilder:
-                                                                (context, error,
-                                                                    stackTrace) {
-                                                              return const Icon(
-                                                                Icons.person,
-                                                                color:
-                                                                    Colors.grey,
-                                                                size: 30,
-                                                              );
-                                                            },
-                                                          ),
-                                                        )
-                                                      : const Icon(
-                                                          Icons.person,
-                                                          color: Colors.grey,
-                                                          size: 30,
-                                                        ),
-                                                ),
-                                              if (isSelected)
-                                                const Positioned(
-                                                  right: 0,
-                                                  bottom: 0,
-                                                  child: Icon(
-                                                    Icons.check_circle,
-                                                    color: Colors.blue,
-                                                    size: 18,
-                                                  ),
-                                                ),
+                                                                if (textToShare
+                                                                    .isNotEmpty) {
+                                                                  Share.share(
+                                                                      textToShare);
+                                                                } else {
+                                                                  log("Nothing to share.");
+                                                                }
+                                                              },
+                                                            ),
+                                                            BottomSheetOption(
+                                                                icon: Icons
+                                                                    .info_outline,
+                                                                title:
+                                                                    "Details & activity",
+                                                                onTap: () {
+                                                                  MyRouter.push(
+                                                                      screen:
+                                                                          FileDetailScreen(
+                                                                    fileID:
+                                                                        folder
+                                                                            .id,
+                                                                  ));
+                                                                }),
+                                                            BottomSheetOption(
+                                                                icon: Icons
+                                                                    .file_download_outlined,
+                                                                title:
+                                                                    "Download",
+                                                                onTap: () {}),
+                                                            BottomSheetOption(
+                                                                icon: Icons
+                                                                    .delete,
+                                                                title: "Remove",
+                                                                onTap: () {
+                                                                  context
+                                                                      .read<
+                                                                          FolderBloc>()
+                                                                      .add(MoveToTrashEvent(
+                                                                          fileIDs: [
+                                                                            folder.id
+                                                                          ]));
+                                                                }),
+                                                          ],
+                                                          title: folder.name,
+                                                          foldertype:
+                                                              folder.type,
+                                                          mimetype:
+                                                              folder.mimetype,
+                                                        );
+                                                      },
+                                                      constraints:
+                                                          const BoxConstraints(),
+                                                      padding: EdgeInsets.zero,
+                                                    )
+                                                  : Icon(Icons.check_circle,
+                                                      color: chatColor),
                                             ],
                                           ),
                                         ),
-                                        title: Text(
-                                          folder.name,
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.w500),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        subtitle: Row(
+                                        Expanded(
+                                          child: folder.mimetype !=
+                                                  'application/vnd.google-apps.folder'
+                                              ? Stack(
+                                                  clipBehavior: Clip.none,
+                                                  children: [
+                                                    ClipRRect(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              8),
+                                                      child: folder.thumbnail !=
+                                                                  null &&
+                                                              folder.thumbnail!
+                                                                  .isNotEmpty
+                                                          ? Image.network(
+                                                              folder.thumbnail!,
+                                                              width: double
+                                                                  .infinity,
+                                                              fit: BoxFit.cover,
+                                                              errorBuilder:
+                                                                  (context,
+                                                                      error,
+                                                                      stackTrace) {
+                                                                return Center(
+                                                                  child: getMimeTypeImage(
+                                                                      folder.mimetype ??
+                                                                          ""),
+                                                                );
+                                                              },
+                                                            )
+                                                          : Center(
+                                                              child: getMimeTypeImage(
+                                                                  folder.mimetype ??
+                                                                      "")),
+                                                    ),
+                                                    folder.starred
+                                                        ? const Positioned(
+                                                            bottom: 10,
+                                                            right: 8,
+                                                            child: Icon(
+                                                                Icons.star,
+                                                                color: Colors
+                                                                    .amber),
+                                                          )
+                                                        : const SizedBox
+                                                            .shrink(),
+                                                  ],
+                                                )
+                                              : Center(
+                                                  child: getMimeTypeImage(
+                                                      folder.mimetype ?? "")),
+                                        )
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            )
+                          : ListView.builder(
+                              controller: widget.scrollController,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 2),
+                              itemCount: folders.length,
+                              itemBuilder: (context, index) {
+                                final folder = folders[index];
+                                final isSelected =
+                                    selectedFolders.contains(folder.id);
+                                return GestureDetector(
+                                  onLongPress: () {
+                                    log("hii");
+                                    _handleLongPressStart(folder.id);
+                                  },
+                                  onTap: isSelectionMode
+                                      ? () {
+                                          _handleTapSelect(folder.id);
+                                        }
+                                      : folder.type == "folder"
+                                          ? () {
+                                              MyRouter.push(
+                                                  screen: FileDeepView(
+                                                fileId: folder.id,
+                                                folderName: folder.name,
+                                                gridview: _isGridView,
+                                              ));
+                                            }
+                                          : () {
+                                              print(folder.previewpath);
+                                              MyRouter.push(
+                                                screen: FilePreviewScreen(
+                                                  fileUrl:
+                                                      folder.previewpath ?? "",
+                                                ),
+                                              );
+                                            },
+                                  child: Container(
+                                    color: isSelected
+                                        ? chatColor.withValues(alpha:0.1)
+                                        : null,
+                                    child: ListTile(
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              vertical: 1, horizontal: 8),
+                                      leading: SizedBox(
+                                        width: 48,
+                                        height: 48,
+                                        child: Stack(
+                                          clipBehavior: Clip.none,
+                                          alignment: Alignment.center,
                                           children: [
-                                            if (folder.starred == true)
-                                              const Padding(
-                                                padding:
-                                                    EdgeInsets.only(right: 4),
-                                                child: Icon(Icons.star,
-                                                    size: 16,
-                                                    color: Colors.amber),
+                                            if (folder.profilePic.isNotEmpty)
+                                              CircleAvatar(
+                                                radius: 30,
+                                                backgroundColor:
+                                                    Colors.grey[200],
+                                                child: folder
+                                                        .profilePic.isNotEmpty
+                                                    ? ClipOval(
+                                                        child: Image.network(
+                                                          folder.profilePic,
+                                                          width: 60,
+                                                          height: 60,
+                                                          fit: BoxFit.cover,
+                                                          errorBuilder:
+                                                              (context, error,
+                                                                  stackTrace) {
+                                                            return const Icon(
+                                                              Icons.person,
+                                                              color:
+                                                                  Colors.grey,
+                                                              size: 30,
+                                                            );
+                                                          },
+                                                        ),
+                                                      )
+                                                    : const Icon(
+                                                        Icons.person,
+                                                        color: Colors.grey,
+                                                        size: 30,
+                                                      ),
                                               ),
-                                            Text(
-                                              _currentSort == "Date Opened by Me"
-                                                  ? 'Opened by Me ${DateFormatter.formatToReadableDate(folder.updatedAt)}'
-                                                  : 'Modified ${DateFormatter.formatToReadableDate(folder.updatedAt)}',
-                                              style: TextStyle(
-                                                  fontSize: 13,
-                                                  color: Colors.grey[600]),
-                                            ),
+                                            if (isSelected)
+                                              const Positioned(
+                                                right: 0,
+                                                bottom: 0,
+                                                child: Icon(
+                                                  Icons.check_circle,
+                                                  color: Colors.blue,
+                                                  size: 18,
+                                                ),
+                                              ),
                                           ],
                                         ),
-                                        trailing: IconButton(
-                                            onPressed: () {
-                                              showReusableBottomSheet(
-                                                context,
-                                                [
-                                                  BottomSheetOption(
-                                                      icon: Icons.person_add,
-                                                      title: "Share",
-                                                      onTap: () {
-                                                        Navigator.push(
-                                                          context,
-                                                          MaterialPageRoute(
-                                                              builder: (context) =>
-                                                                  ShareScreen(
-                                                                      folder.id)),
-                                                        );
-                                                      }),
-                                                  BottomSheetOption(
-                                                    icon: Icons.manage_accounts,
-                                                    title: "Manage access",
+                                      ),
+                                      title: Text(
+                                        folder.name,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w500),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      subtitle: Row(
+                                        children: [
+                                          if (folder.starred == true)
+                                            const Padding(
+                                              padding:
+                                                  EdgeInsets.only(right: 4),
+                                              child: Icon(Icons.star,
+                                                  size: 16,
+                                                  color: Colors.amber),
+                                            ),
+                                          Text(
+                                            _currentSort == "Date Opened by Me"
+                                                ? 'Opened by Me ${DateFormatter.formatToReadableDate(folder.updatedAt)}'
+                                                : 'Modified ${DateFormatter.formatToReadableDate(folder.updatedAt)}',
+                                            style: TextStyle(
+                                                fontSize: 13,
+                                                color: Colors.grey[600]),
+                                          ),
+                                        ],
+                                      ),
+                                      trailing: IconButton(
+                                          onPressed: () {
+                                            showReusableBottomSheet(
+                                              context,
+                                              [
+                                                BottomSheetOption(
+                                                    icon: Icons.person_add,
+                                                    title: "Share",
                                                     onTap: () {
-                                                      MyRouter.push(
-                                                          screen:
-                                                              ManageAccessScreenUI(
-                                                                  fileId:
-                                                                      folder.id));
-                                                    },
-                                                  ),
-                                                  BottomSheetOption(
-                                                      icon: folder.starred == true
-                                                          ? Icons.star
-                                                          : Icons.star_border,
-                                                      title: folder.starred ==
-                                                              true
-                                                          ? "Remove to Starred"
-                                                          : "Add to Starred",
-                                                      onTap: () {
-                                                        log('hii');
+                                                      Navigator.push(
+                                                        context,
+                                                        MaterialPageRoute(
+                                                            builder: (context) =>
+                                                                ShareScreen(
+                                                                    folder.id)),
+                                                      );
+                                                    }),
+                                                BottomSheetOption(
+                                                  icon: Icons.manage_accounts,
+                                                  title: "Manage access",
+                                                  onTap: () {
+                                                    MyRouter.push(
+                                                        screen:
+                                                            ManageAccessScreenUI(
+                                                                fileId:
+                                                                    folder.id));
+                                                  },
+                                                ),
+                                                BottomSheetOption(
+                                                    icon: folder.starred == true
+                                                        ? Icons.star
+                                                        : Icons.star_border,
+                                                    title: folder.starred ==
+                                                            true
+                                                        ? "Remove to Starred"
+                                                        : "Add to Starred",
+                                                    onTap: () {
+                                                      log('hii');
 
                                                         context
                                                             .read<FolderBloc>()
@@ -931,10 +966,12 @@ class _SharedPageState extends State<SharedPage> {
                                                     onTap: () async {
                                                       await showRenameDialog(
                                                         context: context,
-                                                        initialName: folder.name,
+                                                        initialName:
+                                                            folder.name,
                                                         onRename: (newName) {
                                                           context
-                                                              .read<FolderBloc>()
+                                                              .read<
+                                                                  FolderBloc>()
                                                               .add(
                                                                 RenameEvent(
                                                                     fileIDs: [
@@ -950,14 +987,16 @@ class _SharedPageState extends State<SharedPage> {
                                                   ),
                                                   folder.type == "folder"
                                                       ? BottomSheetOption(
-                                                          icon: Icons.color_lens,
+                                                          icon:
+                                                              Icons.color_lens,
                                                           title: "Change Color",
                                                           onTap: () {
                                                             MyRouter.pop();
 
                                                             showDialog(
                                                               context: context,
-                                                              builder: (context) {
+                                                              builder:
+                                                                  (context) {
                                                                 return ColorPickerDialog(
                                                                   onColorSelected:
                                                                       (hex) {
@@ -982,25 +1021,25 @@ class _SharedPageState extends State<SharedPage> {
                                                           onTap: () {},
                                                         ),
                                                   BottomSheetOption(
-                                                      icon: Icons.drive_file_move,
+                                                      icon:
+                                                          Icons.drive_file_move,
                                                       title: "Move",
                                                       onTap: () {
                                                         MyRouter.pop();
                                                         MyRouter.push(
-                                                            screen:
-                                                                MoveFileScreen(
-                                                                    movingFileId:
-                                                                        folder
-                                                                            .id));
+                                                            screen: MoveFileScreen(
+                                                                movingFileId:
+                                                                    folder.id));
                                                       }),
                                                   BottomSheetOption(
-                                                    icon:
-                                                        Icons.turn_right_outlined,
+                                                    icon: Icons
+                                                        .turn_right_outlined,
                                                     title: "Send a copy",
                                                     onTap: () async {
                                                       await Future.delayed(
                                                           const Duration(
-                                                              milliseconds: 300));
+                                                              milliseconds:
+                                                                  300));
 
                                                       final name =
                                                           folder.name.trim();
@@ -1012,13 +1051,15 @@ class _SharedPageState extends State<SharedPage> {
 
                                                       final textToShare = (name
                                                                   .isNotEmpty ||
-                                                              preview.isNotEmpty)
+                                                              preview
+                                                                  .isNotEmpty)
                                                           ? "$name\n\n$preview"
                                                           : '';
 
                                                       if (textToShare
                                                           .isNotEmpty) {
-                                                        Share.share(textToShare);
+                                                        Share.share(
+                                                            textToShare);
                                                       } else {
                                                         log("Nothing to share.");
                                                       }
@@ -1026,7 +1067,8 @@ class _SharedPageState extends State<SharedPage> {
                                                   ),
                                                   BottomSheetOption(
                                                       icon: Icons.info_outline,
-                                                      title: "Details & activity",
+                                                      title:
+                                                          "Details & activity",
                                                       onTap: () {
                                                         MyRouter.push(
                                                             screen:
@@ -1043,11 +1085,39 @@ class _SharedPageState extends State<SharedPage> {
                                                       icon: Icons.delete,
                                                       title: "Move to bin",
                                                       onTap: () {
-                                                        showMoveToBinDialog(context,() {
-                                                          context.read<FolderBloc>().add(
-                                                            MoveToTrashEvent(fileIDs: [folder.id]),
+                                                        showMoveToBinDialog(
+                                                            context, () {
+                                                          context
+                                                              .read<
+                                                                  FolderBloc>()
+                                                              .add(
+                                                                MoveToTrashEvent(
+                                                                    fileIDs: [
+                                                                      folder.id
+                                                                    ]),
+                                                              );
+                                                          Messenger.alertAction(
+                                                            color: Colors.green,
+                                                            msg:
+                                                                "Item moved to trash",
+                                                            actionLabel: "Undo",
+                                                            duration:
+                                                                const Duration(
+                                                                    seconds: 2),
+                                                            onAction: () {
+                                                              context
+                                                                  .read<
+                                                                      FolderBloc>()
+                                                                  .add(
+                                                                    RestoreEvent(
+                                                                        fileIDs: [
+                                                                          folder
+                                                                              .id
+                                                                        ]),
+                                                                  );
+                                                            },
                                                           );
-                                                        },folder.name);
+                                                        }, folder.name);
                                                       }),
                                                 ],
                                                 title: folder.name,

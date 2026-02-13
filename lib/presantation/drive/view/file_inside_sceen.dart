@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:nde_email/presantation/drive/Bloc/folder_bloc/create_folder_bloc.dart';
 import 'package:nde_email/presantation/drive/Bloc/inside_folder/inside_bloc.dart';
 import 'package:nde_email/presantation/drive/Bloc/inside_folder/inside_event.dart';
@@ -11,9 +11,7 @@ import 'package:nde_email/presantation/drive/data/insidefile_repo.dart';
 import 'package:nde_email/presantation/drive/model/folderinside_model.dart';
 
 import 'package:nde_email/presantation/drive/data/common_repo.dart';
-import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
-import 'package:nde_email/utils/router/router.dart';
 import 'package:nde_email/utils/simmer_effect.dart/drive_simmer.dart';
 
 import '../Bloc/file_bloc/my_drive_bloc.dart';

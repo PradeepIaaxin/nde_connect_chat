@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:convert';
 import 'package:hive/hive.dart';
 import 'package:nde_email/convo_list_crdt.dart';

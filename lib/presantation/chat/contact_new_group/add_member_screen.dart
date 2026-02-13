@@ -1,9 +1,12 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:nde_email/presantation/chat/chat_contact_list/user_data_model.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_list_event.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_list_state.dart';
+import 'package:nde_email/presantation/chat/chat_contact_list/user_service.dart';
 import 'package:nde_email/utils/imports/common_imports.dart';
 import 'package:nde_email/utils/reusbale/colour_utlis.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
@@ -102,7 +105,7 @@ class _AddMembersScreenState extends State<AddMembersScreen> {
         "membersList": selectedUsers.map((u) => u.userId).toList(),
       });
 
-      print("Body to send: $body");
+      log("Body to send: $body");
 
       final uri =
           Uri.parse('https://api.nowdigitaleasy.com/wschat/v1/group/members');

@@ -5,7 +5,7 @@ import 'package:video_player/video_player.dart';
 class VideoPreviewScreen extends StatefulWidget {
   final File file;
 
-  const VideoPreviewScreen({Key? key, required this.file}) : super(key: key);
+  const VideoPreviewScreen({super.key, required this.file});
 
   @override
   State<VideoPreviewScreen> createState() => _VideoPreviewScreenState();

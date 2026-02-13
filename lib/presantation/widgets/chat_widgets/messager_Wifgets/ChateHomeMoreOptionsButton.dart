@@ -1,10 +1,13 @@
+// ignore_for_file: deprecated_member_use, use_build_context_synchronously
+
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/user_profile_screen.dart'
     show UserProfileScreen;
 import 'package:nde_email/presantation/chat/chat_%20userprofile_screen/usermedia_screen.dart';
-import 'package:nde_email/presantation/chat/Socket/Socket_Service.dart';
+import 'package:nde_email/presantation/chat/socket/socket_service.dart';
+                                                                                                             
 import 'package:nde_email/utils/const/consts.dart';
 import 'package:nde_email/utils/router/router.dart';
 

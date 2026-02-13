@@ -1,9 +1,12 @@
 
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:convert';
 
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/messager_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/messager_event.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/messager_state.dart';
+import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/media_preview_screen.dart';
 
 import '../../../../../../data/respiratory.dart';
 import '../../../../../../utils/reusbale/common_import.dart';
@@ -13,7 +16,7 @@ import '../../../../chat_list/chat_session_storage/chat_session.dart';
 import '../../../localstorage/local_storage.dart';
 import '../../../messager_model.dart';
 
-import '../MediaPreviewScreen.dart';
+
 
 
 Future<void> saveDraft({

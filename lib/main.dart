@@ -7,6 +7,7 @@ import 'package:nde_email/convo_list_crdt.dart';
 import 'package:nde_email/message_list_crdt.dart';
 import 'package:nde_email/presantation/chat/chat_api_service/bloc/chat_send_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_api_service/service/chat_api_service.dart';
+import 'package:nde_email/presantation/chat/chat_contact_list/user_service.dart';
 import 'package:nde_email/presantation/chat/device/api/device_api.dart';
 import 'package:nde_email/presantation/chat/device/bloc/device_bloc.dart';
 import 'package:nde_email/presantation/login/login_screen.dart';

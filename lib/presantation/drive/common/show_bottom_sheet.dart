@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -121,7 +123,7 @@ void displayBottomSheet(BuildContext context, String? fileid,int index) {
                     label: 'Upload',
                     iconColor: Colors.grey[700],
                     backgroundColor: Colors.grey[100],
-                    onTap: () => _pickFiles(context),
+                    onTap: () => pickFiles(context),
                   ),
                   _buildOptionItem(
                     icon: Icons.camera_alt_outlined,

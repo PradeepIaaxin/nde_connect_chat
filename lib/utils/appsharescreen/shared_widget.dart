@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_data_model.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_list_event.dart';
 import 'package:nde_email/presantation/chat/chat_contact_list/user_list_state.dart';
+import 'package:nde_email/presantation/chat/chat_contact_list/user_service.dart';
 import 'package:nde_email/utils/imports/common_imports.dart';
 import 'package:nde_email/utils/reusbale/colour_utlis.dart';
 

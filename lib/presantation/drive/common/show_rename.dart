@@ -7,7 +7,7 @@ Future<void> showRenameDialog({
   String title = 'Rename File',
   String hintText = 'Enter new file name',
 }) async {
-  final TextEditingController _nameController =
+  final TextEditingController nameController =
       TextEditingController(text: initialName);
 
   await showDialog(
@@ -16,7 +16,7 @@ Future<void> showRenameDialog({
       return AlertDialog(
         title: Text(title),
         content: TextField(
-          controller: _nameController,
+          controller: nameController,
           decoration: InputDecoration(
             hintText: hintText,
             border: const OutlineInputBorder(),
@@ -29,7 +29,7 @@ Future<void> showRenameDialog({
           ),
           TextButton(
             onPressed: () {
-              final newName = _nameController.text.trim();
+              final newName = nameController.text.trim();
               if (newName.isNotEmpty) {
                 onRename(newName);
                 Navigator.pop(context);

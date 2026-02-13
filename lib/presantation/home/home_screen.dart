@@ -1,8 +1,11 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:developer';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:nde_email/data/mailboxid.dart';
 import 'package:nde_email/data/respiratory.dart';
+import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/mailbox_model.dart';
 import 'package:nde_email/presantation/calender/schedule/calendar_screen.dart';
 import 'package:nde_email/presantation/drive/view/landing_home.dart';
 import 'package:nde_email/presantation/mail/common/dialogs/move_to_dialog.dart';
@@ -120,9 +123,9 @@ class _HomeScreenState extends State<HomeScreen> {
           PackageInfo.fromPlatform().then(
             (packageInfo) {
               int buildVersion = int.parse(packageInfo.buildNumber);
-              print("appVersion $appVersion");
-              print("appUpdateUrl $appUpdateUrl");
-              print("buildVersion $buildVersion");
+              log("appVersion $appVersion");
+              log("appUpdateUrl $appUpdateUrl");
+              log("buildVersion $buildVersion");
               if (appVersion != null) {
                 if (appVersion! < buildVersion) {
                   if (Platform.isAndroid) {
@@ -347,7 +350,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final bool isTrashMailbox =
         widget.mailboxName?.trim().toLowerCase() == "trash";
 
-    print(widget.mailboxName);
+    log(widget.mailboxName.toString());
     log("name --- ${widget.mailboxName}");
 
     return AppBar(
@@ -448,15 +451,30 @@ class _HomeScreenState extends State<HomeScreen> {
                 final appBarState = context.read<AppBarBloc>().state;
 
                 if (appBarState is AppBarMailboxesLoaded) {
-                  final folders = [
-                    ...appBarState.inbox,
-                    ...appBarState.archive,
-                    ...appBarState.drafts,
-                    ...appBarState.junk,
-                    ...appBarState.sent,
-                    ...appBarState.trash,
-                    ...appBarState.other,
-                  ];
+                  List<Mailbox> folders = [];
+                  bool isDrafts =
+                      appBarState.drafts.any((m) => m.id == selectedMailboxId);
+                  bool isTrash =
+                      appBarState.trash.any((m) => m.id == selectedMailboxId);
+                  bool isSent =
+                      appBarState.sent.any((m) => m.id == selectedMailboxId);
+                  bool isAllMails = selectedMailboxId == 'all' ||
+                      selectedMailboxId == 'view_all' ||
+                      widget.filter == 'all';
+
+                  if (isDrafts || isTrash || isSent || isAllMails) {
+                    folders = [...appBarState.inbox];
+                  } else {
+                    folders = [
+                      ...appBarState.inbox,
+                      ...appBarState.archive,
+                      ...appBarState.drafts,
+                      ...appBarState.junk,
+                      ...appBarState.sent,
+                      ...appBarState.trash,
+                      ...appBarState.other,
+                    ];
+                  }
 
                   showMoveToMailboxDialog(
                     context: context,

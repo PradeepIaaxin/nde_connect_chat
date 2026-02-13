@@ -6,7 +6,8 @@ import 'package:nde_email/presantation/chat/chat_group_Screen/group_event.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_model.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_state.dart';
 import 'package:nde_email/presantation/chat/chat_private_screen/messager_Bloc/widget/double_tick_ui.dart';
-import 'package:nde_email/presantation/chat/Socket/Socket_Service.dart';
+import 'package:nde_email/presantation/chat/socket/socket_service.dart';
+                                                                                                             
 import 'package:nde_email/utils/snackbar/snackbar.dart';
 
 class GroupOfflineMessageHandler {
