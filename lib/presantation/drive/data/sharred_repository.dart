@@ -231,11 +231,11 @@ class SharedRepository {
       );
 
       if (response.statusCode == 200) {
-        Messenger.alertSuccess(
-          fileIDs.length == 1
-              ? 'Item moved to trash'
-              : '${fileIDs.length} items moved to trash',
-        );
+        // Messenger.alertSuccess(
+        //   fileIDs.length == 1
+        //       ? 'Item moved to trash'
+        //       : '${fileIDs.length} items moved to trash',
+        // );
         return true;
       } else {
         return false;

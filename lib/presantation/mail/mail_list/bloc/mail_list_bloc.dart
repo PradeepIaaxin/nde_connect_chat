@@ -167,12 +167,8 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
 
     try {
       /// ✅ 4️⃣ API call
-      final response = await apiService.fetchMailList(
-        event.mailboxId,
-        cursor: event.cursor ?? state.nextCursor,
-        limit: 20
-
-      );
+      final response = await apiService.fetchMailList(event.mailboxId,
+          cursor: event.cursor ?? state.nextCursor, limit: 20);
 
       final List<GMMailModels> fetchedMails = response.mails;
 
@@ -201,11 +197,9 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
       final List<GMMailModels> updatedMails =
           event.isLoadMore ? [...state.mails, ...fetchedMails] : fetchedMails;
 
-      /// ✅ 7️⃣ Cache first page
-      if (!event.isLoadMore) {
-        cachedMailLists[event.mailboxId] = updatedMails;
-        cachedCursors[event.mailboxId] = nextCursor;
-      }
+      /// ✅ 7️⃣ Cache ALL loaded emails (including pagination)
+      cachedMailLists[event.mailboxId] = updatedMails;
+      cachedCursors[event.mailboxId] = nextCursor;
 
       /// ✅ 8️⃣ Counts
       final unreadCount =
@@ -562,20 +556,43 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
     }
   }
 
-  /// Silent background refresh – no UI loading state
+  /// Silent background refresh – prepend new emails to cache
   Future<void> _onRefreshMailListSilent(
     RefreshMailListEvent event,
     Emitter<MailListState> emit,
   ) async {
-    log("Silent background refresh started for: ${event.mailboxId}");
+    log("🔄 Silent background refresh started for: ${event.mailboxId}");
 
     try {
-      final response = await apiService.fetchMailList(event.mailboxId, limit: 100);
+      final response =
+          await apiService.fetchMailList(event.mailboxId, limit: 100);
       final List<GMMailModels> freshMails = response.mails;
 
-      cachedMailLists[event.mailboxId] = freshMails;
+      // Get existing cached emails
+      final List<GMMailModels> cachedMails =
+          cachedMailLists[event.mailboxId] ?? [];
 
-      final unreadCount = freshMails.where((mail) => mail.seen == false).length;
+      // Detect new emails by comparing IDs
+      final existingIds = cachedMails.map((m) => m.id).toSet();
+      final newMails =
+          freshMails.where((m) => !existingIds.contains(m.id)).toList();
+
+      List<GMMailModels> updatedMails;
+      if (newMails.isNotEmpty) {
+        // Prepend new emails to existing cache
+        log("📧 Found ${newMails.length} new email(s), prepending to cache");
+        updatedMails = [...newMails, ...cachedMails];
+      } else {
+        // No new emails, but update existing ones (seen/flagged status may have changed)
+        updatedMails = freshMails;
+      }
+
+      // Update cache with merged list
+      cachedMailLists[event.mailboxId] = updatedMails;
+      cachedCursors[event.mailboxId] = response.nextCursor;
+
+      final unreadCount =
+          updatedMails.where((mail) => mail.seen == false).length;
       final updatedUnreadMap =
           Map<String, int>.from(state.unreadCountByMailbox);
       updatedUnreadMap[event.mailboxId] = unreadCount;
@@ -586,23 +603,27 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
       );
 
       final updatedTotalMap = Map<String, int>.from(state.totalCountByMailbox);
-      updatedTotalMap[event.mailboxId] = freshMails.length;
+      updatedTotalMap[event.mailboxId] = updatedMails.length;
 
       final String? nextCursor =
           response.nextCursor is String ? response.nextCursor : null;
 
       final nextStatus =
-          freshMails.isEmpty ? MailListStatus.empty : MailListStatus.loaded;
+          updatedMails.isEmpty ? MailListStatus.empty : MailListStatus.loaded;
 
-      final shouldEmit = !_listsAreEqual(state.mails, freshMails) ||
-          state.status != nextStatus ||
-          state.nextCursor != nextCursor ||
-          state.specialUse != response.specialUse;
+      // Only emit if viewing this mailbox currently
+      final isCurrentMailbox = state.currentMailboxId == event.mailboxId;
+      final shouldEmit = isCurrentMailbox &&
+          (!_listsAreEqual(state.mails, updatedMails) ||
+              state.status != nextStatus ||
+              state.nextCursor != nextCursor ||
+              state.specialUse != response.specialUse);
 
       if (shouldEmit) {
+        log("✅ Emitting updated mail list with ${updatedMails.length} emails");
         emit(state.copyWith(
           status: nextStatus,
-          mails: freshMails,
+          mails: updatedMails,
           unreadCountByMailbox: updatedUnreadMap,
           totalUnreadCount: totalUnread,
           totalCountByMailbox: updatedTotalMap,
@@ -610,6 +631,8 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
           specialUse: response.specialUse,
           currentMailboxId: event.mailboxId,
         ));
+      } else {
+        log("ℹ️ Cache updated silently, no UI change needed");
       }
     } catch (e) {
       // Silent fail – no UI change, no error shown
@@ -623,14 +646,20 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
     RefreshFilteredMailEvent event,
     Emitter<MailListState> emit,
   ) async {
+    log("🔄 Silent refresh for filtered view: ${event.filterType}");
     try {
       final freshMails = await apiService.fetchFilteredMails(event.filterType);
 
+      // Update cache
+      cachedMailLists[event.filterType] = freshMails;
+
       if (_listsAreEqual(state.mails, freshMails) &&
           state.status == MailListStatus.loaded) {
+        log("ℹ️ Filtered view cache updated silently, no UI change needed");
         return;
       }
 
+      log("✅ Emitting updated filtered list with ${freshMails.length} emails");
       emit(state.copyWith(
         status:
             freshMails.isEmpty ? MailListStatus.empty : MailListStatus.loaded,
