@@ -51,7 +51,7 @@ class FetchMailListapi {
         final Map<String, dynamic> data = json.decode(response.body);
         final mailListResponse = MailListResponse.fromJson(data);
 
-        log('📥 Mail List Fetched');
+        log('📥 Mail List Fetched. $mailListResponse');
         log('Next Cursor: ${mailListResponse.nextCursor}');
 
         return mailListResponse;
