@@ -10,8 +10,15 @@ import 'package:nde_email/presantation/drive/common/create_dialogue.dart';
 import 'package:nde_email/presantation/drive/view/uploadtodrive.dart';
 import 'package:nde_email/utils/url/url_launcher.dart';
 
-void displayBottomSheet(BuildContext context, String? fileid) {
-  Future<void> pickFiles(BuildContext context) async {
+import '../Bloc/file_bloc/my_drive_bloc.dart';
+import '../Bloc/file_bloc/myfile_event.dart';
+import '../Bloc/home_bloc/sugesstion/sugesstion_bloc.dart';
+import '../Bloc/home_bloc/sugesstion/sugesstion_event.dart';
+import '../view/my_drivepage.dart';
+
+void displayBottomSheet(BuildContext context, String? fileid,int index) {
+
+  Future<void> _pickFiles(BuildContext context) async {
     Navigator.pop(context);
 
     FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -19,19 +26,39 @@ void displayBottomSheet(BuildContext context, String? fileid) {
       type: FileType.any,
       withData: true,
     );
-
+    final suggestionsBloc = context.read<SuggestionsBloc>();
     if (result != null && result.files.isNotEmpty) {
-      List<PlatformFile> selectedFiles = result.files;
 
-      Navigator.push(
+      final moved = await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => UploadToDriveScreen(
-            selectedFiles: selectedFiles,
+            selectedFiles: result.files,
             parentId: fileid,
+            currentIndex: index,
           ),
         ),
       );
+
+
+      /// ✅ THIS is where refresh belongs
+      if (moved == true && context.mounted) {
+        await Future.delayed(const Duration(seconds: 2));
+
+      if(index==0){
+        suggestionsBloc.add(FetchSuggestionsEvent());
+      }else if(index==3){
+        context.read<MyDriveBloc>().resetPagination();
+        context.read<MyDriveBloc>().add(
+          FetchMyDriveFolders(
+            sortBy:"name",
+            order: "desc",
+            showLoading: false,
+          ),
+        );
+      }
+
+      }
     }
   }
 
