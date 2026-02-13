@@ -586,7 +586,7 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
 
   void _openDraftEditor(MailDetailModel mailDetail) {
     final to = mailDetail.to.map((e) => e.address).where((e) => e.isNotEmpty);
-    final body = mailDetail.text.isNotEmpty ? mailDetail.text : mailDetail.html;
+    final body = _getCleanBodyContent(mailDetail);
 
     MyRouter.push(
       screen: ComposeScreen(
@@ -601,6 +601,27 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
         },
       ),
     );
+  }
+
+  String _getCleanBodyContent(MailDetailModel mailDetail) {
+    // If text field has content, use it
+    if (mailDetail.text.isNotEmpty) {
+      return mailDetail.text;
+    }
+
+    // Otherwise, extract clean text from HTML
+    return _stripHtmlTags(mailDetail.html);
+  }
+
+  String _stripHtmlTags(String html) {
+    // Remove common HTML wrapper tags and extract clean text
+    String cleanText = html
+        .replaceAll(RegExp(r'<[^>]*>'), '') // Remove all HTML tags
+        .replaceAll(RegExp(r'&nbsp;'), ' ') // Replace non-breaking spaces
+        .replaceAll(RegExp(r'&[a-zA-Z]+;'), '') // Remove other HTML entities
+        .trim();
+
+    return cleanText;
   }
 
   String _formatDate(String utcDate) {

@@ -14,6 +14,9 @@ import 'package:nde_email/presantation/drive/data/common_repo.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
 import 'package:nde_email/utils/simmer_effect.dart/drive_simmer.dart';
 
+import '../Bloc/file_bloc/my_drive_bloc.dart';
+import '../Bloc/file_bloc/myfile_event.dart';
+
 class FileInsideSceen extends StatefulWidget {
   final String fileId;
   final String folderName;
@@ -72,8 +75,9 @@ class _FileInsideSceenState extends State<FileInsideSceen> {
             listener: (context, moveState) {
               if (moveState is MoveFileSuccess) {
                 Messenger.alertSuccess("File moved successfully");
-
-                Navigator.popUntil(context, (route) => route.isFirst);
+                log("..............................");
+                Navigator.of(context).pop(true);
+                Navigator.of(context).pop(true);
               } else if (moveState is MoveFileFailure) {
                 Messenger.alertError('Move failed: ${moveState.message}');
               }
@@ -297,8 +301,7 @@ class _FileInsideSceenState extends State<FileInsideSceen> {
     if (type == 'folder') {
       return Image.asset("assets/images/folder.png",
           height: 24, width: 24, color: Colors.amber);
-    }
-    else if (ext.contains('doc') || ext.contains('msword')) {
+    } else if (ext.contains('doc') || ext.contains('msword')) {
       return Image.asset('assets/images/word.png', height: 24, width: 24);
     } else if (ext.contains('excel') || ext.contains('spreadsheet')) {
       return Image.asset('assets/images/sheets.png', height: 24, width: 24);

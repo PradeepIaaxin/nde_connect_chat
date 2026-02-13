@@ -178,7 +178,7 @@ class _LandingHomeState extends State<LandingHome> {
                   child: FloatingActionButton(
                     heroTag: 'mainFAB',
                     onPressed: () {
-                      displayBottomSheet(context, '');
+                      displayBottomSheet(context, '',_currentIndex);
                     },
                     backgroundColor: Colors.white,
                     child: const Icon(Icons.add, color: Colors.black),

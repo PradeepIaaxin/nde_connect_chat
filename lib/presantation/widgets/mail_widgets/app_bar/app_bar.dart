@@ -47,7 +47,7 @@ class _CustomAppBarState extends State<CustomAppBar> {
         child: Container(
           height: 52,
           decoration: BoxDecoration(
-            color: Colors.grey[200], 
+            color: Colors.grey[200],
             borderRadius: BorderRadius.circular(28),
           ),
           child: Row(
