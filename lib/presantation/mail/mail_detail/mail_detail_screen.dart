@@ -2,6 +2,7 @@ import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/mailbox_model.dart';
 import 'package:nde_email/presantation/mail/common/dialogs/move_to_dialog.dart';
 import 'package:nde_email/presantation/mail/common/mail_more_menu.dart';
 import 'package:nde_email/presantation/mail/common/menuaction/mail_menu_action.dart';
@@ -126,15 +127,33 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
                           final appBarState = context.read<AppBarBloc>().state;
 
                           if (appBarState is AppBarMailboxesLoaded) {
-                            final folders = [
-                              ...appBarState.inbox,
-                              ...appBarState.archive,
-                              ...appBarState.drafts,
-                              ...appBarState.junk,
-                              ...appBarState.sent,
-                              ...appBarState.trash,
-                              ...appBarState.other,
-                            ];
+                            List<Mailbox> folders = [];
+
+                            // Check if current mailbox is Drafts or Trash
+                            bool isDrafts = appBarState.drafts
+                                .any((m) => m.id == widget.mailboxId);
+                            bool isTrash = appBarState.trash
+                                .any((m) => m.id == widget.mailboxId);
+                            bool isSent = appBarState.sent
+                                .any((m) => m.id == widget.mailboxId);
+                            bool isAllMails = widget.mailboxId == 'all' ||
+                                widget.mailboxId == 'view_all';
+
+                            if (isDrafts || isTrash || isSent || isAllMails) {
+                              // If Drafts, Trash, Sent, or All Mails, only show Inbox
+                              folders = [...appBarState.inbox];
+                            } else {
+                              // Otherwise show all folders
+                              folders = [
+                                ...appBarState.inbox,
+                                ...appBarState.archive,
+                                ...appBarState.drafts,
+                                ...appBarState.junk,
+                                ...appBarState.sent,
+                                ...appBarState.trash,
+                                ...appBarState.other,
+                              ];
+                            }
 
                             showMoveToMailboxDialog(
                               context: context,

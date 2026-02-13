@@ -254,7 +254,7 @@ class DriveRepository {
         options: Options(headers: headers),
       );
       if (response.statusCode == 200) {
-        Messenger.alertSuccess('Trashed successfully!');
+        //Messenger.alertSuccess('Trashed successfully!');
       } else {
         log('starred failed: Status ${response.statusCode}, Response: ${response.data}');
       }
