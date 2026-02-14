@@ -96,11 +96,13 @@ class _HomeScreenState extends State<HomeScreen> {
         MailboxStorage.getInboxMailboxId().then((inboxId) {
           if (!mounted) return;
           if (inboxId == null || inboxId.isEmpty) return;
-          MailboxStorage.saveMailboxId(inboxId);
-          if (selectedMailboxId != inboxId) {
-            setState(() {
-              selectedMailboxId = inboxId;
-            });
+          if (selectedMailboxId.isEmpty) {
+            MailboxStorage.saveMailboxId(inboxId);
+            if (selectedMailboxId != inboxId) {
+              setState(() {
+                selectedMailboxId = inboxId;
+              });
+            }
           }
         });
       }
@@ -170,10 +172,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     : "";
 
             if (mailboxId.isNotEmpty) {
-              MailboxStorage.saveMailboxId(mailboxId);
+              if (selectedMailboxId.isEmpty) {
+                MailboxStorage.saveMailboxId(mailboxId);
+              }
             }
 
-            if (selectedMailboxId != mailboxId) {
+            if (selectedMailboxId.isEmpty && selectedMailboxId != mailboxId) {
               setState(() {
                 selectedMailboxId = mailboxId;
               });
@@ -243,7 +247,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       key: scaffoldKey,
                       drawer:
                           (navState.selectedIndex == 0 && !isSelectionActive)
-                              ? CustomDrawer()
+                              ? CustomDrawer(
+                                  onDrawerOpened: () {
+                                    context
+                                        .read<AppBarBloc>()
+                                        .add(FetchMailboxesEvent(force: true));
+                                  },
+                                )
                               : null,
                       endDrawer: Endrawer(
                         userName: userName ?? "",
@@ -364,8 +374,15 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       appBar:
           (selectedIndex == 0 && !isSelectionActive) ? CustomAppBar() : null,
-      drawer:
-          (selectedIndex == 0 && !isSelectionActive) ? CustomDrawer() : null,
+      drawer: (selectedIndex == 0 && !isSelectionActive)
+          ? CustomDrawer(
+              onDrawerOpened: () {
+                context
+                    .read<AppBarBloc>()
+                    .add(FetchMailboxesEvent(force: true));
+              },
+            )
+          : null,
       body: _buildScreen(selectedIndex),
       bottomNavigationBar: BottomNavBar(),
     );
