@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nde_email/data/mailboxid.dart';
 import 'package:nde_email/presantation/contact/contact_screen.dart';
 import 'package:nde_email/presantation/mail/compose/model/composemodel.dart';
+import 'package:nde_email/presantation/mail/tosection/email_suggestions_state.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/router/router.dart';
 import 'package:nde_email/utils/snackbar/snackbar.dart';
@@ -22,10 +23,8 @@ import '../bloc/send_draft/save_draft_bloc.dart';
 import '../bloc/send_draft/save_dratf_event.dart';
 import '../bloc/send_draft/save_draft_state.dart';
 import 'package:intl/intl.dart';
-import 'package:nde_email/presantation/mail/tosection/email_suggestions_state.dart';
 import 'package:nde_email/presantation/mail/tosection/email_suggestions_bloc.dart';
 import 'package:nde_email/presantation/mail/tosection/email_suggestions_event.dart';
-import 'package:nde_email/presantation/mail/tosection/email_suggestions_model.dart';
 import 'package:nde_email/presantation/mail/mail_detail/mail_detail_model.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/attachment.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/collapsible_quoted_content.dart';
@@ -60,6 +59,8 @@ class ComposeScreen extends StatefulWidget {
   _ComposeScreenState createState() => _ComposeScreenState();
 }
 
+enum RecipientField { to, cc, bcc }
+
 class _ComposeScreenState extends State<ComposeScreen> {
   final TextEditingController from = TextEditingController();
   final TextEditingController toCont = TextEditingController();
@@ -79,6 +80,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
   String? fromEmail;
   bool showSuggestions = false;
   bool showCcBcc = false;
+  RecipientField? _activeField;
 
   void _addEmail(
       String email, List<String> emailList, TextEditingController controller) {
@@ -701,22 +703,15 @@ class _ComposeScreenState extends State<ComposeScreen> {
                         );
 
                         return Chip(
-                          avatar: isImage
+                          avatar: (isImage && inline.filePath != null)
                               ? ClipRRect(
                                   borderRadius: BorderRadius.circular(4),
-                                  child: inline.isInline
-                                      ? Image.file(
-                                          File(inline.filePath),
-                                          width: 24,
-                                          height: 24,
-                                          fit: BoxFit.cover,
-                                        )
-                                      : Image.file(
-                                          File(inline.filePath),
-                                          width: 24,
-                                          height: 24,
-                                          fit: BoxFit.cover,
-                                        ),
+                                  child: Image.file(
+                                    File(inline.filePath!),
+                                    width: 24,
+                                    height: 24,
+                                    fit: BoxFit.cover,
+                                  ),
                                 )
                               : Icon(
                                   getFileIcon(inline.fileName),
@@ -928,45 +923,9 @@ class _ComposeScreenState extends State<ComposeScreen> {
           ],
         ),
 
-        /// 🔹 EMAIL SUGGESTIONS (OLD LOGIC – UNCHANGED)
-        if (showSuggestions)
-          BlocBuilder<EmailSuggestionsBloc, EmailSuggestionsState>(
-            builder: (context, state) {
-              if (state is EmailSuggestionsLoading) {
-                return const Padding(
-                  padding: EdgeInsets.all(8),
-                  child: CircularProgressIndicator(),
-                );
-              } else if (state is EmailSuggestionsLoaded) {
-                return ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: state.suggestions.length,
-                  itemBuilder: (context, index) {
-                    final User user = state.suggestions[index];
-
-                    return ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: AppColors.profile,
-                        child: Text(
-                          user.userName.isNotEmpty
-                              ? user.userName[0].toUpperCase()
-                              : 'U',
-                          style: const TextStyle(color: AppColors.bg),
-                        ),
-                      ),
-                      title: Text(user.userName),
-                      subtitle: Text(user.email),
-                      onTap: () {
-                        _addEmail(user.email, emailList, controller);
-                        setState(() => showSuggestions = false);
-                      },
-                    );
-                  },
-                );
-              }
-              return const SizedBox.shrink();
-            },
-          ),
+        /// 🔹 EMAIL SUGGESTIONS (FIELD-AWARE)
+        if (showSuggestions && _activeField == RecipientField.to)
+          _buildSuggestionsUI(toEmails, toCont),
       ],
     );
   }
@@ -1052,11 +1011,60 @@ class _ComposeScreenState extends State<ComposeScreen> {
     return email.isNotEmpty ? email[0].toUpperCase() : 'U';
   }
 
+  Widget _buildSuggestionsUI(
+    List<String> emailList,
+    TextEditingController controller,
+  ) {
+    return BlocBuilder<EmailSuggestionsBloc, EmailSuggestionsState>(
+      builder: (context, state) {
+        if (state is EmailSuggestionsLoading) {
+          return const Padding(
+            padding: EdgeInsets.all(8),
+            child: CircularProgressIndicator(),
+          );
+        } else if (state is EmailSuggestionsLoaded) {
+          if (state.suggestions.isEmpty) return const SizedBox.shrink();
+
+          return ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: state.suggestions.length,
+            itemBuilder: (context, index) {
+              final user = state.suggestions[index];
+
+              return ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: AppColors.profile,
+                  child: Text(
+                    user.userName.isNotEmpty
+                        ? user.userName[0].toUpperCase()
+                        : 'U',
+                    style: const TextStyle(color: AppColors.bg),
+                  ),
+                ),
+                title: Text(user.userName),
+                subtitle: Text(user.email),
+                onTap: () {
+                  _addEmail(user.email, emailList, controller);
+                  setState(() {
+                    showSuggestions = false;
+                    _activeField = null;
+                  });
+                },
+              );
+            },
+          );
+        }
+        return const SizedBox.shrink();
+      },
+    );
+  }
+
   Widget _buildCCBCCFields() {
     return Column(
       children: [
-        _buildCCBCCField("Cc", ccCont, ccEmails),
-        _buildCCBCCField("Bcc", bccCont, bccEmails),
+        _buildCCBCCField("Cc", ccCont, ccEmails, RecipientField.cc),
+        _buildCCBCCField("Bcc", bccCont, bccEmails, RecipientField.bcc),
       ],
     );
   }
@@ -1065,6 +1073,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
     String label,
     TextEditingController controller,
     List<String> emailList,
+    RecipientField field,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1095,7 +1104,10 @@ class _ComposeScreenState extends State<ComposeScreen> {
                     context
                         .read<EmailSuggestionsBloc>()
                         .add(FetchEmailSuggestions(value));
-                    setState(() => showSuggestions = true);
+                    setState(() {
+                      showSuggestions = true;
+                      _activeField = field;
+                    });
                   }
                 },
 
@@ -1144,6 +1156,10 @@ class _ComposeScreenState extends State<ComposeScreen> {
             );
           }).toList(),
         ),
+
+        /// 🔹 CC / BCC SUGGESTIONS (FIELD-AWARE)
+        if (showSuggestions && _activeField == field)
+          _buildSuggestionsUI(emailList, controller),
       ],
     );
   }
