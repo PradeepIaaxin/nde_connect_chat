@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class CustomConfirmationDialog {
-  static Future<bool?> show({
+   static Future<bool?> show({
     required BuildContext context,
     required String title,
     required String message,
@@ -9,8 +9,6 @@ class CustomConfirmationDialog {
     String confirmText = "Confirm",
     String cancelText = "Cancel",
     Color confirmColor = Colors.red,
-
-    
     Color iconColor = Colors.red,
     IconData icon = Icons.help_outline,
     Color backgroundColor = Colors.white,
@@ -76,8 +74,9 @@ class CustomConfirmationDialog {
                           // Cancel button
                           Expanded(
                             child: OutlinedButton(
-                              onPressed:
-                                  isLoading ? null : () => Navigator.pop(ctx, false),
+                              onPressed: isLoading
+                                  ? null
+                                  : () => Navigator.pop(ctx, false),
                               child: Text(cancelText),
                             ),
                           ),

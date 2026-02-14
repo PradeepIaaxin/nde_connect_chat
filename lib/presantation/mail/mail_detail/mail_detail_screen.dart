@@ -183,15 +183,6 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
                                   ...appBarState.other,
                                 ];
                               }
-                              // final folders = [
-                              //   ...appBarState.inbox,
-                              //   ...appBarState.archive,
-                              //   ...appBarState.drafts,
-                              //   ...appBarState.junk,
-                              //   ...appBarState.sent,
-                              //   ...appBarState.trash,
-                              //   ...appBarState.other,
-                              // ];
 
                               showMoveToMailboxDialog(
                                 context: context,
@@ -287,7 +278,7 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
                                 children: [
                                   Container(
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 2, vertical: 8),
+                                        horizontal: 0, vertical: 6),
                                     child: Row(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
@@ -301,137 +292,148 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
                                         const SizedBox(width: 12),
                                         Expanded(
                                           child: Column(
+                                            mainAxisSize: MainAxisSize.min,
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: [
-                                              Text(
-                                                mailDetail.draft
-                                                    ? "Draft"
-                                                    : (mailDetail.from.name
-                                                            .isNotEmpty
-                                                        ? mailDetail.from.name
-                                                        : mailDetail
-                                                            .from.address),
-                                                style: TextStyle(
-                                                  fontFamily: 'Roboto',
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: mailDetail.draft
-                                                      ? Colors.red
-                                                      : AppColors.headingText,
-                                                ),
-                                                overflow: TextOverflow.ellipsis,
-                                                maxLines: 1,
-                                              ),
                                               Row(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.center,
                                                 children: [
-                                                  Flexible(
+                                                  Expanded(
+                                                    flex: 3,
                                                     child: Text(
                                                       mailDetail.draft
-                                                          ? (mailDetail
-                                                                  .to.isNotEmpty
-                                                              ? "to ${mailDetail.to.first.name.isNotEmpty ? mailDetail.to.first.name : mailDetail.to.first.address}"
-                                                              : "to")
-                                                          : (widget.selectedTag ==
-                                                                      '\\Sent' &&
-                                                                  mailDetail.to
-                                                                      .isNotEmpty)
-                                                              ? "to ${mailDetail.to.first.name.isNotEmpty ? mailDetail.to.first.name : mailDetail.to.first.address}"
-                                                              : 'to me',
-                                                      style: const TextStyle(
+                                                          ? "Draft"
+                                                          : (mailDetail
+                                                                  .from
+                                                                  .name
+                                                                  .isNotEmpty
+                                                              ? mailDetail
+                                                                  .from.name
+                                                              : mailDetail.from
+                                                                  .address),
+                                                      style: TextStyle(
+                                                        fontFamily: 'Roboto',
                                                         fontSize: 14,
-                                                        color: AppColors
-                                                            .secondaryText,
-                                                        overflow: TextOverflow
-                                                            .ellipsis,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: mailDetail.draft
+                                                            ? Colors.red
+                                                            : AppColors
+                                                                .headingText,
+                                                        height: 1.0,
                                                       ),
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
                                                       maxLines: 1,
                                                     ),
                                                   ),
-                                                  IconButton(
-                                                    constraints:
-                                                        const BoxConstraints(),
-                                                    padding: EdgeInsets.zero,
-                                                    icon: Icon(
-                                                      isExpanded
-                                                          ? Icons.expand_less
-                                                          : Icons.expand_more,
-                                                      size: 20,
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    _formatDate(mailDetail.date
+                                                        .toUtc()
+                                                        .toString()),
+                                                    style: const TextStyle(
+                                                      fontFamily: 'Roboto',
+                                                      fontSize: 14,
                                                       color: AppColors
                                                           .secondaryText,
                                                     ),
-                                                    onPressed: () {
-                                                      setState(() {
-                                                        isExpanded =
-                                                            !isExpanded;
-                                                      });
-                                                    },
                                                   ),
+                                                  if (!mailDetail.draft) ...[
+                                                    const SizedBox(width: 8),
+                                                    IconButton(
+                                                      icon: const Icon(
+                                                          Icons.reply,
+                                                          size: 23,
+                                                          color: AppColors
+                                                              .iconDefault),
+                                                      constraints:
+                                                          const BoxConstraints(),
+                                                      padding: EdgeInsets.zero,
+                                                      onPressed: () {
+                                                        MyRouter.push(
+                                                          screen: ComposeScreen(
+                                                            mailDetail:
+                                                                mailDetail,
+                                                            action:
+                                                                ComposeAction
+                                                                    .reply,
+                                                          ),
+                                                        );
+                                                      },
+                                                    ),
+                                                    IconButton(
+                                                      icon: const Icon(
+                                                          Icons.more_vert,
+                                                          size: 23,
+                                                          color: AppColors
+                                                              .iconDefault),
+                                                      key: _menuIconKey,
+                                                      constraints:
+                                                          const BoxConstraints(),
+                                                      padding: EdgeInsets.zero,
+                                                      onPressed: () =>
+                                                          _showMailActions(
+                                                              mailDetail),
+                                                    ),
+                                                  ],
                                                 ],
+                                              ),
+                                              Transform.translate(
+                                                offset: const Offset(0, -10),
+                                                child: Row(
+                                                  children: [
+                                                    Flexible(
+                                                      child: Text(
+                                                        mailDetail.draft
+                                                            ? (mailDetail.to
+                                                                    .isNotEmpty
+                                                                ? "to ${mailDetail.to.first.name.isNotEmpty ? mailDetail.to.first.name : mailDetail.to.first.address}"
+                                                                : "to")
+                                                            : (widget.selectedTag ==
+                                                                        '\\Sent' &&
+                                                                    mailDetail
+                                                                        .to
+                                                                        .isNotEmpty)
+                                                                ? "to ${mailDetail.to.first.name.isNotEmpty ? mailDetail.to.first.name : mailDetail.to.first.address}"
+                                                                : 'to me',
+                                                        style: const TextStyle(
+                                                          fontSize: 14,
+                                                          color: AppColors
+                                                              .secondaryText,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                          height: 1.0,
+                                                        ),
+                                                        maxLines: 1,
+                                                      ),
+                                                    ),
+                                                    IconButton(
+                                                      constraints:
+                                                          const BoxConstraints(),
+                                                      padding: EdgeInsets.zero,
+                                                      icon: Icon(
+                                                        isExpanded
+                                                            ? Icons.expand_less
+                                                            : Icons.expand_more,
+                                                        size: 20,
+                                                        color: AppColors
+                                                            .secondaryText,
+                                                      ),
+                                                      onPressed: () {
+                                                        setState(() {
+                                                          isExpanded =
+                                                              !isExpanded;
+                                                        });
+                                                      },
+                                                    ),
+                                                  ],
+                                                ),
                                               ),
                                             ],
                                           ),
-                                        ),
-                                        Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.center,
-                                              children: [
-                                                Text(
-                                                  _formatDate(mailDetail.date
-                                                      .toUtc()
-                                                      .toString()),
-                                                  style: const TextStyle(
-                                                    fontFamily: 'Roboto',
-                                                    fontSize: 14,
-                                                    color:
-                                                        AppColors.secondaryText,
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 8),
-                                                if (!mailDetail.draft) ...[
-                                                  IconButton(
-                                                    icon: const Icon(
-                                                        Icons.reply,
-                                                        size: 23,
-                                                        color: AppColors
-                                                            .iconDefault),
-                                                    constraints:
-                                                        const BoxConstraints(),
-                                                    padding: EdgeInsets.zero,
-                                                    onPressed: () {
-                                                      MyRouter.push(
-                                                        screen: ComposeScreen(
-                                                          mailDetail:
-                                                              mailDetail,
-                                                          action: ComposeAction
-                                                              .reply,
-                                                        ),
-                                                      );
-                                                    },
-                                                  ),
-                                                  IconButton(
-                                                    icon: const Icon(
-                                                        Icons.more_vert,
-                                                        size: 23,
-                                                        color: AppColors
-                                                            .iconDefault),
-                                                    key: _menuIconKey,
-                                                    constraints:
-                                                        const BoxConstraints(),
-                                                    padding: EdgeInsets.zero,
-                                                    onPressed: () =>
-                                                        _showMailActions(
-                                                            mailDetail),
-                                                  ),
-                                                ],
-                                              ],
-                                            ),
-                                          ],
                                         ),
                                       ],
                                     ),
@@ -465,6 +467,24 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
                                                 : "N/A",
                                             mailDetail.to.isNotEmpty
                                                 ? mailDetail.to.first.address
+                                                : "",
+                                          ),
+                                          _buildDetailRow(
+                                            "cc ",
+                                            mailDetail.cc.isNotEmpty
+                                                ? mailDetail.cc.first.name
+                                                : "N/A",
+                                            mailDetail.to.isNotEmpty
+                                                ? mailDetail.to.first.address
+                                                : "",
+                                          ),
+                                          _buildDetailRow(
+                                            "Bcc ",
+                                            mailDetail.bcc.isNotEmpty
+                                                ? mailDetail.bcc.first.name
+                                                : "N/A",
+                                            mailDetail.bcc.isNotEmpty
+                                                ? mailDetail.bcc.first.address
                                                 : "",
                                           ),
                                           const SizedBox(height: 7),

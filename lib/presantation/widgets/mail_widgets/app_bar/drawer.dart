@@ -483,6 +483,7 @@
 // }
 
 import 'dart:developer';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nde_email/data/mailboxid.dart';
@@ -494,7 +495,6 @@ import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_color
 import 'package:nde_email/utils/router/router.dart';
 import 'mailbox_model.dart';
 import 'app_bar_bloc.dart';
-import 'app_bar_event.dart';
 import 'package:nde_email/presantation/home/home_screen.dart';
 import 'app_bar_state.dart';
 import 'package:nde_email/data/respiratory.dart';
@@ -502,7 +502,12 @@ import 'package:nde_email/presantation/widgets/mail_widgets/error_display.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 class CustomDrawer extends StatefulWidget {
-  const CustomDrawer({super.key});
+  final VoidCallback? onDrawerOpened;
+
+  const CustomDrawer({
+    super.key,
+    this.onDrawerOpened,
+  });
 
   @override
   State<CustomDrawer> createState() => _CustomDrawerState();
@@ -512,6 +517,9 @@ class _CustomDrawerState extends State<CustomDrawer> {
   String? userName;
   String? profilePicUrl;
   String? selectedMailboxId;
+  bool _isNavigating = false;
+  bool _didNotifyDrawerOpened = false;
+  Timer? _navigationDebounceTimer;
 
   static const viewUnread = 'view_unread';
   static const viewAll = 'view_all';
@@ -532,7 +540,12 @@ class _CustomDrawerState extends State<CustomDrawer> {
     super.initState();
     _loadUserData();
     _loadSelectedMailbox();
-    context.read<AppBarBloc>().add(FetchMailboxesEvent(force: true));
+  }
+
+  @override
+  void dispose() {
+    _navigationDebounceTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadSelectedMailbox() async {
@@ -611,6 +624,12 @@ class _CustomDrawerState extends State<CustomDrawer> {
             Expanded(
               child: BlocBuilder<AppBarBloc, AppBarState>(
                 builder: (context, state) {
+                  if (!_didNotifyDrawerOpened) {
+                    _didNotifyDrawerOpened = true;
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      widget.onDrawerOpened?.call();
+                    });
+                  }
                   if (state is AppBarLoading) {
                     return const Center(child: CircularProgressIndicator());
                   }
@@ -753,9 +772,17 @@ class _CustomDrawerState extends State<CustomDrawer> {
         color: isSelected ? AppColors.iconActive : Colors.grey[700],
       ),
       onTap: () async {
+        if (_isNavigating) return;
+        _isNavigating = true;
+        _navigationDebounceTimer?.cancel();
+        _navigationDebounceTimer = Timer(const Duration(milliseconds: 500), () {
+          _isNavigating = false;
+        });
+
         Navigator.pop(context);
         await MailboxStorage.saveMailboxId(mailbox.id);
 
+        if (!mounted) return;
         setState(() => selectedMailboxId = mailbox.id);
 
         MyRouter.pushReplace(
@@ -790,6 +817,12 @@ class _CustomDrawerState extends State<CustomDrawer> {
         ),
       ),
       onTap: () async {
+        if (_isNavigating) return;
+        _isNavigating = true;
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) _isNavigating = false;
+        });
+
         Navigator.pop(context);
         await MailboxStorage.saveMailboxId(mailbox.id);
 
@@ -819,6 +852,16 @@ class _CustomDrawerState extends State<CustomDrawer> {
           builder: (_, count) =>
               _viewTile("All", viewAll, Icons.mail_outlined, count, "all"),
         ),
+        BlocSelector<MailListBloc, MailListState, int>(
+          selector: (s) => s.totalStarredUnreadCount,
+          builder: (_, count) => _viewTile(
+            "Starred",
+            viewStarred,
+            Icons.star_outline,
+            count,
+            "flagged",
+          ),
+        ),
       ],
     );
   }
@@ -838,9 +881,17 @@ class _CustomDrawerState extends State<CustomDrawer> {
         color: isSelected ? AppColors.iconActive : Colors.grey[700],
       ),
       onTap: () async {
+        if (_isNavigating) return;
+        _isNavigating = true;
+        _navigationDebounceTimer?.cancel();
+        _navigationDebounceTimer = Timer(const Duration(milliseconds: 500), () {
+          _isNavigating = false;
+        });
+
         Navigator.pop(context);
         await MailboxStorage.saveMailboxId(id);
 
+        if (!mounted) return;
         setState(() => selectedMailboxId = id);
 
         MyRouter.pushReplace(

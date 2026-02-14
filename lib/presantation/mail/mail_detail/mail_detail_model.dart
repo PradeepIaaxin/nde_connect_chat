@@ -7,7 +7,11 @@ class MailDetailModel {
   final String user;
   final Envelope envelope;
   final Sender from;
+
   final List<Recipient> to;
+  final List<Recipient> cc;   // ✅ ADDED
+  final List<Recipient> bcc;  // ✅ ADDED
+
   final String subject;
   final String messageId;
   final DateTime date;
@@ -33,6 +37,8 @@ class MailDetailModel {
     required this.envelope,
     required this.from,
     required this.to,
+    required this.cc,
+    required this.bcc,
     required this.subject,
     required this.messageId,
     required this.date,
@@ -59,11 +65,33 @@ class MailDetailModel {
       user: json['user'] ?? "",
       envelope: Envelope.fromJson(json['envelope'] ?? {}),
       from: Sender.fromJson(json['from'] ?? {}),
-      to: (json['to'] as List?)?.map((item) => Recipient.fromJson(item)).toList() ?? [],
+
+      // ✅ TO
+      to: (json['to'] as List?)
+              ?.map((item) => Recipient.fromJson(item))
+              .toList() ??
+          [],
+
+      // ✅ CC
+      cc: (json['cc'] as List?)
+              ?.map((item) => Recipient.fromJson(item))
+              .toList() ??
+          [],
+
+      // ✅ BCC
+      bcc: (json['bcc'] as List?)
+              ?.map((item) => Recipient.fromJson(item))
+              .toList() ??
+          [],
+
       subject: json['subject'] ?? "No Subject",
       messageId: json['messageId'] ?? "",
-      date: json['date'] != null ? DateTime.parse(json['date']) : DateTime.now(),
-      idate: json['idate'] != null ? DateTime.parse(json['idate']) : DateTime.now(),
+      date: json['date'] != null
+          ? DateTime.parse(json['date'])
+          : DateTime.now(),
+      idate: json['idate'] != null
+          ? DateTime.parse(json['idate'])
+          : DateTime.now(),
       size: json['size'] ?? 0,
       seen: json['seen'] ?? false,
       deleted: json['deleted'] ?? false,
@@ -72,11 +100,15 @@ class MailDetailModel {
       answered: json['answered'] ?? false,
       forwarded: json['forwarded'] ?? false,
       text: json['text'] ?? "",
-      attachments: (json['attachments'] as List?)?.map((item) => Attachment.fromJson(item)).toList() ?? [],
+      attachments: (json['attachments'] as List?)
+              ?.map((item) => Attachment.fromJson(item))
+              .toList() ??
+          [],
       currentUserEmail: json['currentUserEmail'] ?? "",
     );
   }
 }
+
 
 class Envelope {
   final String from;

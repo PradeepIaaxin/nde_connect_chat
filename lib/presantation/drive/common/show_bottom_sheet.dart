@@ -121,7 +121,9 @@ void displayBottomSheet(BuildContext context, String? fileid,int index) {
                     label: 'Upload',
                     iconColor: Colors.grey[700],
                     backgroundColor: Colors.grey[100],
-                    onTap: () => pickFiles(context),
+                    onTap: () => 
+                    
+                    _pickFiles(context),
                   ),
                   _buildOptionItem(
                     icon: Icons.camera_alt_outlined,

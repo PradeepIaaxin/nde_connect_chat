@@ -303,9 +303,9 @@ class _ComposeScreenState extends State<ComposeScreen> {
     String? mailboxId = await MailboxStorage.getDraftsMailboxId();
 
     if (mailboxId != null && fromEmail != null) {
-      List<int> attachmentIds = attachments
+      List<String> attachmentIds = attachments
           .where((att) => att.id != null)
-          .map((att) => int.tryParse(att.id!)!)
+          .map((att) => att.id!)
           .toList();
 
       context.read<DraftBloc>().add(
