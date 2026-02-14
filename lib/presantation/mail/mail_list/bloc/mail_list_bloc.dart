@@ -19,6 +19,7 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
   final Map<String, List<GMMailModels>> cachedMailLists = {};
   final Map<String, String?> cachedSpecialUses = {};
   String? activeMailboxId;
+  int _fetchSequence = 0;
   int _pendingDeleteSequence = 0;
   final Map<String, bool> _pendingDeleteUndone = {};
   int _pendingArchiveSequence = 0;
@@ -119,6 +120,8 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
     FetchMailListEvent event,
     Emitter<MailListState> emit,
   ) async {
+    final int requestId = ++_fetchSequence;
+
     /// 🔥 0️⃣ HARD RESET when mailbox changes
     if (state.currentMailboxId != event.mailboxId) {
       emit(state.copyWith(
@@ -173,8 +176,20 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
 
     try {
       /// ✅ 4️⃣ API call
-      final response = await apiService.fetchMailList(event.mailboxId,
-          cursor: event.cursor ?? state.nextCursor, limit: 20);
+      final effectiveLimit = event.isLoadMore ? 20 : 50;
+      final response = await apiService.fetchMailList(
+        event.mailboxId,
+        cursor: event.cursor ?? state.nextCursor,
+        limit: effectiveLimit,
+      );
+
+      if (requestId != _fetchSequence ||
+          state.currentMailboxId != event.mailboxId) {
+        log(
+          "⏭️ Ignoring stale mail list response for mailboxId=${event.mailboxId}",
+        );
+        return;
+      }
 
       final List<GMMailModels> fetchedMails = response.mails;
 
@@ -243,6 +258,10 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
         error: e,
         stackTrace: stack,
       );
+
+      if (requestId != _fetchSequence) {
+        return;
+      }
 
       emit(state.copyWith(
         status: MailListStatus.error,

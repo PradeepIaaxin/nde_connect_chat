@@ -85,6 +85,8 @@ class _MailListWidgetState extends State<MailListWidget> {
         final bool isJunkMailbox = state.specialUse == "\\Junk";
         final bool isTrashMailbox = state.specialUse == "\\Trash";
         final bool issentMailbox = state.specialUse == "\\Sent";
+        final bool isCurrentSentMailbox =
+            issentMailbox && (state.currentMailboxId == widget.mailboxId);
 
         return Padding(
           padding: const EdgeInsets.only(top: 10),
@@ -224,7 +226,7 @@ class _MailListWidgetState extends State<MailListWidget> {
                                       }
                                     }
                                     // For sent mails: show TO address
-                                    else if (issentMailbox) {
+                                    else if (isCurrentSentMailbox) {
                                       if (mail.to.isNotEmpty) {
                                         if (mail.to[0].address.isNotEmpty) {
                                           avatarName = mail.to[0].address;
@@ -302,7 +304,7 @@ class _MailListWidgetState extends State<MailListWidget> {
                                       child: Text(
                                         mail.draft == true
                                             ? "Draft"
-                                            : issentMailbox
+                                            : isCurrentSentMailbox
                                                 ? "To: ${mail.to.isNotEmpty ? mail.to[0].name.isNotEmpty ? mail.to[0].name : mail.to[0].address : ''}"
                                                 : mail.fromName.isNotEmpty
                                                     ? mail.fromName
