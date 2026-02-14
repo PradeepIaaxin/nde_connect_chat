@@ -1510,6 +1510,25 @@ class MailListBloc extends Bloc<MailListEvent, MailListState> {
       cachedMailLists[event.mailboxId] = updatedCache;
     }
 
+    // If action originates from flagged screen and we are UNSTARRING,
+    // also propagate flagged=false to every cached mailbox list so other
+    // mailboxes (inbox/drafts/etc) immediately reflect the change.
+    if (!event.isFlagged && event.isFromFlaggedScreen) {
+      for (final entry in cachedMailLists.entries) {
+        final key = entry.key;
+        if (key == "flagged") continue;
+
+        final updated = entry.value.map((mail) {
+          if (event.ids.contains(mail.id)) {
+            return mail.copyWith(flagged: false);
+          }
+          return mail;
+        }).toList();
+
+        cachedMailLists[key] = updated;
+      }
+    }
+
     // Update "flagged" cache immediately
     if (cachedMailLists.containsKey("flagged")) {
       final flaggedCache = List<GMMailModels>.from(cachedMailLists["flagged"]!);
