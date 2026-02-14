@@ -17,7 +17,7 @@ class MyDriveRepository {
     int page = 1,
     int limit = 50,
     String sortBy = 'updatedAt',
-    String order = 'asc',
+    String order = 'desc', // ✅ FIXED (was asc)
     String? file,
     String? owner,
     String? myfiles,
@@ -27,9 +27,10 @@ class MyDriveRepository {
   }) async {
     try {
       log("calling");
+
       final String? accessToken = await UserPreferences.getAccessToken();
       final String? defaultWorkspace =
-          await UserPreferences.getDefaultWorkspace();
+      await UserPreferences.getDefaultWorkspace();
 
       if (accessToken == null || defaultWorkspace == null) {
         throw Exception('Missing authentication credentials');
@@ -45,7 +46,7 @@ class MyDriveRepository {
         'limit': limit,
         'page': page,
         'sortby': sortBy,
-        'order': order,
+        'order': order, // ✅ now desc
         if (file != null && file.isNotEmpty) 'file': file,
         if (owner != null && owner.isNotEmpty) 'owner': owner,
         if (myfiles != null && myfiles.isNotEmpty) 'myfiles': myfiles,
@@ -66,9 +67,11 @@ class MyDriveRepository {
         throw Exception(
             'Failed to load My Drive folders: ${response.statusCode}');
       }
-
+      log("response ${response.data}");
       final driveModel = DriveModel.fromJson(response.data);
+
       log('Fetched: ${driveModel.rows.length} items');
+
       return driveModel.rows;
     } on DioException catch (e, stack) {
       log('Dio error: ${e.message}', stackTrace: stack);
@@ -78,6 +81,7 @@ class MyDriveRepository {
       throw Exception('Unexpected error occurred: $e');
     }
   }
+
 
   Future<Map<String, String>?> _getHeaders() async {
     final accessToken = await UserPreferences.getAccessToken();
