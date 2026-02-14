@@ -32,145 +32,141 @@ class _MoveDrivePageState extends State<MoveDrivePage> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => MyDriveBloc(repository: MyDriveRepository())
-        ..add(FetchMyDriveFolders()),
-      child: BlocBuilder<MyDriveBloc, MyDriveState>(
-        builder: (context, state) {
-          if (state is MyDriveLoading) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (state is MyDriveLoaded) {
-            final folders = state.folders;
+    return BlocBuilder<MyDriveBloc, MyDriveState>(
+      builder: (context, state) {
+        if (state is MyDriveLoading) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (state is MyDriveLoaded) {
+          final folders = state.folders;
 
-            if (folders.isEmpty) {
-              return const Center(child: Text('No folders found.'));
-            }
+          if (folders.isEmpty) {
+            return const Center(child: Text('No folders found.'));
+          }
 
-            return Column(
-              children: [
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  child: Row(
-                    children: [
-                      const Text(
-                        'Folders',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.w600),
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        icon:
-                            Icon(gridView ? Icons.view_list : Icons.grid_view),
-                        onPressed: () => setState(() => gridView = !gridView),
-                      ),
-                    ],
-                  ),
+          return Column(
+            children: [
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                child: Row(
+                  children: [
+                    const Text(
+                      'Folders',
+                      style: TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.w600),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon:
+                          Icon(gridView ? Icons.view_list : Icons.grid_view),
+                      onPressed: () => setState(() => gridView = !gridView),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                Expanded(
-                  child: gridView
-                      ? GridView.builder(
-                          controller: widget.scrollController,
-                          padding: const EdgeInsets.all(8),
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 10,
-                            mainAxisSpacing: 8,
-                            childAspectRatio: 1.4,
-                          ),
-                          itemCount: folders.length,
-                          itemBuilder: (context, index) {
-                            final folder = folders[index];
-                            final isFolder =
-                                folder.type.toLowerCase() == 'folder';
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: gridView
+                    ? GridView.builder(
+                        controller: widget.scrollController,
+                        padding: const EdgeInsets.all(8),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 8,
+                          childAspectRatio: 1.4,
+                        ),
+                        itemCount: folders.length,
+                        itemBuilder: (context, index) {
+                          final folder = folders[index];
+                          final isFolder =
+                              folder.type.toLowerCase() == 'folder';
 
-                            return GestureDetector(
+                          return GestureDetector(
+                            onTap: isFolder
+                                ? () => _navigateToFolder(folder)
+                                : null,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                color: isFolder
+                                    ? Colors.white
+                                    : Colors.grey[300],
+                                border:
+                                    Border.all(color: Colors.grey.shade400),
+                              ),
+                              padding: const EdgeInsets.all(8),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildMimeIcon(folder),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    folder.name,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    "Modified ${DateFormatter.formatToReadableDate(folder.updatedAt)}",
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      )
+                    : ListView.builder(
+                        controller: widget.scrollController,
+                        itemCount: folders.length,
+                        itemBuilder: (context, index) {
+                          final folder = folders[index];
+                          final isFolder =
+                              folder.type.toLowerCase() == 'folder';
+
+                          return Container(
+                            color: isFolder
+                                ? Colors.white
+                                : const Color.fromARGB(255, 226, 223, 223),
+                            child: ListTile(
+                              contentPadding:
+                                  const EdgeInsets.symmetric(horizontal: 8),
+                              leading: CircleAvatar(
+                                backgroundColor: Colors.transparent,
+                                child: _buildMimeIcon(folder),
+                              ),
+                              title: Text(folder.name),
+                              subtitle: Row(
+                                      children: [
+                                        if (folder.starred == true)
+                                          const Icon(Icons.star,
+                                              color: Colors.amber, size: 16),
+                                        Text(
+                                          " Modified ${DateFormatter.formatToReadableDate(folder.updatedAt)}",
+                                          style:
+                                              const TextStyle(fontSize: 12),
+                                        ),
+                                      ],
+                                    ),
                               onTap: isFolder
                                   ? () => _navigateToFolder(folder)
                                   : null,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(12),
-                                  color: isFolder
-                                      ? Colors.white
-                                      : Colors.grey[300],
-                                  border:
-                                      Border.all(color: Colors.grey.shade400),
-                                ),
-                                padding: const EdgeInsets.all(8),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    _buildMimeIcon(folder),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      folder.name,
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      "Modified ${DateFormatter.formatToReadableDate(folder.updatedAt)}",
-                                      style: const TextStyle(fontSize: 12),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        )
-                      : ListView.builder(
-                          controller: widget.scrollController,
-                          itemCount: folders.length,
-                          itemBuilder: (context, index) {
-                            final folder = folders[index];
-                            final isFolder =
-                                folder.type.toLowerCase() == 'folder';
-
-                            return Container(
-                              color: isFolder
-                                  ? Colors.white
-                                  : const Color.fromARGB(255, 226, 223, 223),
-                              child: ListTile(
-                                contentPadding:
-                                    const EdgeInsets.symmetric(horizontal: 8),
-                                leading: CircleAvatar(
-                                  backgroundColor: Colors.transparent,
-                                  child: _buildMimeIcon(folder),
-                                ),
-                                title: Text(folder.name),
-                                subtitle: Row(
-                                        children: [
-                                          if (folder.starred == true)
-                                            const Icon(Icons.star,
-                                                color: Colors.amber, size: 16),
-                                          Text(
-                                            " Modified ${DateFormatter.formatToReadableDate(folder.updatedAt)}",
-                                            style:
-                                                const TextStyle(fontSize: 12),
-                                          ),
-                                        ],
-                                      ),
-                                onTap: isFolder
-                                    ? () => _navigateToFolder(folder)
-                                    : null,
-                              ),
-                            );
-                          },
-                        ),
-                ),
-              ],
-            );
-          } else if (state is MyDriveError) {
-            return Center(child: Text('Error: ${state.message}'));
-          } else {
-            return const SizedBox.shrink();
-          }
-        },
-      ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          );
+        } else if (state is MyDriveError) {
+          return Center(child: Text('Error: ${state.message}'));
+        } else {
+          return const SizedBox.shrink();
+        }
+      },
     );
   }
 
@@ -189,8 +185,8 @@ class _MoveDrivePageState extends State<MoveDrivePage> {
   }
 
   Widget _buildMimeIcon(dynamic folder) {
-    final type = folder.type.toLowerCase();
-    final ext = folder.extname?.toLowerCase().trim() ?? "";
+    final type = folder.type?.toLowerCase() ?? "";
+    final mime = folder.mimetype?.toLowerCase() ?? "";
 
     if (type == 'folder') {
       return Image.asset(
@@ -203,50 +199,46 @@ class _MoveDrivePageState extends State<MoveDrivePage> {
       );
     }
 
-    if (ext.contains('msword') ||
-        ext.contains('.docx') ||
-        ext.contains('ndocx')) {
-      return Image.asset('assets/images/word.png', height: 30, width: 30);
-    }
+    /// ✅ MOST SPECIFIC FIRST
 
-    if (ext.contains('excel') ||
-        ext.contains('spreadsheet') ||
-        ext.contains('.txt')) {
+    if (mime.contains('spreadsheet') || mime.contains('excel')) {
       return Image.asset('assets/images/sheets.png', height: 24, width: 24);
     }
 
-    if (ext.contains('presentation') || ext.contains('powerpoint')) {
-      return Image.asset('assets/images/sheets.png', height: 24, width: 24);
+    if (mime.contains('presentation') || mime.contains('powerpoint')) {
+      return Image.asset('assets/images/slides.png', height: 24, width: 24);
     }
 
-    if (ext.contains('.pdf')) {
+    if (mime.contains('pdf')) {
       return Image.asset('assets/images/pdf.png', height: 24, width: 24);
     }
 
-    if (ext.contains('image') || ext.contains('.png') || ext.contains('.jpg')) {
+    if (mime.contains('image')) {
       return Image.asset('assets/images/image.png', height: 24, width: 24);
     }
 
-    if (ext.contains('video')) {
+    if (mime.contains('video')) {
       return Image.asset('assets/images/video.png', height: 24, width: 24);
     }
 
-    if (ext.contains('audio') || ext.contains('.mp4')) {
+    if (mime.contains('audio')) {
       return Image.asset('assets/images/headphones.png', height: 24, width: 24);
     }
 
-    if (ext.contains('text') || ext.contains('plain')) {
-      return Image.asset('assets/images/text.png', height: 24, width: 24);
+    /// ✅ WORD AFTER EXCEL/PPT
+
+    if (mime.contains('msword') || mime.contains('word')) {
+      return Image.asset('assets/images/word.png', height: 24, width: 24);
     }
 
-    if (ext.contains('.zip') ||
-        ext.contains('.rar') ||
-        ext.contains('compressed')) {
-      return Image.asset('assets/images/pdf.png', height: 30, width: 30);
+    if (mime.contains('zip') || mime.contains('compressed')) {
+      return Image.asset('assets/images/zip.png', height: 24, width: 24);
     }
 
-    return Image.asset('assets/images/image.png', height: 24, width: 24);
+    return Image.asset('assets/images/word.png', height: 24, width: 24);
   }
+
+
 
 }
 

@@ -9,16 +9,14 @@ import 'package:nde_email/presantation/drive/Bloc/inside_folder/inside_event.dar
 import 'package:nde_email/presantation/drive/common/create_dialogue.dart';
 import 'package:nde_email/presantation/drive/view/uploadtodrive.dart';
 import 'package:nde_email/utils/url/url_launcher.dart';
-
 import '../Bloc/file_bloc/my_drive_bloc.dart';
 import '../Bloc/file_bloc/myfile_event.dart';
 import '../Bloc/home_bloc/sugesstion/sugesstion_bloc.dart';
 import '../Bloc/home_bloc/sugesstion/sugesstion_event.dart';
-import '../view/my_drivepage.dart';
 
 void displayBottomSheet(BuildContext context, String? fileid,int index) {
 
-  Future<void> _pickFiles(BuildContext context) async {
+  Future<void> pickFiles(BuildContext context) async {
     Navigator.pop(context);
 
     FilePickerResult? result = await FilePicker.platform.pickFiles(
