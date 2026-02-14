@@ -24,7 +24,8 @@ class CreateFolderBloc extends Bloc<CreateFolderEvent, CreateFolderState> {
   Future<void> _onCreateFolderPressed(
     CreateFolderPressed event,
     Emitter<CreateFolderState> emit,
-  ) async {
+  )
+  async {
     emit(CreateFolderLoading());
 
     try {
@@ -159,7 +160,8 @@ class CreateFolderBloc extends Bloc<CreateFolderEvent, CreateFolderState> {
   Future<void> _replaceFiles(
     ReplaceFiles event,
     Emitter<CreateFolderState> emit,
-  ) async {
+  )
+  async {
     emit(CreateFolderLoading());
 
     try {
@@ -231,7 +233,8 @@ class CreateFolderBloc extends Bloc<CreateFolderEvent, CreateFolderState> {
   Future<void> uploadFileToS3PresignedUrl({
     required String presignedUrl,
     required PlatformFile file,
-  }) async {
+  })
+  async {
     try {
       List<int> fileBytes;
       log(presignedUrl);
@@ -267,4 +270,5 @@ class CreateFolderBloc extends Bloc<CreateFolderEvent, CreateFolderState> {
       log('  Upload error: $e');
     }
   }
+
 }
