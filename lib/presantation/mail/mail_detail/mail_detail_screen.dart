@@ -462,30 +462,30 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
                                           const SizedBox(height: 7),
                                           _buildDetailRow(
                                             "To ",
-                                            mailDetail.to.isNotEmpty
-                                                ? mailDetail.to.first.name
-                                                : "N/A",
-                                            mailDetail.to.isNotEmpty
-                                                ? mailDetail.to.first.address
-                                                : "",
+                                            mailDetail.to
+                                                .map((e) => e.name.isNotEmpty
+                                                    ? e.name
+                                                    : e.address)
+                                                .join(", "),
+                                            "",
                                           ),
                                           _buildDetailRow(
                                             "cc ",
-                                            mailDetail.cc.isNotEmpty
-                                                ? mailDetail.cc.first.name
-                                                : "N/A",
-                                            mailDetail.to.isNotEmpty
-                                                ? mailDetail.to.first.address
-                                                : "",
+                                            mailDetail.cc
+                                                .map((e) => e.name.isNotEmpty
+                                                    ? e.name
+                                                    : e.address)
+                                                .join(", "),
+                                            "",
                                           ),
                                           _buildDetailRow(
                                             "Bcc ",
-                                            mailDetail.bcc.isNotEmpty
-                                                ? mailDetail.bcc.first.name
-                                                : "N/A",
-                                            mailDetail.bcc.isNotEmpty
-                                                ? mailDetail.bcc.first.address
-                                                : "",
+                                            mailDetail.bcc
+                                                .map((e) => e.name.isNotEmpty
+                                                    ? e.name
+                                                    : e.address)
+                                                .join(", "),
+                                            "",
                                           ),
                                           const SizedBox(height: 7),
                                           _buildDetailRow(
@@ -608,14 +608,28 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
     final to = mailDetail.to.map((e) => e.address).where((e) => e.isNotEmpty);
     final body = _getCleanBodyContent(mailDetail);
 
+    final initialAttachments = mailDetail.attachments.map((att) {
+      return UploadedAttachment(
+        id: att.id,
+        fileName: att.filename,
+        filePath: null,
+        isInline: att.related, // Changed from false to att.related
+        mimeType: att.contentType,
+      );
+    }).toList();
+
+    final cc = mailDetail.cc.map((e) => e.address).where((e) => e.isNotEmpty);
+    final bcc = mailDetail.bcc.map((e) => e.address).where((e) => e.isNotEmpty);
+
     MyRouter.push(
       screen: ComposeScreen(
         draftId: int.tryParse(widget.messageId),
         mailboxId: widget.mailboxId,
+        initialAttachments: initialAttachments,
         draftData: {
           'to': to.join(', '),
-          'cc': '',
-          'bcc': '',
+          'cc': cc.join(', '),
+          'bcc': bcc.join(', '),
           'subject': mailDetail.subject,
           'body': body,
         },
