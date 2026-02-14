@@ -195,8 +195,9 @@ class _MailListScreenState extends State<MailListScreen> {
     /// 🚫 Skip if bloc resetting
     if (state.status == MailListStatus.loading &&
         state.mails.isEmpty &&
-        state.nextCursor == null) {
-      debugPrint("⛔ Load skipped — bloc resetting");
+        state.nextCursor == null &&
+        state.currentMailboxId == widget.mailboxId) {
+      debugPrint("⛔ Load skipped — bloc already loading current mailbox");
       return;
     }
 
