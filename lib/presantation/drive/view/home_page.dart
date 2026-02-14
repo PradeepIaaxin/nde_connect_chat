@@ -373,7 +373,7 @@ class _HomePageState extends State<HomePage>
                               onTap: () async {
                                 await FileDownloader.downloadFile(
                                   fileId: file.id,
-                                  filePath: file.previewpath ?? '',
+                                  filePath: file.preview ?? '',
                                   fileName: file.name,
                                   mimeType: file.mimetype,
                                 );
@@ -673,7 +673,7 @@ class _HomePageState extends State<HomePage>
                                               await FileDownloader.downloadFile(
                                                 fileId: file.id,
                                                 filePath:
-                                                    file.previewpath ?? '',
+                                                    file.preview ?? '',
                                                 fileName: file.name,
                                                 mimeType: file.mimetype,
                                               );
@@ -1061,6 +1061,36 @@ class _HomePageState extends State<HomePage>
                                                   },
                                                 ),
                                                 BottomSheetOption(
+                                                  icon: Icons.ios_share_outlined,
+                                                  title: "Send a copy",
+                                                  onTap: () async {
+                                                    // await Future.delayed(
+                                                    //     const Duration(milliseconds: 300));
+                                                    //
+                                                    // final name = file.name.trim();
+                                                    // final preview =
+                                                    //     file.preview?.toString().trim() ?? '';
+                                                    //
+                                                    // final textToShare =
+                                                    // (name.isNotEmpty || preview.isNotEmpty)
+                                                    //     ? "$name\n\n$preview"
+                                                    //     : '';
+                                                    //
+                                                    // if (textToShare.isNotEmpty) {
+                                                    //   await SharePlus.instance.share(
+                                                    //     ShareParams(text: textToShare),
+                                                    //   );
+                                                    // } else {
+                                                    //   log("Nothing to share.");
+                                                    // }
+                                                  },
+                                                ),
+                                                BottomSheetOption(
+                                                  icon: Icons.file_copy,
+                                                  title: "Make a copy ",
+                                                  onTap: () {},
+                                                ),
+                                                BottomSheetOption(
                                                   icon: Icons
                                                       .file_download_outlined,
                                                   title: "Download",
@@ -1082,8 +1112,18 @@ class _HomePageState extends State<HomePage>
                                                   },
                                                 ),
                                                 BottomSheetOption(
+                                                  icon: Icons.drive_file_move,
+                                                  title: "Move",
+                                                  onTap: () {
+                                                    // MyRouter.pop();
+                                                    // MyRouter.push(
+                                                    //     screen: MoveFileScreen(
+                                                    //         movingFileId: state.folders.id));
+                                                  },
+                                                ),
+                                                BottomSheetOption(
                                                   icon: Icons.delete,
-                                                  title: "Delete",
+                                                  title: "Move to bin",
                                                   onTap: () {
                                                     showMoveToBinDialog(context,
                                                         () {

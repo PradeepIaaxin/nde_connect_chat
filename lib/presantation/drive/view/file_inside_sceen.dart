@@ -320,6 +320,6 @@ class _FileInsideSceenState extends State<FileInsideSceen> {
     } else if (ext.contains('zip') || ext.contains('rar')) {
       return Image.asset('assets/images/pdf.png', height: 24, width: 24);
     }
-    return Image.asset('assets/images/image.png', height: 24, width: 24);
+    return Image.asset('assets/images/word.png', height: 24, width: 24);
   }
 }
