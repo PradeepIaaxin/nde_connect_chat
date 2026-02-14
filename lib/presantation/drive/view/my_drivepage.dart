@@ -29,6 +29,8 @@ import 'package:nde_email/utils/simmer_effect.dart/drive_simmer.dart';
 import 'package:nde_email/utils/snackbar/snackbar.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../Bloc/folder_bloc/create_folder_bloc.dart';
+import '../Bloc/folder_bloc/create_state.dart';
 import '../Bloc/move/move_bloc.dart';
 import '../Bloc/move/move_event.dart';
 import 'common_funtions.dart';
@@ -543,11 +545,22 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                 icon: Icons.delete,
                 title: "Move to bin",
                 onTap: () {
-                  showMoveToBinDialog(context, () {
-                    context.read<MyDriveBloc>().add(
-                      MoveToTrashEvent(fileIDs: [file.id]),
-                    );
-                  },file.name);
+                      showMoveToBinDialog(context, () {
+                        context.read<MyDriveBloc>().add(
+                          MoveToTrashEvent(fileIDs: [file.id]),
+                        );
+                        Messenger.alertAction(
+                          color: Colors.green,
+                          msg: "Item moved to trash",
+                          actionLabel: "Undo",
+                          duration: const Duration(seconds: 2),
+                          onAction: () {
+                            context.read<MyDriveBloc>().add(
+                              RestoreEvent(fileIDs: [file.id]),
+                            );
+                          },
+                        );
+                      }, file.name);
 
                 },
               ),
@@ -1071,6 +1084,14 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                 }
               },
             ),
+            BlocListener<CreateFolderBloc, CreateFolderState>(listener: (context, state) async {
+              if (state is UploadFilesSuccess || state is ReplaceFilesSuccess) {
+                log(">>>>>>.");
+                await  Future.delayed(Duration(seconds: 2));
+                _fetchFolders();
+              }
+            },)
+
           ], child:     BlocBuilder<MyDriveBloc, MyDriveState>(
             builder: (context, state) {
               if (state is MyDriveLoading) {
@@ -1278,10 +1299,20 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                                         icon: Icons.delete,
                                         title: "Move to bin",
                                         onTap: () {
-                                          showMoveToBinDialog(context,() {
+                                          showMoveToBinDialog(context, () {
                                             context.read<MyDriveBloc>().add(
-                                              MoveToTrashEvent(fileIDs:  selectedFolders
-                                                  .toList()),
+                                              MoveToTrashEvent(fileIDs: selectedFolders.toList()),
+                                            );
+                                            Messenger.alertAction(
+                                              color: Colors.green,
+                                              msg: "Item moved to trash",
+                                              actionLabel: "Undo",
+                                              duration: const Duration(seconds: 2),
+                                              onAction: () {
+                                                context.read<MyDriveBloc>().add(
+                                                  RestoreEvent(fileIDs:  selectedFolders.toList()),
+                                                );
+                                              },
                                             );
                                           },"");
                                           _clearSelection();

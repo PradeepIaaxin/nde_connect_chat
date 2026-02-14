@@ -29,6 +29,8 @@ import 'package:nde_email/utils/simmer_effect.dart/drive_simmer.dart';
 import 'package:nde_email/utils/snackbar/snackbar.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../utils/datetime/date_formatter.dart';
+import '../Bloc/folder_bloc/create_folder_bloc.dart';
+import '../Bloc/folder_bloc/create_state.dart';
 import 'common_funtions.dart';
 
 
@@ -929,284 +931,292 @@ class _HomePageState extends State<HomePage>
           child: TabBarView(
             controller: _tabController,
             children: [
-              BlocBuilder<SuggestionsBloc, SuggestionsState>(
-                builder: (context, state) {
-                  if (state is SuggestionsLoading) {
-                    return ShimmerListLoader(
-                      iconSize: 40,
-                      titleHeight: 18,
-                      subtitleHeight: 14,
-                      trailingIconSize: 20,
-                      padding: EdgeInsets.all(10),
-                      baseColor: Colors.grey[200]!,
-                      highlightColor: Colors.grey[50]!,
-                      titleWidthFactor: 0.8,
-                      subtitleWidth: 100,
-                    );
-                  } else if (state is SuggestionsLoaded) {
-                    _isLoadingMore = false;
-                    _currentFolders = state.suggestions;
-                    return RefreshIndicator(
-                      onRefresh: () async {
-                        log("heyy");
-                        context
-                            .read<SuggestionsBloc>()
-                            .add(FetchSuggestionsEvent());
-                      },
-                      backgroundColor: AppColors.bg,
-                      child: CustomScrollView(
-                        controller: widget.scrollController,
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        slivers: [
-                          SliverToBoxAdapter(
-                            child: Container(
-                              height: 50,
-                              width: double.infinity,
-                              color: Colors.transparent,
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 12),
-                              child: isSelectionMode
-                                  ? Row(
-                                      children: [
-                                        IconButton(
-                                          onPressed: () {
-                                            _clearSelection();
-                                          },
-                                          icon: Icon(Icons.clear),
-                                        ),
-                                        Text(
-                                          "${selectedFolders.length} selected",
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.bold),
-                                        ),
-                                        Spacer(),
-                                        IconButton(
-                                          constraints: const BoxConstraints(),
-                                          padding: EdgeInsets.zero,
-                                          onPressed: () {
-                                            setState(() {
-                                              if (selectAll) {
-                                                selectedFolders.clear();
-                                              } else {
-                                                // Select all
-                                                selectedFolders.addAll(
-                                                    _currentFolders
-                                                        .map((f) => f.id));
-                                              }
-                                              selectAll = !selectAll;
-                                            });
-                                          },
-                                          icon: Icon(
-                                            selectAll
-                                                ? Icons.check_box
-                                                : Icons.check_box_outline_blank,
-                                            color: chatColor,
-                                          ),
-                                        ),
-                                        IconButton(
-                                          constraints: const BoxConstraints(),
-                                          padding: EdgeInsets.zero,
-                                          icon: Icon(_isGridView
-                                              ? Icons.list
-                                              : Icons.grid_view),
-                                          onPressed: () {
-                                            setState(() {
-                                              _isGridView = !_isGridView;
-                                            });
-                                          },
-                                        ),
-                                        IconButton(
-                                          constraints: const BoxConstraints(),
-                                          padding: EdgeInsets.zero,
-                                          onPressed: () {
-                                            final selectedFolderModels =
-                                                _currentFolders
-                                                    .where((f) =>
-                                                        selectedFolders
-                                                            .contains(f.id))
-                                                    .toList();
+           MultiBlocListener(listeners: [
+             BlocListener<CreateFolderBloc, CreateFolderState>(listener: (context, state) async {
+               if (state is UploadFilesSuccess || state is ReplaceFilesSuccess) {
+                 log(">>>>>>.");
+                await  Future.delayed(Duration(seconds: 2));
+                 context.read<SuggestionsBloc>().add(FetchSuggestionsEvent());
+               }
+             },)
+           ], child:    BlocBuilder<SuggestionsBloc, SuggestionsState>(
+             builder: (context, state) {
+               if (state is SuggestionsLoading) {
+                 return ShimmerListLoader(
+                   iconSize: 40,
+                   titleHeight: 18,
+                   subtitleHeight: 14,
+                   trailingIconSize: 20,
+                   padding: EdgeInsets.all(10),
+                   baseColor: Colors.grey[200]!,
+                   highlightColor: Colors.grey[50]!,
+                   titleWidthFactor: 0.8,
+                   subtitleWidth: 100,
+                 );
+               } else if (state is SuggestionsLoaded) {
+                 _isLoadingMore = false;
+                 _currentFolders = state.suggestions;
+                 return RefreshIndicator(
+                   onRefresh: () async {
+                     log("heyy");
+                     context
+                         .read<SuggestionsBloc>()
+                         .add(FetchSuggestionsEvent());
+                   },
+                   backgroundColor: AppColors.bg,
+                   child: CustomScrollView(
+                     controller: widget.scrollController,
+                     physics: const AlwaysScrollableScrollPhysics(),
+                     slivers: [
+                       SliverToBoxAdapter(
+                         child: Container(
+                           height: 50,
+                           width: double.infinity,
+                           color: Colors.transparent,
+                           padding:
+                           const EdgeInsets.symmetric(horizontal: 12),
+                           child: isSelectionMode
+                               ? Row(
+                             children: [
+                               IconButton(
+                                 onPressed: () {
+                                   _clearSelection();
+                                 },
+                                 icon: Icon(Icons.clear),
+                               ),
+                               Text(
+                                 "${selectedFolders.length} selected",
+                                 style: const TextStyle(
+                                     fontWeight: FontWeight.bold),
+                               ),
+                               Spacer(),
+                               IconButton(
+                                 constraints: const BoxConstraints(),
+                                 padding: EdgeInsets.zero,
+                                 onPressed: () {
+                                   setState(() {
+                                     if (selectAll) {
+                                       selectedFolders.clear();
+                                     } else {
+                                       // Select all
+                                       selectedFolders.addAll(
+                                           _currentFolders
+                                               .map((f) => f.id));
+                                     }
+                                     selectAll = !selectAll;
+                                   });
+                                 },
+                                 icon: Icon(
+                                   selectAll
+                                       ? Icons.check_box
+                                       : Icons.check_box_outline_blank,
+                                   color: chatColor,
+                                 ),
+                               ),
+                               IconButton(
+                                 constraints: const BoxConstraints(),
+                                 padding: EdgeInsets.zero,
+                                 icon: Icon(_isGridView
+                                     ? Icons.list
+                                     : Icons.grid_view),
+                                 onPressed: () {
+                                   setState(() {
+                                     _isGridView = !_isGridView;
+                                   });
+                                 },
+                               ),
+                               IconButton(
+                                 constraints: const BoxConstraints(),
+                                 padding: EdgeInsets.zero,
+                                 onPressed: () {
+                                   final selectedFolderModels =
+                                   _currentFolders
+                                       .where((f) =>
+                                       selectedFolders
+                                           .contains(f.id))
+                                       .toList();
 
-                                            if (selectedFolderModels.isEmpty) {
-                                              return;
-                                            }
+                                   if (selectedFolderModels.isEmpty) {
+                                     return;
+                                   }
 
-                                            showReusableBottomSheet(
-                                              context,
-                                              [
-                                                BottomSheetOption(
-                                                  icon: selectedFolderModels
-                                                          .every(
-                                                              (f) => f.starred)
-                                                      ? Icons.star
-                                                      : Icons.star_border,
-                                                  title: selectedFolderModels
-                                                          .every(
-                                                              (f) => f.starred)
-                                                      ? "Remove from Starred"
-                                                      : "Add to Starred",
-                                                  onTap: () {
-                                                    context
-                                                        .read<SuggestionsBloc>()
-                                                        .add(
-                                                          StarredData(
-                                                              fileID:
-                                                                  selectedFolders
-                                                                      .toList(),
-                                                              isCurrentlyStarred:
-                                                                  selectedFolderModels
-                                                                      .every((f) =>
-                                                                          f.starred)),
-                                                        );
-                                                    _clearSelection();
-                                                  },
-                                                ),
-                                                BottomSheetOption(
-                                                  icon: Icons.ios_share_outlined,
-                                                  title: "Send a copy",
-                                                  onTap: () async {
-                                                    // await Future.delayed(
-                                                    //     const Duration(milliseconds: 300));
-                                                    //
-                                                    // final name = file.name.trim();
-                                                    // final preview =
-                                                    //     file.preview?.toString().trim() ?? '';
-                                                    //
-                                                    // final textToShare =
-                                                    // (name.isNotEmpty || preview.isNotEmpty)
-                                                    //     ? "$name\n\n$preview"
-                                                    //     : '';
-                                                    //
-                                                    // if (textToShare.isNotEmpty) {
-                                                    //   await SharePlus.instance.share(
-                                                    //     ShareParams(text: textToShare),
-                                                    //   );
-                                                    // } else {
-                                                    //   log("Nothing to share.");
-                                                    // }
-                                                  },
-                                                ),
-                                                BottomSheetOption(
-                                                  icon: Icons.file_copy,
-                                                  title: "Make a copy ",
-                                                  onTap: () {},
-                                                ),
-                                                BottomSheetOption(
-                                                  icon: Icons
-                                                      .file_download_outlined,
-                                                  title: "Download",
-                                                  onTap: () async {
-                                                    for (var folder
-                                                        in selectedFolderModels) {
-                                                      await FileDownloader
-                                                          .downloadFile(
-                                                        fileId: folder.id,
-                                                        fileName: folder.name,
-                                                        filePath:
-                                                            folder.preview ??
-                                                                '',
-                                                        mimeType:
-                                                            folder.mimetype,
-                                                      );
-                                                    }
-                                                    _clearSelection();
-                                                  },
-                                                ),
-                                                BottomSheetOption(
-                                                  icon: Icons.drive_file_move,
-                                                  title: "Move",
-                                                  onTap: () {
-                                                    // MyRouter.pop();
-                                                    // MyRouter.push(
-                                                    //     screen: MoveFileScreen(
-                                                    //         movingFileId: state.folders.id));
-                                                  },
-                                                ),
-                                                BottomSheetOption(
-                                                  icon: Icons.delete,
-                                                  title: "Move to bin",
-                                                  onTap: () {
-                                                    showMoveToBinDialog(context,
-                                                        () {
-                                                      final ids =
-                                                          selectedFolders
-                                                              .toList();
-                                                      context
-                                                          .read<
-                                                              SuggestionsBloc>()
-                                                          .add(
-                                                            MoveToTrashEvent(
-                                                                fileIDs: ids),
-                                                          );
-                                                      Messenger.alertAction(
-                                                        color: Colors.green,
-                                                        msg:
-                                                            "Item moved to trash",
-                                                        actionLabel: "Undo",
-                                                        duration:
-                                                            const Duration(
-                                                                seconds: 2),
-                                                        onAction: () {
-                                                          context
-                                                              .read<
-                                                                  SuggestionsBloc>()
-                                                              .add(
-                                                                RestoreEvent(
-                                                                    fileIDs:
-                                                                        ids),
-                                                              );
-                                                        },
-                                                      );
-                                                    }, "");
-                                                    _clearSelection();
-                                                  },
-                                                ),
-                                              ],
-                                            );
-                                          },
-                                          icon: const Icon(Icons.more_vert),
-                                        )
-                                      ],
-                                    )
-                                  : Row(
-                                      children: [
-                                        const Text(
-                                          "Files",
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w500,
-                                            fontSize: 18,
-                                          ),
-                                        ),
-                                        const Spacer(),
-                                        IconButton(
-                                          onPressed: () {
-                                            setState(() {
-                                              _isGridView = !_isGridView;
-                                            });
-                                          },
-                                          icon: Icon(
-                                            _isGridView
-                                                ? Icons.list
-                                                : Icons.grid_view,
-                                          ),
-                                        )
-                                      ],
-                                    ),
-                            ),
-                          ),
-                          _isGridView
-                              ? _buildSliverGridView(
-                                  state.suggestions, _isGridView)
-                              : _buildSliverFilesList(
-                                  state.suggestions, _isGridView),
-                        ],
-                      ),
-                    );
-                  } else if (state is SuggestionsError) {
-                    return Center(child: Text("Error: ${state.message}"));
-                  }
-                  return const SizedBox();
-                },
-              ),
+                                   showReusableBottomSheet(
+                                     context,
+                                     [
+                                       BottomSheetOption(
+                                         icon: selectedFolderModels
+                                             .every(
+                                                 (f) => f.starred)
+                                             ? Icons.star
+                                             : Icons.star_border,
+                                         title: selectedFolderModels
+                                             .every(
+                                                 (f) => f.starred)
+                                             ? "Remove from Starred"
+                                             : "Add to Starred",
+                                         onTap: () {
+                                           context
+                                               .read<SuggestionsBloc>()
+                                               .add(
+                                             StarredData(
+                                                 fileID:
+                                                 selectedFolders
+                                                     .toList(),
+                                                 isCurrentlyStarred:
+                                                 selectedFolderModels
+                                                     .every((f) =>
+                                                 f.starred)),
+                                           );
+                                           _clearSelection();
+                                         },
+                                       ),
+                                       BottomSheetOption(
+                                         icon: Icons.ios_share_outlined,
+                                         title: "Send a copy",
+                                         onTap: () async {
+                                           // await Future.delayed(
+                                           //     const Duration(milliseconds: 300));
+                                           //
+                                           // final name = file.name.trim();
+                                           // final preview =
+                                           //     file.preview?.toString().trim() ?? '';
+                                           //
+                                           // final textToShare =
+                                           // (name.isNotEmpty || preview.isNotEmpty)
+                                           //     ? "$name\n\n$preview"
+                                           //     : '';
+                                           //
+                                           // if (textToShare.isNotEmpty) {
+                                           //   await SharePlus.instance.share(
+                                           //     ShareParams(text: textToShare),
+                                           //   );
+                                           // } else {
+                                           //   log("Nothing to share.");
+                                           // }
+                                         },
+                                       ),
+                                       BottomSheetOption(
+                                         icon: Icons.file_copy,
+                                         title: "Make a copy ",
+                                         onTap: () {},
+                                       ),
+                                       BottomSheetOption(
+                                         icon: Icons
+                                             .file_download_outlined,
+                                         title: "Download",
+                                         onTap: () async {
+                                           for (var folder
+                                           in selectedFolderModels) {
+                                             await FileDownloader
+                                                 .downloadFile(
+                                               fileId: folder.id,
+                                               fileName: folder.name,
+                                               filePath:
+                                               folder.preview ??
+                                                   '',
+                                               mimeType:
+                                               folder.mimetype,
+                                             );
+                                           }
+                                           _clearSelection();
+                                         },
+                                       ),
+                                       BottomSheetOption(
+                                         icon: Icons.drive_file_move,
+                                         title: "Move",
+                                         onTap: () {
+                                           // MyRouter.pop();
+                                           // MyRouter.push(
+                                           //     screen: MoveFileScreen(
+                                           //         movingFileId: state.folders.id));
+                                         },
+                                       ),
+                                       BottomSheetOption(
+                                         icon: Icons.delete,
+                                         title: "Move to bin",
+                                         onTap: () {
+                                           showMoveToBinDialog(context,
+                                                   () {
+                                                 final ids =
+                                                 selectedFolders
+                                                     .toList();
+                                                 context
+                                                     .read<
+                                                     SuggestionsBloc>()
+                                                     .add(
+                                                   MoveToTrashEvent(
+                                                       fileIDs: ids),
+                                                 );
+                                                 Messenger.alertAction(
+                                                   color: Colors.green,
+                                                   msg:
+                                                   "Item moved to trash",
+                                                   actionLabel: "Undo",
+                                                   duration:
+                                                   const Duration(
+                                                       seconds: 2),
+                                                   onAction: () {
+                                                     context
+                                                         .read<
+                                                         SuggestionsBloc>()
+                                                         .add(
+                                                       RestoreEvent(
+                                                           fileIDs:
+                                                           ids),
+                                                     );
+                                                   },
+                                                 );
+                                               }, "");
+                                           _clearSelection();
+                                         },
+                                       ),
+                                     ],
+                                   );
+                                 },
+                                 icon: const Icon(Icons.more_vert),
+                               )
+                             ],
+                           )
+                               : Row(
+                             children: [
+                               const Text(
+                                 "Files",
+                                 style: TextStyle(
+                                   fontWeight: FontWeight.w500,
+                                   fontSize: 18,
+                                 ),
+                               ),
+                               const Spacer(),
+                               IconButton(
+                                 onPressed: () {
+                                   setState(() {
+                                     _isGridView = !_isGridView;
+                                   });
+                                 },
+                                 icon: Icon(
+                                   _isGridView
+                                       ? Icons.list
+                                       : Icons.grid_view,
+                                 ),
+                               )
+                             ],
+                           ),
+                         ),
+                       ),
+                       _isGridView
+                           ? _buildSliverGridView(
+                           state.suggestions, _isGridView)
+                           : _buildSliverFilesList(
+                           state.suggestions, _isGridView),
+                     ],
+                   ),
+                 );
+               } else if (state is SuggestionsError) {
+                 return Center(child: Text("Error: ${state.message}"));
+               }
+               return const SizedBox();
+             },
+           ),),
               const Activity(),
             ],
           ),
