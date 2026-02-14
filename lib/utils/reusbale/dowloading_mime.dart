@@ -18,73 +18,50 @@ class FileDownloader {
     required String mimeType,
     required String filePath,
   }) async {
-    log('Downloading file: $fileId, Name: $fileName, Type: $mimeType at $filePath');
+    log('Downloading file: $fileId → $filePath');
+
     bool permissionGranted = await checkStoragePermission();
-    if (!permissionGranted) {
-      log("  Storage permission not granted.");
-      return;
-    }
+    if (!permissionGranted) return;
 
     try {
-      final String? accessToken = await UserPreferences.getAccessToken();
-      final String? defaultWorkspace =
-          await UserPreferences.getDefaultWorkspace();
+      final safeName =
+      fileName.replaceAll(RegExp(r'[^\w\s.-]'), '_');
 
-      if (accessToken == null || defaultWorkspace == null) {
-        throw Exception('Missing authentication credentials');
+      final dir = Directory('/storage/emulated/0/Download');
+      if (!(await dir.exists())) {
+        await dir.create(recursive: true);
       }
 
-      final headers = {
-        'Authorization': 'Bearer $accessToken',
-        'x-workspace': defaultWorkspace,
-        'Content-Type': 'application/json',
-      };
+      final filePath2 = p.join(dir.path, safeName);
 
-      final body = {
-        "fileId": [fileId],
-      };
-
-      final response = await dio.post(
-        'https://api.nowdigitaleasy.com/drive/v1/download',
-        options: Options(headers: headers, responseType: ResponseType.bytes),
-        data: body,
+      final response = await dio.download(
+        filePath,
+        filePath2,
+        options: Options(
+          responseType: ResponseType.bytes,
+          followRedirects: true,
+          validateStatus: (status) => status != null && status < 500,
+        ),
       );
 
-      if (response.statusCode == 200) {
-        log(' Downloaded successfully: $fileId');
-        log(mimeType);
-        log('File Name: $fileName');
-        final safeName = fileName.replaceAll(RegExp(r'[^\w\s.-]'), '_');
+      final file = File(filePath2);
+      log("LOCAL FILE SIZE = ${await file.length()}");
 
-        final dir = Directory('/storage/emulated/0/Download');
-        if (!(await dir.exists())) {
-          await dir.create(recursive: true);
-        }
+      await MediaScanner.loadMedia(path: filePath2);
 
-        final filePath2 = p.join(dir.path, safeName);
-        final file = File(filePath2);
-        await file.writeAsBytes(response.data);
-        await downloadImageToGallery(
-          filePath,
-          safeName,
-        );
-
-        await MediaScanner.loadMedia(path: filePath);
-
-        log('📁 File saved at (visible to file manager): $filePath');
-        Messenger.alertSuccess(
-          'Downloaded successfully',
-        );
-      } else {
-        throw Exception('Download failed: ${response.statusCode}');
+      if (mimeType.contains('image')) {
+        await GallerySaver.saveImage(filePath2);
       }
+
+      Messenger.alertSuccess("Downloaded successfully");
     } on DioException catch (e) {
-      log('Dio error: ${e.message}');
+      log("DIO ERROR TYPE = ${e.type}");
+      log("DIO ERROR = ${e.message}");
     } catch (e) {
-      log('Unexpected error: $e');
-      throw Exception('Unexpected error: $e');
+      log("Unexpected error = $e");
     }
   }
+
 
   static Future<void> downloadImageToGallery(
       String url, String fileName) async {
