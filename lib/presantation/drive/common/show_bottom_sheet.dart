@@ -43,18 +43,19 @@ void displayBottomSheet(BuildContext context, String? fileid,int index) {
       if (moved == true && context.mounted) {
         await Future.delayed(const Duration(seconds: 2));
 
-      if(index==0){
-        suggestionsBloc.add(FetchSuggestionsEvent());
-      }else if(index==3){
-        context.read<MyDriveBloc>().resetPagination();
-        context.read<MyDriveBloc>().add(
-          FetchMyDriveFolders(
-            sortBy:"name",
-            order: "desc",
-            showLoading: false,
-          ),
-        );
-      }
+      // if(index==0){
+      //   suggestionsBloc.add(FetchSuggestionsEvent());
+      // }
+      // else if(index==3){
+      //   context.read<MyDriveBloc>().resetPagination();
+      //   context.read<MyDriveBloc>().add(
+      //     FetchMyDriveFolders(
+      //       sortBy:"name",
+      //       order: "desc",
+      //       showLoading: false,
+      //     ),
+      //   );
+      // }
 
       }
     }
@@ -123,7 +124,7 @@ void displayBottomSheet(BuildContext context, String? fileid,int index) {
                     backgroundColor: Colors.grey[100],
                     onTap: () => 
                     
-                    _pickFiles(context),
+                    pickFiles(context),
                   ),
                   _buildOptionItem(
                     icon: Icons.camera_alt_outlined,
