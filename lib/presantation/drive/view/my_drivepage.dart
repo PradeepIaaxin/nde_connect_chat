@@ -13,7 +13,7 @@ import 'package:nde_email/presantation/drive/common/file_preview_widget.dart';
 import 'package:nde_email/presantation/drive/common/show_bottom_model_sheet.dart';
 import 'package:nde_email/presantation/drive/common/show_rename.dart';
 import 'package:nde_email/presantation/drive/model/mydrive_model.dart'
-as drive_model;
+    as drive_model;
 import 'package:nde_email/presantation/drive/model/mydrive_model.dart';
 import 'package:nde_email/presantation/drive/view/file_deatils_screen.dart';
 import 'package:nde_email/presantation/drive/view/file_deep_view.dart';
@@ -86,9 +86,9 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
         widget.scrollController.position.maxScrollExtent - 200) {
       final sort = _getSortParams(_selectedSortOption);
       context.read<MyDriveBloc>().add(FetchMyDriveFolders(
-        sortBy: sort['sortBy']!,
-        order: sort['order']!,
-      ));
+            sortBy: sort['sortBy']!,
+            order: sort['order']!,
+          ));
     }
   }
 
@@ -803,17 +803,17 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                         ),
                         file.type == "folder"
                             ? BottomSheetOption(
-                          icon: Icons.color_lens,
-                          title: "Change Color",
-                          onTap: () {
-                            MyRouter.pop();
+                                icon: Icons.color_lens,
+                                title: "Change Color",
+                                onTap: () {
+                                  MyRouter.pop();
 
-                            showDialog(
-                              context: context,
-                              builder: (context) {
-                                return ColorPickerDialog(
-                                  onColorSelected: (hex) {
-                                    log("Selected Color: $hex");
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) {
+                                      return ColorPickerDialog(
+                                        onColorSelected: (hex) {
+                                          log("Selected Color: $hex");
 
                                     context
                                         .read<
@@ -833,10 +833,10 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                           },
                         )
                             : BottomSheetOption(
-                          icon: Icons.file_copy,
-                          title: "Make a copy ",
-                          onTap: () {},
-                        ),
+                                icon: Icons.file_copy,
+                                title: "Make a copy ",
+                                onTap: () {},
+                              ),
                         BottomSheetOption(
                           icon: Icons.drive_file_move,
                           title: "Move",
@@ -915,6 +915,22 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                               MoveToTrashEvent(
                                   fileIDs: [file.id]),
                             );
+                            showMoveToBinDialog(context, () {
+                              context.read<MyDriveBloc>().add(
+                                    MoveToTrashEvent(fileIDs: [file.id]),
+                                  );
+                              Messenger.alertAction(
+                                color: Colors.green,
+                                msg: "Item moved to trash",
+                                actionLabel: "Undo",
+                                duration: const Duration(seconds: 2),
+                                onAction: () {
+                                  context.read<MyDriveBloc>().add(
+                                        RestoreEvent(fileIDs: [file.id]),
+                                      );
+                                },
+                              );
+                            }, file.name);
                           },
                         ),
                       ],
@@ -1355,12 +1371,12 @@ class MyComputer extends StatelessWidget {
 
       context.read<MyDriveBloc>().resetPagination();
       context.read<MyDriveBloc>().add(
-        FetchMyDriveFolders(
-          sortBy: sort['sortBy']!,
-          order: sort['order']!,
-          showLoading: false,
-        ),
-      );
+            FetchMyDriveFolders(
+              sortBy: sort['sortBy']!,
+              order: sort['order']!,
+              showLoading: false,
+            ),
+          );
     }
 
     return RefreshIndicator(

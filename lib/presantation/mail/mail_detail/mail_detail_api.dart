@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer';
 import 'package:http/http.dart' as http;
 import 'package:nde_email/data/respiratory.dart';
 
@@ -26,6 +27,7 @@ class Fatchdetailmailapi {
     );
 
     if (response.statusCode == 200) {
+      log(response.body.toString());
       return MailDetailModel.fromJson(jsonDecode(response.body));
     } else if (response.statusCode == 401) {
       _handleUnauthorized();

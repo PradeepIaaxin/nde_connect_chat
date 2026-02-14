@@ -333,6 +333,12 @@ class _MailListScreenState extends State<MailListScreen> {
                 // ❌ NO REFRESH WHEN SELECTING
                 ? Column(
                     children: [
+                      TrashActionsWidget(
+                        show: state.mails.isNotEmpty,
+                        isTrashMailbox: _isTrashMailbox,
+                        isEmptyingBin: _isEmptyingBin,
+                        onEmptyBin: _emptyBin,
+                      ),
                       SelectAllCheckbox(state: state),
                       Expanded(
                         child: MailListWidget(

@@ -3,6 +3,7 @@
 import 'dart:developer';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:nde_email/data/mailboxid.dart';
 import 'package:nde_email/data/respiratory.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/mailbox_model.dart';
@@ -23,6 +24,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar_state.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar_bloc.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar_event.dart';
+import 'package:nde_email/presantation/widgets/mail_widgets/bottam_nav/bottom_nav_event.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/bottam_nav/bottom_nav_state.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/error_display.dart';
@@ -38,6 +40,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../update_screen/update_bloc/update_bloc.dart';
 import '../update_screen/update_bloc/update_state.dart';
 import '../update_screen/view/update_ui.dart';
+import 'package:nde_email/utils/custom/custom_alret_box.dart';
 
 class HomeScreen extends StatefulWidget {
   final String mailboxId;
@@ -93,11 +96,13 @@ class _HomeScreenState extends State<HomeScreen> {
         MailboxStorage.getInboxMailboxId().then((inboxId) {
           if (!mounted) return;
           if (inboxId == null || inboxId.isEmpty) return;
-          MailboxStorage.saveMailboxId(inboxId);
-          if (selectedMailboxId != inboxId) {
-            setState(() {
-              selectedMailboxId = inboxId;
-            });
+          if (selectedMailboxId.isEmpty) {
+            MailboxStorage.saveMailboxId(inboxId);
+            if (selectedMailboxId != inboxId) {
+              setState(() {
+                selectedMailboxId = inboxId;
+              });
+            }
           }
         });
       }
@@ -167,10 +172,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     : "";
 
             if (mailboxId.isNotEmpty) {
-              MailboxStorage.saveMailboxId(mailboxId);
+              if (selectedMailboxId.isEmpty) {
+                MailboxStorage.saveMailboxId(mailboxId);
+              }
             }
 
-            if (selectedMailboxId != mailboxId) {
+            if (selectedMailboxId.isEmpty && selectedMailboxId != mailboxId) {
               setState(() {
                 selectedMailboxId = mailboxId;
               });
@@ -194,39 +201,88 @@ class _HomeScreenState extends State<HomeScreen> {
                     context.read<FabBloc>().add(
                         navState.selectedIndex == 0 ? ShowFab() : HideFab());
                   },
-                  child: Scaffold(
-                    backgroundColor: AppColors.bg,
-                    key: scaffoldKey,
-                    drawer: (navState.selectedIndex == 0 && !isSelectionActive)
-                        ? CustomDrawer()
-                        : null,
-                    endDrawer: Endrawer(
-                      userName: userName ?? "",
-                      gmail: gmail ?? "",
-                      profileUrl: profilePicUrl,
-                    ),
-                    appBar: navState.selectedIndex == 0
-                        ? (isSelectionActive
-                            ? _buildSelectionAppBar(context, mailState)
-                            : CustomAppBar())
-                        : null,
-                    body: _buildScreen(
-                      navState.selectedIndex,
-                    ),
-                    bottomNavigationBar: BottomNavBar(),
-                    floatingActionButton: BlocBuilder<FabBloc, FabState>(
-                      builder: (context, fabState) {
-                        if (fabState is FabVisible && fabState.isVisible) {
-                          return FloatingActionButtonWidget(
-                            onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => ComposeScreen()),
-                            ),
-                          );
-                        }
-                        return const SizedBox.shrink();
-                      },
+                  child: PopScope(
+                    canPop: false,
+                    onPopInvoked: (didPop) async {
+                      if (didPop) return;
+
+                      final isSelectionActive =
+                          mailState.selectedMailIds.isNotEmpty;
+                      final selectedIndex = navState.selectedIndex;
+
+                      // If we are in selection mode, clear selection
+                      if (isSelectionActive) {
+                        context.read<MailListBloc>().add(ClearSelectionEvent());
+                        return;
+                      }
+
+                      // If we are not on the first tab (Mail), go back to first tab
+                      if (selectedIndex != 0) {
+                        context
+                            .read<BottomNavigationBloc>()
+                            .add(SelectTabEvent(0));
+                        return;
+                      }
+
+                      // If we are on the main screen, show exit confirmation
+                      final shouldExit = await CustomConfirmationDialog.show(
+                        context: context,
+                        title: "Exit App",
+                        message: "Are you sure you want to exit the app?",
+                        icon: Icons.exit_to_app,
+                        iconColor: AppColors.profile,
+                        confirmText: "Exit",
+                        confirmColor: Colors.red,
+                        onConfirm: () async {
+                          // No async work needed here, just confirming
+                        },
+                      );
+
+                      if (shouldExit == true && context.mounted) {
+                        SystemNavigator.pop();
+                      }
+                    },
+                    child: Scaffold(
+                      backgroundColor: AppColors.bg,
+                      key: scaffoldKey,
+                      drawer:
+                          (navState.selectedIndex == 0 && !isSelectionActive)
+                              ? CustomDrawer(
+                                  onDrawerOpened: () {
+                                    context
+                                        .read<AppBarBloc>()
+                                        .add(FetchMailboxesEvent(force: true));
+                                  },
+                                )
+                              : null,
+                      endDrawer: Endrawer(
+                        userName: userName ?? "",
+                        gmail: gmail ?? "",
+                        profileUrl: profilePicUrl,
+                      ),
+                      appBar: navState.selectedIndex == 0
+                          ? (isSelectionActive
+                              ? _buildSelectionAppBar(context, mailState)
+                              : CustomAppBar())
+                          : null,
+                      body: _buildScreen(
+                        navState.selectedIndex,
+                      ),
+                      bottomNavigationBar: BottomNavBar(),
+                      floatingActionButton: BlocBuilder<FabBloc, FabState>(
+                        builder: (context, fabState) {
+                          if (fabState is FabVisible && fabState.isVisible) {
+                            return FloatingActionButtonWidget(
+                              onPressed: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => ComposeScreen()),
+                              ),
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
                     ),
                   ),
                 );
@@ -318,8 +374,15 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       appBar:
           (selectedIndex == 0 && !isSelectionActive) ? CustomAppBar() : null,
-      drawer:
-          (selectedIndex == 0 && !isSelectionActive) ? CustomDrawer() : null,
+      drawer: (selectedIndex == 0 && !isSelectionActive)
+          ? CustomDrawer(
+              onDrawerOpened: () {
+                context
+                    .read<AppBarBloc>()
+                    .add(FetchMailboxesEvent(force: true));
+              },
+            )
+          : null,
       body: _buildScreen(selectedIndex),
       bottomNavigationBar: BottomNavBar(),
     );
