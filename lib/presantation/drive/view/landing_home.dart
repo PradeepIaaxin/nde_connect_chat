@@ -1,10 +1,8 @@
-
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_floating_bottom_bar/flutter_floating_bottom_bar.dart';
 import 'package:nde_email/presantation/drive/Bloc/folder_bloc/create_state.dart';
-import 'package:nde_email/presantation/drive/common/drawer.dart';
 import 'package:nde_email/presantation/drive/common/search_bar.dart';
 import 'package:nde_email/presantation/drive/common/show_bottom_sheet.dart';
 import 'package:nde_email/presantation/drive/model/file_size.dart';
@@ -12,6 +10,7 @@ import 'package:nde_email/presantation/drive/view/home_page.dart';
 import 'package:nde_email/presantation/drive/view/my_drivepage.dart';
 import 'package:nde_email/presantation/drive/view/shared_screen.dart';
 import 'package:nde_email/presantation/drive/view/starred_screen.dart';
+import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/widget/mini_rail_drawer.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/imports/common_imports.dart';
 import 'package:nde_email/utils/reusbale/endrawer.dart';
@@ -79,13 +78,21 @@ class _LandingHomeState extends State<LandingHome> {
     _loadUserData();
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bg,
-      drawer: const DrawerMenu(),
+      // drawer: const DrawerMenu(),
+      drawer: MiniRailDrawer(
+        selectedModule: "drive",
+        onMailTap: () {},
+        selectedIndex: -1,
+        selectedMailboxId: "",
+        onMailboxSelected: (_, __) {},
+        userName: userName,
+        profilePicUrl: profilePicUrl,
+      ),
+
       endDrawer: Endrawer(
         userName: userName ?? "",
         gmail: gmail ?? "",
@@ -178,7 +185,7 @@ class _LandingHomeState extends State<LandingHome> {
                   child: FloatingActionButton(
                     heroTag: 'mainFAB',
                     onPressed: () {
-                      displayBottomSheet(context, '',_currentIndex);
+                      displayBottomSheet(context, '', _currentIndex);
                     },
                     backgroundColor: Colors.white,
                     child: const Icon(Icons.add, color: Colors.black),

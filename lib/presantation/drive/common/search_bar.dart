@@ -1,6 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 
 class AddDrawer extends StatelessWidget {
   final TextEditingController controller;
@@ -15,8 +13,8 @@ class AddDrawer extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
         child: Container(
-            decoration: BoxDecoration(
-              color: Colors.grey[200],
+          decoration: BoxDecoration(
+            color: Colors.grey[200],
             borderRadius: BorderRadius.circular(28),
           ),
           child: Row(
@@ -40,59 +38,9 @@ class AddDrawer extends StatelessWidget {
                   ),
                 ),
               ),
-              profilePicUrl != null && profilePicUrl!.isNotEmpty
-                  ? GestureDetector(
-                      onTap: () {
-                        Scaffold.of(context).openEndDrawer();
-                      },
-                      child: CircleAvatar(
-                          radius: 22,
-                          backgroundColor: Colors.transparent,
-                          child: ClipOval(
-                            child: CachedNetworkImage(
-                              imageUrl: profilePicUrl!,
-                              width: 40,
-                              height: 40,
-                              fit: BoxFit.cover,
-                              placeholder: (context, url) =>
-                                  const CircularProgressIndicator(),
-                              errorWidget: (context, url, error) =>
-                                  CircleAvatar(
-                                radius: 20,
-                                backgroundColor: AppColors.profile,
-                                child: Text(
-                                  userName != null && userName!.isNotEmpty
-                                      ? userName![0].toUpperCase()
-                                      : "",
-                                  style: const TextStyle(
-                                    color: AppColors.bg,
-                                    fontSize: 18,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          )),
-                    )
-                  : GestureDetector(
-                      onTap: () {
-                        Scaffold.of(context).openEndDrawer();
-                      },
-                      child: CircleAvatar(
-                        radius: 20,
-                        backgroundColor: AppColors.profile,
-                        child: Text(
-                          userName != null && userName!.isNotEmpty
-                              ? userName![0].toUpperCase()
-                              : "",
-                          style: const TextStyle(
-                            color: AppColors.bg,
-                            fontSize: 18,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    SizedBox(width: 10,),
+              SizedBox(
+                width: 10,
+              ),
             ],
           ),
         ),

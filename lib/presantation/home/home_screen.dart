@@ -1,5 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'dart:developer';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -15,8 +13,8 @@ import 'package:nde_email/presantation/mail/common/menuaction/mail_menu_action.d
 import 'package:nde_email/presantation/mail/mail_list/bloc/mail_list_event.dart';
 import 'package:nde_email/presantation/meet/view/meeting_screen.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar.dart';
+import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/widget/mini_rail_drawer.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/bottam_nav/bottam_nav_bloc.dart';
-import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/drawer.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/bottam_nav/bottom_nav.dart';
 import 'package:nde_email/presantation/mail/mail_list/screen/mail_list_screen.dart';
 import 'package:nde_email/presantation/chat/chat_list/chat_screen.dart';
@@ -116,6 +114,19 @@ class _HomeScreenState extends State<HomeScreen> {
         context.read<AppBarBloc>().add(FetchMailboxesEvent());
       }
     });
+  }
+
+  /// Callback when a mailbox is selected from the drawer
+  void _onMailboxSelected(String mailboxId, String? mailboxName) {
+    setState(() {
+      selectedMailboxId = mailboxId;
+    });
+    MailboxStorage.saveMailboxId(mailboxId);
+
+    // Refresh the mail list for the new mailbox
+    context.read<MailListBloc>().add(
+          FetchMailListEvent(mailboxId, cursor: null, isLoadMore: false),
+        );
   }
 
   @override
@@ -247,24 +258,31 @@ class _HomeScreenState extends State<HomeScreen> {
                       key: scaffoldKey,
                       drawer:
                           (navState.selectedIndex == 0 && !isSelectionActive)
-                              ? CustomDrawer(
-                                  onDrawerOpened: () {
+                              ? MiniRailDrawer(
+                                selectedModule: "mail",
+                                  selectedIndex: navState.selectedIndex,
+                                  selectedMailboxId: selectedMailboxId,
+                                  onMailboxSelected: _onMailboxSelected,
+                                  onMailTap: () {
+                                    // Fetch mailboxes when mail icon is tapped
                                     context
                                         .read<AppBarBloc>()
-                                        .add(FetchMailboxesEvent(force: true));
+                                        .add(FetchMailboxesEvent());
                                   },
+                                  profilePicUrl: profilePicUrl,
+                                  userName: userName ?? "Unknown",
                                 )
                               : null,
-                      endDrawer: Endrawer(
-                        userName: userName ?? "",
-                        gmail: gmail ?? "",
-                        profileUrl: profilePicUrl,
-                      ),
                       appBar: navState.selectedIndex == 0
                           ? (isSelectionActive
                               ? _buildSelectionAppBar(context, mailState)
                               : CustomAppBar())
                           : null,
+                      endDrawer: Endrawer(
+                        userName: userName ?? "",
+                        gmail: gmail ?? "",
+                        profileUrl: profilePicUrl,
+                      ),
                       body: _buildScreen(
                         navState.selectedIndex,
                       ),
@@ -303,6 +321,7 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       } else if (selectedMailboxId.isNotEmpty) {
         return MailListScreen(
+          key: ValueKey(selectedMailboxId), 
           mailboxId: selectedMailboxId,
           mailboxName: widget.mailboxName,
         );
@@ -375,12 +394,16 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar:
           (selectedIndex == 0 && !isSelectionActive) ? CustomAppBar() : null,
       drawer: (selectedIndex == 0 && !isSelectionActive)
-          ? CustomDrawer(
-              onDrawerOpened: () {
-                context
-                    .read<AppBarBloc>()
-                    .add(FetchMailboxesEvent(force: true));
+          ? MiniRailDrawer(
+              selectedModule: "mail",
+              selectedIndex: selectedIndex,
+              selectedMailboxId: selectedMailboxId,
+              onMailboxSelected: _onMailboxSelected,
+              onMailTap: () {
+                context.read<AppBarBloc>().add(FetchMailboxesEvent());
               },
+              profilePicUrl: profilePicUrl,
+              userName: userName ?? "Unknown",
             )
           : null,
       body: _buildScreen(selectedIndex),
@@ -455,9 +478,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   context.read<MailListBloc>().add(ClearSelectionEvent());
                 },
               ),
-        // isjunkMailbox || isdeleteMailbox
-        //     ? SizedBox()
-        //     :
         IconButton(
           icon: const Icon(Icons.delete),
           onPressed: () {
@@ -503,10 +523,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   context.read<MailListBloc>().add(ClearSelectionEvent());
                 },
               ),
-
-        // isjunkMailbox || isdeleteMailbox
-        //     ? SizedBox()
-        //     :
         MailMoreMenu(
           onSelected: (action) {
             switch (action) {
@@ -594,9 +610,6 @@ class _HomeScreenState extends State<HomeScreen> {
             }
           },
         ),
-        // SizedBox(
-        //   width: 10,
-        // )
       ],
     );
   }

@@ -141,6 +141,7 @@ dependencies:
   timezone: ^0.10.1
   linkify: ^5.0.0
   uuid: ^4.5.2
+  android_intent_plus: ^6.0.0
   
 
 dev_dependencies:
@@ -184,4 +185,5 @@ flutter:
       - assets/images/
       - assets/audio/message_sent.mp3
       - assets/gif/
+      - assets/icon/
   

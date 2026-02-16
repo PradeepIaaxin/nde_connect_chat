@@ -5,7 +5,6 @@ import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_color
 import 'app_bar_bloc.dart';
 import 'app_bar_event.dart';
 import 'package:nde_email/data/respiratory.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
   const CustomAppBar({super.key});
@@ -93,55 +92,8 @@ class _CustomAppBarState extends State<CustomAppBar> {
                   ),
                 ),
               ),
-
-              /// 👤 PROFILE
-              GestureDetector(
-                onTap: () {
-                  Scaffold.of(context).openEndDrawer();
-                },
-                child: profilePicUrl != null && profilePicUrl!.isNotEmpty
-                    ? Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: CircleAvatar(
-                          radius: 22,
-                          backgroundColor: Colors.transparent,
-                          child: ClipOval(
-                            child: CachedNetworkImage(
-                              imageUrl: profilePicUrl!,
-                              width: 40,
-                              height: 40,
-                              fit: BoxFit.cover,
-                              placeholder: (_, __) =>
-                                  const CircularProgressIndicator(
-                                      strokeWidth: 2),
-                              errorWidget: (_, __, ___) => _fallbackAvatar(),
-                            ),
-                          ),
-                        ),
-                      )
-                    : Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: _fallbackAvatar(),
-                      ),
-              ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _fallbackAvatar() {
-    return CircleAvatar(
-      radius: 20,
-      backgroundColor: AppColors.profile,
-      child: Text(
-        userName != null && userName!.isNotEmpty
-            ? userName![0].toUpperCase()
-            : "",
-        style: const TextStyle(
-          color: AppColors.bg,
-          fontSize: 18,
         ),
       ),
     );
