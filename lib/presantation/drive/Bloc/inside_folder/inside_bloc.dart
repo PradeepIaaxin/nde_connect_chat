@@ -27,7 +27,8 @@ class InsideBloc extends Bloc<InsideEvent, InsidefileState> {
   Future<void> _onFetchStarredFolders(
     InFetchStarredFolders event,
     Emitter<InsidefileState> emit,
-  ) async {
+  )
+  async {
     try {
       if (!event.isLoadMore) {
         emit(InsideLoading());
@@ -49,7 +50,7 @@ class InsideBloc extends Bloc<InsideEvent, InsidefileState> {
       _hasMore = folders.length == _limit;
 
       emit(InsideLoaded(_allFolders, _hasMore));
-      emit(InsideLoadedSuccess());
+
     } catch (e) {
       emit(InsideError(e.toString()));
     }

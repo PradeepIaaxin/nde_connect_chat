@@ -29,6 +29,8 @@ import 'package:nde_email/utils/snackbar/snackbar.dart';
 import 'package:nde_email/utils/spacer/spacer.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../Bloc/folder_bloc/create_folder_bloc.dart';
+import '../Bloc/folder_bloc/create_state.dart';
 import 'common_funtions.dart';
 
 class StarredPage extends StatefulWidget {
@@ -115,68 +117,90 @@ class _StarredPageState extends State<StarredPage> {
       backgroundColor: AppColors.bg,
       body: RefreshIndicator(
         onRefresh: () async => _handleSortChange,
-        child: BlocConsumer<StarredBloc, StarredState>(
-          listener: (context, state) {
-            if (state is StarredError) {
-              log(state.message.toString());
-            }
-          },
-          builder: (context, state) {
-            if (state is StarredLoading) {
-              return ShimmerListLoader(
-                iconSize: 40,
-                titleHeight: 18,
-                subtitleHeight: 14,
-                trailingIconSize: 20,
-                padding: EdgeInsets.all(10),
-                baseColor: Colors.grey[200]!,
-                highlightColor: Colors.grey[50]!,
-                titleWidthFactor: 0.8,
-                subtitleWidth: 100,
-              );
-            }
+        child: MultiBlocListener(
+          listeners: [
+            BlocListener<CreateFolderBloc, CreateFolderState>(
+              listener: (context, state) {
 
-            if (state is StarredLoaded) {
-              final folders = state.folders;
+                if (state is CreateFolderSuccess) {
 
-              if (folders.isEmpty) {
-                return const Center(
-                  child: Text('No starred files found'),
+                  log("✅ MOVE SUCCESS → Reloading folders");
+
+                  //_fetchFolders();
+
+                  Messenger.alertSuccess("Folder created successfully");
+
+                }
+
+                if (state is CreateFolderFailure) {
+                  Messenger.alertError("Folder Created Filed ",);
+                }
+              },
+            ),
+          ],
+          child: BlocConsumer<StarredBloc, StarredState>(
+            listener: (context, state) {
+              if (state is StarredError) {
+                log(state.message.toString());
+              }
+            },
+            builder: (context, state) {
+              if (state is StarredLoading) {
+                return ShimmerListLoader(
+                  iconSize: 40,
+                  titleHeight: 18,
+                  subtitleHeight: 14,
+                  trailingIconSize: 20,
+                  padding: EdgeInsets.all(10),
+                  baseColor: Colors.grey[200]!,
+                  highlightColor: Colors.grey[50]!,
+                  titleWidthFactor: 0.8,
+                  subtitleWidth: 100,
                 );
               }
 
-              return Stack(
-                children: [
-                  _buildDriveLayout(folders, state.hasMore),
-                ],
-              );
-            }
+              if (state is StarredLoaded) {
+                final folders = state.folders;
 
-            if (state is StarredError) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                if (folders.isEmpty) {
+                  return const Center(
+                    child: Text('No starred files found'),
+                  );
+                }
+
+                return Stack(
                   children: [
-                    const Text('Something went wrong!'),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () {
-                        context.read<StarredBloc>().add(
-                              FetchStarredFolders(
-                                sortBy: sortQuery ?? 'name',
-                                isLoadMore: false,
-                              ),
-                            );
-                      },
-                      child: const Text('Retry'),
-                    ),
+                    _buildDriveLayout(folders, state.hasMore),
                   ],
-                ),
-              );
-            }
+                );
+              }
 
-            return const SizedBox();
-          },
+              if (state is StarredError) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text('Something went wrong!'),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () {
+                          context.read<StarredBloc>().add(
+                                FetchStarredFolders(
+                                  sortBy: sortQuery ?? 'name',
+                                  isLoadMore: false,
+                                ),
+                              );
+                        },
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return const SizedBox();
+            },
+          ),
         ),
       ),
     );
