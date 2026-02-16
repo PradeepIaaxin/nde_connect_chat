@@ -71,6 +71,7 @@ class _FileInsideSceenState extends State<FileInsideSceen> {
       ],
       child: MultiBlocListener(
         listeners: [
+
           BlocListener<MoveFileBloc, MoveFileState>(
             listener: (context, moveState) {
               if (moveState is MoveFileSuccess) {

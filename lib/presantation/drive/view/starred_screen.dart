@@ -452,6 +452,9 @@ class _FolderGridItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    void loadStarredFolders({String? sortBy}) {
+      context.read<StarredBloc>().add(FetchStarredFolders(sortBy: sortBy));
+    }
     return GestureDetector(
       onLongPress: () {
         log("hii");
@@ -607,11 +610,14 @@ class _FolderGridItem extends StatelessWidget {
                                 BottomSheetOption(
                                   icon: Icons.drive_file_move,
                                   title: "Move",
-                                  onTap: () {
+                                  onTap: () async {
                                     MyRouter.pop();
-                                    MyRouter.push(
+                                final result = await     MyRouter.push(
                                         screen: MoveFileScreen(
                                             movingFileId: folder.id));
+                                if(result==true){
+                                  loadStarredFolders();
+                                }
                                   },
                                 ),
                                 BottomSheetOption(
@@ -758,6 +764,9 @@ class _FolderListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    void loadStarredFolders({String? sortBy}) {
+      context.read<StarredBloc>().add(FetchStarredFolders(sortBy: sortBy));
+    }
     return GestureDetector(
       onLongPress: () => onLongPressStart(folder.id),
       onTap: () {
@@ -971,10 +980,13 @@ class _FolderListItem extends StatelessWidget {
                   BottomSheetOption(
                     icon: Icons.drive_file_move,
                     title: "Move",
-                    onTap: () {
+                    onTap: () async {
                       MyRouter.pop();
-                      MyRouter.push(
+                    final result =   await MyRouter.push(
                           screen: MoveFileScreen(movingFileId: folder.id));
+                    if(result==true){
+                      loadStarredFolders();
+                    }
                     },
                   ),
                   BottomSheetOption(
