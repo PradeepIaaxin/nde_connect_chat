@@ -50,7 +50,7 @@ dependencies:
   fwfh_url_launcher: ^0.16.0
   fwfh_webview: ^0.15.4
   # open_file: ^3.5.10
-  
+  google_mlkit_document_scanner: ^0.4.1
   carousel_slider: ^5.0.0
   permission_handler: ^12.0.0+1
   flutter_contacts: ^1.1.9+2

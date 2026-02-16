@@ -18,4 +18,4 @@ class InsideLoaded extends InsidefileState {
   InsideLoaded(this.folders, this.hasMore);
 }
 
-class InsideLoadedSuccess extends InsidefileState{}
+// class InsideLoadedSuccess extends InsidefileState{}
