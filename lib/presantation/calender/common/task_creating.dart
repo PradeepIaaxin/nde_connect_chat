@@ -8,6 +8,7 @@ import 'package:nde_email/data/respiratory.dart';
 import 'package:nde_email/presantation/calender/bloc/event_bloc/event_all_bloc.dart';
 import 'package:nde_email/presantation/calender/bloc/event_bloc/event_all_event.dart';
 import 'package:nde_email/presantation/calender/bloc/event_bloc/event_all_state.dart';
+import 'package:nde_email/presantation/calender/data/calender_event_repo.dart';
 import 'package:nde_email/presantation/calender/model/event_data_model.dart';
 import 'package:nde_email/utils/snackbar/snackbar.dart';
 import 'package:http/http.dart' as http;
@@ -806,7 +807,6 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     }
   }
 
-
   String? buildRRule() {
     if (_repeatValue == 'None') return null;
 
@@ -829,23 +829,6 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   }
 
   Future<void> _createTask() async {
-    final String? accessToken = await UserPreferences.getAccessToken();
-    final String? defaultWorkspace =
-        await UserPreferences.getDefaultWorkspace();
-
-    if (accessToken == null || defaultWorkspace == null) {
-      throw Exception('Missing authentication');
-    }
-
-    final headers = {
-      'Authorization': 'Bearer $accessToken',
-      'x-workspace': defaultWorkspace,
-      'Content-Type': 'application/json',
-    };
-
-    final url =
-        Uri.parse('https://api.nowdigitaleasy.com/calendar/v1/event/create');
-
     // Parse date and times
     final date = DateFormat('MMMM d, yyyy').parse(_dateController.text);
     final startTime = DateFormat('h:mm a').parse(_startTimeController.text);
@@ -871,58 +854,68 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     final startUtc = startDateTime.toUtc().toIso8601String();
     final endUtc = endDateTime.toUtc().toIso8601String();
 
-    // Build request body
-    final body = {
-      'calendar_id': _selectedCalendarId,
-      'title': _titleController.text,
-      'description': _noteController.text,
-      'color': '#${_selectedColor.value.toRadixString(16).substring(2)}',
-      'start_time': startUtc,
-      'end_time': endUtc,
-      'timezone': DateTime.now().timeZoneName,
-      'allDay': _isAllDay,
-      'recurrence': buildRRule() != null ? [buildRRule()!] : null,
-      'attendees': [
-        {'type': 'indivitual', 'email_or_group': 'tony@iaaxin.com'},
+    final repo = CalendarEventRepository();
+    await repo.createEvent(
+      calendarId: _selectedCalendarId!,
+      title: _titleController.text,
+      description: _noteController.text,
+      startTimeUtcIso: startUtc,
+      endTimeUtcIso: endUtc,
+      timezone: 'Asia/Kolkata',
+      allDay: _isAllDay,
+      allowForward: false,
+      isPrivate: false,
+      addToFreeBusy: true,
+      location: _locationController.text,
+      url: _urlController.text,
+      conference: null,
+      attendees: const [],
+      reminders: [
+        {
+          'type': 'notification',
+          'timing': 10,
+          'interval': 'hours',
+          'time': '',
+        },
+        {
+          'type': 'notification',
+          'timing': 10,
+          'interval': 'minutes',
+          'time': '',
+        },
+        {
+          'type': 'notification',
+          'timing': 10,
+          'interval': 'minutes',
+          'time': '',
+        },
+        {
+          'type': 'notification',
+          'timing': 10,
+          'interval': 'minutes',
+          'time': '',
+        },
       ],
-      'reminders': _remindValue != 'None'
-          ? [
-              {
-                'method': 'email',
-                'timing': 'before',
-                'minutes': int.tryParse(_remindValue.split(' ').first) ?? 5,
-              },
-            ]
-          : null,
-      'location': _locationController.text,
-      'url': _urlController.text,
-      'conference': '680c68978b0332e86285a46b',
-    };
-
-    body.removeWhere((key, value) => value == null);
-
-    final response = await http.post(
-      url,
-      headers: headers,
-      body: jsonEncode(body),
+      permissions: {
+        'viewOnly': true,
+        'viewParticipants': true,
+        'addParticipants': false,
+        'editEvent': false,
+      },
+      sendEmail: false,
+      color: '#${_selectedColor.value.toRadixString(16).substring(2)}',
     );
 
-    if (response.statusCode == 200 ||
-        response.statusCode == 201 ||
-        response.statusCode == 204) {
-      // Refresh calendar events
-      final now = DateTime.now();
-      final startDate = DateTime(now.year, now.month, 1);
-      final endDate = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+    // Refresh calendar events
+    final now = DateTime.now();
+    final startDate = DateTime(now.year, now.month, 1);
+    final endDate = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
 
-      context.read<CalendarEventBloc>().add(
-            FetchCalendarEvents(startDate: startDate, endDate: endDate),
-          );
+    context.read<CalendarEventBloc>().add(
+          FetchCalendarEvents(startDate: startDate, endDate: endDate),
+        );
 
-      Messenger.alertSuccess('Event created successfully');
-    } else {
-      throw Exception('Failed to create event: ${response.statusCode}');
-    }
+    Messenger.alertSuccess('Event created successfully');
   }
 
   Future<void> _updateTask() async {
