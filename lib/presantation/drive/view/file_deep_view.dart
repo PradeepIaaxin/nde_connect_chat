@@ -5,7 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nde_email/presantation/drive/Bloc/inside_folder/inside_bloc.dart';
 import 'package:nde_email/presantation/drive/Bloc/inside_folder/inside_event.dart';
-import 'package:nde_email/presantation/drive/Bloc/inside_folder/inside_state.dart' hide MoveFileFailure;
+import 'package:nde_email/presantation/drive/Bloc/inside_folder/inside_state.dart'
+    hide MoveFileFailure;
 import 'package:nde_email/presantation/drive/common/colour_picker.dart';
 import 'package:nde_email/presantation/drive/common/file_preview_widget.dart';
 import 'package:nde_email/presantation/drive/common/hexa_color.dart';
@@ -90,11 +91,11 @@ class _FileDeepViewState extends State<FileDeepView> {
     return RefreshIndicator(
       onRefresh: () async {
         context.read<InsideBloc>().add(
-          InFetchStarredFolders(
-            sortBy: 'name',
-            filedId: widget.fileId,
-          ),
-        );
+              InFetchStarredFolders(
+                sortBy: 'name',
+                filedId: widget.fileId,
+              ),
+            );
       },
       child: BlocProvider(
         create: (_) => InsideBloc(repository: InsidefileRepo())
@@ -103,34 +104,31 @@ class _FileDeepViewState extends State<FileDeepView> {
           listeners: [
             BlocListener<CreateFolderBloc, CreateFolderState>(
               listener: (context, state) {
-
                 if (state is CreateFolderSuccess) {
-
                   log("✅ MOVE SUCCESS → Reloading folders");
 
                   context.read<InsideBloc>().add(
-                    InFetchStarredFolders(filedId: widget.fileId),
-                  );
+                        InFetchStarredFolders(filedId: widget.fileId),
+                      );
 
                   Messenger.alertSuccess("Folder created successfully");
-
                 }
 
                 if (state is CreateFolderFailure) {
-                  Messenger.alertError("Folder Created Filed ",);
+                  Messenger.alertError(
+                    "Folder Created Filed ",
+                  );
                 }
               },
             ),
             BlocListener<MoveFileBloc, MoveFileState>(
               listener: (context, state) {
-
                 if (state is MoveFileSuccess) {
-
                   log("✅ MOVE SUCCESS → Reloading folders");
 
                   context.read<InsideBloc>().add(
-                    InFetchStarredFolders(filedId: widget.fileId),
-                  );
+                        InFetchStarredFolders(filedId: widget.fileId),
+                      );
 
                   Messenger.alertSuccess("File moved successfully");
 
@@ -145,9 +143,8 @@ class _FileDeepViewState extends State<FileDeepView> {
                 }
               },
             ),
-
           ],
-          child:Scaffold(
+          child: Scaffold(
             backgroundColor: AppColors.bg,
             body: BlocConsumer<InsideBloc, InsidefileState>(
               listener: (context, state) {
@@ -176,11 +173,11 @@ class _FileDeepViewState extends State<FileDeepView> {
                   return RefreshIndicator(
                     onRefresh: () async {
                       context.read<InsideBloc>().add(
-                        InFetchStarredFolders(
-                          sortBy: 'name',
-                          filedId: widget.fileId,
-                        ),
-                      );
+                            InFetchStarredFolders(
+                              sortBy: 'name',
+                              filedId: widget.fileId,
+                            ),
+                          );
                     },
                     child: _buildDriveLayout(folders, state.hasMore),
                   );
@@ -223,7 +220,7 @@ class _FileDeepViewState extends State<FileDeepView> {
                         child: FloatingActionButton(
                           heroTag: 'mainFAB',
                           onPressed: () {
-                            displayBottomSheet(context, widget.fileId,0);
+                            displayBottomSheet(context, widget.fileId, 0);
                           },
                           backgroundColor: Colors.white,
                           child: const Icon(Icons.add, color: Colors.black),
@@ -237,8 +234,8 @@ class _FileDeepViewState extends State<FileDeepView> {
                           mini: true,
                           backgroundColor: Colors.pink[100],
                           onPressed: () {},
-                          child:
-                          const Icon(Icons.camera_alt, color: Colors.white54),
+                          child: const Icon(Icons.camera_alt,
+                              color: Colors.white54),
                         ),
                       ),
                     ],
@@ -353,7 +350,6 @@ class _FileDeepViewState extends State<FileDeepView> {
                               _clearSelection();
                             },
                           ),
-
                           BottomSheetOption(
                             icon: Icons.ios_share_outlined,
                             title: "Send a copy",
@@ -384,7 +380,6 @@ class _FileDeepViewState extends State<FileDeepView> {
                             title: "Make a copy ",
                             onTap: () {},
                           ),
-
                           BottomSheetOption(
                             icon: Icons.drive_file_move,
                             title: "Move",
@@ -421,21 +416,24 @@ class _FileDeepViewState extends State<FileDeepView> {
                             onTap: () {
                               showMoveToBinDialog(context, () {
                                 final ids = selectedFolders.toList();
-                                context.read<InsideBloc>().add(
-                                      InMoveToTrashEvent(
-                                        fileIDs: ids,
-                                        selectedId: widget.fileId,
-                                      ),
-                                    );
+                                final insideBloc = context.read<InsideBloc>();
+                                insideBloc.add(
+                                  InMoveToTrashEvent(
+                                    fileIDs: ids,
+                                    selectedId: widget.fileId,
+                                  ),
+                                );
                                 Messenger.alertAction(
                                   color: Colors.green,
                                   msg: "Item moved to trash",
                                   actionLabel: "Undo",
                                   duration: const Duration(seconds: 2),
                                   onAction: () {
-                                    context.read<InsideBloc>().add(
-                                          InRestoreEvent(fileIDs: ids),
-                                        );
+                                    insideBloc.add(
+                                      InRestoreEvent(
+                                          fileIDs: ids,
+                                          selectedId: widget.fileId),
+                                    );
                                   },
                                 );
                               }, "");
@@ -560,11 +558,11 @@ class _FileDeepViewState extends State<FileDeepView> {
             log("DROP → ${dragged.name} into ${folder.name}");
 
             context.read<MoveFileBloc>().add(
-              MoveFileRequested(
-                fileId: [dragged.id],
-                destinationId: folder.id,
-              ),
-            );
+                  MoveFileRequested(
+                    fileId: [dragged.id],
+                    destinationId: folder.id,
+                  ),
+                );
           },
         );
       },
@@ -598,13 +596,12 @@ class _FileDeepViewState extends State<FileDeepView> {
             log("DROP → ${dragged.name} into ${folder.name}");
 
             context.read<MoveFileBloc>().add(
-              MoveFileRequested(
-                fileId: [dragged.id],
-                destinationId: folder.id,
-              ),
-            );
+                  MoveFileRequested(
+                    fileId: [dragged.id],
+                    destinationId: folder.id,
+                  ),
+                );
           },
-
         );
       },
     );
@@ -628,7 +625,8 @@ class _FolderGridItem extends StatelessWidget {
     required this.onTapSelect,
     required this.isSelected,
     required this.isSelectionMode,
-    required this.currentId, required this.ontap,
+    required this.currentId,
+    required this.ontap,
   });
 
   @override
@@ -637,13 +635,12 @@ class _FolderGridItem extends StatelessWidget {
     final canDrag = isSelectionMode && isSelected;
     Widget child = DragTarget<FolderinsideModel>(
       onWillAccept: (dragged) {
-        if (!isFolder) return false;              // Only folders accept
+        if (!isFolder) return false; // Only folders accept
         if (dragged == null) return false;
         if (dragged.id == folder.id) return false; // Prevent self drop
         return true;
       },
       onAccept: ontap,
-
       builder: (context, candidateData, rejectedData) {
         final hovering = candidateData.isNotEmpty;
 
@@ -655,12 +652,14 @@ class _FolderGridItem extends StatelessWidget {
           child: Card(
             color: isSelected ? Colors.blue.shade100 : Colors.grey.shade100,
             elevation: 2,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                   child: Row(
                     children: [
                       _buildMimeIcon(folder),
@@ -675,212 +674,221 @@ class _FolderGridItem extends StatelessWidget {
                       ),
                       isSelected == false
                           ? IconButton(
-                        icon: const Icon(Icons.more_vert),
-                        onPressed: () {
-                          showReusableBottomSheet(
-                            context,
-                            [
-                              BottomSheetOption(
-                                icon: Icons.person_add,
-                                title: "Share",
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (context) =>
-                                            ShareScreen(folder.id)),
-                                  );
-                                },
-                              ),
-                              BottomSheetOption(
-                                icon: Icons.manage_accounts,
-                                title: "Manage access",
-                                onTap: () => log("Manage access tapped"),
-                              ),
-                              BottomSheetOption(
-                                icon: folder.starred == true
-                                    ? Icons.star
-                                    : Icons.star_border,
-                                title: folder.starred == true
-                                    ? "Remove to Starred"
-                                    : "Add to Starred",
-                                onTap: () {
-                                  log('hii');
-
-                                  context.read<InsideBloc>().add(
-                                    InStarredData(
-                                        fileID: [folder.id],
-                                        selectedid: currentId,
-                                        isCurrentlyStarred:
-                                        folder.starred),
-                                  );
-                                },
-                              ),
-                              BottomSheetOption(
-                                icon: Icons.link,
-                                title: "Copy link",
-                                onTap: () {
-                                  Clipboard.setData(
-                                    ClipboardData(
-                                      text: folder.preview.toString(),
-                                    ),
-                                  );
-
-                                  Messenger.alertSuccess("Copied");
-                                },
-                              ),
-                              BottomSheetOption(
-                                icon: Icons.drive_file_rename_outline,
-                                title: "Rename",
-                                onTap: () async {
-                                  await showRenameDialog(
-                                    context: context,
-                                    initialName: folder.name,
-                                    onRename: (newName) {
-                                      context.read<InsideBloc>().add(
-                                        InRenameEvent(
-                                            selectedid: currentId,
-                                            fileIDs: [folder.id],
-                                            editedName: newName.trim()),
-                                      );
-                                    },
-                                  );
-                                },
-                              ),
-                              folder.type == "folder"
-                                  ? BottomSheetOption(
-                                icon: Icons.color_lens,
-                                title: "Change Color",
-                                onTap: () {
-                                  MyRouter.pop();
-
-                                  showDialog(
-                                    context: context,
-                                    builder: (context) {
-                                      return ColorPickerDialog(
-                                        onColorSelected: (hex) {
-                                          log("Selected Color: $hex");
-
-                                          context
-                                              .read<InsideBloc>()
-                                              .add(
-                                            InOrganizeEvent(
-                                                fileIDs: [
-                                                  folder.id
-                                                ],
-                                                pickedColor: hex,
-                                                selectedid:
-                                                currentId),
-                                          );
-                                        },
-                                      );
-                                    },
-                                  );
-                                },
-                              )
-                                  : BottomSheetOption(
-                                icon: Icons.file_copy,
-                                title: "Make a copy ",
-                                onTap: () {},
-                              ),
-                              BottomSheetOption(
-                                icon: Icons.drive_file_move,
-                                title: "Move",
-                                onTap: () {
-                                  MyRouter.pop();
-                                  MyRouter.push(
-                                      screen: MoveFileScreen(
-                                          movingFileId: folder.id));
-                                },
-                              ),
-                              BottomSheetOption(
-                                icon: Icons.turn_right_outlined,
-                                title: "Send a copy",
-                                onTap: () async {
-                                  await Future.delayed(
-                                    const Duration(milliseconds: 300),
-                                  );
-
-                                  final name = folder.name.trim();
-                                  final preview =
-                                      folder.preview?.toString().trim() ?? '';
-                                  log(folder.preview.toString());
-
-                                  final textToShare =
-                                  (name.isNotEmpty || preview.isNotEmpty)
-                                      ? "$name\n\n$preview"
-                                      : '';
-
-                                  if (textToShare.isNotEmpty) {
-                                    SharePlus.instance.share(
-                                      ShareParams(text: textToShare),
-                                    );
-                                  } else {
-                                    log("Nothing to share.");
-                                  }
-                                },
-                              ),
-                              BottomSheetOption(
-                                icon: Icons.info_outline,
-                                title: "Details & activity",
-                                onTap: () {
-                                  log("deatils");
-                                  MyRouter.push(
-                                    screen:
-                                    FileDetailScreen(fileID: folder.id),
-                                  );
-                                },
-                              ),
-                              BottomSheetOption(
-                                icon: Icons.file_download_outlined,
-                                title: "Download",
-                                onTap: () async {
-                                  log("Downloading: ${folder.name}");
-                                  log("File ID: ${folder.id}");
-                                  log("File Path: ${folder.preview ?? ''}");
-                                  log("MIME Type: ${folder.mimetype ?? folder.type}");
-
-                                  await FileDownloader.downloadFile(
-                                    fileId: folder.id,
-                                    filePath: folder.preview ?? '',
-                                    fileName: folder.name,
-                                    mimeType: folder.mimetype ?? folder.type,
-                                  );
-                                },
-                              ),
-                              BottomSheetOption(
-                                icon: Icons.delete,
-                                title: "Remove",
-                                onTap: () {
-                                  showMoveToBinDialog(context, () {
-                                    context.read<InsideBloc>().add(
-                                        InMoveToTrashEvent(
-                                            fileIDs: [folder.id],
-                                            selectedId: currentId));
-                                    Messenger.alertAction(
-                                      color: Colors.green,
-                                      msg: "Item moved to trash",
-                                      actionLabel: "Undo",
-                                      duration: const Duration(seconds: 2),
-                                      onAction: () {
-                                        context.read<InsideBloc>().add(
-                                          InRestoreEvent(
-                                              fileIDs: [folder.id]),
+                              icon: const Icon(Icons.more_vert),
+                              onPressed: () {
+                                showReusableBottomSheet(
+                                  context,
+                                  [
+                                    BottomSheetOption(
+                                      icon: Icons.person_add,
+                                      title: "Share",
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                              builder: (context) =>
+                                                  ShareScreen(folder.id)),
                                         );
                                       },
-                                    );
-                                  }, folder.name);
-                                },
-                              ),
-                            ],
-                            foldertype: folder.type,
-                            mimetype: folder.mimetype,
-                            title: folder.name,
-                          );
-                        },
-                        constraints: const BoxConstraints(),
-                        padding: EdgeInsets.zero,
-                      )
+                                    ),
+                                    BottomSheetOption(
+                                      icon: Icons.manage_accounts,
+                                      title: "Manage access",
+                                      onTap: () => log("Manage access tapped"),
+                                    ),
+                                    BottomSheetOption(
+                                      icon: folder.starred == true
+                                          ? Icons.star
+                                          : Icons.star_border,
+                                      title: folder.starred == true
+                                          ? "Remove to Starred"
+                                          : "Add to Starred",
+                                      onTap: () {
+                                        log('hii');
+
+                                        context.read<InsideBloc>().add(
+                                              InStarredData(
+                                                  fileID: [folder.id],
+                                                  selectedid: currentId,
+                                                  isCurrentlyStarred:
+                                                      folder.starred),
+                                            );
+                                      },
+                                    ),
+                                    BottomSheetOption(
+                                      icon: Icons.link,
+                                      title: "Copy link",
+                                      onTap: () {
+                                        Clipboard.setData(
+                                          ClipboardData(
+                                            text: folder.preview.toString(),
+                                          ),
+                                        );
+
+                                        Messenger.alertSuccess("Copied");
+                                      },
+                                    ),
+                                    BottomSheetOption(
+                                      icon: Icons.drive_file_rename_outline,
+                                      title: "Rename",
+                                      onTap: () async {
+                                        await showRenameDialog(
+                                          context: context,
+                                          initialName: folder.name,
+                                          onRename: (newName) {
+                                            context.read<InsideBloc>().add(
+                                                  InRenameEvent(
+                                                      selectedid: currentId,
+                                                      fileIDs: [folder.id],
+                                                      editedName:
+                                                          newName.trim()),
+                                                );
+                                          },
+                                        );
+                                      },
+                                    ),
+                                    folder.type == "folder"
+                                        ? BottomSheetOption(
+                                            icon: Icons.color_lens,
+                                            title: "Change Color",
+                                            onTap: () {
+                                              MyRouter.pop();
+
+                                              showDialog(
+                                                context: context,
+                                                builder: (context) {
+                                                  return ColorPickerDialog(
+                                                    onColorSelected: (hex) {
+                                                      log("Selected Color: $hex");
+
+                                                      context
+                                                          .read<InsideBloc>()
+                                                          .add(
+                                                            InOrganizeEvent(
+                                                                fileIDs: [
+                                                                  folder.id
+                                                                ],
+                                                                pickedColor:
+                                                                    hex,
+                                                                selectedid:
+                                                                    currentId),
+                                                          );
+                                                    },
+                                                  );
+                                                },
+                                              );
+                                            },
+                                          )
+                                        : BottomSheetOption(
+                                            icon: Icons.file_copy,
+                                            title: "Make a copy ",
+                                            onTap: () {},
+                                          ),
+                                    BottomSheetOption(
+                                      icon: Icons.drive_file_move,
+                                      title: "Move",
+                                      onTap: () {
+                                        MyRouter.pop();
+                                        MyRouter.push(
+                                            screen: MoveFileScreen(
+                                                movingFileId: folder.id));
+                                      },
+                                    ),
+                                    BottomSheetOption(
+                                      icon: Icons.turn_right_outlined,
+                                      title: "Send a copy",
+                                      onTap: () async {
+                                        await Future.delayed(
+                                          const Duration(milliseconds: 300),
+                                        );
+
+                                        final name = folder.name.trim();
+                                        final preview =
+                                            folder.preview?.toString().trim() ??
+                                                '';
+                                        log(folder.preview.toString());
+
+                                        final textToShare = (name.isNotEmpty ||
+                                                preview.isNotEmpty)
+                                            ? "$name\n\n$preview"
+                                            : '';
+
+                                        if (textToShare.isNotEmpty) {
+                                          SharePlus.instance.share(
+                                            ShareParams(text: textToShare),
+                                          );
+                                        } else {
+                                          log("Nothing to share.");
+                                        }
+                                      },
+                                    ),
+                                    BottomSheetOption(
+                                      icon: Icons.info_outline,
+                                      title: "Details & activity",
+                                      onTap: () {
+                                        log("deatils");
+                                        MyRouter.push(
+                                          screen: FileDetailScreen(
+                                              fileID: folder.id),
+                                        );
+                                      },
+                                    ),
+                                    BottomSheetOption(
+                                      icon: Icons.file_download_outlined,
+                                      title: "Download",
+                                      onTap: () async {
+                                        log("Downloading: ${folder.name}");
+                                        log("File ID: ${folder.id}");
+                                        log("File Path: ${folder.preview ?? ''}");
+                                        log("MIME Type: ${folder.mimetype ?? folder.type}");
+
+                                        await FileDownloader.downloadFile(
+                                          fileId: folder.id,
+                                          filePath: folder.preview ?? '',
+                                          fileName: folder.name,
+                                          mimeType:
+                                              folder.mimetype ?? folder.type,
+                                        );
+                                      },
+                                    ),
+                                    BottomSheetOption(
+                                      icon: Icons.delete,
+                                      title: "Move to bin",
+                                      onTap: () {
+                                        showMoveToBinDialog(context, () {
+                                          final insideBloc =
+                                              context.read<InsideBloc>();
+                                          insideBloc.add(InMoveToTrashEvent(
+                                              fileIDs: [folder.id],
+                                              selectedId: currentId));
+                                          Messenger.alertAction(
+                                            color: Colors.green,
+                                            msg: "Item moved to trash",
+                                            actionLabel: "Undo",
+                                            duration:
+                                                const Duration(seconds: 2),
+                                            onAction: () {
+                                              insideBloc.add(
+                                                InRestoreEvent(
+                                                    fileIDs: [folder.id],
+                                                    selectedId: currentId),
+                                              );
+                                            },
+                                          );
+                                        },
+                                            folder
+                                                .name); // using folder.name for the dialog message
+                                      },
+                                    ),
+                                  ],
+                                  foldertype: folder.type,
+                                  mimetype: folder.mimetype,
+                                  title: folder.name,
+                                );
+                              },
+                              constraints: const BoxConstraints(),
+                              padding: EdgeInsets.zero,
+                            )
                           : Icon(Icons.check_circle, color: chatColor),
                     ],
                   ),
@@ -888,53 +896,55 @@ class _FolderGridItem extends StatelessWidget {
                 Expanded(
                   child: folder.thumbnail != null
                       ? Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          folder.thumbnail!,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      folder.starred
-                          ? Positioned(
-                        top: 50,
-                        left: 150,
-                        child: Icon(Icons.star, color: Colors.amber),
-                      )
-                          : voidBox,
-                    ],
-                  )
+                          clipBehavior: Clip.none,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(
+                                folder.thumbnail!,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            folder.starred
+                                ? Positioned(
+                                    top: 50,
+                                    left: 150,
+                                    child:
+                                        Icon(Icons.star, color: Colors.amber),
+                                  )
+                                : voidBox,
+                          ],
+                        )
                       : Stack(
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade300,
-                          borderRadius: BorderRadius.circular(8),
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade300,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Center(
+                                child: Icon(
+                                  Icons.folder,
+                                  size: 40,
+                                  color: Colors.black54,
+                                ),
+                              ),
+                            ),
+                            folder.starred
+                                ? Positioned(
+                                    top: 50,
+                                    left: 150,
+                                    child:
+                                        Icon(Icons.star, color: Colors.amber),
+                                  )
+                                : voidBox,
+                          ],
                         ),
-                        child: const Center(
-                          child: Icon(
-                            Icons.folder,
-                            size: 40,
-                            color: Colors.black54,
-                          ),
-                        ),
-                      ),
-                      folder.starred
-                          ? Positioned(
-                        top: 50,
-                        left: 150,
-                        child: Icon(Icons.star, color: Colors.amber),
-                      )
-                          : voidBox,
-                    ],
-                  ),
                 ),
               ],
             ),
-          ),   // extracted existing Card
+          ), // extracted existing Card
         );
       },
     );
@@ -1004,7 +1014,8 @@ class _FolderListItem extends StatelessWidget {
     required this.isSelected,
     required this.isSelectionMode,
     required this.onLongPressStart,
-    required this.onTapSelect, required this.ontap,
+    required this.onTapSelect,
+    required this.ontap,
   });
 
   @override
@@ -1013,13 +1024,12 @@ class _FolderListItem extends StatelessWidget {
     final canDrag = isSelectionMode && isSelected;
     Widget child = DragTarget<FolderinsideModel>(
       onWillAccept: (dragged) {
-        if (!isFolder) return false;              // Only folders accept
+        if (!isFolder) return false; // Only folders accept
         if (dragged == null) return false;
         if (dragged.id == folder.id) return false; // Prevent self drop
         return true;
       },
       onAccept: ontap,
-
       builder: (context, candidateData, rejectedData) {
         final hovering = candidateData.isNotEmpty;
 
@@ -1044,13 +1054,12 @@ class _FolderListItem extends StatelessWidget {
                     gridview: isGridView,
                   ),
                 );
-              }
-              else {
+              } else {
                 MyRouter.push(
                     screen: FilePreviewScreen(
-                      fileUrl: folder.preview ?? "",
-                      fileName: folder.name,
-                    ));
+                  fileUrl: folder.preview ?? "",
+                  fileName: folder.name,
+                ));
               }
             },
             contentPadding: const EdgeInsets.symmetric(horizontal: 4),
@@ -1064,7 +1073,8 @@ class _FolderListItem extends StatelessWidget {
                   const Positioned(
                     right: 0,
                     bottom: 0,
-                    child: Icon(Icons.check_circle, color: Colors.blue, size: 18),
+                    child:
+                        Icon(Icons.check_circle, color: Colors.blue, size: 18),
                   ),
               ],
             ),
@@ -1075,31 +1085,32 @@ class _FolderListItem extends StatelessWidget {
             ),
             subtitle: folder.updatedAt.isNotEmpty
                 ? Row(
-              children: [
-                if (folder.starred)
-                  Icon(Icons.star, color: Colors.amber, size: 16),
-                Text(
-                  " Modified ${DateFormatter.formatToReadableDate(folder.updatedAt.toString())}",
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ],
-            )
+                    children: [
+                      if (folder.starred)
+                        Icon(Icons.star, color: Colors.amber, size: 16),
+                      Text(
+                        " Modified ${DateFormatter.formatToReadableDate(folder.updatedAt.toString())}",
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  )
                 : folder.labels.isNotEmpty
-                ? Wrap(
-              spacing: 2,
-              children: folder.labels
-                  .map(
-                    (label) => Chip(
-                  label: Text(label.name),
-                  backgroundColor: _parseColor(label.color, folder),
-                  labelStyle: const TextStyle(
-                    color: Colors.white,
-                  ),
-                ),
-              )
-                  .toList(),
-            )
-                : null,
+                    ? Wrap(
+                        spacing: 2,
+                        children: folder.labels
+                            .map(
+                              (label) => Chip(
+                                label: Text(label.name),
+                                backgroundColor:
+                                    _parseColor(label.color, folder),
+                                labelStyle: const TextStyle(
+                                  color: Colors.white,
+                                ),
+                              ),
+                            )
+                            .toList(),
+                      )
+                    : null,
             trailing: IconButton(
               onPressed: () {
                 showReusableBottomSheet(
@@ -1122,8 +1133,9 @@ class _FolderListItem extends StatelessWidget {
                       onTap: () => log("Manage access tapped"),
                     ),
                     BottomSheetOption(
-                      icon:
-                      folder.starred == true ? Icons.star : Icons.star_border,
+                      icon: folder.starred == true
+                          ? Icons.star
+                          : Icons.star_border,
                       title: folder.starred == true
                           ? "Remove to Starred"
                           : "Add to Starred",
@@ -1132,13 +1144,51 @@ class _FolderListItem extends StatelessWidget {
 
                         log(folder.starred.toString());
                         context.read<InsideBloc>().add(
-                          InStarredData(
-                              fileID: [folder.id],
-                              selectedid: currentId,
-                              isCurrentlyStarred: folder.starred),
-                        );
+                              InStarredData(
+                                  fileID: [folder.id],
+                                  selectedid: currentId,
+                                  isCurrentlyStarred: folder.starred),
+                            );
                       },
                     ),
+                    if (folder.type != "folder")
+                      BottomSheetOption(
+                        icon: Icons.open_with,
+                        title: "Open with",
+                        onTap: () {
+                          openWithSystemApps(folder.preview!);
+                          // Clipboard.setData(
+                          //   ClipboardData(text: file.preview.toString()),
+                          // );
+                          // Messenger.alertSuccess("Copied");
+                        },
+                      ),
+                    if (folder.type != "folder")
+                      BottomSheetOption(
+                        icon: Icons.ios_share_outlined,
+                        title: "Send a copy",
+                        onTap: () async {
+                          await Future.delayed(
+                              const Duration(milliseconds: 300));
+
+                          final name = folder.name.trim();
+                          final preview =
+                              folder.preview?.toString().trim() ?? '';
+
+                          final textToShare =
+                              (name.isNotEmpty || preview.isNotEmpty)
+                                  ? "$name\n\n$preview"
+                                  : '';
+
+                          if (textToShare.isNotEmpty) {
+                            await SharePlus.instance.share(
+                              ShareParams(text: textToShare),
+                            );
+                          } else {
+                            log("Nothing to share.");
+                          }
+                        },
+                      ),
                     BottomSheetOption(
                       icon: Icons.link,
                       title: "Copy link",
@@ -1161,46 +1211,46 @@ class _FolderListItem extends StatelessWidget {
                           initialName: folder.name,
                           onRename: (newName) {
                             context.read<InsideBloc>().add(
-                              InRenameEvent(
-                                  selectedid: currentId,
-                                  fileIDs: [folder.id],
-                                  editedName: newName.trim()),
-                            );
+                                  InRenameEvent(
+                                      selectedid: currentId,
+                                      fileIDs: [folder.id],
+                                      editedName: newName.trim()),
+                                );
                           },
                         );
                       },
                     ),
                     folder.type == "folder"
                         ? BottomSheetOption(
-                      icon: Icons.color_lens,
-                      title: "Change Color",
-                      onTap: () {
-                        MyRouter.pop();
+                            icon: Icons.color_lens,
+                            title: "Change Color",
+                            onTap: () {
+                              MyRouter.pop();
 
-                        showDialog(
-                          context: context,
-                          builder: (context) {
-                            return ColorPickerDialog(
-                              onColorSelected: (hex) {
-                                log("Selected Color: $hex");
+                              showDialog(
+                                context: context,
+                                builder: (context) {
+                                  return ColorPickerDialog(
+                                    onColorSelected: (hex) {
+                                      log("Selected Color: $hex");
 
-                                context.read<InsideBloc>().add(
-                                  InOrganizeEvent(
-                                      fileIDs: [folder.id],
-                                      pickedColor: hex,
-                                      selectedid: currentId),
-                                );
-                              },
-                            );
-                          },
-                        );
-                      },
-                    )
+                                      context.read<InsideBloc>().add(
+                                            InOrganizeEvent(
+                                                fileIDs: [folder.id],
+                                                pickedColor: hex,
+                                                selectedid: currentId),
+                                          );
+                                    },
+                                  );
+                                },
+                              );
+                            },
+                          )
                         : BottomSheetOption(
-                      icon: Icons.file_copy,
-                      title: "Make a copy ",
-                      onTap: () {},
-                    ),
+                            icon: Icons.file_copy,
+                            title: "Make a copy ",
+                            onTap: () {},
+                          ),
                     BottomSheetOption(
                       icon: Icons.drive_file_move,
                       title: "Move",
@@ -1210,34 +1260,20 @@ class _FolderListItem extends StatelessWidget {
                             screen: MoveFileScreen(movingFileId: folder.id));
                       },
                     ),
-                    BottomSheetOption(
-                      icon: Icons.turn_right_outlined,
-                      title: "Send a copy",
-                      onTap: () async {
-                        await Future.delayed(
-                          const Duration(milliseconds: 300),
-                        );
-
-                        final name = folder.name.trim();
-                        final preview = folder.preview?.toString().trim() ?? '';
-
-                        final textToShare =
-                        (name.isNotEmpty || preview.isNotEmpty)
-                            ? "$name\n\n$preview"
-                            : '';
-
-                        if (textToShare.isNotEmpty) {
-                          SharePlus.instance.share(
-                            ShareParams(text: textToShare),
+                    if (folder.type != "folder")
+                      BottomSheetOption(
+                        icon: Icons.drive_file_move_rounded,
+                        title: "Show file location",
+                        onTap: () {
+                          log("deatils");
+                          MyRouter.push(
+                            screen: FileDetailScreen(fileID: folder.id),
                           );
-                        } else {
-                          log("Nothing to share.");
-                        }
-                      },
-                    ),
+                        },
+                      ),
                     BottomSheetOption(
                       icon: Icons.info_outline,
-                      title: "Details & activity",
+                      title: "View information",
                       onTap: () {
                         log("deatils");
                         MyRouter.push(
@@ -1264,10 +1300,26 @@ class _FolderListItem extends StatelessWidget {
                     ),
                     BottomSheetOption(
                       icon: Icons.delete,
-                      title: "Remove",
+                      title: "Move to bin",
                       onTap: () {
-                        context.read<InsideBloc>().add(InMoveToTrashEvent(
-                            fileIDs: [folder.id], selectedId: currentId));
+                        showMoveToBinDialog(context, () {
+                          final insideBloc = context.read<InsideBloc>();
+                          insideBloc.add(InMoveToTrashEvent(
+                              fileIDs: [folder.id], selectedId: currentId));
+                          Messenger.alertAction(
+                            color: Colors.green,
+                            msg: "Item moved to trash",
+                            actionLabel: "Undo",
+                            duration: const Duration(seconds: 2),
+                            onAction: () {
+                              insideBloc.add(
+                                InRestoreEvent(
+                                    fileIDs: [folder.id],
+                                    selectedId: currentId),
+                              );
+                            },
+                          );
+                        }, folder.name);
                       },
                     ),
                   ],
@@ -1278,7 +1330,7 @@ class _FolderListItem extends StatelessWidget {
               },
               icon: const Icon(Icons.more_vert),
             ),
-          ),   // extracted existing Card
+          ), // extracted existing Card
         );
       },
     );
@@ -1286,7 +1338,6 @@ class _FolderListItem extends StatelessWidget {
     if (canDrag) {
       return LongPressDraggable<FolderinsideModel>(
         data: folder,
-
         feedback: Material(
           elevation: 6,
           borderRadius: BorderRadius.circular(12),
@@ -1303,7 +1354,6 @@ class _FolderListItem extends StatelessWidget {
             ),
           ),
         ),
-
         childWhenDragging: Opacity(opacity: 0.3, child: child),
         child: child,
       );
@@ -1325,13 +1375,12 @@ class _FolderListItem extends StatelessWidget {
               gridview: isGridView,
             ),
           );
-        }
-        else {
+        } else {
           MyRouter.push(
               screen: FilePreviewScreen(
-                fileUrl: folder.preview ?? "",
-                fileName: folder.name,
-              ));
+            fileUrl: folder.preview ?? "",
+            fileName: folder.name,
+          ));
         }
       },
       child: child,
@@ -1350,6 +1399,7 @@ Color _parseColor(String hexColor, FolderinsideModel folder) {
     return Colors.blue;
   }
 }
+
 Widget _buildMimeIcon(FolderinsideModel folder) {
   final type = folder.type?.toLowerCase() ?? "";
   final mime = folder.mimetype?.toLowerCase() ?? "";
@@ -1403,4 +1453,3 @@ Widget _buildMimeIcon(FolderinsideModel folder) {
 
   return Image.asset('assets/images/word.png', height: 24, width: 24);
 }
-

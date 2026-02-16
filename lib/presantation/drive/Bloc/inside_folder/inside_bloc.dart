@@ -137,7 +137,11 @@ class InsideBloc extends Bloc<InsideEvent, InsidefileState> {
     Emitter<InsidefileState> emit,
   ) async {
     await repository.restoreAll(fileIDs: event.fileIDs);
-    final updatedFolders = await repository.fetchTrash(sortBy: 'updatedAt');
+    final updatedFolders = await repository.fetchingupdatedFolders(
+        sortBy: 'updatedAt',
+        page: _page,
+        limit: _limit,
+        fileID: event.selectedId);
     emit(InsideLoaded(updatedFolders, _hasMore));
   }
 }

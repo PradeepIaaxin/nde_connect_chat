@@ -269,12 +269,24 @@ class FolderBloc extends Bloc<FolderEvent, FolderState> {
     try {
       await repository.restoreAll(fileIDs: event.fileIDs);
 
-      final updatedTrash = await repository.fetchTrash(sortBy: "updatedAt");
+      // Fetch updated shared folders
+      final updatedFolders = await repository.fetchStarredFolders(
+        sortBy: "name",
+        page: _page,
+        limit: _limit,
+      );
 
-      if (updatedTrash != null) {
-        emit(TrashLoaded(updatedTrash, _hasMore));
+      if (updatedFolders != null) {
+        // Update local cache
+        final foldersJson = updatedFolders.rows.map((f) => f.toJson()).toList();
+        await LocalSharredStorage.saveMessages(foldersJson);
+
+        // Update UI
+        _allFolders = updatedFolders.rows;
+        _hasMore = updatedFolders.rows.length == _limit;
+        emit(FolderLoaded(updatedFolders, _hasMore, ''));
       } else {
-        emit(FolderError("Failed to update trash list after restore."));
+        emit(FolderError("Failed to update folder list after restore."));
       }
     } catch (e) {
       emit(FolderError(e.toString()));
