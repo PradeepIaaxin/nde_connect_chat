@@ -608,13 +608,25 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
     final to = mailDetail.to.map((e) => e.address).where((e) => e.isNotEmpty);
     final body = _getCleanBodyContent(mailDetail);
 
-    final initialAttachments = mailDetail.attachments.map((att) {
+    final initialAttachments = mailDetail.files.map((file) {
+      // Find matching attachment to get 'related' (isInline) status
+      final matchingAttachment = mailDetail.attachments.firstWhere(
+        (att) => att.filename == file.filename,
+        orElse: () => Attachment(
+          id: '',
+          filename: '',
+          contentType: '',
+          related: false,
+          sizeKb: 0,
+        ),
+      );
+
       return UploadedAttachment(
-        id: att.id,
-        fileName: att.filename,
+        id: file.id, // Use the correct Server ID
+        fileName: file.filename,
         filePath: null,
-        isInline: att.related, // Changed from false to att.related
-        mimeType: att.contentType,
+        isInline: matchingAttachment.related,
+        mimeType: file.contentType,
       );
     }).toList();
 

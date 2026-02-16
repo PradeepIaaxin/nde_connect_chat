@@ -59,6 +59,8 @@ class ApiService {
     };
 
     try {
+      log("📤 Saving draft...");
+
       final response = await http.post(
         Uri.parse(url),
         headers: {
@@ -69,18 +71,37 @@ class ApiService {
         body: jsonEncode(body),
       );
 
+      log("Draft API Response: ${response.body}");
+
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = jsonDecode(response.body);
-        log(response.body.toString());
+
         if (responseData["success"] == true) {
-          return responseData["message"]["id"];
+          // Robustly find the ID
+          if (responseData.containsKey("id")) {
+            return responseData["id"];
+          } else if (responseData.containsKey("message") &&
+              responseData["message"] is Map &&
+              responseData["message"].containsKey("id")) {
+            return responseData["message"]["id"];
+          } else if (responseData.containsKey("data") &&
+              responseData["data"] is Map &&
+              responseData["data"].containsKey("id")) {
+            return responseData["data"]["id"];
+          }
+
+          // If we have success but no ID, it might be an update where ID didn't change?
+          // But usually we need the ID. Let's return null if we can't find it.
+          log("⚠️ Success true but no ID found in known headers");
         }
       } else if (response.statusCode == 401) {
         _handleUnauthorized();
-        throw Exception("Unauthorized access, logging out...");
+        throw Exception("Unauthorized");
       }
+
       return null;
     } catch (e) {
+      log("Error saving draft: $e");
       throw Exception("Failed to save draft: $e");
     }
   }
