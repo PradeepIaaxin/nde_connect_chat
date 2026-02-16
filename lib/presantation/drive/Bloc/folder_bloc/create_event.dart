@@ -14,14 +14,15 @@ class CreateFolderPressed extends CreateFolderEvent {
 class UploadFiles extends CreateFolderEvent {
   final PlatformFile? file;
   final String? parentId;
-
-  UploadFiles({required this.file, this.parentId});
+  final String fileName;
+  UploadFiles({required this.file, this.parentId, required this.fileName});
 }
 
 class ReplaceFiles extends CreateFolderEvent {
   final PlatformFile? file;
   final String? selectedOne;
   final String? parentId;
+  final String fileName;
 
-  ReplaceFiles({this.selectedOne, required this.file, this.parentId});
+  ReplaceFiles({this.selectedOne, required this.file, this.parentId, required this.fileName});
 }

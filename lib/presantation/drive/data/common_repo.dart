@@ -123,7 +123,8 @@ class FoldersRepository {
   Future<void> organized({
     required List<String> fileIDs,
     required String pickedColor,
-  }) async {
+  })
+  async {
     try {
       final headers = await _buildHeaders();
 
@@ -195,7 +196,8 @@ class FoldersRepository {
     required String permission,
     required bool notify,
     required String message,
-  }) async {
+  })
+  async {
     try {
       final headers = await _buildHeaders();
 
@@ -225,7 +227,8 @@ class FoldersRepository {
   Future<void> moveFileToFolder({
     required List<String> fileId,
     required String destinationId,
-  }) async {
+  })
+  async {
     try {
       final headers = await _buildHeaders();
 

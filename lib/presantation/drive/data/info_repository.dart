@@ -13,7 +13,8 @@ class MyInfoRepository {
     int page = 1,
     int limit = 80,
     String? fileId,
-  }) async {
+  })
+  async {
     try {
       final String? accessToken = await UserPreferences.getAccessToken();
       final String? defaultWorkspace =
