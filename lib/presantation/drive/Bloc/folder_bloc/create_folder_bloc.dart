@@ -98,9 +98,9 @@ class CreateFolderBloc extends Bloc<CreateFolderEvent, CreateFolderState> {
 
       MultipartFile toMultipartFile(PlatformFile file) {
         if (file.path != null) {
-          return MultipartFile.fromFileSync(file.path!, filename: file.name);
+          return MultipartFile.fromFileSync(file.path!, filename: event.fileName);
         } else if (file.bytes != null) {
-          return MultipartFile.fromBytes(file.bytes!, filename: file.name);
+          return MultipartFile.fromBytes(file.bytes!, filename: event.fileName);
         } else {
           throw Exception('File must have either path or bytes.');
         }
@@ -181,9 +181,9 @@ class CreateFolderBloc extends Bloc<CreateFolderEvent, CreateFolderState> {
 
       MultipartFile toMultipartFile(PlatformFile file) {
         if (file.path != null) {
-          return MultipartFile.fromFileSync(file.path!, filename: file.name);
+          return MultipartFile.fromFileSync(file.path!, filename:event.fileName);
         } else if (file.bytes != null) {
-          return MultipartFile.fromBytes(file.bytes!, filename: file.name);
+          return MultipartFile.fromBytes(file.bytes!, filename: event.fileName);
         } else {
           throw Exception('File must have either path or bytes.');
         }
