@@ -12,17 +12,21 @@ import 'package:nde_email/presantation/drive/Bloc/folder_bloc/create_event.dart'
 import 'package:nde_email/presantation/drive/Bloc/folder_bloc/create_folder_bloc.dart';
 import 'package:nde_email/presantation/drive/Bloc/folder_bloc/create_state.dart';
 import 'package:nde_email/presantation/drive/common/alertbox.dart';
-import 'package:nde_email/utils/router/router.dart';
-
-import '../Bloc/home_bloc/sugesstion/sugesstion_bloc.dart';
-import '../Bloc/home_bloc/sugesstion/sugesstion_event.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 
 class UploadToDriveScreen extends StatefulWidget {
   final List<PlatformFile>? selectedFiles;
   final String? parentId;
   final int? currentIndex;
   final bool isScanner;
-  const UploadToDriveScreen({super.key, this.selectedFiles, this.parentId, this.currentIndex,this.isScanner = false,});
+  const UploadToDriveScreen({
+    super.key,
+    this.selectedFiles,
+    this.parentId,
+    this.currentIndex,
+    this.isScanner = false,
+  });
 
   @override
   _UploadToDriveScreenState createState() => _UploadToDriveScreenState();
@@ -34,11 +38,13 @@ class _UploadToDriveScreenState extends State<UploadToDriveScreen> {
   String selectedLocation = 'My Drive';
 
   bool _isUploading = false;
-  bool isScanner = false;          // passed from previous screen
-  String scannerFormat = "pdf";    // pdf OR jpeg
+  bool isScanner = false; // passed from previous screen
+  String scannerFormat = "pdf"; // pdf OR jpeg
   @override
   void initState() {
     super.initState();
+    isScanner = widget.isScanner;
+
     if (widget.selectedFiles != null) {
       selectedFiles = widget.selectedFiles!;
       _initControllers();
@@ -47,7 +53,10 @@ class _UploadToDriveScreenState extends State<UploadToDriveScreen> {
 
   void _initControllers() {
     controllers = selectedFiles.map((file) {
-      final fileName = file.name;
+      var fileName = file.name;
+      if (isScanner) {
+        fileName = _replaceExtension(fileName, scannerFormat); // ✅ forces .pdf initially
+      }
       final dotIndex = fileName.lastIndexOf('.');
       if (dotIndex != -1) {
         final nameWithoutExt = fileName.substring(0, dotIndex);
@@ -78,12 +87,48 @@ class _UploadToDriveScreenState extends State<UploadToDriveScreen> {
     });
   }
 
+  String _replaceExtension(String name, String format) {
+    final base = name.split('.').first;
+
+    if (format == "pdf") {
+      return "$base.pdf";
+    } else {
+      return "$base.jpeg";
+    }
+  }
+
+  Future<Uint8List> createPdfFromImage(Uint8List imageBytes) async {
+    final pdf = pw.Document();
+
+    final image = pw.MemoryImage(imageBytes);
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        build: (pw.Context context) {
+          return pw.Center(
+            child: pw.Image(image, fit: pw.BoxFit.contain),
+          );
+        },
+      ),
+    );
+
+    return pdf.save();
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
+        leading: GestureDetector(
+          onTap: () {
+            showMoveToBinDialog(context);
+          },
+            child:Padding(
+              padding: const EdgeInsets.all(18.0),
+              child: Image.asset("assets/images/cancel_icon.png",width: 40,height: 40,),
+            )),
         iconTheme: const IconThemeData(color: Colors.black),
         title: const Text('Upload to Drive',
             style: TextStyle(color: Colors.black)),
@@ -91,29 +136,45 @@ class _UploadToDriveScreenState extends State<UploadToDriveScreen> {
           TextButton(
             onPressed: () async {
               if (selectedFiles.isEmpty) return;
-
               setState(() => _isUploading = true);
-
               try {
                 for (int i = 0; i < selectedFiles.length; i++) {
+
                   final file = selectedFiles[i];
                   final fileName = controllers[i].text.trim();
 
                   log('Uploading: $fileName');
+                  if (isScanner && scannerFormat == "pdf") {
+                    if (file.bytes == null) {
+                      log("Scanner PDF ERROR → No bytes found");
+                      continue;
+                    }
+                    final pdfBytes = await createPdfFromImage(file.bytes!);
 
-                  context.read<CreateFolderBloc>().add(
-                        UploadFiles(
-                          file: file,
-                          parentId: widget.parentId,
-                        ),
-                      );
+                    final pdfFile = PlatformFile(
+                      name: fileName,
+                      size: pdfBytes.length,
+                      bytes: pdfBytes,
+                    );
+
+                    context.read<CreateFolderBloc>().add(
+                      UploadFiles(
+                        file: pdfFile,
+                        parentId: widget.parentId,
+                        fileName: fileName,
+                      ),
+                    );
+                  }
+                  else {
+                    context.read<CreateFolderBloc>().add(
+                      UploadFiles(
+                        file: file,
+                        parentId: widget.parentId,
+                        fileName: fileName,
+                      ),
+                    );
+                  }
                 }
-
-              //  Future.delayed(Duration(seconds: 2));
-
-                // Close upload screen and refresh drive folders
-
-
               } catch (e) {
                 log("Upload failed: $e");
 
@@ -145,8 +206,7 @@ class _UploadToDriveScreenState extends State<UploadToDriveScreen> {
             log(">>>>>>.");
 
             context.read<MyDriveBloc>().add(FetchMyDriveFolders());
-            Navigator.pop(context,true);
-
+            Navigator.pop(context, true);
           }
           if (state is CreateFolderConflict) {
             showDialog(
@@ -154,18 +214,21 @@ class _UploadToDriveScreenState extends State<UploadToDriveScreen> {
               builder: (context) => FileConflictDialog(
                 title: "A file with this name already exists",
                 onConfirmed: (selectedOption) {
-                  for (final file in selectedFiles) {
+                  for (int i = 0; i < selectedFiles.length; i++) {
+                    final file = selectedFiles[i];
+
                     context.read<CreateFolderBloc>().add(
-                          ReplaceFiles(
-                            file: file,
-                            selectedOne:
-                                selectedOption == FileConflictOption.replace
-                                    ? "replace"
-                                    : "keepboth",
-                            parentId: widget.parentId ?? '',
-                          ),
-                        );
+                      ReplaceFiles(
+                        file: file,
+                        selectedOne: selectedOption == FileConflictOption.replace
+                            ? "replace"
+                            : "keepboth",
+                        parentId: widget.parentId ?? '',
+                        fileName: controllers[i].text.trim(),   // ✅ CRITICAL
+                      ),
+                    );
                   }
+
                 },
               ),
             );
@@ -217,7 +280,18 @@ class _UploadToDriveScreenState extends State<UploadToDriveScreen> {
                     return TextFormField(
                       controller: controllers[index],
                       readOnly: false,
-                     showCursor: true,
+                      showCursor: true,
+                      inputFormatters: isScanner
+                          ? [
+                              _ScannerFileNameFormatter(
+                                getExtension: () =>
+                                    scannerFormat == "pdf" ? ".pdf" : ".jpeg",
+                              ),
+                            ]
+                          : [
+                              FilteringTextInputFormatter.deny(
+                                  RegExp(r'[\\/:*?"<>|]')),
+                            ],
                       decoration: InputDecoration(
                         prefixIcon: const Icon(Icons.insert_drive_file,
                             color: Colors.red),
@@ -236,15 +310,20 @@ class _UploadToDriveScreenState extends State<UploadToDriveScreen> {
                         labelStyle: const TextStyle(color: Colors.black),
                       ),
                       style: const TextStyle(color: Colors.black),
-                      inputFormatters: [
-                        _FileNameWithExtensionFormatter(extension: ".$ext"),
-                        FilteringTextInputFormatter.deny(
-                            RegExp(r'[\\/:*?"<>|]')),
-                      ],
                       cursorColor: Colors.white,
                     );
                   },
                 ),
+              if (isScanner) ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    _formatButton("PDF", "pdf"),
+                    const SizedBox(width: 10),
+                    _formatButton("JPEG", "jpeg"),
+                  ],
+                ),
+              ],
               const SizedBox(height: 20),
               DropdownButtonFormField<String>(
                 initialValue: selectedLocation,
@@ -287,6 +366,40 @@ class _UploadToDriveScreenState extends State<UploadToDriveScreen> {
     );
   }
 
+  Widget _formatButton(String label, String format) {
+    final selected = scannerFormat == format;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            scannerFormat = format;
+
+            for (int i = 0; i < controllers.length; i++) {
+              controllers[i].text =
+                  _replaceExtension(controllers[i].text, format);
+            }
+          });
+        },
+        child: Container(
+          height: 45,
+          decoration: BoxDecoration(
+            color: selected ? Colors.black : Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? Colors.white : Colors.black,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildFilePreview(PlatformFile file) {
     final ext = file.extension?.toLowerCase();
     if ((ext == 'jpg' || ext == 'jpeg' || ext == 'png') && file.bytes != null) {
@@ -302,28 +415,105 @@ class _UploadToDriveScreenState extends State<UploadToDriveScreen> {
   }
 }
 
-class _FileNameWithExtensionFormatter extends TextInputFormatter {
-  final String extension;
 
-  _FileNameWithExtensionFormatter({required this.extension});
+class _ScannerFileNameFormatter extends TextInputFormatter {
+  final String Function() getExtension;
+
+  _ScannerFileNameFormatter({required this.getExtension});
 
   @override
   TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
-    if (extension.isEmpty) return newValue;
+      TextEditingValue oldValue,
+      TextEditingValue newValue,
+      ) {
+    final ext = getExtension();
 
-    final newText = newValue.text;
+    final base = newValue.text.split('.').first;
+    final corrected = "$base$ext";
 
-    if (!newText.endsWith(extension)) {
-      String base = newText.replaceAll(extension, '');
-      final corrected = base + extension;
-      final cursorPos = corrected.length - extension.length;
-
-      return TextEditingValue(
-        text: corrected,
-        selection: TextSelection.collapsed(offset: cursorPos),
-      );
-    }
-    return newValue;
+    return TextEditingValue(
+      text: corrected,
+      selection: TextSelection.collapsed(offset: base.length),
+    );
   }
+}
+
+void showMoveToBinDialog(BuildContext context) {
+  showDialog(
+    context: context,
+    barrierColor: Colors.black54, // dim background
+    builder: (context) {
+      return Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Align(
+          alignment: Alignment.center,
+          child: Container(
+            width: 350,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.all(Radius.circular(28)),
+            ),
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Cancel upload?",
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  "Your file won't be saved to Drive",
+                  maxLines: 2,
+                  style: const TextStyle(
+                    color: Colors.black87,
+                    fontSize: 15,
+                    height: 1.4,
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text(
+                        "Close",
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        Navigator.pop(context);
+                      },
+                      child: const Text(
+                        "Cancel upload",
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    },
+  );
 }

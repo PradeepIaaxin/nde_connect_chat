@@ -110,6 +110,7 @@ void displayBottomSheet(BuildContext context, String? fileid,int index) {
           selectedFiles: scannedFiles,
           parentId: fileid,
           currentIndex: index,
+          isScanner: true,
         ),
       ),
     );
