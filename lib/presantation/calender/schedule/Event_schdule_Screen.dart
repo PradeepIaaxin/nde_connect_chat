@@ -10,6 +10,7 @@ import 'package:nde_email/presantation/calender/bloc/event_bloc/event_all_state.
 import 'package:nde_email/presantation/calender/common/calender_bottom_sheet_deartils.dart';
 import 'package:nde_email/presantation/calender/common/task_creating.dart';
 import 'package:nde_email/presantation/calender/model/event_data_model.dart';
+import 'package:nde_email/utils/const/consts.dart';
 import 'package:nde_email/utils/router/router.dart';
 import 'package:table_calendar/table_calendar.dart';
 
@@ -55,7 +56,10 @@ class _EventsScheduleState extends State<EventsSchedule> {
     super.didUpdateWidget(oldWidget);
     if (!isSameDay(oldWidget.focusedDate, widget.focusedDate)) {
       _selectedDay = widget.focusedDate;
-      widget.listViewKey.currentState?.jumpToDate(widget.focusedDate);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        widget.listViewKey.currentState?.jumpToDate(widget.focusedDate);
+      });
     }
   }
 
@@ -185,12 +189,24 @@ class _EventsScheduleState extends State<EventsSchedule> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        const SizedBox(height: 8.0),
+        SizedBox(height: 8),
         _buildTableCalendar(),
-        const SizedBox(height: 4.0),
-        Divider(
-          color: Theme.of(context).colorScheme.outlineVariant,
-          height: 2,
+        SizedBox(height: 4),
+        BlocBuilder<CalendarEventBloc, CalendarEventState>(
+          builder: (context, state) {
+            if (state is CalendarEventLoading) {
+              return LinearProgressIndicator(
+                minHeight: 2,
+                color: chatColor,
+                backgroundColor: Colors.transparent,
+              );
+            } else {
+              return Divider(
+                color: Colors.transparent,
+                height: 2,
+              );
+            }
+          },
         ),
         Expanded(
           child: BlocConsumer<CalendarEventBloc, CalendarEventState>(
@@ -271,42 +287,31 @@ class _EventsScheduleState extends State<EventsSchedule> {
 
   Widget _buildTableCalendar() {
     return TableCalendar(
-      firstDay: _selectedDay.subtract(const Duration(days: 365)),
-      lastDay: _selectedDay.add(const Duration(days: 365)),
+      firstDay: DateTime.utc(2020, 1, 1),
+      lastDay: DateTime.utc(2100, 12, 31),
       focusedDay: _selectedDay,
       calendarFormat: CalendarFormat.week,
       selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
       onDaySelected: (selectedDay, focusedDay) {
-        if (mounted) {
-          setState(() {
-            _selectedDay = selectedDay;
-          });
-          widget.onDateChanged(selectedDay);
-          widget.listViewKey.currentState?.jumpToDate(selectedDay);
-        }
-      },
-      onPageChanged: (focusedDay) {
-        if (mounted) {
-          setState(() {
-            _selectedDay = focusedDay;
-          });
-        }
+        final normalized =
+            DateTime(selectedDay.year, selectedDay.month, selectedDay.day);
+        if (isSameDay(_selectedDay, normalized)) return;
+
+        setState(() => _selectedDay = normalized);
+        widget.onDateChanged(normalized);
+        widget.listViewKey.currentState?.jumpToDate(normalized);
       },
       headerVisible: false,
       weekNumbersVisible: true,
-      headerStyle: const HeaderStyle(
-        formatButtonVisible: false,
-        titleCentered: true,
-      ),
       calendarStyle: CalendarStyle(
+        todayTextStyle: TextStyle(color: chatColor),
         outsideDaysVisible: true,
-        markerSize: 7,
         todayDecoration: BoxDecoration(
-          color: Colors.blueGrey,
+          border: Border.all(color: chatColor),
           shape: BoxShape.circle,
         ),
         selectedDecoration: BoxDecoration(
-          color: Colors.blue,
+          color: chatColor,
           shape: BoxShape.circle,
         ),
       ),
@@ -388,60 +393,142 @@ class _EventsScheduleState extends State<EventsSchedule> {
       key: widget.listViewKey,
       controller: widget.controller,
       dayEventsBuilder: (day, events) {
+        final dayStart = DateTime(day.year, day.month, day.day);
+        final dayEnd = dayStart.add(const Duration(days: 1));
+
+        final dayEvents = events?.where((e) {
+          return e.startTime != null &&
+              e.endTime != null &&
+              e.startTime!.isBefore(dayEnd) &&
+              e.endTime!.isAfter(dayStart);
+        }).toList();
+
         return DefaultDayEvents(
-          events: events,
-          nullEventsWidget: GestureDetector(
-            onTap: () {
-              MyRouter.push(screen: AddTaskScreen());
-            },
-            child: SizedBox(
-              width: double.infinity,
-              child: Container(
-                alignment: Alignment.centerLeft,
-                padding:
-                    const EdgeInsets.symmetric(vertical: 24, horizontal: 10),
-                child: Text(
-                  'No Events',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(color: Colors.grey),
-                ),
-              ),
+          eventSeparator: const Padding(padding: EdgeInsets.only(top: 1)),
+          events: dayEvents,
+          nullEventsWidget: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(26),
+              child:
+                  Text('No Events', style: TextStyle(color: Colors.grey[500])),
             ),
           ),
-          eventBuilder: (event) => DefaultDetailEvent(
-            event: event,
-            onTap: () {
-              final calendarEvent = event.data as CalendarEvent?;
-              if (calendarEvent != null) {
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  shape: const RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.vertical(top: Radius.circular(20)),
-                  ),
-                  builder: (_) =>
-                      CalendarEventDetailsSheet(calendarEvent: calendarEvent),
-                );
-              } else {
-                MyRouter.push(screen: AddTaskScreen());
-              }
-            },
-          ),
+          eventBuilder: (event) => _buildCustomEventItem(event),
         );
       },
       onDayChange: (firstDay) {
-        if (mounted) {
-          setState(() {
-            _selectedDay = firstDay;
-          });
-          widget.onDateChanged(firstDay);
+        final normalized =
+            DateTime(firstDay.year, firstDay.month, firstDay.day);
+        if (!isSameDay(_selectedDay, normalized)) {
+          setState(() => _selectedDay = normalized);
+          widget.onDateChanged(normalized);
         }
       },
-      dayHeaderBuilder: (day, isToday, events) => DefaultHeader(
-        dayText: DateFormat.MMMMEEEEd().format(day).toUpperCase(),
+      dayHeaderBuilder: (day, isToday, events) => Container(
+        width: double.infinity,
+        height: 35,
+        color: chatColor.withOpacity(0.1),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        child: Text(
+          DateFormat.MMMMEEEEd().format(day).toUpperCase(),
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.9),
+            letterSpacing: 0.5,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCustomEventItem(Event event) {
+    final calendarEvent = event.data as CalendarEvent?;
+    final bool isCompleted = calendarEvent?.completed ?? false;
+
+    return GestureDetector(
+      onTap: () {
+        if (calendarEvent != null) {
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            builder: (_) =>
+                CalendarEventDetailsSheet(calendarEvent: calendarEvent),
+          );
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: event.color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: event.color.withOpacity(0.3), width: 1),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 4,
+              height: 40,
+              decoration: BoxDecoration(
+                color: event.color,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    event.title ?? 'Untitled Event',
+                    style: TextStyle(
+                      decoration: isCompleted
+                          ? TextDecoration.lineThrough
+                          : TextDecoration.none,
+                      decorationThickness: 3,
+                      decorationColor: event.color,
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontSize: 14,
+                      fontWeight:
+                          isCompleted ? FontWeight.normal : FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (event.description != null &&
+                      event.description!.isNotEmpty)
+                    Text(
+                      event.description!,
+                      style: TextStyle(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withOpacity(0.7),
+                        fontSize: 12,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${DateFormat('HH:mm').format(event.startTime)} - ${DateFormat('HH:mm').format(event.endTime ?? event.startTime.add(const Duration(hours: 1)))}',
+                    style: TextStyle(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withOpacity(0.6),
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

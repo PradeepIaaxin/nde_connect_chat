@@ -426,13 +426,21 @@ class _MailListScreenState extends State<MailListScreen> {
           }
 
           if (state.status == MailListStatus.error) {
+            final errorMessage = state.errorMessage ?? 'Something went wrong';
+            final isNetworkError = errorMessage.contains('SocketException') ||
+                errorMessage.contains('Failed host lookup') ||
+                errorMessage.contains('Network') ||
+                errorMessage.contains('Connection');
+
             return Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   ErrorDisplay(
-                    message: state.errorMessage ?? 'Something went wrong',
-                    type: ErrorType.somethingwrong,
+                    message: isNetworkError ? 'No internet connection' : errorMessage,
+                    type: isNetworkError
+                        ? ErrorType.noInternet
+                        : ErrorType.somethingwrong,
                   ),
                   const SizedBox(height: 12),
                   ElevatedButton(
