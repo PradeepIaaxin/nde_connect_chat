@@ -26,11 +26,24 @@ class DrawerMenu extends StatefulWidget {
 class _DrawerMenuState extends State<DrawerMenu> {
   FileStorageResponse? storageData;
   final double totalCapacity = 5 * 1024 * 1024 * 1024;
+  int _selectedIndex = -1;
+  String? userName;
+
+  Future<void> _loadUserData() async {
+    final name = await UserPreferences.getUsername();
+
+    if (mounted) {
+      setState(() {
+        userName = name ?? "Unknown User";
+      });
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     _loadStorageStats();
+    _loadUserData();
   }
 
   Future<FileStorageResponse> fetchFileStats() async {
@@ -133,8 +146,9 @@ class _DrawerMenuState extends State<DrawerMenu> {
             child: ListView(
               padding: EdgeInsets.zero,
               children: [
-                const _DrawerHeader(),
-                const Divider(),
+                _DrawerHeader(
+                  userName: userName ?? "Unknown User",
+                ),
                 _buildDrawerItems(iconSize),
                 _buildAdditionalItems(iconSize),
                 if (storageData != null) ...[
@@ -160,40 +174,56 @@ class _DrawerMenuState extends State<DrawerMenu> {
     return Column(
       children: [
         _drawerItem(
+          index: 0,
           icon: Icons.access_time,
           title: "Recent",
           iconSize: iconSize,
           onTap: () {
             Navigator.pop(context);
-            Navigator.push(context,
-                MaterialPageRoute(builder: (context) => const RecentScreen()));
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const RecentScreen(),
+              ),
+            );
           },
         ),
         _drawerItem(
-            icon: Icons.upload_file_outlined,
-            title: "Uploads",
-            iconSize: iconSize,
-            onTap: () {}),
+          index: 1,
+          icon: Icons.upload_file_outlined,
+          title: "Uploads",
+          iconSize: iconSize,
+          onTap: () {},
+        ),
         _drawerItem(
-            icon: Icons.offline_pin_outlined,
-            title: "Offline",
-            iconSize: iconSize,
-            onTap: () {}),
+          index: 2,
+          icon: Icons.offline_pin_outlined,
+          title: "Offline",
+          iconSize: iconSize,
+          onTap: () {},
+        ),
         _drawerItem(
+          index: 3,
           icon: Icons.delete_outline,
           title: "Trash",
           iconSize: iconSize,
           onTap: () {
             Navigator.pop(context);
-            Navigator.push(context,
-                MaterialPageRoute(builder: (context) => const TrashScreen()));
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const TrashScreen(),
+              ),
+            );
           },
         ),
         _drawerItem(
-            icon: Icons.report_problem_outlined,
-            title: "Spam",
-            iconSize: iconSize,
-            onTap: () {}),
+          index: 4,
+          icon: Icons.report_problem_outlined,
+          title: "Spam",
+          iconSize: iconSize,
+          onTap: () {},
+        ),
       ],
     );
   }
@@ -202,28 +232,39 @@ class _DrawerMenuState extends State<DrawerMenu> {
     return Column(
       children: [
         _drawerItem(
-            icon: Icons.backup_outlined,
-            title: "Backups",
-            iconSize: iconSize,
-            onTap: () {}),
+          index: 5,
+          icon: Icons.backup_outlined,
+          title: "Backups",
+          iconSize: iconSize,
+          onTap: () {},
+        ),
         _drawerItem(
-            icon: Icons.settings_outlined,
-            title: "Settings",
-            iconSize: iconSize,
-            onTap: () {}),
+          index: 6,
+          icon: Icons.settings_outlined,
+          title: "Settings",
+          iconSize: iconSize,
+          onTap: () {},
+        ),
         _drawerItem(
-            icon: Icons.help_outline_outlined,
-            title: "Help & feedback",
-            iconSize: iconSize,
-            onTap: () {}),
+          index: 7,
+          icon: Icons.help_outline_outlined,
+          title: "Help & feedback",
+          iconSize: iconSize,
+          onTap: () {},
+        ),
         _drawerItem(
+          index: 8,
           icon: Icons.cloud_outlined,
           title: "Storage",
           iconSize: iconSize,
           onTap: () {
             Navigator.pop(context);
-            Navigator.push(context,
-                MaterialPageRoute(builder: (context) => const StorageScreen()));
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const StorageScreen(),
+              ),
+            );
           },
         ),
       ],
@@ -231,45 +272,108 @@ class _DrawerMenuState extends State<DrawerMenu> {
   }
 
   Widget _drawerItem({
+    required int index,
     required IconData icon,
     required String title,
     required double iconSize,
     required VoidCallback onTap,
   }) {
-    return ListTile(
-      leading: Icon(icon, color: Colors.grey.shade700, size: iconSize),
-      title: Text(
-        title,
-        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+    final bool isSelected = _selectedIndex == index;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      child: Material(
+        color: isSelected
+            ? AppColors.iconActive.withValues(alpha: 0.12)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(24),
+        clipBehavior: Clip.antiAlias,
+        child: ListTile(
+          dense: true,
+          leading: Icon(
+            icon,
+            size: iconSize,
+            color: isSelected ? AppColors.iconActive : Colors.grey.shade700,
+          ),
+          title: Text(
+            title,
+            style: TextStyle(
+              fontSize: 14.5,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              color: isSelected ? AppColors.iconActive : Colors.black87,
+            ),
+          ),
+          onTap: () {
+            setState(() {
+              _selectedIndex = index;
+            });
+
+            onTap();
+          },
+        ),
       ),
-      onTap: onTap,
     );
   }
 }
 
 class _DrawerHeader extends StatelessWidget {
-  const _DrawerHeader();
+  final String userName;
+
+  const _DrawerHeader({
+    required this.userName,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 24, top: 30, bottom: 10),
-      child: Row(
-        children: [
-          RichText(
-            text: TextSpan(
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              children: [
-                TextSpan(text: 'Nde', style: TextStyle(color: chatColor)),
-                const TextSpan(
-                  text: " Drive",
-                  style: TextStyle(fontSize: 20, color: Colors.black87),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // 👉 Name + App
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      userName,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    RichText(
+                      text: TextSpan(
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        children: [
+                          TextSpan(
+                            text: "Nde ",
+                            style: TextStyle(color: chatColor),
+                          ),
+                          const TextSpan(
+                            text: "Drive",
+                            style: TextStyle(color: Colors.black87),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+
+        // 👉 Bottom divider
+        const Divider(height: 1, thickness: 1),
+      ],
     );
   }
 }

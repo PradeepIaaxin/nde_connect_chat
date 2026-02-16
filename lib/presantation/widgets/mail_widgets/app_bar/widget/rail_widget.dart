@@ -20,7 +20,6 @@ class RailItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     final bool isSelected = selectedIndex != -1 && index == selectedIndex;
 
     return Padding(
@@ -50,9 +49,12 @@ class RailItem extends StatelessWidget {
               margin: const EdgeInsets.only(left: 8),
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: isSelected
+                color: imagePath == null
                     ? chatColor.withValues(alpha: 0.12)
                     : Colors.transparent,
+                // color: isSelected
+                //     ? chatColor.withValues(alpha: 0.12)
+                //     : Colors.transparent,
                 borderRadius: BorderRadius.circular(12),
               ),
 

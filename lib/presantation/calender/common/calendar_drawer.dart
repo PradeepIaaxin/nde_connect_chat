@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nde_email/data/respiratory.dart';
 import 'package:nde_email/presantation/calender/bloc/event_bloc/event_all_bloc.dart';
 import 'package:nde_email/presantation/calender/bloc/event_bloc/event_all_event.dart';
 import 'package:nde_email/presantation/calender/bloc/event_bloc/event_all_state.dart';
@@ -34,11 +35,23 @@ class CalendarDrawer extends StatefulWidget {
 class _CalendarDrawerState extends State<CalendarDrawer> {
   final Map<String, bool> _calendarStates = {};
   bool _initialLoadComplete = false;
+  String? userName;
+
+  Future<void> _loadUser() async {
+    final name = await UserPreferences.getUsername();
+
+    if (mounted) {
+      setState(() {
+        userName = name ?? "Unknown User";
+      });
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     _loadCalendars();
+    _loadUser();
   }
 
   void _loadCalendars() {
@@ -52,7 +65,7 @@ class _CalendarDrawerState extends State<CalendarDrawer> {
     return BlocConsumer<CalendarEventBloc, CalendarEventState>(
       listener: (context, state) {
         if (state is CalendarEventError) {
-          Messenger.alertError('state.message');
+          Messenger.alertError(state.message);
         } else if (state is CalendarCombinedLoaded) {
           _initialLoadComplete = true;
           _initializeSelectionStates(state);
@@ -278,22 +291,54 @@ class _CalendarDrawerState extends State<CalendarDrawer> {
   }
 
   Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.only(left: 24, top: 30, bottom: 10),
-      child: Row(
-        children: [
-          RichText(
-            text: TextSpan(
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              children: [
-                TextSpan(text: 'Nde', style: TextStyle(color: chatColor)),
-                const TextSpan(
-                    text: " Drive", style: TextStyle(color: Colors.black54)),
-              ],
-            ),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      userName ?? "Unknown User",
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+
+                    const SizedBox(height: 2),
+
+                    // Nde Drive
+                    RichText(
+                      text: TextSpan(
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        children: [
+                          TextSpan(
+                            text: "Nde ",
+                            style: TextStyle(color: chatColor),
+                          ),
+                          const TextSpan(
+                            text: "Calendar",
+                            style: TextStyle(color: Colors.black87),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -315,25 +360,34 @@ class _CalendarDrawerState extends State<CalendarDrawer> {
     CalendarViewType? viewType,
   }) {
     final isSelected = widget.currentView == viewType;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(35),
-          color: isSelected ? chatColor.withValues(alpha:0.3) : null,
-        ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      child: Material(
+        color:
+            isSelected ? chatColor.withValues(alpha: 0.18) : Colors.transparent,
+        borderRadius: BorderRadius.circular(35),
+        clipBehavior: Clip.antiAlias,
         child: ListTile(
-          leading: Icon(icon, color: Colors.black, size: 23),
+          dense: true,
+          leading: Icon(
+            icon,
+            size: 23,
+            color: isSelected ? chatColor : Colors.black87,
+          ),
           title: Text(
             title,
             style: TextStyle(
               fontSize: 14,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-              color: Colors.black,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              color: isSelected ? chatColor : Colors.black,
             ),
           ),
-          onTap: () =>
-              widget.onViewChanged(viewType ?? CalendarViewType.schedule),
+          splashColor: chatColor.withValues(alpha: 0.12),
+          hoverColor: chatColor.withValues(alpha: 0.06),
+          onTap: () => widget.onViewChanged(
+            viewType ?? CalendarViewType.schedule,
+          ),
         ),
       ),
     );

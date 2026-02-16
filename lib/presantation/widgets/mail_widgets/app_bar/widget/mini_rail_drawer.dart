@@ -1,13 +1,14 @@
+import 'package:nde_email/presantation/calender/common/calendar_drawer.dart';
+import 'package:nde_email/presantation/calender/schedule/calendar_screen.dart';
 import 'package:nde_email/presantation/drive/common/drawer.dart';
+import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/drawer.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/widget/rail_widget.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/bottam_nav/bottam_nav_bloc.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/bottam_nav/bottom_nav_event.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar_bloc.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar_event.dart';
-import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/app_bar_state.dart';
-import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/mailbox_model.dart';
-import 'package:nde_email/presantation/mail/mail_list/bloc/mail_list_bloc.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
+import 'package:nde_email/utils/reusbale/profile_avatar.dart';
 
 class MiniRailDrawer extends StatefulWidget {
   final VoidCallback onMailTap;
@@ -17,6 +18,8 @@ class MiniRailDrawer extends StatefulWidget {
   final String? userName;
   final String selectedModule;
   final String? profilePicUrl;
+  final CalendarViewType? calendarView;
+  final Function(CalendarViewType)? onCalendarViewChanged;
 
   const MiniRailDrawer({
     super.key,
@@ -27,6 +30,8 @@ class MiniRailDrawer extends StatefulWidget {
     required this.selectedModule,
     this.userName,
     this.profilePicUrl,
+    this.calendarView,
+    this.onCalendarViewChanged,
   });
 
   @override
@@ -36,6 +41,7 @@ class MiniRailDrawer extends StatefulWidget {
 class _MiniRailDrawerState extends State<MiniRailDrawer> {
   bool _showMailboxes = false;
   bool _showDrivePanel = false;
+  bool _showCalendarPanel = false;
 
   Timer? _navigationDebounceTimer;
 
@@ -55,12 +61,12 @@ class _MiniRailDrawerState extends State<MiniRailDrawer> {
     super.dispose();
   }
 
-  /// ================= TAB SELECT =================
   void _selectTab(BuildContext context, int index) {
     if (index == 0) {
       setState(() {
         _showMailboxes = !_showMailboxes;
         _showDrivePanel = false;
+        _showCalendarPanel = false;
       });
 
       if (_showMailboxes) {
@@ -71,6 +77,13 @@ class _MiniRailDrawerState extends State<MiniRailDrawer> {
       setState(() {
         _showDrivePanel = !_showDrivePanel;
         _showMailboxes = false;
+        _showCalendarPanel = false;
+      });
+    } else if (index == 5) {
+      setState(() {
+        _showCalendarPanel = !_showCalendarPanel;
+        _showMailboxes = false;
+        _showDrivePanel = false;
       });
     } else if (index == 2) {
       Navigator.pop(context);
@@ -110,7 +123,8 @@ class _MiniRailDrawerState extends State<MiniRailDrawer> {
   @override
   Widget build(BuildContext context) {
     return Drawer(
-      width: (_showMailboxes || _showDrivePanel) ? 320 : 85,
+      width:
+          (_showMailboxes || _showDrivePanel || _showCalendarPanel) ? 320 : 85,
       backgroundColor: Colors.white,
       child: SafeArea(
         child: Row(
@@ -124,16 +138,10 @@ class _MiniRailDrawerState extends State<MiniRailDrawer> {
                   const SizedBox(height: 16),
 
                   /// PROFILE
-                  GestureDetector(
-                    onTap: () => Scaffold.of(context).openEndDrawer(),
-                    child: widget.profilePicUrl != null &&
-                            widget.profilePicUrl!.isNotEmpty
-                        ? CircleAvatar(
-                            radius: 22,
-                            backgroundImage:
-                                NetworkImage(widget.profilePicUrl!),
-                          )
-                        : _fallbackAvatar(),
+                  ProfileAvatar(
+                    profilePicUrl: widget.profilePicUrl,
+                    userName: widget.userName,
+                    onTap: () {},
                   ),
 
                   const SizedBox(height: 24),
@@ -155,6 +163,15 @@ class _MiniRailDrawerState extends State<MiniRailDrawer> {
                       index: 4,
                       selectedIndex: _showDrivePanel ? 4 : -1,
                       onTap: () => _selectTab(context, 4),
+                    ),
+
+                  /// CALENDAR
+                  if (widget.selectedModule == "calendar")
+                    RailItem(
+                      icon: Icons.calendar_month_outlined,
+                      index: 5,
+                      selectedIndex: _showCalendarPanel ? 5 : -1,
+                      onTap: () => _selectTab(context, 5),
                     ),
 
                   /// CRM (IMAGE ICON)
@@ -201,42 +218,7 @@ class _MiniRailDrawerState extends State<MiniRailDrawer> {
                       left: BorderSide(color: Colors.grey.shade300),
                     ),
                   ),
-                  child: BlocBuilder<AppBarBloc, AppBarState>(
-                    builder: (context, state) {
-                      if (state is AppBarLoading) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-
-                      if (state is AppBarMailboxesLoaded) {
-                        final folders = [
-                          ...state.inbox,
-                          ...state.archive,
-                          ...state.drafts,
-                          ...state.junk,
-                          ...state.sent,
-                          ...state.trash,
-                        ];
-
-                        return ListView(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          children: [
-                            _header("Mail", "NDE Connect"),
-                            const Divider(height: 1),
-                            const SizedBox(height: 6),
-                            _section("Folders"),
-                            ...folders.map(_mailboxTile),
-                            const SizedBox(height: 12),
-                            _section("Labels"),
-                            ...state.other.map(_labelTile),
-                          ],
-                        );
-                      }
-
-                      return const Center(
-                        child: Text("Unable to load mailboxes"),
-                      );
-                    },
-                  ),
+                  child: const CustomDrawer(),
                 ),
               ),
 
@@ -253,161 +235,26 @@ class _MiniRailDrawerState extends State<MiniRailDrawer> {
                   child: const DrawerMenu(),
                 ),
               ),
-          ],
-        ),
-      ),
-    );
-  }
 
-  /// ================= COMMON =================
-
-  Widget _header(String title, String sub) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title,
-              style:
-                  const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 2),
-          Text(sub,
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-        ],
-      ),
-    );
-  }
-
-  Widget _section(String title) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
-      child: Text(
-        title.toUpperCase(),
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: Colors.grey.shade600,
-        ),
-      ),
-    );
-  }
-
-  Widget _driveTile(IconData icon, String title) {
-    return InkWell(
-      onTap: () => Navigator.pop(context),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: Row(
-          children: [
-            Icon(icon, size: 20, color: Colors.grey.shade700),
-            const SizedBox(width: 12),
-            Expanded(child: Text(title)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _fallbackAvatar() {
-    return CircleAvatar(
-      radius: 22,
-      backgroundColor: AppColors.profile,
-      child: Text(
-        widget.userName != null && widget.userName!.isNotEmpty
-            ? widget.userName![0].toUpperCase()
-            : "U",
-        style:
-            const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-      ),
-    );
-  }
-
-  /// ================= MAILBOX TILE =================
-
-  Widget _mailboxTile(Mailbox mailbox) {
-    final isSelected = mailbox.id == widget.selectedMailboxId;
-
-    final isDraft = mailbox.name.toLowerCase().contains("draft");
-
-    final count = isDraft
-        ? mailbox.total
-        : context.read<MailListBloc>().state.unreadCountByMailbox[mailbox.id] ??
-            mailbox.unseen;
-
-    return InkWell(
-      onTap: () {
-        Navigator.pop(context);
-        widget.onMailboxSelected(mailbox.id, mailbox.name);
-      },
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color:
-              isSelected ? AppColors.iconActive.withValues(alpha: 0.1) : null,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              mailboxIcons[mailbox.name.toLowerCase()] ?? Icons.folder_outlined,
-              size: 20,
-              color: isSelected ? AppColors.iconActive : Colors.grey.shade700,
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Text(mailbox.name)),
-            if (count > 0)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.iconActive,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  count > 99 ? "99+" : "$count",
-                  style: const TextStyle(fontSize: 11, color: Colors.white),
-                ),
+            /// ================= CALENDAR PANEL =================
+            if (_showCalendarPanel)
+              Expanded(
+                child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      border: Border(
+                        left: BorderSide(color: Colors.grey.shade300),
+                      ),
+                    ),
+                    child: CalendarDrawer(
+                      currentView:
+                          widget.calendarView ?? CalendarViewType.schedule,
+                      onViewChanged: (view) {
+                        Navigator.pop(context);
+                        widget.onCalendarViewChanged?.call(view);
+                      },
+                    )),
               ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _labelTile(Mailbox mailbox) {
-    final isSelected = mailbox.id == widget.selectedMailboxId;
-
-    Color color = Colors.grey;
-    if (mailbox.color.startsWith("#")) {
-      color = Color(int.parse(mailbox.color.replaceAll("#", "0xff")));
-    }
-
-    return InkWell(
-      onTap: () {
-        Navigator.pop(context);
-        widget.onMailboxSelected(mailbox.id, mailbox.name);
-      },
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color:
-              isSelected ? AppColors.iconActive.withValues(alpha: 0.1) : null,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(
-                color: color,
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Text(mailbox.name)),
           ],
         ),
       ),

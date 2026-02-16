@@ -79,7 +79,7 @@ class _CustomAppBarState extends State<CustomAppBar> {
                     child: TextField(
                       readOnly: true,
                       decoration: const InputDecoration(
-                        hintText: 'Search...',
+                        hintText: '  Search...',
                         hintStyle: TextStyle(
                           color: AppColors.secondaryText,
                           fontSize: 14.5,

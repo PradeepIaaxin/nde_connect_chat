@@ -25,6 +25,8 @@ class ProfileAvatar extends StatelessWidget {
             ? ClipOval(
                 child: CachedNetworkImage(
                   imageUrl: profilePicUrl!,
+                  memCacheWidth: 480,
+                  memCacheHeight: 600,
                   width: 40,
                   height: 40,
                   fit: BoxFit.cover,

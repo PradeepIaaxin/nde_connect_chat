@@ -11,12 +11,10 @@ import 'package:nde_email/presantation/calender/month/month_view.dart';
 import 'package:nde_email/presantation/calender/schedule/event_schdule_screen.dart';
 import 'package:nde_email/presantation/calender/schedule/event_planner_date_view.dart';
 import 'package:nde_email/presantation/calender/schedule/task_view_screen.dart';
+import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/widget/mini_rail_drawer.dart';
 import 'package:nde_email/utils/const/consts.dart';
 import 'package:nde_email/utils/reusbale/endrawer.dart';
-import 'package:nde_email/utils/reusbale/profile_avatar.dart';
 import 'package:nde_email/utils/router/router.dart';
-
-import '../common/calendar_drawer.dart';
 
 enum CalendarViewType { schedule, day, threeDay, week, month }
 
@@ -125,13 +123,28 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      drawer: CalendarDrawer(
-        currentView: _currentView,
-        onViewChanged: (view) {
-          Navigator.pop(context);
+      drawer: MiniRailDrawer(
+        selectedModule: "calendar",
+        onMailTap: () {},
+        selectedIndex: -1,
+        selectedMailboxId: "",
+        onMailboxSelected: (_, __) {},
+        userName: userName,
+        profilePicUrl: profilePicUrl,
+        calendarView: _currentView,
+        onCalendarViewChanged: (view) {
           setState(() => _currentView = view);
         },
       ),
+
+      // drawer: CalendarDrawer(
+      //   currentView: _currentView,
+      //   onViewChanged: (view) {
+      //     Navigator.pop(context);
+      //     setState(() => _currentView = view);
+      //   },
+      // ),
+
       endDrawer: Endrawer(
         userName: userName ?? '',
         gmail: gmail ?? '',
@@ -170,13 +183,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
         IconButton(
           icon: const Icon(Icons.task_alt),
           onPressed: () => MyRouter.push(screen: TaskTabScreen()),
-        ),
-        Builder(
-          builder: (context) => ProfileAvatar(
-            profilePicUrl: profilePicUrl,
-            userName: userName,
-            onTap: () => Scaffold.of(context).openEndDrawer(),
-          ),
         ),
         const SizedBox(width: 8),
       ],

@@ -127,7 +127,6 @@ class _LandingHomeState extends State<LandingHome> {
             BlocListener<CreateFolderBloc, CreateFolderState>(
               listener: (context, state) {
                 if (state is CreateFolderSuccess) {
-                  // Refresh Drive after create/upload
                   context.read<MyDriveBloc>().resetPagination();
 
                   context.read<MyDriveBloc>().add(
