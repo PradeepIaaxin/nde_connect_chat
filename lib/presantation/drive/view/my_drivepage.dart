@@ -31,8 +31,12 @@ import 'package:share_plus/share_plus.dart';
 
 import '../Bloc/folder_bloc/create_folder_bloc.dart';
 import '../Bloc/folder_bloc/create_state.dart';
+import '../Bloc/inside_folder/inside_bloc.dart';
+import '../Bloc/inside_folder/inside_event.dart';
 import '../Bloc/move/move_bloc.dart';
 import '../Bloc/move/move_event.dart';
+import '../data/common_repo.dart';
+import '../data/insidefile_repo.dart';
 import 'common_funtions.dart';
 
 enum SortOption {
@@ -286,16 +290,25 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                   }
 
                   if (isFolder) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => FileDeepView(
+                    MyRouter.push(
+                      screen: MultiBlocProvider(
+                        providers: [
+                          BlocProvider(
+                            create: (_) => InsideBloc(repository: InsidefileRepo())
+                              ..add(InFetchStarredFolders(filedId: file.id)),
+                          ),
+                          BlocProvider(
+                            create: (_) => MoveFileBloc(repository: FoldersRepository()),
+                          ),
+                        ],
+                        child: FileDeepView(
                           fileId: file.id,
                           folderName: file.name,
                           gridview: false,
                         ),
                       ),
                     );
+
                   } else {
                     MyRouter.push(
                       screen: FilePreviewScreen(
