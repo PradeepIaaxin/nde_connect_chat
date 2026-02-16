@@ -9,8 +9,8 @@ class MailDetailModel {
   final Sender from;
 
   final List<Recipient> to;
-  final List<Recipient> cc;   // ✅ ADDED
-  final List<Recipient> bcc;  // ✅ ADDED
+  final List<Recipient> cc; // ✅ ADDED
+  final List<Recipient> bcc; // ✅ ADDED
 
   final String subject;
   final String messageId;
@@ -25,6 +25,7 @@ class MailDetailModel {
   final bool forwarded;
   final String text;
   final List<Attachment> attachments;
+  final List<FileAttachment> files; // ✅ ADDED
   final String currentUserEmail;
 
   MailDetailModel({
@@ -52,6 +53,7 @@ class MailDetailModel {
     required this.forwarded,
     required this.text,
     required this.attachments,
+    required this.files,
     required this.currentUserEmail,
   });
 
@@ -86,9 +88,8 @@ class MailDetailModel {
 
       subject: json['subject'] ?? "No Subject",
       messageId: json['messageId'] ?? "",
-      date: json['date'] != null
-          ? DateTime.parse(json['date'])
-          : DateTime.now(),
+      date:
+          json['date'] != null ? DateTime.parse(json['date']) : DateTime.now(),
       idate: json['idate'] != null
           ? DateTime.parse(json['idate'])
           : DateTime.now(),
@@ -104,11 +105,17 @@ class MailDetailModel {
               ?.map((item) => Attachment.fromJson(item))
               .toList() ??
           [],
+
+      // ✅ FILES (Using identifiers for API operations)
+      files: (json['files'] as List?)
+              ?.map((item) => FileAttachment.fromJson(item))
+              .toList() ??
+          [],
+
       currentUserEmail: json['currentUserEmail'] ?? "",
     );
   }
 }
-
 
 class Envelope {
   final String from;
@@ -119,7 +126,10 @@ class Envelope {
   factory Envelope.fromJson(Map<String, dynamic> json) {
     return Envelope(
       from: json['from'] ?? "",
-      rcpt: (json['rcpt'] as List?)?.map((item) => Recipient.fromJson(item)).toList() ?? [],
+      rcpt: (json['rcpt'] as List?)
+              ?.map((item) => Recipient.fromJson(item))
+              .toList() ??
+          [],
     );
   }
 }
@@ -174,6 +184,29 @@ class Attachment {
       contentType: json['contentType'] ?? "",
       related: json['related'] ?? false,
       sizeKb: json['sizeKb'] ?? 0,
+    );
+  }
+}
+
+class FileAttachment {
+  final String id;
+  final String filename;
+  final String contentType;
+  final int size;
+
+  FileAttachment({
+    required this.id,
+    required this.filename,
+    required this.contentType,
+    required this.size,
+  });
+
+  factory FileAttachment.fromJson(Map<String, dynamic> json) {
+    return FileAttachment(
+      id: json['id'] ?? "",
+      filename: json['filename'] ?? "",
+      contentType: json['contentType'] ?? "",
+      size: json['size'] ?? 0,
     );
   }
 }

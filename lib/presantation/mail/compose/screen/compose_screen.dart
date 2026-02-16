@@ -105,7 +105,13 @@ class _ComposeScreenState extends State<ComposeScreen> {
   @override
   void initState() {
     super.initState();
-    context.read<DraftBloc>().add(ResetDraftEvent());
+
+    // Initialize with existing draft ID if editing a draft
+    if (widget.draftId != null) {
+      context.read<DraftBloc>().add(InitializeDraftEvent(widget.draftId));
+    } else {
+      context.read<DraftBloc>().add(ResetDraftEvent());
+    }
 
     context.read<FatchnameBloc>().add(FetchSenderEmailEvent());
 
@@ -578,6 +584,9 @@ class _ComposeScreenState extends State<ComposeScreen> {
                       Navigator.pop(context);
                     }
 
+                    // Close the screen as requested by user
+                    MyRouter.pop();
+
                     // Refresh mailboxes to update draft count in drawer
                     context
                         .read<AppBarBloc>()
@@ -597,7 +606,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
                   } else if (state is DraftError) {
                     Navigator.pop(context);
 
-                    Messenger.alert(msg: "state.message");
+                    Messenger.alert(msg: state.message);
                   }
                 },
               ),
