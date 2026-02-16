@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nde_email/presantation/drive/Bloc/move/move_event.dart';
 import 'package:nde_email/presantation/drive/data/common_repo.dart';
@@ -21,6 +23,7 @@ class MoveFileBloc extends Bloc<MoveFileEvent, MoveFileState> {
         destinationId: event.destinationId,
       );
       emit(MoveFileSuccess());
+      log("sucesss moved");
     } catch (e) {
       emit(MoveFileFailure(e.toString()));
     }

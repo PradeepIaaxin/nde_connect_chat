@@ -31,6 +31,8 @@ import 'package:share_plus/share_plus.dart';
 import '../../../utils/datetime/date_formatter.dart';
 import '../Bloc/folder_bloc/create_folder_bloc.dart';
 import '../Bloc/folder_bloc/create_state.dart';
+import '../Bloc/move/move_bloc.dart';
+import '../Bloc/move/move_event.dart';
 import 'common_funtions.dart';
 
 
@@ -342,11 +344,15 @@ class _HomePageState extends State<HomePage>
                             BottomSheetOption(
                               icon: Icons.drive_file_move,
                               title: "Move",
-                              onTap: () {
+                              onTap: () async {
+                                log("heyyyyyy");
                                 MyRouter.pop();
-                                MyRouter.push(
-                                    screen:
-                                        MoveFileScreen(movingFileId: file.id));
+                                final result = await MyRouter.push(
+                                  screen: MoveFileScreen(movingFileId: file.id),
+                                );
+                                if (result == true) {
+                                  context.read<SuggestionsBloc>().add(FetchSuggestionsEvent());
+                                }
                               },
                             ),
                             BottomSheetOption(
@@ -639,11 +645,16 @@ class _HomePageState extends State<HomePage>
                                           BottomSheetOption(
                                             icon: Icons.drive_file_move,
                                             title: "Move",
-                                            onTap: () {
+                                            onTap: () async {
+                                              log("hiiiiiiiiiii");
                                               MyRouter.pop();
-                                              MyRouter.push(
-                                                  screen: MoveFileScreen(
-                                                      movingFileId: file.id));
+                                              final result = await MyRouter.push(
+                                                screen: MoveFileScreen(movingFileId: file.id),
+                                              );
+                                              if (result == true) {
+                                                context.read<SuggestionsBloc>().add(FetchSuggestionsEvent());
+                                              }
+
                                             },
                                           ),
                                           BottomSheetOption(
@@ -932,13 +943,36 @@ class _HomePageState extends State<HomePage>
             controller: _tabController,
             children: [
            MultiBlocListener(listeners: [
+             BlocListener<MoveFileBloc, MoveFileState>(
+               listener: (context, state) async {
+
+                 if (state is MoveFileSuccess) {
+
+                   log("✅ MOVE SUCCESS → Reloading folders");
+                   await  Future.delayed(Duration(seconds: 2));
+                   context.read<SuggestionsBloc>().add(FetchSuggestionsEvent());
+
+                   Messenger.alertSuccess("File moved successfully");
+
+                   setState(() {
+                     selectedFolders.clear();
+                     isSelectionMode = false;
+                   });
+                 }
+
+                 if (state is MoveFileFailure) {
+                   Messenger.alertError(state.message);
+                 }
+               },
+             ),
              BlocListener<CreateFolderBloc, CreateFolderState>(listener: (context, state) async {
                if (state is UploadFilesSuccess || state is ReplaceFilesSuccess) {
                  log(">>>>>>.");
                 await  Future.delayed(Duration(seconds: 2));
                  context.read<SuggestionsBloc>().add(FetchSuggestionsEvent());
                }
-             },)
+             },),
+
            ], child:    BlocBuilder<SuggestionsBloc, SuggestionsState>(
              builder: (context, state) {
                if (state is SuggestionsLoading) {
