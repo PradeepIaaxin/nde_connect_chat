@@ -21,8 +21,8 @@ class UploadToDriveScreen extends StatefulWidget {
   final List<PlatformFile>? selectedFiles;
   final String? parentId;
   final int? currentIndex;
-
-  const UploadToDriveScreen({super.key, this.selectedFiles, this.parentId, this.currentIndex});
+  final bool isScanner;
+  const UploadToDriveScreen({super.key, this.selectedFiles, this.parentId, this.currentIndex,this.isScanner = false,});
 
   @override
   _UploadToDriveScreenState createState() => _UploadToDriveScreenState();
@@ -34,7 +34,8 @@ class _UploadToDriveScreenState extends State<UploadToDriveScreen> {
   String selectedLocation = 'My Drive';
 
   bool _isUploading = false;
-
+  bool isScanner = false;          // passed from previous screen
+  String scannerFormat = "pdf";    // pdf OR jpeg
   @override
   void initState() {
     super.initState();
@@ -215,10 +216,13 @@ class _UploadToDriveScreenState extends State<UploadToDriveScreen> {
                     final ext = file.extension ?? '';
                     return TextFormField(
                       controller: controllers[index],
+                      readOnly: false,
+                     showCursor: true,
                       decoration: InputDecoration(
                         prefixIcon: const Icon(Icons.insert_drive_file,
                             color: Colors.red),
                         hintText: 'File name',
+                        labelText: 'File name',
                         suffixIcon: IconButton(
                           icon: const Icon(Icons.clear),
                           onPressed: () => _clearSelectedFileAt(index),
@@ -229,6 +233,7 @@ class _UploadToDriveScreenState extends State<UploadToDriveScreen> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                         hintStyle: const TextStyle(color: Colors.white38),
+                        labelStyle: const TextStyle(color: Colors.black),
                       ),
                       style: const TextStyle(color: Colors.black),
                       inputFormatters: [
