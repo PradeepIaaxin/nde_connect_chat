@@ -218,20 +218,21 @@ class _RecentScreenState extends State<RecentScreen> {
                             onTap: () {
                               showMoveToBinDialog(context, () {
                                 final ids = selectedFolders.toList();
-                                context.read<RecentBloc>().add(
-                                      MoveToTrashEvent(
-                                        fileIDs: ids,
-                                      ),
-                                    );
+                                final recentBloc = context.read<RecentBloc>();
+                                recentBloc.add(
+                                  MoveToTrashEvent(
+                                    fileIDs: ids,
+                                  ),
+                                );
                                 Messenger.alertAction(
                                   color: Colors.green,
                                   msg: "Item moved to trash",
                                   actionLabel: "Undo",
                                   duration: const Duration(seconds: 2),
                                   onAction: () {
-                                    context.read<RecentBloc>().add(
-                                          RestoreEvent(fileIDs: ids),
-                                        );
+                                    recentBloc.add(
+                                      RestoreEvent(fileIDs: ids),
+                                    );
                                   },
                                 );
                               }, "");
@@ -545,24 +546,28 @@ class _FolderGridItem extends StatelessWidget {
                                 ),
                                 BottomSheetOption(
                                   icon: Icons.delete,
-                                  title: "Remove",
+                                  title: "Move to bin",
                                   onTap: () {
-                                    context.read<RecentBloc>().add(
-                                          MoveToTrashEvent(
-                                              fileIDs: [folder.id]),
-                                        );
-                                    Messenger.alertAction(
-                                      color: Colors.green,
-                                      msg: "Item moved to trash",
-                                      actionLabel: "Undo",
-                                      duration: const Duration(seconds: 2),
-                                      onAction: () {
-                                        context.read<RecentBloc>().add(
-                                              RestoreEvent(
-                                                  fileIDs: [folder.id]),
-                                            );
-                                      },
-                                    );
+                                    showMoveToBinDialog(context, () {
+                                      final recentBloc =
+                                          context.read<RecentBloc>();
+                                      recentBloc.add(
+                                        MoveToTrashEvent(fileIDs: [folder.id]),
+                                      );
+                                      Messenger.alertAction(
+                                        color: Colors.green,
+                                        msg: "Item moved to trash",
+                                        actionLabel: "Undo",
+                                        duration: const Duration(seconds: 2),
+                                        onAction: () {
+                                          recentBloc.add(
+                                            RestoreEvent(fileIDs: [folder.id]),
+                                          );
+                                        },
+                                      );
+                                    },
+                                        folder
+                                            .name); // using folder.name for the dialog message
                                   },
                                 ),
                               ],
@@ -828,7 +833,7 @@ class _FolderListItem extends StatelessWidget {
                   ),
                   BottomSheetOption(
                     icon: Icons.delete,
-                    title: "Remove",
+                    title: "Move to bin",
                     onTap: () {
                       showMoveToBinDialog(context, () {
                         context.read<RecentBloc>().add(

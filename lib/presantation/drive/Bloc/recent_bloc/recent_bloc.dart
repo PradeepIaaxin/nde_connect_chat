@@ -102,7 +102,11 @@ class RecentBloc extends Bloc<RecentEvent, RecentState> {
     Emitter<RecentState> emit,
   ) async {
     await repository.restoreAll(fileIDs: event.fileIDs);
-    final updatedFolders = await repository.fetchTrash(sortBy: 'updatedAt');
+    final updatedFolders = await repository.fetchStarredFolders(
+      sortBy: 'updatedAt',
+      page: _page,
+      limit: _limit,
+    );
     emit(StarredLoaded(updatedFolders, _hasMore));
   }
 }

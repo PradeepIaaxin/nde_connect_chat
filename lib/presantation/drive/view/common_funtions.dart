@@ -104,9 +104,9 @@ void showMoveToBinDialog(BuildContext context, VoidCallback onTap,String Name) {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  "‘${Name.isEmpty?"File":Name}’ will be deleted forever after 30 days"
+                  "‘${Name.isEmpty?"File":Name}’ will be deleted forever after 30 days. "
                   "Collaborators will lose access.",
-                  maxLines: 2,
+                  maxLines: 4,
                   style: const TextStyle(
                     color: Colors.black87,
                     fontSize: 15,
