@@ -27,6 +27,8 @@ import 'package:nde_email/utils/snackbar/snackbar.dart';
 import 'package:nde_email/utils/spacer/spacer.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../Bloc/folder_bloc/create_folder_bloc.dart';
+import '../Bloc/folder_bloc/create_state.dart';
 import '../Bloc/move/move_bloc.dart';
 import '../Bloc/move/move_event.dart';
 import 'common_funtions.dart';
@@ -85,133 +87,162 @@ class _FileDeepViewState extends State<FileDeepView> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => InsideBloc(repository: InsidefileRepo())
-        ..add(InFetchStarredFolders(filedId: widget.fileId)),
-      child: MultiBlocListener(
-        listeners: [
-
-          BlocListener<MoveFileBloc, MoveFileState>(
-            listener: (context, state) {
-
-              if (state is MoveFileSuccess) {
-
-                log("✅ MOVE SUCCESS → Reloading folders");
-
-                context.read<InsideBloc>().add(
-                  InFetchStarredFolders(filedId: widget.fileId),
-                );
-
-                Messenger.alertSuccess("File moved successfully");
-
-                setState(() {
-                  selectedFolders.clear();
-                  isSelectionMode = false;
-                });
-              }
-
-              if (state is MoveFileFailure) {
-                Messenger.alertError(state.message);
-              }
-            },
+    return RefreshIndicator(
+      onRefresh: () async {
+        context.read<InsideBloc>().add(
+          InFetchStarredFolders(
+            sortBy: 'name',
+            filedId: widget.fileId,
           ),
+        );
+      },
+      child: BlocProvider(
+        create: (_) => InsideBloc(repository: InsidefileRepo())
+          ..add(InFetchStarredFolders(filedId: widget.fileId)),
+        child: MultiBlocListener(
+          listeners: [
+            BlocListener<CreateFolderBloc, CreateFolderState>(
+              listener: (context, state) {
 
-        ],
-        child:Scaffold(
-          backgroundColor: AppColors.bg,
-          body: BlocConsumer<InsideBloc, InsidefileState>(
-            listener: (context, state) {
-              if (state is InsideError) {
-                Messenger.alertError("Something went wrong!");
-              }
-            },
-            builder: (context, state) {
-              if (state is InsideLoading) {
-                return ShimmerListLoader(
-                  iconSize: 40,
-                  titleHeight: 18,
-                  subtitleHeight: 14,
-                  trailingIconSize: 20,
-                  padding: EdgeInsets.all(10),
-                  baseColor: Colors.grey[200]!,
-                  highlightColor: Colors.grey[50]!,
-                  titleWidthFactor: 0.8,
-                  subtitleWidth: 100,
-                );
-              }
+                if (state is CreateFolderSuccess) {
 
-              if (state is InsideLoaded) {
-                final folders = state.folders;
+                  log("✅ MOVE SUCCESS → Reloading folders");
 
-                return RefreshIndicator(
-                  onRefresh: () async {
-                    context.read<InsideBloc>().add(
-                      InFetchStarredFolders(
-                        sortBy: 'name',
-                        filedId: widget.fileId,
-                      ),
-                    );
-                  },
-                  child: _buildDriveLayout(folders, state.hasMore),
-                );
-              }
+                  context.read<InsideBloc>().add(
+                    InFetchStarredFolders(filedId: widget.fileId),
+                  );
 
-              if (state is InsideError) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  Messenger.alertSuccess("Folder created successfully");
+
+                }
+
+                if (state is CreateFolderFailure) {
+                  Messenger.alertError("Folder Created Filed ",);
+                }
+              },
+            ),
+            BlocListener<MoveFileBloc, MoveFileState>(
+              listener: (context, state) {
+
+                if (state is MoveFileSuccess) {
+
+                  log("✅ MOVE SUCCESS → Reloading folders");
+
+                  context.read<InsideBloc>().add(
+                    InFetchStarredFolders(filedId: widget.fileId),
+                  );
+
+                  Messenger.alertSuccess("File moved successfully");
+
+                  setState(() {
+                    selectedFolders.clear();
+                    isSelectionMode = false;
+                  });
+                }
+
+                if (state is MoveFileFailure) {
+                  Messenger.alertError(state.message);
+                }
+              },
+            ),
+
+          ],
+          child:Scaffold(
+            backgroundColor: AppColors.bg,
+            body: BlocConsumer<InsideBloc, InsidefileState>(
+              listener: (context, state) {
+                if (state is InsideError) {
+                  Messenger.alertError("Something went wrong!");
+                }
+              },
+              builder: (context, state) {
+                if (state is InsideLoading) {
+                  return ShimmerListLoader(
+                    iconSize: 40,
+                    titleHeight: 18,
+                    subtitleHeight: 14,
+                    trailingIconSize: 20,
+                    padding: EdgeInsets.all(10),
+                    baseColor: Colors.grey[200]!,
+                    highlightColor: Colors.grey[50]!,
+                    titleWidthFactor: 0.8,
+                    subtitleWidth: 100,
+                  );
+                }
+
+                if (state is InsideLoaded) {
+                  final folders = state.folders;
+
+                  return RefreshIndicator(
+                    onRefresh: () async {
+                      context.read<InsideBloc>().add(
+                        InFetchStarredFolders(
+                          sortBy: 'name',
+                          filedId: widget.fileId,
+                        ),
+                      );
+                    },
+                    child: _buildDriveLayout(folders, state.hasMore),
+                  );
+                }
+
+                if (state is InsideError) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text('Something Went Wrong !'),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: _loadStarredFolders,
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return const SizedBox();
+              },
+            ),
+            floatingActionButton: AnimatedSlide(
+              offset: _isFabVisible ? Offset.zero : const Offset(0, 2),
+              duration: const Duration(milliseconds: 300),
+              child: AnimatedOpacity(
+                opacity: _isFabVisible ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 300),
+                child: SizedBox(
+                  height: 100,
+                  width: 80,
+                  child: Stack(
+                    clipBehavior: Clip.none,
                     children: [
-                      const Text('Something Went Wrong !'),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadStarredFolders,
-                        child: const Text('Retry'),
+                      Positioned(
+                        bottom: 10,
+                        right: 0,
+                        child: FloatingActionButton(
+                          heroTag: 'mainFAB',
+                          onPressed: () {
+                            displayBottomSheet(context, widget.fileId,0);
+                          },
+                          backgroundColor: Colors.white,
+                          child: const Icon(Icons.add, color: Colors.black),
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 70,
+                        right: 0,
+                        child: FloatingActionButton(
+                          heroTag: 'cameraFAB',
+                          mini: true,
+                          backgroundColor: Colors.pink[100],
+                          onPressed: () {},
+                          child:
+                          const Icon(Icons.camera_alt, color: Colors.white54),
+                        ),
                       ),
                     ],
                   ),
-                );
-              }
-
-              return const SizedBox();
-            },
-          ),
-          floatingActionButton: AnimatedSlide(
-            offset: _isFabVisible ? Offset.zero : const Offset(0, 2),
-            duration: const Duration(milliseconds: 300),
-            child: AnimatedOpacity(
-              opacity: _isFabVisible ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 300),
-              child: SizedBox(
-                height: 100,
-                width: 80,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Positioned(
-                      bottom: 10,
-                      right: 0,
-                      child: FloatingActionButton(
-                        heroTag: 'mainFAB',
-                        onPressed: () {
-                          displayBottomSheet(context, widget.fileId,0);
-                        },
-                        backgroundColor: Colors.white,
-                        child: const Icon(Icons.add, color: Colors.black),
-                      ),
-                    ),
-                    Positioned(
-                      bottom: 70,
-                      right: 0,
-                      child: FloatingActionButton(
-                        heroTag: 'cameraFAB',
-                        mini: true,
-                        backgroundColor: Colors.pink[100],
-                        onPressed: () {},
-                        child:
-                        const Icon(Icons.camera_alt, color: Colors.white54),
-                      ),
-                    ),
-                  ],
                 ),
               ),
             ),

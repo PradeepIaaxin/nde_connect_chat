@@ -33,6 +33,7 @@ import '../Bloc/folder_bloc/create_folder_bloc.dart';
 import '../Bloc/folder_bloc/create_state.dart';
 import '../Bloc/inside_folder/inside_bloc.dart';
 import '../Bloc/inside_folder/inside_event.dart';
+import '../Bloc/inside_folder/inside_state.dart';
 import '../Bloc/move/move_bloc.dart';
 import '../Bloc/move/move_event.dart';
 import '../data/common_repo.dart';
@@ -1075,6 +1076,24 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
             controller: _tabController,
             children: [
           MultiBlocListener(listeners: [
+            BlocListener<CreateFolderBloc, CreateFolderState>(
+              listener: (context, state) {
+
+                if (state is CreateFolderSuccess) {
+
+                  log("✅ MOVE SUCCESS → Reloading folders");
+
+                  _fetchFolders();
+
+                  Messenger.alertSuccess("Folder created successfully");
+
+                }
+
+                if (state is CreateFolderFailure) {
+                  Messenger.alertError("Folder Created Filed ",);
+                }
+              },
+            ),
             BlocListener<MoveFileBloc, MoveFileState>(
               listener: (context, state) {
 
@@ -1100,7 +1119,7 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
             BlocListener<CreateFolderBloc, CreateFolderState>(listener: (context, state) async {
               if (state is UploadFilesSuccess || state is ReplaceFilesSuccess) {
                 log(">>>>>>.");
-                await  Future.delayed(Duration(seconds: 2));
+                await  Future.delayed(Duration(seconds: 3));
                 _fetchFolders();
               }
             },)

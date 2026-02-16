@@ -1,18 +1,23 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:nde_email/presantation/drive/Bloc/folder_bloc/create_folder_bloc.dart';
 import 'package:nde_email/presantation/drive/Bloc/inside_folder/inside_bloc.dart';
 import 'package:nde_email/presantation/drive/Bloc/inside_folder/inside_event.dart';
 import 'package:nde_email/presantation/drive/common/create_dialogue.dart';
 import 'package:nde_email/presantation/drive/view/uploadtodrive.dart';
 import 'package:nde_email/utils/url/url_launcher.dart';
+import 'package:path/path.dart';
 import '../Bloc/file_bloc/my_drive_bloc.dart';
 import '../Bloc/file_bloc/myfile_event.dart';
 import '../Bloc/home_bloc/sugesstion/sugesstion_bloc.dart';
 import '../Bloc/home_bloc/sugesstion/sugesstion_event.dart';
+import 'package:google_mlkit_document_scanner/google_mlkit_document_scanner.dart';
 
 void displayBottomSheet(BuildContext context, String? fileid,int index) {
 
@@ -60,7 +65,67 @@ void displayBottomSheet(BuildContext context, String? fileid,int index) {
       }
     }
   }
+  Future<void> scanDocument(BuildContext context) async {
+    Navigator.pop(context); // Close bottom sheet if present
 
+    const Set<DocumentFormat> formats = {
+      DocumentFormat.jpeg,
+      DocumentFormat.pdf,
+    };
+
+    final scanner = DocumentScanner(
+      options: DocumentScannerOptions(
+        documentFormats: formats,
+        mode: ScannerMode.filter,   // ✅ Drive-like UI & filters
+        pageLimit: 1,               // single page like Drive quick scan
+        isGalleryImport: true,
+      ),
+    );
+
+    final result = await scanner.scanDocument();
+
+    if (result == null || result.images!.isEmpty) return;
+
+    final scannedFiles = <PlatformFile>[];
+
+    for (final page in result.images!) {
+      final path = page;     // ✅ NEW API CHANGE
+      final file = File(path);
+      final bytes = await file.readAsBytes();
+
+      scannedFiles.add(
+        PlatformFile(
+          name: "Scanned_${DateTime.now().millisecondsSinceEpoch}.jpg",
+          path: path,
+          size: bytes.length,
+          bytes: bytes,
+        ),
+      );
+    }
+
+    final moved = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => UploadToDriveScreen(
+          selectedFiles: scannedFiles,
+          parentId: fileid,
+          currentIndex: index,
+        ),
+      ),
+    );
+
+    /// ✅ Refresh after upload
+    if (moved == true && context.mounted) {
+      context.read<MyDriveBloc>().resetPagination();
+      context.read<MyDriveBloc>().add(
+        FetchMyDriveFolders(
+          sortBy: "updatedAt",
+          order: "desc",
+          showLoading: false,
+        ),
+      );
+    }
+  }
   Future<void> newContainer() async {
     Navigator.pop(context);
     final result = await showDialog(
@@ -131,7 +196,9 @@ void displayBottomSheet(BuildContext context, String? fileid,int index) {
                     label: 'Scan',
                     iconColor: Colors.grey[700],
                     backgroundColor: Colors.grey[100],
-                    onTap: () {},
+                    onTap: () {
+                      scanDocument(context);
+                    },
                   ),
                   _buildOptionItem(
                     icon: Icons.article,

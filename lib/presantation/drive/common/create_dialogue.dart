@@ -4,14 +4,34 @@ import 'package:nde_email/presantation/drive/Bloc/folder_bloc/create_event.dart'
 import 'package:nde_email/presantation/drive/Bloc/folder_bloc/create_folder_bloc.dart';
 import 'package:nde_email/presantation/drive/Bloc/folder_bloc/create_state.dart';
 
-class NewBoxDialog extends StatelessWidget {
-  final TextEditingController folderName = TextEditingController();
+class NewBoxDialog extends StatefulWidget {
   final String? parentId;
 
   NewBoxDialog({super.key, this.parentId});
 
   @override
+  State<NewBoxDialog> createState() => _NewBoxDialogState();
+}
+
+class _NewBoxDialogState extends State<NewBoxDialog> {
+  late TextEditingController folderName;
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    folderName = TextEditingController(text: "Untitled folder");
+
+    /// ✅ SELECT ALL TEXT LIKE GOOGLE DRIVE
+    folderName.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: folderName.text.length,
+    );
+  }
+  @override
   Widget build(BuildContext context) {
+
+
     return BlocListener<CreateFolderBloc, CreateFolderState>(
       listener: (context, state) {
         if (state is CreateFolderSuccess) {
@@ -24,7 +44,7 @@ class NewBoxDialog extends StatelessWidget {
       },
       child: AlertDialog(
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(26),
         ),
         backgroundColor: Colors.white,
         elevation: 8,
@@ -34,10 +54,12 @@ class NewBoxDialog extends StatelessWidget {
         ),
         content: SizedBox(
           height: 120,
+          width: MediaQuery.of(context).size.width*0.85,
           child: Column(
             children: [
               TextField(
                 controller: folderName,
+                autofocus: true,
                 decoration: InputDecoration(
                   hintText: 'Enter folder name',
                   filled: true,
@@ -70,7 +92,7 @@ class NewBoxDialog extends StatelessWidget {
                           style: TextStyle(color: Colors.black87),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 20),
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blueAccent,
@@ -91,7 +113,7 @@ class NewBoxDialog extends StatelessWidget {
                           context.read<CreateFolderBloc>().add(
                                 CreateFolderPressed(
                                   name: name,
-                                  parentId: parentId ?? "",
+                                  parentId: widget.parentId ?? "",
                                   context: context,
                                 ),
                               );

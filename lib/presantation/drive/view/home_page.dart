@@ -943,6 +943,24 @@ class _HomePageState extends State<HomePage>
             controller: _tabController,
             children: [
            MultiBlocListener(listeners: [
+             BlocListener<CreateFolderBloc, CreateFolderState>(
+               listener: (context, state) {
+
+                 if (state is CreateFolderSuccess) {
+
+                   log("✅ MOVE SUCCESS → Reloading folders");
+
+                   //_fetchFolders();
+
+                   Messenger.alertSuccess("Folder created successfully");
+
+                 }
+
+                 if (state is CreateFolderFailure) {
+                   Messenger.alertError("Folder Created Filed ",);
+                 }
+               },
+             ),
              BlocListener<MoveFileBloc, MoveFileState>(
                listener: (context, state) async {
 
