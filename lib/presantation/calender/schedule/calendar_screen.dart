@@ -29,9 +29,10 @@ class CalendarScreen extends StatefulWidget {
 
 class _CalendarScreenState extends State<CalendarScreen> {
   final EventsController _eventsController = EventsController();
-  final GlobalKey<EventsPlannerState> _plannerKey = GlobalKey();
-  final GlobalKey<EventsListState> _listViewKey = GlobalKey();
+  GlobalKey<EventsPlannerState> _plannerKey = GlobalKey();
+  GlobalKey<EventsListState> _listViewKey = GlobalKey();
   GlobalKey<EventsPlannerState> _oneDayViewKey = GlobalKey();
+  Key _monthViewKey = UniqueKey();
 
   CalendarViewType _currentView = CalendarViewType.schedule;
   DateTime _focusedDate = DateTime.now();
@@ -65,12 +66,53 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   void _updateFocusedDate(DateTime newDate) {
-    if (_focusedDate.isAtSameMomentAs(newDate)) return;
-    setState(() => _focusedDate = newDate);
+    final normalized = DateTime(newDate.year, newDate.month, newDate.day);
+    final old = _focusedDate;
+    final dayDistance = normalized
+        .difference(DateTime(old.year, old.month, old.day))
+        .inDays
+        .abs();
 
-    _plannerKey.currentState?.jumpToDate(newDate);
+    // For very large jumps (e.g. years away), some calendar widgets don't reliably
+    // animate/scroll to the target in one call. In that case we hard-reset the
+    // currently visible view by recreating its key, so it builds directly at the
+    // target date.
+    final shouldHardReset = dayDistance > 60;
+
+    setState(() {
+      _focusedDate = normalized;
+
+      if (shouldHardReset) {
+        switch (_currentView) {
+          case CalendarViewType.schedule:
+            _listViewKey = GlobalKey();
+            break;
+          case CalendarViewType.day:
+            _oneDayViewKey = GlobalKey();
+            break;
+          case CalendarViewType.threeDay:
+          case CalendarViewType.week:
+            _plannerKey = GlobalKey();
+            break;
+          case CalendarViewType.month:
+            _monthViewKey = UniqueKey();
+            break;
+        }
+      }
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (!shouldHardReset) {
+        _performNavigation(normalized);
+      }
+    });
+  }
+
+  void _performNavigation(DateTime newDate) {
     _listViewKey.currentState?.jumpToDate(newDate);
     _oneDayViewKey.currentState?.jumpToDate(newDate);
+    _plannerKey.currentState?.jumpToDate(newDate);
   }
 
   @override
@@ -104,6 +146,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
   AppBar _buildAppBar() {
     return AppBar(
       backgroundColor: Colors.white,
+      surfaceTintColor: Colors.white,
+      elevation: 0,
+      scrolledUnderElevation: 0,
       title: Text(currentMonthName),
       actions: [
         IconButton(
@@ -114,7 +159,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           onPressed: () => _updateFocusedDate(DateTime.now()),
           icon: CircleAvatar(
             radius: 18,
-            backgroundColor: chatColor.withValues(alpha:0.8),
+            backgroundColor: chatColor.withValues(alpha: 0.8),
             child: Text(
               '${DateTime.now().day}',
               style: const TextStyle(
@@ -169,21 +214,44 @@ class _CalendarScreenState extends State<CalendarScreen> {
           controller: _eventsController,
           daysShowed: 3,
           plannerKey: _plannerKey,
+          focusedDate: _focusedDate,
+          onMonthChanged: (date) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) setState(() => _focusedDate = date);
+            });
+          },
         );
       case CalendarViewType.week:
         return EventsPlannerDraggableEventsView(
           controller: _eventsController,
           daysShowed: 7,
           plannerKey: _plannerKey,
+          focusedDate: _focusedDate,
+          onMonthChanged: (date) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) setState(() => _focusedDate = date);
+            });
+          },
         );
       case CalendarViewType.month:
         return EventsMonthsView(
+          key: _monthViewKey,
           controller: _eventsController,
+          focusedDate: _focusedDate,
           onDayTapped: (date) {
-            setState(() {
-              _currentView = CalendarViewType.day;
-              _focusedDate = date;
-              _oneDayViewKey = GlobalKey();
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                setState(() {
+                  _currentView = CalendarViewType.day;
+                  _focusedDate = date;
+                  _oneDayViewKey = GlobalKey();
+                });
+              }
+            });
+          },
+          onMonthChanged: (date) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) setState(() => _focusedDate = date);
             });
           },
         );

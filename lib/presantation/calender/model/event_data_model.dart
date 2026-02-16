@@ -93,14 +93,20 @@ class CalendarEvent {
       endTime: DateTime.parse(json['end_time']?.toString() ??
           DateTime.now().add(Duration(hours: 1)).toIso8601String()),
       timezone: json['timezone']?.toString() ?? 'UTC',
-      allDay: json['allDay'] as bool? ?? false,
+      allDay: (json['allDay'] as bool?) ?? (json['all_day'] as bool?) ?? false,
       recurrence: json['recurrence'],
       attendees: (json['attendees'] as List<dynamic>? ?? [])
           .map((e) => Attendee.fromJson(e as Map<String, dynamic>))
           .toList(),
-      allowForward: json['allowForward'] as bool? ?? false,
-      addToFreeBusy: json['addToFreeBusy'] as bool? ?? true,
-      isPrivate: json['isPrivate'] as bool? ?? false,
+      allowForward: (json['allowForward'] as bool?) ??
+          (json['allow_forward'] as bool?) ??
+          false,
+      addToFreeBusy: (json['addToFreeBusy'] as bool?) ??
+          (json['add_to_free_busy'] as bool?) ??
+          true,
+      isPrivate: (json['isPrivate'] as bool?) ??
+          (json['is_private'] as bool?) ??
+          false,
       reminders: (json['reminders'] as List<dynamic>? ?? [])
           .map((e) => Reminder.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -183,30 +189,57 @@ class Attendee {
 }
 
 class Reminder {
-  final String method;
-  final String timing;
-  final int minutes;
+  final String type;
+  final int timing;
+  final String interval;
+  final String time;
   final String id;
 
+  String get method => type;
+
+  int get minutes {
+    if (interval == 'minutes') return timing;
+    if (interval == 'hours') return timing * 60;
+    if (interval == 'days') return timing * 24 * 60;
+    return timing;
+  }
+
   Reminder({
-    required this.method,
+    required this.type,
     required this.timing,
-    required this.minutes,
+    required this.interval,
+    required this.time,
     required this.id,
   });
 
-  factory Reminder.fromJson(Map<String, dynamic> json) => Reminder(
-        method: json['method'] as String? ?? 'email',
-        timing: json['timing'] as String? ?? 'before',
-        minutes: json['minutes'] as int? ?? 5,
-        id: json['_id'] as String? ?? '',
-      );
+  factory Reminder.fromJson(Map<String, dynamic> json) {
+    final timingRaw = json['timing'];
+    int timingValue;
+    if (timingRaw is int) {
+      timingValue = timingRaw;
+    } else if (timingRaw is String) {
+      timingValue = int.tryParse(timingRaw) ?? 0;
+    } else {
+      timingValue = 0;
+    }
+
+    return Reminder(
+      type: json['type']?.toString() ??
+          json['method']?.toString() ??
+          'notification',
+      timing: timingValue,
+      interval: json['interval']?.toString() ?? 'minutes',
+      time: json['time']?.toString() ?? '',
+      id: json['_id']?.toString() ?? '',
+    );
+  }
 
   Map<String, dynamic> toJson() {
     return {
-      'method': method,
+      'type': type,
       'timing': timing,
-      'minutes': minutes,
+      'interval': interval,
+      'time': time,
       '_id': id,
     };
   }

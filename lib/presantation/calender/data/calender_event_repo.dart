@@ -78,11 +78,11 @@ class CalendarEventRepository {
       };
 
       final response = await dio.get(
-        'https://api.nowdigitaleasy.com/calendar/v1/event/create',
+        'https://api.nowdigitaleasy.com/calendar/v1/event/my-calendar',
         options: Options(headers: headers),
         queryParameters: {
-          'start_date': startDate,
-          'end_date': endDate,
+          'start_date': startDate.toUtc().toIso8601String(),
+          'end_date': endDate.toUtc().toIso8601String(),
         },
       );
 
@@ -138,6 +138,88 @@ class CalendarEventRepository {
       throw Exception('Dio error: ${e.message}');
     } catch (e) {
       throw Exception('Unexpected error: $e');
+    }
+  }
+
+  Future<void> createEvent({
+    required String calendarId,
+    required String title,
+    required String startTimeUtcIso,
+    required String endTimeUtcIso,
+    required String timezone,
+    String description = '',
+    String color = '#1976d2',
+    List<dynamic> attendees = const [],
+    bool allDay = false,
+    bool allowForward = false,
+    bool isPrivate = false,
+    bool addToFreeBusy = true,
+    String location = '',
+    String url = '',
+    dynamic conference,
+    List<dynamic>? reminders,
+    Map<String, dynamic>? permissions,
+    bool sendEmail = false,
+  }) async {
+    final String? accessToken = await UserPreferences.getAccessToken();
+    final String? defaultWorkspace =
+        await UserPreferences.getDefaultWorkspace();
+
+    if (accessToken == null || defaultWorkspace == null) {
+      throw Exception('Missing authentication');
+    }
+
+    final headers = {
+      'Authorization': 'Bearer $accessToken',
+      'x-workspace': defaultWorkspace,
+      'Content-Type': 'application/json',
+    };
+
+    final body = {
+      'title': title,
+      'start_time': startTimeUtcIso,
+      'end_time': endTimeUtcIso,
+      'attendees': attendees,
+      'allDay': allDay,
+      'allowForward': allowForward,
+      'isPrivate': isPrivate,
+      'addToFreeBusy': addToFreeBusy,
+      'location': location,
+      'url': url,
+      'conference': conference,
+      'calendar_id': calendarId,
+      'reminders': reminders ??
+          [
+            {
+              'type': 'notification',
+              'timing': 10,
+              'interval': 'hours',
+              'time': '',
+            },
+          ],
+      'description': description,
+      'color': color,
+      'timezone': timezone,
+      'permissions': permissions ??
+          {
+            'viewOnly': true,
+            'viewParticipants': true,
+            'addParticipants': false,
+            'editEvent': false,
+          },
+      'sendEmail': sendEmail,
+    };
+
+    body.removeWhere((key, value) => value == null);
+
+    final response = await dio.post(
+      'https://api.nowdigitaleasy.com/calendar/v1/event/create',
+      options: Options(headers: headers),
+      data: body,
+    );
+
+    if (!(response.statusCode == 200 || response.statusCode == 201)) {
+      throw Exception('Failed to create event: ${response.statusCode}');
     }
   }
 

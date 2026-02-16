@@ -8,6 +8,7 @@ import 'package:nde_email/presantation/calender/bloc/event_bloc/event_all_bloc.d
 import 'package:nde_email/presantation/calender/bloc/event_bloc/event_all_state.dart';
 import 'package:nde_email/presantation/calender/common/calender_bottom_sheet_deartils.dart';
 import 'package:nde_email/presantation/calender/model/event_data_model.dart';
+import 'package:nde_email/utils/const/consts.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 class EventOneDayView extends StatefulWidget {
@@ -49,9 +50,16 @@ class _EventOneDayViewState extends State<EventOneDayView> {
   void didUpdateWidget(EventOneDayView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!isSameDay(oldWidget.focusedDate, widget.focusedDate)) {
-      _selectedDay = widget.focusedDate;
-      widget.oneDayView.currentState?.jumpToDate(widget.focusedDate);
-      log(widget.focusedDate.toString());
+      if (mounted) {
+        setState(() {
+          _selectedDay = widget.focusedDate;
+        });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          widget.oneDayView.currentState?.jumpToDate(widget.focusedDate);
+          log(widget.focusedDate.toString());
+        });
+      }
     }
   }
 
@@ -207,15 +215,31 @@ class _EventOneDayViewState extends State<EventOneDayView> {
 
   @override
   Widget build(BuildContext context) {
-    final heightPerMinute = 1.0;
-    final initialVerticalScrollOffset = heightPerMinute * 7 * 60;
+    const heightPerMinute = 1.0;
+    final initialVerticalScrollOffset =
+        _calculateCurrentTimeScrollOffset(heightPerMinute);
 
     return Column(
       children: [
         const SizedBox(height: 8),
         _buildOptimizedTableCalendar(),
         const SizedBox(height: 4),
-        Divider(color: Theme.of(context).colorScheme.outlineVariant, height: 2),
+        BlocBuilder<CalendarEventBloc, CalendarEventState>(
+          builder: (context, state) {
+            if (state is CalendarEventLoading) {
+              return LinearProgressIndicator(
+                minHeight: 2,
+                color: chatColor,
+                backgroundColor: Colors.transparent,
+              );
+            } else {
+              return Divider(
+                color: Colors.transparent,
+                height: 2,
+              );
+            }
+          },
+        ),
         Expanded(
           child: BlocConsumer<CalendarEventBloc, CalendarEventState>(
             listener: (context, state) {
@@ -242,42 +266,97 @@ class _EventOneDayViewState extends State<EventOneDayView> {
     );
   }
 
+  double _calculateCurrentTimeScrollOffset(double heightPerMinute) {
+    final now = DateTime.now();
+    final minutesFromMidnight = now.hour * 60 + now.minute;
+    return heightPerMinute * minutesFromMidnight;
+  }
+
   Widget _buildEventsPlanner(
       double heightPerMinute, double initialVerticalScrollOffset) {
-    return EventsPlanner(
-      key: widget.oneDayView,
-      controller: widget.controller,
-      daysShowed: 1,
-      heightPerMinute: heightPerMinute,
-      initialVerticalScrollOffset: initialVerticalScrollOffset,
-      horizontalScrollPhysics: const PageScrollPhysics(),
-      daysHeaderParam: DaysHeaderParam(
-        daysHeaderVisibility: false,
-        dayHeaderTextBuilder: (day) => DateFormat("E d").format(day),
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      color: isDark ? theme.cardColor : Colors.grey[50],
+      child: EventsPlanner(
+        key: widget.oneDayView,
+        controller: widget.controller,
+        daysShowed: 1,
+        heightPerMinute: heightPerMinute,
+        initialVerticalScrollOffset: initialVerticalScrollOffset,
+        horizontalScrollPhysics: const PageScrollPhysics(),
+        daysHeaderParam: const DaysHeaderParam(daysHeaderVisibility: false),
+        onDayChange: (firstDay) {
+          if (mounted) {
+            setState(() => _selectedDay = firstDay);
+            widget.onDateChanged(firstDay);
+          }
+        },
+        dayParam: DayParam(
+          slotSelectionParam: const SlotSelectionParam(
+            enableTapSlotSelection: true,
+            enableLongPressSlotSelection: true,
+          ),
+          onSlotMinutesRound: 30,
+          dayEventBuilder: (event, height, width, heightPerMinute) {
+            return _buildCustomEvent(
+                event: event, height: height, width: width);
+          },
+        ),
       ),
-      onDayChange: (firstDay) {
-        if (mounted) {
-          setState(() => _selectedDay = firstDay);
-          widget.onDateChanged(firstDay);
+    );
+  }
+
+  Widget _buildCustomEvent(
+      {required Event event, required double height, required double width}) {
+    final calendarEvent = event.data as CalendarEvent?;
+    final isCompleted = calendarEvent?.completed ?? false;
+
+    return GestureDetector(
+      onTap: () {
+        if (calendarEvent != null) {
+          _showEventDetails(calendarEvent);
         }
       },
-      dayParam: DayParam(
-        dayEventBuilder: (event, height, width, heightPerMinute) {
-          return DefaultDayEvent(
-            height: height,
-            width: width,
-            title: event.title,
-            description: event.description,
-            color: event.color,
-            textColor: event.textColor,
-            onTap: () {
-              final calendarEvent = event.data as CalendarEvent?;
-              if (calendarEvent != null) {
-                _showEventDetails(calendarEvent);
-              }
-            },
-          );
-        },
+      child: Container(
+        height: height,
+        width: width,
+        margin: const EdgeInsets.all(1),
+        decoration: BoxDecoration(
+          color: event.color.withOpacity(0.8),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: event.color.withOpacity(0.9), width: 1),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                event.title ?? 'Untitled',
+                style: TextStyle(
+                    decoration: isCompleted ? TextDecoration.lineThrough : null,
+                    color: event.textColor,
+                    fontWeight:
+                        isCompleted ? FontWeight.normal : FontWeight.w600,
+                    fontSize: 12,
+                    decorationThickness: 3),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (event.description?.isNotEmpty == true)
+                Text(
+                  event.description!,
+                  style: TextStyle(
+                      color: event.textColor.withOpacity(0.8), fontSize: 10),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -295,40 +374,36 @@ class _EventOneDayViewState extends State<EventOneDayView> {
 
   Widget _buildOptimizedTableCalendar() {
     return TableCalendar(
-      firstDay: DateTime.utc(2000, 1, 1),
-      lastDay: DateTime.utc(2100, 12, 31),
+      firstDay: DateTime.utc(2000),
+      lastDay: DateTime.utc(2100),
       focusedDay: _selectedDay,
       calendarFormat: CalendarFormat.week,
       selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-      onDaySelected: (selectedDay, focusedDay) {
+      onDaySelected: (selected, focused) {
         if (mounted) {
-          setState(() => _selectedDay = selectedDay);
-          widget.onDateChanged(selectedDay);
+          setState(() {
+            _selectedDay = selected;
+          });
         }
-        widget.oneDayView.currentState?.jumpToDate(selectedDay);
-      },
-      onPageChanged: (focusedDay) {
-        if (mounted) {
-          setState(() => _selectedDay = focusedDay);
-        }
+        widget.onDateChanged(selected);
+        widget.oneDayView.currentState?.jumpToDate(selected);
       },
       headerVisible: false,
       weekNumbersVisible: true,
-      headerStyle: const HeaderStyle(
-        formatButtonVisible: false,
-        titleCentered: true,
-      ),
-      calendarStyle: const CalendarStyle(
-        outsideDaysVisible: true,
-        markerSize: 7,
+      calendarStyle: CalendarStyle(
+        todayTextStyle: TextStyle(color: chatColor),
         todayDecoration: BoxDecoration(
-          color: Colors.blueGrey,
+          border: Border.all(color: chatColor, width: 1.5),
           shape: BoxShape.circle,
         ),
         selectedDecoration: BoxDecoration(
-          color: Colors.blue,
+          color: chatColor,
           shape: BoxShape.circle,
         ),
+        defaultTextStyle: TextStyle(fontFamily: 'Roboto'),
+        weekendTextStyle:
+            TextStyle(fontFamily: 'Roboto', fontWeight: FontWeight.w500),
+        outsideDaysVisible: true,
       ),
     );
   }
