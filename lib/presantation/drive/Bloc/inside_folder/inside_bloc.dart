@@ -49,6 +49,7 @@ class InsideBloc extends Bloc<InsideEvent, InsidefileState> {
       _hasMore = folders.length == _limit;
 
       emit(InsideLoaded(_allFolders, _hasMore));
+      emit(InsideLoadedSuccess());
     } catch (e) {
       emit(InsideError(e.toString()));
     }
