@@ -273,8 +273,30 @@ class StarredBloc extends Bloc<StarredEvent, StarredState> {
     RestoreEvent event,
     Emitter<StarredState> emit,
   ) async {
-    await repository.restoreAll(fileIDs: event.fileIDs);
-    final updatedFolders = await repository.fetchTrash(sortBy: 'updatedAt');
-    emit(StarredLoaded(updatedFolders, _hasMore));
+    try {
+      await repository.restoreAll(fileIDs: event.fileIDs);
+
+      final updatedFolders = await repository.fetchStarredFolders(
+        sortBy: 'updatedAt',
+        page: _page,
+        limit: _limit,
+      );
+
+      try {
+        final foldersJson = updatedFolders.map((f) => f.toJson()).toList();
+        await LocalStarredStorage.saveMessages(foldersJson);
+      } catch (e) {
+        log('Error updating local storage: $e');
+      }
+
+      _allFolders = updatedFolders;
+      emit(StarredLoaded(updatedFolders, _hasMore));
+    } catch (e) {
+      if (_allFolders.isNotEmpty) {
+        emit(StarredLoaded(_allFolders, _hasMore, errorMessage: e.toString()));
+      } else {
+        emit(StarredError(e.toString()));
+      }
+    }
   }
 }

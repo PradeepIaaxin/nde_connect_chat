@@ -167,19 +167,18 @@ class _SharedPageState extends State<SharedPage> {
         listeners: [
           BlocListener<CreateFolderBloc, CreateFolderState>(
             listener: (context, state) {
-
               if (state is CreateFolderSuccess) {
-
                 log("✅ MOVE SUCCESS → Reloading folders");
 
                 //_fetchFolders();
 
                 Messenger.alertSuccess("Folder created successfully");
-
               }
 
               if (state is CreateFolderFailure) {
-                Messenger.alertError("Folder Created Filed ",);
+                Messenger.alertError(
+                  "Folder Created Filed ",
+                );
               }
             },
           ),
@@ -248,14 +247,14 @@ class _SharedPageState extends State<SharedPage> {
                               context,
                               [
                                 BottomSheetOption(
-                                  icon:
-                                      selectedFolderModels.every((f) => f.starred)
-                                          ? Icons.star
-                                          : Icons.star_border,
-                                  title:
-                                      selectedFolderModels.every((f) => f.starred)
-                                          ? "Remove from Starred"
-                                          : "Add to Starred",
+                                  icon: selectedFolderModels
+                                          .every((f) => f.starred)
+                                      ? Icons.star
+                                      : Icons.star_border,
+                                  title: selectedFolderModels
+                                          .every((f) => f.starred)
+                                      ? "Remove from Starred"
+                                      : "Add to Starred",
                                   onTap: () {
                                     context.read<FolderBloc>().add(
                                           StarredData(
@@ -273,7 +272,8 @@ class _SharedPageState extends State<SharedPage> {
                                         fileId: folder.id,
                                         fileName: folder.name,
                                         filePath: folder.previewpath ?? '',
-                                        mimeType: folder.mimetype ?? folder.type,
+                                        mimeType:
+                                            folder.mimetype ?? folder.type,
                                       );
                                     }
                                     _clearSelection();
@@ -285,18 +285,20 @@ class _SharedPageState extends State<SharedPage> {
                                   onTap: () {
                                     showMoveToBinDialog(context, () {
                                       final ids = selectedFolders.toList();
-                                      context.read<FolderBloc>().add(
-                                            MoveToTrashEvent(fileIDs: ids),
-                                          );
+                                      final folderBloc =
+                                          context.read<FolderBloc>();
+                                      folderBloc.add(
+                                        MoveToTrashEvent(fileIDs: ids),
+                                      );
                                       Messenger.alertAction(
                                         color: Colors.green,
                                         msg: "Item moved to trash",
                                         actionLabel: "Undo",
                                         duration: const Duration(seconds: 2),
                                         onAction: () {
-                                          context.read<FolderBloc>().add(
-                                                RestoreEvent(fileIDs: ids),
-                                              );
+                                          folderBloc.add(
+                                            RestoreEvent(fileIDs: ids),
+                                          );
                                         },
                                       );
                                     }, "");
@@ -426,8 +428,10 @@ class _SharedPageState extends State<SharedPage> {
                                               CrossAxisAlignment.stretch,
                                           children: [
                                             Padding(
-                                              padding: const EdgeInsets.symmetric(
-                                                  horizontal: 8, vertical: 6),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 6),
                                               child: Row(
                                                 children: [
                                                   buildMimeIcon(folder),
@@ -484,8 +488,7 @@ class _SharedPageState extends State<SharedPage> {
                                                                             .star
                                                                         : Icons
                                                                             .star_border,
-                                                                    title: folder
-                                                                                .starred ==
+                                                                    title: folder.starred ==
                                                                             true
                                                                         ? "Remove to Starred"
                                                                         : "Add to Starred",
@@ -496,10 +499,9 @@ class _SharedPageState extends State<SharedPage> {
                                                                           .read<
                                                                               FolderBloc>()
                                                                           .add(
-                                                                            StarredData(
-                                                                                fileID: [
-                                                                                  folder.id
-                                                                                ]),
+                                                                            StarredData(fileID: [
+                                                                              folder.id
+                                                                            ]),
                                                                           );
                                                                     }),
                                                                 BottomSheetOption(
@@ -524,10 +526,9 @@ class _SharedPageState extends State<SharedPage> {
                                                                       "Send a copy",
                                                                   onTap:
                                                                       () async {
-                                                                    await Future.delayed(
-                                                                        const Duration(
-                                                                            milliseconds:
-                                                                                300));
+                                                                    await Future.delayed(const Duration(
+                                                                        milliseconds:
+                                                                            300));
 
                                                                     final name =
                                                                         folder
@@ -539,10 +540,8 @@ class _SharedPageState extends State<SharedPage> {
                                                                             .trim() ??
                                                                         '';
 
-                                                                    final textToShare = (name
-                                                                                .isNotEmpty ||
-                                                                            preview
-                                                                                .isNotEmpty)
+                                                                    final textToShare = (name.isNotEmpty ||
+                                                                            preview.isNotEmpty)
                                                                         ? "$name\n\n$preview"
                                                                         : '';
 
@@ -577,7 +576,8 @@ class _SharedPageState extends State<SharedPage> {
                                                                 BottomSheetOption(
                                                                   icon: Icons
                                                                       .drive_file_rename_outline,
-                                                                  title: "Rename",
+                                                                  title:
+                                                                      "Rename",
                                                                   onTap:
                                                                       () async {
                                                                     await showRenameDialog(
@@ -589,8 +589,7 @@ class _SharedPageState extends State<SharedPage> {
                                                                       onRename:
                                                                           (newName) {
                                                                         context
-                                                                            .read<
-                                                                                FolderBloc>()
+                                                                            .read<FolderBloc>()
                                                                             .add(
                                                                               RenameEvent(fileIDs: [
                                                                                 folder.id
@@ -645,14 +644,14 @@ class _SharedPageState extends State<SharedPage> {
                                                                 BottomSheetOption(
                                                                     icon: Icons
                                                                         .drive_file_move,
-                                                                    title: "Move",
+                                                                    title:
+                                                                        "Move",
                                                                     onTap: () {
                                                                       MyRouter
                                                                           .pop();
                                                                       MyRouter.push(
-                                                                          screen: MoveFileScreen(
-                                                                              movingFileId:
-                                                                                  folder.id));
+                                                                          screen:
+                                                                              MoveFileScreen(movingFileId: folder.id));
                                                                     }),
                                                                 BottomSheetOption(
                                                                   icon: Icons
@@ -661,10 +660,9 @@ class _SharedPageState extends State<SharedPage> {
                                                                       "Send a copy",
                                                                   onTap:
                                                                       () async {
-                                                                    await Future.delayed(
-                                                                        const Duration(
-                                                                            milliseconds:
-                                                                                300));
+                                                                    await Future.delayed(const Duration(
+                                                                        milliseconds:
+                                                                            300));
 
                                                                     final name =
                                                                         folder
@@ -676,10 +674,8 @@ class _SharedPageState extends State<SharedPage> {
                                                                             .trim() ??
                                                                         '';
 
-                                                                    final textToShare = (name
-                                                                                .isNotEmpty ||
-                                                                            preview
-                                                                                .isNotEmpty)
+                                                                    final textToShare = (name.isNotEmpty ||
+                                                                            preview.isNotEmpty)
                                                                         ? "$name\n\n$preview"
                                                                         : '';
 
@@ -701,8 +697,7 @@ class _SharedPageState extends State<SharedPage> {
                                                                       MyRouter.push(
                                                                           screen: FileDetailScreen(
                                                                         fileID:
-                                                                            folder
-                                                                                .id,
+                                                                            folder.id,
                                                                       ));
                                                                     }),
                                                                 BottomSheetOption(
@@ -710,20 +705,22 @@ class _SharedPageState extends State<SharedPage> {
                                                                         .file_download_outlined,
                                                                     title:
                                                                         "Download",
-                                                                    onTap: () {}),
+                                                                    onTap:
+                                                                        () {}),
                                                                 BottomSheetOption(
                                                                     icon: Icons
                                                                         .delete,
                                                                     title:
                                                                         "Remove",
                                                                     onTap: () {
-                                                                      context
-                                                                          .read<
-                                                                              FolderBloc>()
-                                                                          .add(MoveToTrashEvent(
+                                                                      final folderBloc =
+                                                                          context
+                                                                              .read<FolderBloc>();
+                                                                      folderBloc.add(
+                                                                          MoveToTrashEvent(
                                                                               fileIDs: [
-                                                                                folder.id
-                                                                              ]));
+                                                                            folder.id
+                                                                          ]));
                                                                       Messenger
                                                                           .alertAction(
                                                                         color: Colors
@@ -732,27 +729,26 @@ class _SharedPageState extends State<SharedPage> {
                                                                             "Item moved to trash",
                                                                         actionLabel:
                                                                             "Undo",
-                                                                        duration: const Duration(
-                                                                            seconds:
-                                                                                2),
+                                                                        duration:
+                                                                            const Duration(seconds: 2),
                                                                         onAction:
                                                                             () {
-                                                                          context
-                                                                              .read<FolderBloc>()
+                                                                          folderBloc
                                                                               .add(
-                                                                                RestoreEvent(fileIDs: [
-                                                                                  folder.id
-                                                                                ]),
-                                                                              );
+                                                                            RestoreEvent(fileIDs: [
+                                                                              folder.id
+                                                                            ]),
+                                                                          );
                                                                         },
                                                                       );
                                                                     }),
                                                               ],
-                                                              title: folder.name,
+                                                              title:
+                                                                  folder.name,
                                                               foldertype:
                                                                   folder.type,
-                                                              mimetype:
-                                                                  folder.mimetype,
+                                                              mimetype: folder
+                                                                  .mimetype,
                                                             );
                                                           },
                                                           constraints:
@@ -818,7 +814,8 @@ class _SharedPageState extends State<SharedPage> {
                                                     )
                                                   : Center(
                                                       child: getMimeTypeImage(
-                                                          folder.mimetype ?? "")),
+                                                          folder.mimetype ??
+                                                              "")),
                                             )
                                           ],
                                         ),
@@ -865,7 +862,7 @@ class _SharedPageState extends State<SharedPage> {
                                                 },
                                       child: Container(
                                         color: isSelected
-                                          ? chatColor.withValues(alpha:0.1)
+                                            ? chatColor.withValues(alpha: 0.1)
                                             : null,
                                         child: ListTile(
                                           contentPadding:
@@ -878,26 +875,29 @@ class _SharedPageState extends State<SharedPage> {
                                               clipBehavior: Clip.none,
                                               alignment: Alignment.center,
                                               children: [
-                                                if (folder.profilePic.isNotEmpty)
+                                                if (folder
+                                                    .profilePic.isNotEmpty)
                                                   CircleAvatar(
                                                     radius: 30,
                                                     backgroundColor:
                                                         Colors.grey[200],
-                                                    child: folder
-                                                            .profilePic.isNotEmpty
+                                                    child: folder.profilePic
+                                                            .isNotEmpty
                                                         ? ClipOval(
-                                                            child: Image.network(
+                                                            child:
+                                                                Image.network(
                                                               folder.profilePic,
                                                               width: 60,
                                                               height: 60,
                                                               fit: BoxFit.cover,
                                                               errorBuilder:
-                                                                  (context, error,
+                                                                  (context,
+                                                                      error,
                                                                       stackTrace) {
                                                                 return const Icon(
                                                                   Icons.person,
-                                                                  color:
-                                                                      Colors.grey,
+                                                                  color: Colors
+                                                                      .grey,
                                                                   size: 30,
                                                                 );
                                                               },
@@ -969,7 +969,8 @@ class _SharedPageState extends State<SharedPage> {
                                                           );
                                                         }),
                                                     BottomSheetOption(
-                                                      icon: Icons.manage_accounts,
+                                                      icon:
+                                                          Icons.manage_accounts,
                                                       title: "Manage access",
                                                       onTap: () {
                                                         MyRouter.push(
@@ -992,7 +993,8 @@ class _SharedPageState extends State<SharedPage> {
                                                           log('hii');
 
                                                           context
-                                                              .read<FolderBloc>()
+                                                              .read<
+                                                                  FolderBloc>()
                                                               .add(
                                                                 StarredData(
                                                                     fileID: [
@@ -1009,8 +1011,9 @@ class _SharedPageState extends State<SharedPage> {
                                                                   text: folder
                                                                       .previewpath
                                                                       .toString()));
-                                                          Messenger.alertSuccess(
-                                                              "Copied");
+                                                          Messenger
+                                                              .alertSuccess(
+                                                                  "Copied");
                                                         }),
                                                     BottomSheetOption(
                                                       icon: Icons
@@ -1028,7 +1031,8 @@ class _SharedPageState extends State<SharedPage> {
                                                                 .add(
                                                                   RenameEvent(
                                                                       fileIDs: [
-                                                                        folder.id
+                                                                        folder
+                                                                            .id
                                                                       ],
                                                                       editedName:
                                                                           newName
@@ -1040,14 +1044,16 @@ class _SharedPageState extends State<SharedPage> {
                                                     ),
                                                     folder.type == "folder"
                                                         ? BottomSheetOption(
-                                                            icon:
-                                                                Icons.color_lens,
-                                                            title: "Change Color",
+                                                            icon: Icons
+                                                                .color_lens,
+                                                            title:
+                                                                "Change Color",
                                                             onTap: () {
                                                               MyRouter.pop();
 
                                                               showDialog(
-                                                                context: context,
+                                                                context:
+                                                                    context,
                                                                 builder:
                                                                     (context) {
                                                                   return ColorPickerDialog(
@@ -1069,20 +1075,23 @@ class _SharedPageState extends State<SharedPage> {
                                                             },
                                                           )
                                                         : BottomSheetOption(
-                                                            icon: Icons.file_copy,
-                                                            title: "Make a copy ",
+                                                            icon:
+                                                                Icons.file_copy,
+                                                            title:
+                                                                "Make a copy ",
                                                             onTap: () {},
                                                           ),
                                                     BottomSheetOption(
-                                                        icon:
-                                                            Icons.drive_file_move,
+                                                        icon: Icons
+                                                            .drive_file_move,
                                                         title: "Move",
                                                         onTap: () {
                                                           MyRouter.pop();
                                                           MyRouter.push(
                                                               screen: MoveFileScreen(
                                                                   movingFileId:
-                                                                      folder.id));
+                                                                      folder
+                                                                          .id));
                                                         }),
                                                     BottomSheetOption(
                                                       icon: Icons
@@ -1119,7 +1128,8 @@ class _SharedPageState extends State<SharedPage> {
                                                       },
                                                     ),
                                                     BottomSheetOption(
-                                                        icon: Icons.info_outline,
+                                                        icon:
+                                                            Icons.info_outline,
                                                         title:
                                                             "Details & activity",
                                                         onTap: () {
@@ -1146,17 +1156,22 @@ class _SharedPageState extends State<SharedPage> {
                                                                 .add(
                                                                   MoveToTrashEvent(
                                                                       fileIDs: [
-                                                                        folder.id
+                                                                        folder
+                                                                            .id
                                                                       ]),
                                                                 );
-                                                            Messenger.alertAction(
-                                                              color: Colors.green,
+                                                            Messenger
+                                                                .alertAction(
+                                                              color:
+                                                                  Colors.green,
                                                               msg:
                                                                   "Item moved to trash",
-                                                              actionLabel: "Undo",
+                                                              actionLabel:
+                                                                  "Undo",
                                                               duration:
                                                                   const Duration(
-                                                                      seconds: 2),
+                                                                      seconds:
+                                                                          2),
                                                               onAction: () {
                                                                 context
                                                                     .read<
@@ -1164,8 +1179,7 @@ class _SharedPageState extends State<SharedPage> {
                                                                     .add(
                                                                       RestoreEvent(
                                                                           fileIDs: [
-                                                                            folder
-                                                                                .id
+                                                                            folder.id
                                                                           ]),
                                                                     );
                                                               },

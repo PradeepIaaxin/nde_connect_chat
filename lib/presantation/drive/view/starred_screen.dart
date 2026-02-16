@@ -29,8 +29,6 @@ import 'package:nde_email/utils/snackbar/snackbar.dart';
 import 'package:nde_email/utils/spacer/spacer.dart';
 import 'package:share_plus/share_plus.dart';
 
-import '../Bloc/folder_bloc/create_folder_bloc.dart';
-import '../Bloc/folder_bloc/create_state.dart';
 import 'common_funtions.dart';
 
 class StarredPage extends StatefulWidget {
@@ -117,90 +115,68 @@ class _StarredPageState extends State<StarredPage> {
       backgroundColor: AppColors.bg,
       body: RefreshIndicator(
         onRefresh: () async => _handleSortChange,
-        child: MultiBlocListener(
-          listeners: [
-            BlocListener<CreateFolderBloc, CreateFolderState>(
-              listener: (context, state) {
+        child: BlocConsumer<StarredBloc, StarredState>(
+          listener: (context, state) {
+            if (state is StarredError) {
+              log(state.message.toString());
+            }
+          },
+          builder: (context, state) {
+            if (state is StarredLoading) {
+              return ShimmerListLoader(
+                iconSize: 40,
+                titleHeight: 18,
+                subtitleHeight: 14,
+                trailingIconSize: 20,
+                padding: EdgeInsets.all(10),
+                baseColor: Colors.grey[200]!,
+                highlightColor: Colors.grey[50]!,
+                titleWidthFactor: 0.8,
+                subtitleWidth: 100,
+              );
+            }
 
-                if (state is CreateFolderSuccess) {
+            if (state is StarredLoaded) {
+              final folders = state.folders;
 
-                  log("✅ MOVE SUCCESS → Reloading folders");
-
-                  //_fetchFolders();
-
-                  Messenger.alertSuccess("Folder created successfully");
-
-                }
-
-                if (state is CreateFolderFailure) {
-                  Messenger.alertError("Folder Created Filed ",);
-                }
-              },
-            ),
-          ],
-          child: BlocConsumer<StarredBloc, StarredState>(
-            listener: (context, state) {
-              if (state is StarredError) {
-                log(state.message.toString());
-              }
-            },
-            builder: (context, state) {
-              if (state is StarredLoading) {
-                return ShimmerListLoader(
-                  iconSize: 40,
-                  titleHeight: 18,
-                  subtitleHeight: 14,
-                  trailingIconSize: 20,
-                  padding: EdgeInsets.all(10),
-                  baseColor: Colors.grey[200]!,
-                  highlightColor: Colors.grey[50]!,
-                  titleWidthFactor: 0.8,
-                  subtitleWidth: 100,
+              if (folders.isEmpty) {
+                return const Center(
+                  child: Text('No starred files found'),
                 );
               }
 
-              if (state is StarredLoaded) {
-                final folders = state.folders;
+              return Stack(
+                children: [
+                  _buildDriveLayout(folders, state.hasMore),
+                ],
+              );
+            }
 
-                if (folders.isEmpty) {
-                  return const Center(
-                    child: Text('No starred files found'),
-                  );
-                }
-
-                return Stack(
+            if (state is StarredError) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _buildDriveLayout(folders, state.hasMore),
+                    const Text('Something went wrong!'),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () {
+                        context.read<StarredBloc>().add(
+                              FetchStarredFolders(
+                                sortBy: sortQuery ?? 'name',
+                                isLoadMore: false,
+                              ),
+                            );
+                      },
+                      child: const Text('Retry'),
+                    ),
                   ],
-                );
-              }
+                ),
+              );
+            }
 
-              if (state is StarredError) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text('Something went wrong!'),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: () {
-                          context.read<StarredBloc>().add(
-                                FetchStarredFolders(
-                                  sortBy: sortQuery ?? 'name',
-                                  isLoadMore: false,
-                                ),
-                              );
-                        },
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              return const SizedBox();
-            },
-          ),
+            return const SizedBox();
+          },
         ),
       ),
     );
@@ -293,22 +269,23 @@ class _StarredPageState extends State<StarredPage> {
                             icon: Icons.delete,
                             title: "Delete",
                             onTap: () {
+                              final bloc = context.read<StarredBloc>();
                               showMoveToBinDialog(context, () {
                                 final ids = selectedFolders.toList();
-                                context.read<StarredBloc>().add(
-                                      MoveToTrashEvent(
-                                        fileIDs: ids,
-                                      ),
-                                    );
+                                bloc.add(
+                                  MoveToTrashEvent(
+                                    fileIDs: ids,
+                                  ),
+                                );
                                 Messenger.alertAction(
                                   color: Colors.green,
                                   msg: "Item moved to trash",
                                   actionLabel: "Undo",
                                   duration: const Duration(seconds: 2),
                                   onAction: () {
-                                    context.read<StarredBloc>().add(
-                                          RestoreEvent(fileIDs: ids),
-                                        );
+                                    bloc.add(
+                                      RestoreEvent(fileIDs: ids),
+                                    );
                                   },
                                 );
                               }, "");
@@ -479,6 +456,7 @@ class _FolderGridItem extends StatelessWidget {
     void loadStarredFolders({String? sortBy}) {
       context.read<StarredBloc>().add(FetchStarredFolders(sortBy: sortBy));
     }
+
     return GestureDetector(
       onLongPress: () {
         log("hii");
@@ -636,12 +614,12 @@ class _FolderGridItem extends StatelessWidget {
                                   title: "Move",
                                   onTap: () async {
                                     MyRouter.pop();
-                                final result = await     MyRouter.push(
+                                    final result = await MyRouter.push(
                                         screen: MoveFileScreen(
                                             movingFileId: folder.id));
-                                if(result==true){
-                                  loadStarredFolders();
-                                }
+                                    if (result == true) {
+                                      loadStarredFolders();
+                                    }
                                   },
                                 ),
                                 BottomSheetOption(
@@ -693,27 +671,31 @@ class _FolderGridItem extends StatelessWidget {
                                   },
                                 ),
                                 BottomSheetOption(
-                                  icon: Icons.delete,
-                                  title: "Remove",
-                                  onTap: () {
-                                    context.read<StarredBloc>().add(
+                                    icon: Icons.delete,
+                                    title: "Move to bin",
+                                    onTap: () {
+                                      final bloc = context.read<StarredBloc>();
+                                      showMoveToBinDialog(context, () {
+                                        bloc.add(
                                           MoveToTrashEvent(
                                               fileIDs: [folder.id]),
                                         );
-                                    Messenger.alertAction(
-                                      color: Colors.green,
-                                      msg: "Item moved to trash",
-                                      actionLabel: "Undo",
-                                      duration: const Duration(seconds: 2),
-                                      onAction: () {
-                                        context.read<StarredBloc>().add(
+                                        Messenger.alertAction(
+                                          color: Colors.green,
+                                          msg: "Item moved to trash",
+                                          actionLabel: "Undo",
+                                          duration: const Duration(seconds: 2),
+                                          onAction: () {
+                                            bloc.add(
                                               RestoreEvent(
                                                   fileIDs: [folder.id]),
                                             );
+                                          },
+                                        );
                                       },
-                                    );
-                                  },
-                                ),
+                                          folder
+                                              .name); // using folder.name for the dialog message
+                                    }),
                               ],
                               title: folder.name,
                               foldertype: folder.type,
@@ -791,6 +773,7 @@ class _FolderListItem extends StatelessWidget {
     void loadStarredFolders({String? sortBy}) {
       context.read<StarredBloc>().add(FetchStarredFolders(sortBy: sortBy));
     }
+
     return GestureDetector(
       onLongPress: () => onLongPressStart(folder.id),
       onTap: () {
@@ -1006,11 +989,11 @@ class _FolderListItem extends StatelessWidget {
                     title: "Move",
                     onTap: () async {
                       MyRouter.pop();
-                    final result =   await MyRouter.push(
+                      final result = await MyRouter.push(
                           screen: MoveFileScreen(movingFileId: folder.id));
-                    if(result==true){
-                      loadStarredFolders();
-                    }
+                      if (result == true) {
+                        loadStarredFolders();
+                      }
                     },
                   ),
                   BottomSheetOption(
@@ -1050,19 +1033,20 @@ class _FolderListItem extends StatelessWidget {
                     icon: Icons.delete,
                     title: "Move to bin",
                     onTap: () {
+                      final bloc = context.read<StarredBloc>();
                       showMoveToBinDialog(context, () {
-                        context.read<StarredBloc>().add(
-                              MoveToTrashEvent(fileIDs: [folder.id]),
-                            );
+                        bloc.add(
+                          MoveToTrashEvent(fileIDs: [folder.id]),
+                        );
                         Messenger.alertAction(
                           color: Colors.green,
                           msg: "Item moved to trash",
                           actionLabel: "Undo",
                           duration: const Duration(seconds: 2),
                           onAction: () {
-                            context.read<StarredBloc>().add(
-                                  RestoreEvent(fileIDs: [folder.id]),
-                                );
+                            bloc.add(
+                              RestoreEvent(fileIDs: [folder.id]),
+                            );
                           },
                         );
                       }, folder.name);

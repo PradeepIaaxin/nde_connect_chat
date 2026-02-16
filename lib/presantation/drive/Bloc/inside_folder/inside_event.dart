@@ -49,8 +49,9 @@ class InDeletePermanentlyEvent extends InsideEvent {
 
 class InRestoreEvent extends InsideEvent {
   final List<String> fileIDs;
+  final String selectedId;
 
-  InRestoreEvent({required this.fileIDs});
+  InRestoreEvent({required this.fileIDs, required this.selectedId});
 }
 
 class InOrganizeEvent extends InsideEvent {
