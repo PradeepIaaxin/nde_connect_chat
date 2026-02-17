@@ -477,10 +477,10 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
 
                         // use a TEMP id only for UI, NOT forward_...
                         final localId =
-                            'temp_${DateTime.now().microsecondsSinceEpoch}_${receiverId}';
+                            'temp_${DateTime.now().microsecondsSinceEpoch}_$receiverId';
 
                         final forwardFingerprint =
-                            '${originalMessageId}_${receiverId}';
+                            '${originalMessageId}_$receiverId';
 
                         final optimisticMessage = {
                           // 🔑 TEMP LOCAL ID (only for UI)
@@ -532,8 +532,7 @@ class _ForwardMessageScreenState extends State<ForwardMessageScreen> {
                         };
 
                         //optimisticMessagesForUI.add(optimisticMessage);
-                        print("foewardddd ${widget.isForward}");
-                        print("mimeType ${mimeType}");
+                      
                         // widget.isForward!
                         //     ? null
                         //     : await _saveOptimisticMessage(

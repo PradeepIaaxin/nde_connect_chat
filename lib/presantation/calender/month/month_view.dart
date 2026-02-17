@@ -110,7 +110,7 @@ class _EventsMonthsViewState extends State<EventsMonthsView> {
                         horizontal: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.redAccent.withOpacity(0.15),
+                        color: Colors.redAccent.withValues(alpha:0.15),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
@@ -225,14 +225,14 @@ class _EventsMonthsViewState extends State<EventsMonthsView> {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              event.color.withOpacity(0.7),
-              event.color.withOpacity(0.95),
+              event.color.withValues(alpha:0.7),
+              event.color.withValues(alpha:0.95),
             ],
           ),
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.12),
+              color: Colors.black.withValues(alpha:0.12),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),

@@ -1,0 +1,2 @@
+/Users/sharmila/Desktop/test/nde_connect_chat/android/app/.cxx/debug/1q1s362g/armeabi-v7a/CMakeFiles/edit_cache.dir
+/Users/sharmila/Desktop/test/nde_connect_chat/android/app/.cxx/debug/1q1s362g/armeabi-v7a/CMakeFiles/rebuild_cache.dir

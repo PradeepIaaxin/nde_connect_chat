@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:nde_email/presantation/drive/Bloc/file_bloc/my_drive_bloc.dart';
-import 'package:nde_email/presantation/drive/Bloc/file_bloc/myfile_event.dart';
 import 'package:nde_email/presantation/drive/Bloc/file_bloc/myfile_state.dart';
 import 'package:nde_email/presantation/drive/common/hexa_color.dart';
-import 'package:nde_email/presantation/drive/data/my_drive_repository.dart';
 
 import 'package:nde_email/presantation/drive/view/file_inside_sceen.dart';
 

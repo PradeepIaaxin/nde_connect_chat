@@ -1,4 +1,3 @@
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -9,7 +8,6 @@ import 'package:nde_email/presantation/calender/model/event_data_model.dart';
 import 'package:nde_email/presantation/calender/bloc/event_bloc/event_all_bloc.dart';
 import 'package:nde_email/presantation/calender/bloc/event_bloc/event_all_state.dart';
 import 'package:nde_email/utils/const/consts.dart';
-import 'package:table_calendar/table_calendar.dart';
 
 class EventsPlannerDraggableEventsView extends StatefulWidget {
   const EventsPlannerDraggableEventsView({
@@ -131,7 +129,7 @@ class _EventsPlannerDraggableEventsViewState
               horizontalScrollPhysics: const ClampingScrollPhysics(),
               onDayChange: _onDayChange,
               dayParam: DayParam(
-                todayColor: chatColor.withOpacity(0.15),
+                todayColor: chatColor.withValues(alpha:0.15),
                 slotSelectionParam: const SlotSelectionParam(
                   enableTapSlotSelection: true,
                   enableLongPressSlotSelection: true,
@@ -409,7 +407,7 @@ class _CompactEventLine extends StatelessWidget {
         margin: const EdgeInsets.all(0.5),
         padding: const EdgeInsets.symmetric(horizontal: 2),
         decoration: BoxDecoration(
-          color: event.color.withOpacity(0.8),
+          color: event.color.withValues(alpha:0.8),
           borderRadius: BorderRadius.circular(2),
         ),
         child: Row(
@@ -478,7 +476,7 @@ class _MinimalEventCard extends StatelessWidget {
                 start,
                 style: TextStyle(
                   fontSize: 7,
-                  color: event.textColor.withOpacity(0.9),
+                  color: event.textColor.withValues(alpha:0.9),
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -576,7 +574,7 @@ class _CompactEventCard extends StatelessWidget {
                     '$start - $end',
                     style: TextStyle(
                       fontSize: small ? 8 : 9,
-                      color: event.textColor.withOpacity(0.8),
+                      color: event.textColor.withValues(alpha:0.8),
                     ),
                   ),
               ],
@@ -601,7 +599,7 @@ class _DayHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
       decoration: BoxDecoration(
-        color: isToday ? chatColor.withOpacity(0.2) : Colors.transparent,
+        color: isToday ? chatColor.withValues(alpha:0.2) : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
         border: isToday ? Border.all(color: chatColor, width: 1.5) : null,
       ),

@@ -55,7 +55,6 @@ class _MailDetailScreenState extends State<MailDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    print(widget.selectedTag);
     return MultiBlocListener(
       listeners: [
         BlocListener<SendMailBloc, SendMailState>(

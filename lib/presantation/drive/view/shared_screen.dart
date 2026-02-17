@@ -851,7 +851,7 @@ class _SharedPageState extends State<SharedPage> {
                                                   ));
                                                 }
                                               : () {
-                                                  print(folder.previewpath);
+                                             
                                                   MyRouter.push(
                                                     screen: FilePreviewScreen(
                                                       fileUrl:

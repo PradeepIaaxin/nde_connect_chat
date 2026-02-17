@@ -8,10 +8,8 @@ import 'package:nde_email/presantation/calender/bloc/event_bloc/event_all_bloc.d
 import 'package:nde_email/presantation/calender/bloc/event_bloc/event_all_event.dart';
 import 'package:nde_email/presantation/calender/bloc/event_bloc/event_all_state.dart';
 import 'package:nde_email/presantation/calender/common/calender_bottom_sheet_deartils.dart';
-import 'package:nde_email/presantation/calender/common/task_creating.dart';
 import 'package:nde_email/presantation/calender/model/event_data_model.dart';
 import 'package:nde_email/utils/const/consts.dart';
-import 'package:nde_email/utils/router/router.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 class EventsSchedule extends StatefulWidget {
@@ -427,14 +425,14 @@ class _EventsScheduleState extends State<EventsSchedule> {
       dayHeaderBuilder: (day, isToday, events) => Container(
         width: double.infinity,
         height: 35,
-        color: chatColor.withOpacity(0.1),
+        color: chatColor.withValues(alpha:0.1),
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
         child: Text(
           DateFormat.MMMMEEEEd().format(day).toUpperCase(),
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.9),
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha:0.9),
             letterSpacing: 0.5,
           ),
         ),
@@ -464,9 +462,9 @@ class _EventsScheduleState extends State<EventsSchedule> {
         margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: event.color.withOpacity(0.1),
+          color: event.color.withValues(alpha:0.1),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: event.color.withOpacity(0.3), width: 1),
+          border: Border.all(color: event.color.withValues(alpha:0.3), width: 1),
         ),
         child: Row(
           children: [
@@ -507,7 +505,7 @@ class _EventsScheduleState extends State<EventsSchedule> {
                         color: Theme.of(context)
                             .colorScheme
                             .onSurface
-                            .withOpacity(0.7),
+                            .withValues(alpha:0.7),
                         fontSize: 12,
                       ),
                       maxLines: 1,
@@ -520,7 +518,7 @@ class _EventsScheduleState extends State<EventsSchedule> {
                       color: Theme.of(context)
                           .colorScheme
                           .onSurface
-                          .withOpacity(0.6),
+                          .withValues(alpha:0.6),
                       fontSize: 11,
                     ),
                   ),

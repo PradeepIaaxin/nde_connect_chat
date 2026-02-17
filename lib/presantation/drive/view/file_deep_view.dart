@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
@@ -5,8 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nde_email/presantation/drive/Bloc/inside_folder/inside_bloc.dart';
 import 'package:nde_email/presantation/drive/Bloc/inside_folder/inside_event.dart';
-import 'package:nde_email/presantation/drive/Bloc/inside_folder/inside_state.dart'
-    hide MoveFileFailure;
+import 'package:nde_email/presantation/drive/Bloc/inside_folder/inside_state.dart';
 import 'package:nde_email/presantation/drive/common/colour_picker.dart';
 import 'package:nde_email/presantation/drive/common/file_preview_widget.dart';
 import 'package:nde_email/presantation/drive/common/hexa_color.dart';
@@ -646,7 +647,7 @@ class _FolderGridItem extends StatelessWidget {
 
         return Container(
           decoration: BoxDecoration(
-            color: hovering ? Colors.blue.withOpacity(0.15) : null,
+            color: hovering ? Colors.blue.withValues(alpha:0.15) : null,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Card(
@@ -1035,7 +1036,7 @@ class _FolderListItem extends StatelessWidget {
 
         return Container(
           decoration: BoxDecoration(
-            color: hovering ? Colors.blue.withOpacity(0.15) : null,
+            color: hovering ? Colors.blue.withValues(alpha:0.15) : null,
             borderRadius: BorderRadius.circular(12),
           ),
           child: ListTile(
@@ -1401,7 +1402,7 @@ Color _parseColor(String hexColor, FolderinsideModel folder) {
 }
 
 Widget _buildMimeIcon(FolderinsideModel folder) {
-  final type = folder.type?.toLowerCase() ?? "";
+  final type = folder.type.toLowerCase();
   final mime = folder.mimetype?.toLowerCase() ?? "";
 
   if (type == 'folder') {
@@ -1409,8 +1410,8 @@ Widget _buildMimeIcon(FolderinsideModel folder) {
       "assets/images/folder.png",
       height: 24,
       width: 24,
-      color: (folder.organize != null && folder.organize!.isNotEmpty)
-          ? ColorUtils.fromHex(folder.organize!)
+      color: (folder.organize.isNotEmpty)
+          ? ColorUtils.fromHex(folder.organize)
           : Colors.amber,
     );
   }

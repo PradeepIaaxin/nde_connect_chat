@@ -65,8 +65,6 @@ class MessageWidgets extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    String? CurrentUser = currentUser;
-    bool? isendMe = isSentMe;
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: Column(
@@ -128,8 +126,6 @@ class MessageWidgets extends StatelessWidget {
                       senderId == currentUserId &&
                           senderId != null &&
                           senderId.isNotEmpty;
-                  CurrentUser = senderId;
-                  isendMe = isSentByMe;
 
                   log("isendme $isSentByMe");
                   onMessageOwnerResolved(senderId ?? "", isSentByMe);
@@ -324,14 +320,13 @@ class MessageWidgets extends StatelessWidget {
                                         currentUserId,
                                         convoId:convoId,
                                         receiverId:
-                                       receiverId ??
-                                            "",
+                                       receiverId,
                                         firstName:
-                                        firstname ??
-                                            "",
+                                        firstname 
+                                            ,
                                         lastName:
-                                       lastname ??
-                                            "",
+                                       lastname 
+                                            ,
                                       ),
                                   message: message,
                                   isForwarded: isForwarded,

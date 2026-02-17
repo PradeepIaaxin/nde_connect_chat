@@ -1,24 +1,15 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:nde_email/presantation/drive/Bloc/folder_bloc/create_folder_bloc.dart';
-import 'package:nde_email/presantation/drive/Bloc/inside_folder/inside_bloc.dart'
-    show InsideBloc;
 import 'package:nde_email/presantation/drive/Bloc/inside_folder/inside_event.dart';
-import 'package:nde_email/presantation/drive/Bloc/move/move_bloc.dart';
 import 'package:nde_email/presantation/drive/Bloc/move/move_event.dart';
 import 'package:nde_email/presantation/drive/common/create_dialogue.dart';
-import 'package:nde_email/presantation/drive/data/common_repo.dart';
 import 'package:nde_email/presantation/drive/view/move_drive_page.dart';
 import 'package:nde_email/presantation/drive/view/move_sharred_page.dart';
 import 'package:nde_email/presantation/drive/view/move_starred_page.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/imports/common_imports.dart';
-import 'package:nde_email/utils/snackbar/snackbar.dart';
 
-import '../Bloc/file_bloc/my_drive_bloc.dart';
-import '../Bloc/file_bloc/myfile_event.dart';
 
 class MoveFileScreen extends StatelessWidget {
   final String movingFileId;

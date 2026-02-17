@@ -1,0 +1,20 @@
+{
+  "buildFiles": [
+    "/Users/sharmila/flutter/packages/flutter_tools/gradle/src/main/scripts/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/Users/sharmila/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+      "-C",
+      "/Users/sharmila/Desktop/test/nde_connect_chat/android/app/.cxx/debug/1q1s362g/x86_64",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/Users/sharmila/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+    "-C",
+    "/Users/sharmila/Desktop/test/nde_connect_chat/android/app/.cxx/debug/1q1s362g/x86_64",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {}
+}

@@ -3,7 +3,6 @@ import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:infinite_calendar_view/infinite_calendar_view.dart';
-import 'package:intl/intl.dart';
 import 'package:nde_email/presantation/calender/bloc/event_bloc/event_all_bloc.dart';
 import 'package:nde_email/presantation/calender/bloc/event_bloc/event_all_state.dart';
 import 'package:nde_email/presantation/calender/common/calender_bottom_sheet_deartils.dart';
@@ -324,9 +323,9 @@ class _EventOneDayViewState extends State<EventOneDayView> {
         width: width,
         margin: const EdgeInsets.all(1),
         decoration: BoxDecoration(
-          color: event.color.withOpacity(0.8),
+          color: event.color.withValues(alpha:0.8),
           borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: event.color.withOpacity(0.9), width: 1),
+          border: Border.all(color: event.color.withValues(alpha:0.9), width: 1),
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
@@ -350,7 +349,7 @@ class _EventOneDayViewState extends State<EventOneDayView> {
                 Text(
                   event.description!,
                   style: TextStyle(
-                      color: event.textColor.withOpacity(0.8), fontSize: 10),
+                      color: event.textColor.withValues(alpha:0.8), fontSize: 10),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),

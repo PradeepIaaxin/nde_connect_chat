@@ -143,6 +143,7 @@ dependencies:
   linkify: ^5.0.0
   uuid: ^4.5.2
   android_intent_plus: ^6.0.0
+  image: ^4.5.4
   
 
 dev_dependencies:

@@ -14,8 +14,6 @@ import 'package:nde_email/presantation/drive/data/common_repo.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
 import 'package:nde_email/utils/simmer_effect.dart/drive_simmer.dart';
 
-import '../Bloc/file_bloc/my_drive_bloc.dart';
-import '../Bloc/file_bloc/myfile_event.dart';
 
 class FileInsideSceen extends StatefulWidget {
   final String fileId;

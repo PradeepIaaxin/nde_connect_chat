@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'dart:developer';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -33,7 +35,6 @@ import '../Bloc/folder_bloc/create_folder_bloc.dart';
 import '../Bloc/folder_bloc/create_state.dart';
 import '../Bloc/inside_folder/inside_bloc.dart';
 import '../Bloc/inside_folder/inside_event.dart';
-import '../Bloc/inside_folder/inside_state.dart';
 import '../Bloc/move/move_bloc.dart';
 import '../Bloc/move/move_event.dart';
 import '../data/common_repo.dart';
@@ -66,7 +67,6 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
   late TabController _tabController;
   bool _isGridView = false;
   final SortOption _selectedSortOption = SortOption.name;
-
 
   @override
   void initState() {
@@ -206,7 +206,7 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
 
               return Container(
                 decoration: BoxDecoration(
-                  color: isHovering ? Colors.blue.withOpacity(0.15) : null,
+                  color: isHovering ? Colors.blue.withValues(alpha:0.15) : null,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: GestureDetector(
@@ -503,10 +503,10 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                         builder: (context) =>
                             MoveFileScreen(movingFileId: file.id),
                       ));
-                  print("MOVE RESULT = $moved");
+                
                   if (mounted && (moved ?? false)) {
-                    print("heyyyyyyyyyy");
-                    _fetchFolders(); // ✅ ALWAYS correct bloc instance
+                
+                    _fetchFolders(); 
                   }
                 },
               ),
@@ -610,8 +610,9 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
               onWillAccept: (draggedItem) {
                 if (!isFolder) return false; // Only folders accept
                 if (draggedItem == null) return false;
-                if (draggedItem.id == file.id)
-                  return false; // Prevent self drop
+                if (draggedItem.id == file.id) {
+                  return false; 
+                }
                 return true;
               },
               onAccept: (draggedItem) {
@@ -631,7 +632,7 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
                     color: isHovering
-                        ? Colors.blue.withOpacity(0.15) // ✅ Hover highlight
+                        ? Colors.blue.withValues(alpha:0.15) // ✅ Hover highlight
                         : Colors.grey.shade100,
                     border: Border.all(
                       color: isSelected ? chatColor : Colors.transparent,
@@ -858,10 +859,10 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                                       builder: (context) =>
                                           MoveFileScreen(movingFileId: file.id),
                                     ));
-                                print("MOVE RESULT = $moved");
+                                log("MOVE RESULT = $moved");
 
                                 if (mounted && (moved ?? false)) {
-                                  print("heyyyyyyyyyy");
+                                  log("heyyyyyyyyyy");
                                   _fetchFolders();
                                 }
                               },
@@ -1184,8 +1185,9 @@ class _DrivePageState extends State<DrivePage> with TickerProviderStateMixin {
                                                               .contains(f.id))
                                                       .toList();
 
-                                              if (selectedFolderModels.isEmpty)
+                                              if (selectedFolderModels.isEmpty) {
                                                 return;
+                                              }
 
                                               showReusableBottomSheet(
                                                 context,

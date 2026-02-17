@@ -275,8 +275,6 @@ class _UploadToDriveScreenState extends State<UploadToDriveScreen> {
                   itemCount: selectedFiles.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 12),
                   itemBuilder: (context, index) {
-                    final file = selectedFiles[index];
-                    final ext = file.extension ?? '';
                     return TextFormField(
                       controller: controllers[index],
                       readOnly: false,

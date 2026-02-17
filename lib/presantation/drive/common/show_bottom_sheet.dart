@@ -5,18 +5,15 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:nde_email/presantation/drive/Bloc/folder_bloc/create_folder_bloc.dart';
 import 'package:nde_email/presantation/drive/Bloc/inside_folder/inside_bloc.dart';
 import 'package:nde_email/presantation/drive/Bloc/inside_folder/inside_event.dart';
 import 'package:nde_email/presantation/drive/common/create_dialogue.dart';
 import 'package:nde_email/presantation/drive/view/uploadtodrive.dart';
 import 'package:nde_email/utils/url/url_launcher.dart';
-import 'package:path/path.dart';
 import '../Bloc/file_bloc/my_drive_bloc.dart';
 import '../Bloc/file_bloc/myfile_event.dart';
 import '../Bloc/home_bloc/sugesstion/sugesstion_bloc.dart';
-import '../Bloc/home_bloc/sugesstion/sugesstion_event.dart';
 import 'package:google_mlkit_document_scanner/google_mlkit_document_scanner.dart';
 
 void displayBottomSheet(BuildContext context, String? fileid,int index) {
@@ -29,7 +26,7 @@ void displayBottomSheet(BuildContext context, String? fileid,int index) {
       type: FileType.any,
       withData: true,
     );
-    final suggestionsBloc = context.read<SuggestionsBloc>();
+    context.read<SuggestionsBloc>();
     if (result != null && result.files.isNotEmpty) {
 
       final moved = await Navigator.push(

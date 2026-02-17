@@ -7,7 +7,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/gestures.dart';
 import 'package:nde_email/presantation/chat/socket/socket_service.dart' as socket_service;
 import 'package:nde_email/presantation/chat/chat_contact_list/local_strorage.dart';
-import 'package:nde_email/presantation/chat/chat_group_Screen/GroupMessageBubbleWidget.dart';
+import 'package:nde_email/presantation/chat/chat_group_Screen/group_message_bubble_widget.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/file_opener_utils.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_offline_message_handling.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/api_servicer.dart';
