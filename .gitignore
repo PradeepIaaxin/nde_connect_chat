@@ -49,3 +49,11 @@ build/
 android/app/build/
 *.apk
 *.aab
+
+# Android build
+android/.cxx/
+android/app/.cxx/
+build/
+.cxx/
+.gradle/
+local.properties
