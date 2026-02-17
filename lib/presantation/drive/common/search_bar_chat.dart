@@ -4,68 +4,59 @@ class MySearchBar extends StatelessWidget {
   final TextEditingController controller;
   final VoidCallback onChanged;
   final String hintText;
+  final String? userName;
+  final String? profilePicUrl;
 
   const MySearchBar({
     super.key,
     required this.controller,
     required this.onChanged,
     required this.hintText,
+    this.userName,
+    this.profilePicUrl,
   });
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return SafeArea(
       bottom: false,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
         child: Container(
-          height: 44,
+          height: 48,
           decoration: BoxDecoration(
-            color: Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: Colors.grey.shade100,
-            ),
+            color: Colors.grey[200],
+            borderRadius: BorderRadius.circular(28),
           ),
           child: Row(
             children: [
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
 
-              /// 🔍 SEARCH ICON
-              Icon(
-                Icons.search,
-                size: 20,
-                color: Colors.grey.shade600,
+              /// ☰ MENU ICON (same UI)
+              Builder(
+                builder: (context) => IconButton(
+                  icon: const Icon(Icons.menu),
+                  onPressed: () {
+                    Scaffold.of(context).openDrawer();
+                  },
+                ),
               ),
 
-              const SizedBox(width: 10),
-
-              /// ✏️ TEXT FIELD
+              /// 🔍 TEXT FIELD
               Expanded(
                 child: TextField(
                   controller: controller,
                   onChanged: (_) => onChanged(),
                   textAlignVertical: TextAlignVertical.center,
-                  style: TextStyle(
-                    fontSize: 14.5,
-                    height: 1.2, // WhatsApp text baseline
-                  ),
                   decoration: InputDecoration(
                     hintText: 'Search in $hintText',
-                    hintStyle: TextStyle(
-                      color: theme.hintColor,
-                      fontSize: 14.5,
-                      height: 1.2,
-                    ),
                     border: InputBorder.none,
-                    isCollapsed: true, // IMPORTANT
+                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                 ),
               ),
 
-              /// ❌ CLEAR BUTTON
+              /// ❌ CLEAR BUTTON (UI only addition)
               if (controller.text.isNotEmpty)
                 GestureDetector(
                   onTap: () {
@@ -73,15 +64,13 @@ class MySearchBar extends StatelessWidget {
                     onChanged();
                     FocusScope.of(context).unfocus();
                   },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Icon(
-                      Icons.close,
-                      size: 20,
-                      color: Colors.grey.shade600,
-                    ),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 10),
+                    child: Icon(Icons.close, size: 20),
                   ),
                 ),
+
+              const SizedBox(width: 10),
             ],
           ),
         ),

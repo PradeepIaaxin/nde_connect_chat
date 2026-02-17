@@ -132,6 +132,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         userName: userName,
         profilePicUrl: profilePicUrl,
         calendarView: _currentView,
+        email: gmail,
         onCalendarViewChanged: (view) {
           setState(() => _currentView = view);
         },

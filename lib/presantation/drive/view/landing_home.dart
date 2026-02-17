@@ -91,6 +91,7 @@ class _LandingHomeState extends State<LandingHome> {
         onMailboxSelected: (_, __) {},
         userName: userName,
         profilePicUrl: profilePicUrl,
+            email: gmail,
       ),
 
       endDrawer: Endrawer(

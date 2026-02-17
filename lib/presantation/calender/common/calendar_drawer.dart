@@ -4,7 +4,6 @@ import 'package:nde_email/data/respiratory.dart';
 import 'package:nde_email/presantation/calender/bloc/event_bloc/event_all_bloc.dart';
 import 'package:nde_email/presantation/calender/bloc/event_bloc/event_all_event.dart';
 import 'package:nde_email/presantation/calender/bloc/event_bloc/event_all_state.dart';
-
 import 'package:nde_email/presantation/calender/model/app-calendar/app_calendar.dart';
 import 'package:nde_email/presantation/calender/model/google_model/google_model.dart';
 import 'package:nde_email/presantation/calender/model/group-model/group_model.dart';
@@ -13,6 +12,7 @@ import 'package:nde_email/presantation/calender/model/shared-model/shared_model.
 import 'package:nde_email/presantation/calender/model/subscribed_model/subscribed_calmodel.dart';
 import 'package:nde_email/presantation/calender/model/task-model/task_model.dart';
 import 'package:nde_email/presantation/calender/schedule/calendar_screen.dart';
+import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/widget/drawer_header.dart';
 import 'package:nde_email/utils/const/consts.dart';
 import 'package:nde_email/utils/reusbale/color_assign_utils.dart';
 import 'package:nde_email/utils/router/router.dart';
@@ -81,8 +81,10 @@ class _CalendarDrawerState extends State<CalendarDrawer> {
             color: Colors.white,
             child: Column(
               children: [
-                _buildHeader(),
-                const Divider(),
+                DrawerHeaderWidget(
+                  userName: userName ?? "Unknown User",
+                  moduleName: "Calendar",
+                ),
                 _buildViewSelector(),
                 Expanded(
                   child: _buildCalendarContent(isLoading, isLoaded, state),
@@ -290,58 +292,6 @@ class _CalendarDrawerState extends State<CalendarDrawer> {
     }
   }
 
-  Widget _buildHeader() {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      userName ?? "Unknown User",
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-
-                    const SizedBox(height: 2),
-
-                    // Nde Drive
-                    RichText(
-                      text: TextSpan(
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        children: [
-                          TextSpan(
-                            text: "Nde ",
-                            style: TextStyle(color: chatColor),
-                          ),
-                          const TextSpan(
-                            text: "Calendar",
-                            style: TextStyle(color: Colors.black87),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildSectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -396,6 +346,7 @@ class _CalendarDrawerState extends State<CalendarDrawer> {
   Widget _buildViewSelector() {
     return Column(
       children: [
+        SizedBox(height: 8),
         _drawerItem(
           icon: Icons.schedule_sharp,
           title: "Schedule",

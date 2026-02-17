@@ -2,7 +2,7 @@
 
 import 'package:flutter/services.dart';
 import 'package:nde_email/data/respiratory.dart';
-                                                                                                             
+
 import 'package:nde_email/presantation/chat/chat_contact_list/user_listscreen.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_bloc.dart';
 import 'package:nde_email/presantation/chat/chat_group_Screen/group_event.dart';
@@ -18,11 +18,11 @@ import 'package:nde_email/presantation/chat/device/screen/device_screen.dart';
 import 'package:nde_email/presantation/chat/socket/socket_service.dart';
 import 'package:nde_email/presantation/drive/common/search_bar_chat.dart';
 import 'package:nde_email/presantation/network/connectivity_servicer.dart';
+import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/widget/mini_rail_drawer.dart';
 import 'package:nde_email/utils/custom/custom_alret_box.dart';
 import 'package:nde_email/utils/reusbale/common_import.dart';
 import 'package:nde_email/utils/reusbale/endrawer.dart';
 import 'package:nde_email/utils/reusbale/reusable_popup_menu.dart';
-import 'package:nde_email/utils/reusbale/whatsapp_banner.dart';
 import 'package:nde_email/utils/reusbale/whatsapp_offline_banner.dart';
 import 'package:nde_email/utils/simmer_effect.dart/chat_list_item.dart';
 import '../chat_group_Screen/group_chat_screen.dart';
@@ -59,7 +59,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
   String? gmail;
   String? profilePicUrl;
   String? userName;
-  bool _showAdBanner = true;
+  // bool _showAdBanner = true;
   final Map<String, String> _typingByConvo = {};
   StreamSubscription? _typingSub;
   String? currentUserId;
@@ -254,11 +254,11 @@ class _ChatListScreenState extends State<ChatListScreen> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(40),
           color: isSelected
-              ? const Color(0xFF0011FF).withValues(alpha:0.1)
+              ? const Color(0xFF0011FF).withValues(alpha: 0.1)
               : Colors.white,
           border: Border.all(
             color: isSelected
-                ? const Color(0xFF0011FF).withValues(alpha:0.1)
+                ? const Color(0xFF0011FF).withValues(alpha: 0.1)
                 : Colors.grey.shade300,
           ),
         ),
@@ -509,6 +509,132 @@ class _ChatListScreenState extends State<ChatListScreen> {
     debugPrint('👥 Participants: ${chat.participants}');
     debugPrint('────────────────────────────');
   }
+PreferredSizeWidget _buildSelectionAppBar() {
+  return AppBar(
+    automaticallyImplyLeading: false,
+    backgroundColor: Colors.white,
+    elevation: 0,
+    surfaceTintColor: Colors.white,
+
+    leading: IconButton(
+      icon: const Icon(Icons.close, color: Colors.black),
+      onPressed: _clearSelection,
+    ),
+
+    title: Text(
+      '${selectedUsers.length} selected',
+      style: const TextStyle(color: Colors.black),
+    ),
+
+    iconTheme: const IconThemeData(color: Colors.black),
+
+    actions: [
+      /// 📌 PIN
+      IconButton(
+        icon: Icon(
+          selectedUsers.every((chat) => chat.isPinned ?? false)
+              ? Icons.push_pin
+              : Icons.push_pin_outlined,
+          color: Colors.black,
+        ),
+        onPressed: () async {
+          final allPinned = selectedUsers.isNotEmpty &&
+              selectedUsers.every(
+                  (chat) => chat.isPinned ?? false);
+
+          final chatsToPin =
+              List<Datu>.from(selectedUsers);
+
+          setState(() {
+            selectedUsers.clear();
+            longPressed = false;
+          });
+
+          for (final chat in chatsToPin) {
+            await handlePinChat(
+              chat.id ?? '',
+              !allPinned,
+            );
+          }
+        },
+      ),
+
+      /// 🗑 DELETE
+      IconButton(
+        icon: const Icon(Icons.delete_outline,
+            color: Colors.black),
+        onPressed: () async {
+          CustomConfirmationDialog.show(
+            context: context,
+            title: "Delete Items!",
+            message:
+                "Are you sure you want to delete selected items?",
+            icon: Icons.delete_outline,
+            iconColor: Colors.red,
+            confirmColor: Colors.red,
+            onConfirm: () async {
+              final ids = selectedUsers
+                  .map((c) =>
+                      c.conversationId ?? c.id ?? "")
+                  .where((e) => e.isNotEmpty)
+                  .toList();
+
+              SocketService().emitDeleteChat(
+                conversationIds: ids,
+                isDeleted: true,
+              );
+
+              setState(() {
+                for (var chat in _allChats) {
+                  if (ids
+                      .contains(chat.conversationId)) {
+                    chat.isDeleted = true;
+                  }
+                }
+
+                selectedUsers.clear();
+                longPressed = false;
+              });
+
+              Messenger.alertSuccess(
+                  "Deleted Successfully");
+            },
+          );
+        },
+      ),
+
+      /// 🗄 ARCHIVE
+      IconButton(
+        icon: const Icon(Icons.archive_outlined,
+            color: Colors.black),
+        onPressed: () async {
+          for (var chat in selectedUsers) {
+            final newArchive =
+                !(chat.isArchived ?? false);
+
+            await handleArchiveChat(
+              chat.id ?? '',
+              newArchive,
+            );
+          }
+
+          setState(() {
+            selectedUsers.clear();
+            longPressed = false;
+          });
+        },
+      ),
+
+      /// ⋮ MENU
+      ReusablePopupMenu(
+        items: selectionMenuItems,
+        onSelected: (value) {
+          _handleSelectionMenu(value);
+        },
+      ),
+    ],
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -516,182 +642,188 @@ class _ChatListScreenState extends State<ChatListScreen> {
       onWillPop: _onWillPop,
       child: Scaffold(
         backgroundColor: Colors.white,
-        appBar: AppBar(
-          automaticallyImplyLeading: longPressed,
-          backgroundColor: Colors.white,
-          elevation: 0,
-          surfaceTintColor: Colors.white,
-          leading: longPressed
-              ? IconButton(
-                  icon: const Icon(Icons.close, color: Colors.black),
-                  onPressed: _clearSelection,
-                )
-              : null,
-          title: selectedUsers.isEmpty
-              ? const Text(
-                  'Chats',
-                  style: TextStyle(color: Colors.black),
-                )
-              : Text(
-                  '${selectedUsers.length} selected',
-                  style: const TextStyle(color: Colors.black),
-                ),
-          iconTheme: const IconThemeData(color: Colors.black),
-          actions: [
-            if (selectedUsers.isNotEmpty)
-              IconButton(
-                icon: Icon(
-                  selectedUsers.every((chat) => chat.isPinned ?? false)
-                      ? Icons.push_pin
-                      : Icons.push_pin_outlined,
-                  color: Colors.black,
-                ),
-                onPressed: () async {
-                  final allPinned = selectedUsers.isNotEmpty &&
-                      selectedUsers.every((chat) => chat.isPinned ?? false);
-
-                  // ✅ 1️⃣ COPY selection (because we clear immediately)
-                  final chatsToPin = List<Datu>.from(selectedUsers);
-
-                  // ✅ 2️⃣ EXIT SELECTION MODE IMMEDIATELY (THIS WAS MISSING)
-                  setState(() {
-                    selectedUsers.clear();
-                    longPressed = false;
-                  });
-
-                  // ✅ 3️⃣ APPLY PIN (background)
-                  for (final chat in chatsToPin) {
-                    await handlePinChat(chat.id ?? '', !allPinned);
-                  }
-                },
-              ),
-            if (selectedUsers.isNotEmpty)
-              IconButton(
-                icon: const Icon(Icons.delete_outline, color: Colors.black),
-                onPressed: () async {
-                  CustomConfirmationDialog.show(
-                    context: context,
-                    title: "Delete Items!",
-                    message: "Are you sure you want to delete selected items?",
-                    icon: Icons.delete_outline,
-                    iconColor: Colors.red,
-                    confirmColor: Colors.red,
-                    onConfirm: () async {
-                      final ids = selectedUsers
-                          .map((c) => c.conversationId ?? c.id ?? "")
-                          .where((e) => e.isNotEmpty)
-                          .toList();
-
-                      // Send to backend
-                      SocketService().emitDeleteChat(
-                        conversationIds: ids,
-                        isDeleted: true,
-                      );
-
-                      // ✅ MARK AS DELETED LOCALLY (IMPORTANT FIX)
-                      setState(() {
-                        for (var chat in _allChats) {
-                          if (ids.contains(chat.conversationId)) {
-                            chat.isDeleted = true;
-                          }
-                        }
-
-                        selectedUsers.clear();
-                        longPressed = false;
-                      });
-
-                      // // ✅ Save local cache (if using Hive)
-                      // ChatSessionStorage.saveChatList(_allChats);
-
-                      // // ✅ Update bloc UI
-                      // context.read<ChatListBloc>().add(UpdateLocalChatList());
-
-                      Messenger.alertSuccess("Deleted Successfully");
-                    },
-                  );
-                },
-              ),
-            if (selectedUsers.isNotEmpty)
-              IconButton(
-                icon: const Icon(Icons.archive_outlined, color: Colors.black),
-                onPressed: () async {
-                  for (var chat in selectedUsers) {
-                    final newArchive = !(chat.isArchived ?? false);
-                    await handleArchiveChat(chat.id ?? '', newArchive);
-                  }
-                  setState(() {
-                    selectedUsers.clear();
-                    longPressed = false;
-                  });
-                },
-              ),
-            if (!_isSearching)
-              ReusablePopupMenu(
-                items: selectedUsers.isNotEmpty
-                    ? selectionMenuItems
-                    : normalMenuItems,
-                onSelected: (value) {
-                  if (selectedUsers.isNotEmpty) {
-                    _handleSelectionMenu(value);
-                  } else {
-                    _handleNormalMenu(value);
-                  }
-                },
-              ),
-          ],
-          bottom: PreferredSize(
-            preferredSize: Size.fromHeight(
-              (_showAdBanner ? 99 : 0) + (!_hasInternet ? 70 : 0) + 56,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                MySearchBar(
-                  controller: _searchController,
-                  hintText: 'Chats',
-                  onChanged: () {
-                    setState(() {});
-                  },
-                ),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
-                  child: !_hasInternet
-                      ? WhatsAppOfflineBanner(
-                          status: _networkStatus,
-                          onRetry: () async {
-                            setState(() {
-                              _networkStatus = NetworkStatus.reconnecting;
-                            });
-
-                            final ok = await InternetService.hasInternet();
-
-                            if (mounted) {
-                              setState(() {
-                                _networkStatus = ok
-                                    ? NetworkStatus.connected
-                                    : NetworkStatus.disconnected;
-                              });
-                            }
-                          },
-                        )
-                      : const SizedBox.shrink(),
-                ),
-                if (_showAdBanner)
-                  WhatsAppAdBanner(
-                    key: const ValueKey('whatsapp_banner'),
-                    onClose: () {
-                      setState(() {
-                        _showAdBanner = false;
-                      });
-                    },
-                    onGetStarted: () {
-                      debugPrint('Get Started clicked');
-                    },
-                  ),
-              ],
-            ),
-          ),
+        drawer: MiniRailDrawer(
+          selectedModule: "chat",
+          onMailTap: () {
+            Navigator.pop(context);
+          },
+          selectedIndex: -1,
+          selectedMailboxId: "",
+          onMailboxSelected: (_, __) {},
+          userName: userName,
+          profilePicUrl: profilePicUrl,
+          email: gmail,
         ),
+         appBar: longPressed
+        ? _buildSelectionAppBar() 
+        : _buildNormalAppBar(),
+        // appBar: AppBar(
+        //   automaticallyImplyLeading: longPressed,
+        //   backgroundColor: Colors.white,
+        //   elevation: 0,
+        //   surfaceTintColor: Colors.white,
+        //   leading: longPressed
+        //       ? IconButton(
+        //           icon: const Icon(Icons.close, color: Colors.black),
+        //           onPressed: _clearSelection,
+        //         )
+        //       : null,
+        //   title: selectedUsers.isEmpty
+        //       ? const Text(
+        //           'Chats',
+        //           style: TextStyle(color: Colors.black),
+        //         )
+        //       : Text(
+        //           '${selectedUsers.length} selected',
+        //           style: const TextStyle(color: Colors.black),
+        //         ),
+        //   iconTheme: const IconThemeData(color: Colors.black),
+        //   actions: [
+        //     if (selectedUsers.isNotEmpty)
+        //       IconButton(
+        //         icon: Icon(
+        //           selectedUsers.every((chat) => chat.isPinned ?? false)
+        //               ? Icons.push_pin
+        //               : Icons.push_pin_outlined,
+        //           color: Colors.black,
+        //         ),
+        //         onPressed: () async {
+        //           final allPinned = selectedUsers.isNotEmpty &&
+        //               selectedUsers.every((chat) => chat.isPinned ?? false);
+
+        //           // ✅ 1️⃣ COPY selection (because we clear immediately)
+        //           final chatsToPin = List<Datu>.from(selectedUsers);
+
+        //           // ✅ 2️⃣ EXIT SELECTION MODE IMMEDIATELY (THIS WAS MISSING)
+        //           setState(() {
+        //             selectedUsers.clear();
+        //             longPressed = false;
+        //           });
+
+        //           // ✅ 3️⃣ APPLY PIN (background)
+        //           for (final chat in chatsToPin) {
+        //             await handlePinChat(chat.id ?? '', !allPinned);
+        //           }
+        //         },
+        //       ),
+        //     if (selectedUsers.isNotEmpty)
+        //       IconButton(
+        //         icon: const Icon(Icons.delete_outline, color: Colors.black),
+        //         onPressed: () async {
+        //           CustomConfirmationDialog.show(
+        //             context: context,
+        //             title: "Delete Items!",
+        //             message: "Are you sure you want to delete selected items?",
+        //             icon: Icons.delete_outline,
+        //             iconColor: Colors.red,
+        //             confirmColor: Colors.red,
+        //             onConfirm: () async {
+        //               final ids = selectedUsers
+        //                   .map((c) => c.conversationId ?? c.id ?? "")
+        //                   .where((e) => e.isNotEmpty)
+        //                   .toList();
+
+        //               // Send to backend
+        //               SocketService().emitDeleteChat(
+        //                 conversationIds: ids,
+        //                 isDeleted: true,
+        //               );
+
+        //               setState(() {
+        //                 for (var chat in _allChats) {
+        //                   if (ids.contains(chat.conversationId)) {
+        //                     chat.isDeleted = true;
+        //                   }
+        //                 }
+
+        //                 selectedUsers.clear();
+        //                 longPressed = false;
+        //               });
+
+        //               Messenger.alertSuccess("Deleted Successfully");
+        //             },
+        //           );
+        //         },
+        //       ),
+        //     if (selectedUsers.isNotEmpty)
+        //       IconButton(
+        //         icon: const Icon(Icons.archive_outlined, color: Colors.black),
+        //         onPressed: () async {
+        //           for (var chat in selectedUsers) {
+        //             final newArchive = !(chat.isArchived ?? false);
+        //             await handleArchiveChat(chat.id ?? '', newArchive);
+        //           }
+        //           setState(() {
+        //             selectedUsers.clear();
+        //             longPressed = false;
+        //           });
+        //         },
+        //       ),
+        //     if (!_isSearching)
+        //       ReusablePopupMenu(
+        //         items: selectedUsers.isNotEmpty
+        //             ? selectionMenuItems
+        //             : normalMenuItems,
+        //         onSelected: (value) {
+        //           if (selectedUsers.isNotEmpty) {
+        //             _handleSelectionMenu(value);
+        //           }
+        //         },
+        //       ),
+        //   ],
+        //   bottom: PreferredSize(
+        //     preferredSize: Size.fromHeight(
+        //       (!_hasInternet ? 70 : 0) + 56,
+        //     ),
+        //     child: Column(
+        //       mainAxisSize: MainAxisSize.min,
+        //       children: [
+        //         MySearchBar(
+        //           controller: _searchController,
+        //           hintText: 'Chats',
+        //           onChanged: () {
+        //             setState(() {});
+        //           },
+        //         ),
+        //         AnimatedSwitcher(
+        //           duration: const Duration(milliseconds: 300),
+        //           child: !_hasInternet
+        //               ? WhatsAppOfflineBanner(
+        //                   status: _networkStatus,
+        //                   onRetry: () async {
+        //                     setState(() {
+        //                       _networkStatus = NetworkStatus.reconnecting;
+        //                     });
+
+        //                     final ok = await InternetService.hasInternet();
+
+        //                     if (mounted) {
+        //                       setState(() {
+        //                         _networkStatus = ok
+        //                             ? NetworkStatus.connected
+        //                             : NetworkStatus.disconnected;
+        //                       });
+        //                     }
+        //                   },
+        //                 )
+        //               : const SizedBox.shrink(),
+        //         ),
+        //         // if (_showAdBanner)
+        //         //   WhatsAppAdBanner(
+        //         //     key: const ValueKey('whatsapp_banner'),
+        //         //     onClose: () {
+        //         //       setState(() {
+        //         //         _showAdBanner = false;
+        //         //       });
+        //         //     },
+        //         //     onGetStarted: () {
+        //         //       debugPrint('Get Started clicked');
+        //         //     },
+        //         //   ),
+        //       ],
+        //     ),
+        //   ),
+        // ),
         body: BlocBuilder<ChatListBloc, ChatListState>(
           builder: (context, state) {
             List<Datu> sourceChats = [];
@@ -767,7 +899,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                           horizontal: 14, vertical: 5),
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.circular(24),
-                                        color: Colors.black.withValues(alpha:0.08),
+                                        color: Colors.black
+                                            .withValues(alpha: 0.08),
                                       ),
                                       child: Row(
                                         children: [
@@ -881,7 +1014,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                         }
                                         logChatDetails(chat);
                                         log(chat.toJson().toString());
-log("...............> ${    chat.id}");
+                                        log("...............> ${chat.id}");
                                         MyRouter.push(
                                           screen: chat.isGroupChat == true
                                               ? GroupChatScreen(
@@ -987,4 +1120,76 @@ log("...............> ${    chat.id}");
       ),
     );
   }
+
+  PreferredSizeWidget _buildNormalAppBar() {
+  return AppBar(
+    automaticallyImplyLeading: false,
+    backgroundColor: Colors.white,
+    elevation: 0,
+    surfaceTintColor: Colors.white,
+    iconTheme: const IconThemeData(color: Colors.black),
+
+    title: const Text(
+      'Chats',
+      style: TextStyle(color: Colors.black),
+    ),
+
+    actions: [
+      if (!_isSearching)
+        ReusablePopupMenu(
+          items: normalMenuItems,
+          onSelected: (value) {
+            _handleNormalMenu(value);
+          },
+        ),
+    ],
+
+    bottom: PreferredSize(
+      preferredSize: Size.fromHeight(
+        (!_hasInternet ? 70 : 0) + 56,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          MySearchBar(
+            controller: _searchController,
+            hintText: 'Chats',
+            onChanged: () {
+              setState(() {});
+            },
+            userName: userName,
+            profilePicUrl: profilePicUrl,
+          ),
+
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            child: !_hasInternet
+                ? WhatsAppOfflineBanner(
+                    status: _networkStatus,
+                    onRetry: () async {
+                      setState(() {
+                        _networkStatus =
+                            NetworkStatus.reconnecting;
+                      });
+
+                      final ok =
+                          await InternetService.hasInternet();
+
+                      if (mounted) {
+                        setState(() {
+                          _networkStatus = ok
+                              ? NetworkStatus.connected
+                              : NetworkStatus.disconnected;
+                        });
+                      }
+                    },
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 }

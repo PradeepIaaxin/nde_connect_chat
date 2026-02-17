@@ -6,6 +6,7 @@ import 'package:nde_email/presantation/drive/model/file_size.dart';
 import 'package:nde_email/presantation/drive/view/recent_screen.dart';
 import 'package:nde_email/presantation/drive/view/storage_screen.dart';
 import 'package:nde_email/presantation/drive/view/trash_screen.dart';
+import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/widget/drawer_header.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/const/consts.dart';
 
@@ -146,8 +147,9 @@ class _DrawerMenuState extends State<DrawerMenu> {
             child: ListView(
               padding: EdgeInsets.zero,
               children: [
-                _DrawerHeader(
+                DrawerHeaderWidget(
                   userName: userName ?? "Unknown User",
+                  moduleName: "Drive",
                 ),
                 _buildDrawerItems(iconSize),
                 _buildAdditionalItems(iconSize),

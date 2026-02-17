@@ -13,7 +13,7 @@ class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
   State<CustomAppBar> createState() => _CustomAppBarState();
 
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight + 20);
+  Size get preferredSize => const Size.fromHeight(64);
 }
 
 class _CustomAppBarState extends State<CustomAppBar> {
@@ -41,19 +41,20 @@ class _CustomAppBarState extends State<CustomAppBar> {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
+      bottom: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
         child: Container(
-          height: 52,
+          height: 48,
           decoration: BoxDecoration(
             color: Colors.grey[200],
             borderRadius: BorderRadius.circular(28),
           ),
           child: Row(
             children: [
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
 
-              /// ☰ MENU
+              /// ☰ MENU ICON
               Builder(
                 builder: (context) => IconButton(
                   icon: const Icon(Icons.menu),
@@ -64,7 +65,8 @@ class _CustomAppBarState extends State<CustomAppBar> {
                 ),
               ),
 
-              /// 🔍 SEARCH BAR
+              const SizedBox(width: 8),
+
               Expanded(
                 child: GestureDetector(
                   onTap: () {
@@ -78,20 +80,22 @@ class _CustomAppBarState extends State<CustomAppBar> {
                   child: AbsorbPointer(
                     child: TextField(
                       readOnly: true,
+                      textAlignVertical: TextAlignVertical.center,
                       decoration: const InputDecoration(
-                        hintText: '  Search...',
+                        hintText: 'Search...',
                         hintStyle: TextStyle(
                           color: AppColors.secondaryText,
                           fontSize: 14.5,
                         ),
                         border: InputBorder.none,
                         isCollapsed: true,
-                        contentPadding: EdgeInsets.symmetric(vertical: 14),
                       ),
                     ),
                   ),
                 ),
               ),
+
+              const SizedBox(width: 12),
             ],
           ),
         ),

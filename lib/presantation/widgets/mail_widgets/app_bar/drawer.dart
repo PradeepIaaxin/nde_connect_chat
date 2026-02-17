@@ -6,6 +6,7 @@ import 'package:nde_email/data/mailboxid.dart';
 import 'package:nde_email/presantation/mail/mail_list/bloc/mail_list_bloc.dart';
 import 'package:nde_email/presantation/mail/mail_list/bloc/mail_list_event.dart';
 import 'package:nde_email/presantation/mail/mail_list/bloc/mail_list_state.dart';
+import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/widget/drawer_header.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/widget/selectable_tile_widget.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/constants/font_colors.dart';
 import 'package:nde_email/utils/router/router.dart';
@@ -135,7 +136,10 @@ class _CustomDrawerState extends State<CustomDrawer> {
       child: SafeArea(
         child: Column(
           children: [
-            _profileHeader(),
+            DrawerHeaderWidget(
+              userName: userName ?? "Unknown User",
+              moduleName: "Mail",
+            ),
             Expanded(
               child: BlocBuilder<AppBarBloc, AppBarState>(
                 builder: (context, state) {

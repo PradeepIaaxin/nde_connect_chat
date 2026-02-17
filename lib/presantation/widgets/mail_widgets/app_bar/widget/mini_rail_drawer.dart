@@ -1,5 +1,8 @@
 import 'package:nde_email/presantation/calender/common/calendar_drawer.dart';
 import 'package:nde_email/presantation/calender/schedule/calendar_screen.dart';
+import 'package:nde_email/presantation/chat/chat_contact_list/user_listscreen.dart';
+import 'package:nde_email/presantation/chat/chat_list/chat_drawer_panel.dart';
+import 'package:nde_email/presantation/chat/device/screen/device_screen.dart';
 import 'package:nde_email/presantation/drive/common/drawer.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/drawer.dart';
 import 'package:nde_email/presantation/widgets/mail_widgets/app_bar/widget/rail_widget.dart';
@@ -20,6 +23,7 @@ class MiniRailDrawer extends StatefulWidget {
   final String? profilePicUrl;
   final CalendarViewType? calendarView;
   final Function(CalendarViewType)? onCalendarViewChanged;
+  final String? email;
 
   const MiniRailDrawer({
     super.key,
@@ -32,6 +36,7 @@ class MiniRailDrawer extends StatefulWidget {
     this.profilePicUrl,
     this.calendarView,
     this.onCalendarViewChanged,
+    this.email,
   });
 
   @override
@@ -42,6 +47,7 @@ class _MiniRailDrawerState extends State<MiniRailDrawer> {
   bool _showMailboxes = false;
   bool _showDrivePanel = false;
   bool _showCalendarPanel = false;
+  bool _showChatPanel = false;
 
   Timer? _navigationDebounceTimer;
 
@@ -61,30 +67,60 @@ class _MiniRailDrawerState extends State<MiniRailDrawer> {
     super.dispose();
   }
 
+  @override
+  void initState() {
+    super.initState();
+
+    /// AUTO OPEN PANEL BASED ON MODULE
+    if (widget.selectedModule == "mail") {
+      _showMailboxes = true;
+    } else if (widget.selectedModule == "drive") {
+      _showDrivePanel = true;
+    } else if (widget.selectedModule == "calendar") {
+      _showCalendarPanel = true;
+    } else if (widget.selectedModule == "chat") {
+      _showChatPanel = true;
+    }
+  }
+
   void _selectTab(BuildContext context, int index) {
     if (index == 0) {
       setState(() {
-        _showMailboxes = !_showMailboxes;
+        _showMailboxes = true;
+        _showDrivePanel = false;
+        _showCalendarPanel = false;
+        _showChatPanel = false;
+      });
+
+      context.read<AppBarBloc>().add(FetchMailboxesEvent());
+      widget.onMailTap();
+    } else if (index == 4) {
+      setState(() {
+        _showDrivePanel = true;
+        _showMailboxes = false;
+        _showCalendarPanel = false;
+        _showChatPanel = false;
+      });
+
+      widget.onMailTap();
+    } else if (index == 5) {
+      setState(() {
+        _showCalendarPanel = true;
+        _showMailboxes = false;
+        _showDrivePanel = false;
+        _showChatPanel = false;
+      });
+
+      widget.onMailTap();
+    } else if (index == 6) {
+      setState(() {
+        _showChatPanel = true;
+        _showMailboxes = false;
         _showDrivePanel = false;
         _showCalendarPanel = false;
       });
 
-      if (_showMailboxes) {
-        context.read<AppBarBloc>().add(FetchMailboxesEvent());
-        widget.onMailTap();
-      }
-    } else if (index == 4) {
-      setState(() {
-        _showDrivePanel = !_showDrivePanel;
-        _showMailboxes = false;
-        _showCalendarPanel = false;
-      });
-    } else if (index == 5) {
-      setState(() {
-        _showCalendarPanel = !_showCalendarPanel;
-        _showMailboxes = false;
-        _showDrivePanel = false;
-      });
+      widget.onMailTap();
     } else if (index == 2) {
       Navigator.pop(context);
       Scaffold.of(context).openEndDrawer();
@@ -97,7 +133,6 @@ class _MiniRailDrawerState extends State<MiniRailDrawer> {
     }
   }
 
-  /// ================= CRM =================
   Future<void> _openCrmApp() async {
     const packageName = "com.nowdigitaleasy.visionnow";
 
@@ -123,8 +158,12 @@ class _MiniRailDrawerState extends State<MiniRailDrawer> {
   @override
   Widget build(BuildContext context) {
     return Drawer(
-      width:
-          (_showMailboxes || _showDrivePanel || _showCalendarPanel) ? 320 : 85,
+      width: (_showMailboxes ||
+              _showDrivePanel ||
+              _showCalendarPanel ||
+              _showChatPanel)
+          ? 320
+          : 85,
       backgroundColor: Colors.white,
       child: SafeArea(
         child: Row(
@@ -172,6 +211,14 @@ class _MiniRailDrawerState extends State<MiniRailDrawer> {
                       index: 5,
                       selectedIndex: _showCalendarPanel ? 5 : -1,
                       onTap: () => _selectTab(context, 5),
+                    ),
+
+                  if (widget.selectedModule == "chat")
+                    RailItem(
+                      icon: Icons.chat_outlined,
+                      index: 6,
+                      selectedIndex: _showChatPanel ? 6 : -1,
+                      onTap: () => _selectTab(context, 6),
                     ),
 
                   /// CRM (IMAGE ICON)
@@ -255,9 +302,40 @@ class _MiniRailDrawerState extends State<MiniRailDrawer> {
                       },
                     )),
               ),
+
+            if (_showChatPanel)
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    border: Border(
+                      left: BorderSide(color: Colors.grey.shade300),
+                    ),
+                  ),
+                  child: ChatDrawerPanel(
+                    userName: widget.userName,
+                    onMenuTap: (value) {
+                      Navigator.pop(context);
+                      _handleNormalMenu(value);
+                    },
+                  ),
+                ),
+              ),
           ],
         ),
       ),
     );
+  }
+
+  void _handleNormalMenu(String value) {
+    switch (value) {
+      case 'new_group':
+        MyRouter.push(screen: const UserListScreen());
+        break;
+
+      case 'devices':
+        MyRouter.push(screen: const DeviceScreen());
+        break;
+    }
   }
 }

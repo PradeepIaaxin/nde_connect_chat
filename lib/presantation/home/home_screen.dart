@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:developer';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -259,11 +261,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       drawer:
                           (navState.selectedIndex == 0 && !isSelectionActive)
                               ? MiniRailDrawer(
-                                selectedModule: "mail",
+                                  selectedModule: "mail",
+                                  email: gmail,
                                   selectedIndex: navState.selectedIndex,
                                   selectedMailboxId: selectedMailboxId,
                                   onMailboxSelected: _onMailboxSelected,
                                   onMailTap: () {
+                                    scaffoldKey.currentState?.openDrawer();
                                     // Fetch mailboxes when mail icon is tapped
                                     context
                                         .read<AppBarBloc>()
@@ -321,7 +325,7 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       } else if (selectedMailboxId.isNotEmpty) {
         return MailListScreen(
-          key: ValueKey(selectedMailboxId), 
+          key: ValueKey(selectedMailboxId),
           mailboxId: selectedMailboxId,
           mailboxName: widget.mailboxName,
         );
@@ -396,6 +400,7 @@ class _HomeScreenState extends State<HomeScreen> {
       drawer: (selectedIndex == 0 && !isSelectionActive)
           ? MiniRailDrawer(
               selectedModule: "mail",
+              email: gmail,
               selectedIndex: selectedIndex,
               selectedMailboxId: selectedMailboxId,
               onMailboxSelected: _onMailboxSelected,
